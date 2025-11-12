@@ -1,5 +1,5 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.css";
 import App from "./App";
@@ -17,7 +17,8 @@ if (package_json.homepage) {
 
 console.log("Configuring router with basename " + basename);
 
-ReactDOM.render(
+const root = createRoot(document.getElementById("root"));
+root.render(
   <BrowserRouter basename={basename}>
     <Routes>
       <Route path="/">
@@ -44,6 +45,5 @@ ReactDOM.render(
         }}
       />
     </Routes>
-  </BrowserRouter>,
-  document.getElementById("root")
+  </BrowserRouter>
 );
