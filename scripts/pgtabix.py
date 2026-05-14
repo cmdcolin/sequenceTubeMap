@@ -9,6 +9,7 @@ parser = argparse.ArgumentParser(description='Build tabix index files for a pang
 parser.add_argument('-g', help='pangenome in GFA', required=True)
 parser.add_argument('-o', help='output prefix', default='pg')
 parser.add_argument('-s', help='size of haplotype blocks to save', default=100)
+parser.add_argument('-r', help='path name prefix filter for P-lines (default: all)', default='')
 args = parser.parse_args()
 
 nodes = {}
@@ -87,15 +88,43 @@ def prepareHapChunk(path, nodes, name='ref', coord=''):
              'min_node': min_node, 'max_node': max_node})
 
 
-# To only do one pass, let's assume that (all) the nodes are defined
-# before (any) paths in the GFA
+# Pass 1: collect all S-lines (handles GFAs where S/L lines are interleaved)
+def open_gfa(path):
+    return gzip.open(path, 'rt') if path.endswith('gz') else open(path, 'rt')
+
 print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
       '- Reading {}...'.format(args.g), file=sys.stderr)
-if args.g.endswith('gz'):
-    gfa_inf = gzip.open(args.g, 'rt')
-else:
-    gfa_inf = open(args.g, 'rt')
+with open_gfa(args.g) as gfa_inf:
+    for line in gfa_inf:
+        line = line.rstrip().split('\t')
+        if line[0] == 'S':
+            nodes[int(line[1])] = [len(line[2]), line[2]]
 
+# write node file
+print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+      '- Writing node file...', file=sys.stderr)
+n_gz_p = subprocess.Popen("bgzip > " + args.o + ".nodes.tsv.gz",
+                          stdin=subprocess.PIPE, shell=True)
+nodes_ord = list(nodes.keys())
+nodes_ord.sort()
+for node in nodes_ord:
+    tow = 'n\t{}\t{}\n'.format(node, nodes[node][1])
+    n_gz_p.stdin.write(tow.encode())
+n_gz_p.stdin.close()
+n_gz_p.wait()
+print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+      '- Node information written to '
+      '{}.'.format(args.o + ".nodes.tsv.gz"), file=sys.stderr)
+# create tabix index
+print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+      '- Indexing nodes', file=sys.stderr)
+idx_cmd = ['tabix', '-f', '-s', '1', '-b', '2', '-e', '2',
+           args.o + ".nodes.tsv.gz"]
+subprocess.run(idx_cmd, check=True)
+print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+      '- Nodes indexed.', file=sys.stderr)
+
+# Pass 2: process paths
 # start processes to sort and bgzip output
 h_gz_cmd = "vg gamsort -G - | bgzip > " + args.o + '.haps.gaf.gz'
 h_gz_p = subprocess.Popen(h_gz_cmd, stdin=subprocess.PIPE, shell=True)
@@ -103,42 +132,10 @@ p_gz_cmd = "sort -k1V -k2n -k3n | bgzip > " + args.o + '.pos.bed.gz'
 p_gz_p = subprocess.Popen(p_gz_cmd, stdin=subprocess.PIPE, shell=True)
 
 pos_fmt = '{}\t{}\t{}\t{}\t{}\n'
-nodes_written = False
 npaths = 0
-for line in gfa_inf:
-    line = line.rstrip().split('\t')
-    if line[0] == 'S':
-        # saving both the size and sequence (maybe faster than recomputing the
-        # size every time it's needed later)
-        nodes[int(line[1])] = [len(line[2]), line[2]]
-    else:
-        if len(nodes) > 0 and not nodes_written:
-            # we were reading nodes and we've just finished
-            # write them, in ascending order in a file
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                  '- Writing node file...', file=sys.stderr)
-            n_gz_p = subprocess.Popen("bgzip > " + args.o + ".nodes.tsv.gz",
-                                      stdin=subprocess.PIPE, shell=True)
-            nodes_ord = list(nodes.keys())
-            nodes_ord.sort()
-            for node in nodes_ord:
-                tow = 'n\t{}\t{}\n'.format(node, nodes[node][1])
-                n_gz_p.stdin.write(tow.encode())
-            n_gz_p.stdin.close()
-            n_gz_p.wait()
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                  '- Node information written to '
-                  '{}.'.format(args.o + ".nodes.tsv.gz"), file=sys.stderr)
-            nodes_written = True
-            # create tabix index
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                  '- Indexing nodes', file=sys.stderr)
-            idx_cmd = ['tabix', '-f', '-s', '1', '-b', '2', '-e', '2',
-                       args.o + ".nodes.tsv.gz"]
-            subprocess.run(idx_cmd, check=True)
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                  '- Nodes indexed.', file=sys.stderr)
-        # now potentially prepare the path information
+with open_gfa(args.g) as gfa_inf:
+    for line in gfa_inf:
+        line = line.rstrip().split('\t')
         path = []
         if line[0] == 'W':
             path = parsePath(line[6])
@@ -183,7 +180,6 @@ for line in gfa_inf:
                 print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                       '- Wrote info for {} paths'.format(npaths),
                       file=sys.stderr)
-gfa_inf.close()
 
 # close position BED bgzip process
 p_gz_p.stdin.close()
