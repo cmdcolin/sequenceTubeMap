@@ -2,19 +2,18 @@ import { render, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import RegionInput from "./RegionInput";
 const handleRegionChangeMock = vi.fn();
-const MOCK_PATHS = ["pathy", "anotherPath", "node", "chr600"];
+const MOCK_REGIONS = {
+  chr: ["pathy", "anotherPath", "node", "chr600"],
+  chunk: ["", "", "", ""],
+  desc: ["desc1", "desc2", "desc3", "desc4"],
+  start: [1, 2, 3, 4],
+  end: [10, 20, 30, 40],
+};
 const INIT_REGION = "";
 const makeRegionInput = (region) => (
   <RegionInput
-    pathNames={MOCK_PATHS}
     region={region}
-    regionInfo={{
-      chr: [],
-      chunk: [],
-      desc: [],
-      end: [],
-      start: [],
-    }}
+    regionInfo={MOCK_REGIONS}
     handleRegionChange={handleRegionChangeMock}
   />
 );
@@ -37,8 +36,7 @@ test("it renders expected options for given props", () => {
   // Key down to ensure options show up
   fireEvent.keyDown(autocomplete, { key: "ArrowDown" });
 
-  // Make sure all our mock paths are showing up
-  expect(screen.getAllByRole("option")).toHaveLength(MOCK_PATHS.length);
+  expect(screen.getAllByRole("option")).toHaveLength(MOCK_REGIONS.chr.length);
 });
 test("it calls handleRegionChange when region is changed with new region", async () => {
   // Ensure region is added when it's not part of the option list

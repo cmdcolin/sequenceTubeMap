@@ -13,13 +13,7 @@ export const RegionInput = ({
   region,
   regionInfo,
   handleRegionChange,
-  pathNames,
 }) => {
-  // Generate autocomplete options for regions from regionInfo
-  // Add : to pathNames
-  const pathNamesColon = pathNames.map((name) => {
-    return { label: name + ":", value: name + ":" };
-  });
   const pathsWithRegion = [];
 
   const regionToDesc = new Map();
@@ -37,8 +31,7 @@ export const RegionInput = ({
     }
   }
 
-  // Autocomplete selectable options
-  const displayRegions = [...pathsWithRegion, ...pathNamesColon];
+  const displayRegions = pathsWithRegion;
 
   let descLabel = "Region";
   if (regionToDesc.get(region)) {

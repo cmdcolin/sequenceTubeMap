@@ -14,7 +14,6 @@ export default (
         end: [90],
         desc: ["Something cool"],
       }),
-      pathNames: P.json(["pathy", "anotherPath", "node", "chr600"]),
     }}
   >
     {(props, update) => {

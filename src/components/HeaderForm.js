@@ -930,7 +930,6 @@ function HeaderForm({
             )}
             {!examplesFlag && (
               <RegionInput
-                pathNames={pathInfo.map((p) => p.name)}
                 regionInfo={regionInfo}
                 handleRegionChange={(coords) => handleRegionChange(coords)}
                 region={region}
