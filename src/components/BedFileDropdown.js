@@ -2,6 +2,9 @@ import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 
 function getFilename(fullPath) {
+  if (!fullPath || fullPath === "none") {
+    return "";
+  }
   const segments = fullPath.split("/");
   return segments[segments.length - 1];
 }
@@ -26,9 +29,14 @@ export function BedFileDropdown({ id, inputId, className, value, onChange, optio
         }
       }}
       renderInput={(params) => (
-        <TextField {...params} inputProps={{ ...params.inputProps, id: inputId }} />
+        <TextField
+          {...params}
+          size="small"
+          placeholder="None"
+          inputProps={{ ...params.inputProps, id: inputId }}
+        />
       )}
-      sx={{ minWidth: 200, display: "inline-block" }}
+      sx={{ minWidth: 200, display: "inline-block", verticalAlign: "middle" }}
     />
   );
 }

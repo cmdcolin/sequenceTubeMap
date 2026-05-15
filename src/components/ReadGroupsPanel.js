@@ -100,7 +100,10 @@ const ReadGroupsPanel = ({
   const otherSolid = isSolid(otherReadsColor);
   return (
   <div style={PANEL_STYLE}>
-    <div style={HEADER_STYLE}>
+    <div
+      style={HEADER_STYLE}
+      title="Reads in a named group use that group's palette. All ungrouped reads use the 'Other reads' palette below. Deleting every group restores the default strand-based coloring."
+    >
       Read coloring
       <span style={COUNT_STYLE}>
         ({groups.length} group{groups.length === 1 ? "" : "s"} + other)

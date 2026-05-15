@@ -1,7 +1,7 @@
 // Tests functionality without server
 
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 
@@ -80,11 +80,16 @@ it("renders without crashing when sent bad fetch data from server", async () => 
 
 it("allows the data source to be changed", async () => {
   render(<App />);
-  expect(screen.getByLabelText(/Data/i).value).toEqual("snp1kg-BRCA1");
-  await userEvent.selectOptions(screen.getByLabelText(/Data/i), "cactus");
-  expect(screen.getByLabelText(/Data/i).value).toEqual("cactus");
-  await userEvent.selectOptions(screen.getByLabelText(/Data/i), 'vg "small" example');
-  expect(screen.getByLabelText(/Data/i).value).toEqual('vg "small" example');
+  const dataSelect = within(screen.getByTestId("dataSourceSelect")).getByRole("combobox");
+  expect(dataSelect.textContent).toEqual("snp1kg-BRCA1");
+
+  fireEvent.mouseDown(dataSelect);
+  fireEvent.click(await screen.findByRole("option", { name: "cactus" }));
+  expect(dataSelect.textContent).toEqual("cactus");
+
+  fireEvent.mouseDown(dataSelect);
+  fireEvent.click(await screen.findByRole("option", { name: 'vg "small" example' }));
+  expect(dataSelect.textContent).toEqual('vg "small" example');
 });
 
 it("allows the start to be cleared", async () => {

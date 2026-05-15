@@ -1,21 +1,17 @@
 import React from "react";
-import { render, fireEvent, waitFor } from "@testing-library/react";
+import { render, fireEvent, screen, within } from "@testing-library/react";
 import { TrackTypeDropdown } from "./TrackTypeDropdown";
-import { screen } from "@testing-library/react";
 
 describe("TrackTypeDropdown", () => {
   it("calls the onChange callback handler", async () => {
     const onChange = vi.fn();
-    const { queryByTestId } = render(
-      <TrackTypeDropdown
-        value="haplotype"
-        onChange={onChange}
-      ></TrackTypeDropdown>
+    const { getByTestId } = render(
+      <TrackTypeDropdown value="haplotype" onChange={onChange} />
     );
-    const fileTypeSelectComponent = queryByTestId("file-type-select-component");
-    fireEvent.keyDown(fileTypeSelectComponent.firstChild, { key: "ArrowDown" });
-    await waitFor(() => screen.getByText("graph"));
-    fireEvent.click(screen.getByText("graph"));
+    const combobox = within(getByTestId("file-type-select-component")).getByRole("combobox");
+    fireEvent.mouseDown(combobox);
+    const option = await screen.findByRole("option", { name: "graph" });
+    fireEvent.click(option);
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenLastCalledWith("graph");

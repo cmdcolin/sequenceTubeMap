@@ -1,7 +1,14 @@
 import React from "react";
-import { render, fireEvent, waitFor } from "@testing-library/react";
+import { render, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TrackFilePicker } from "./TrackFilePicker";
+
+function openAutocomplete(component) {
+  const input = within(component).getByRole("combobox");
+  input.focus();
+  fireEvent.keyDown(input, { key: "ArrowDown" });
+  return input;
+}
 
 describe("TrackFilePicker", () => {
   const testTracks = [
@@ -14,7 +21,7 @@ describe("TrackFilePicker", () => {
 
   it("should render without errors", async () => {
     const fakeOnChange = vi.fn();
-    const { getByText } = render(
+    const { getByPlaceholderText } = render(
       <TrackFilePicker
         tracks={testTracks}
         fileType={"graph"}
@@ -23,14 +30,12 @@ describe("TrackFilePicker", () => {
       />
     );
 
-    // maybe need to search by "Select a file"
-    const placeholder = await getByText("Select a file");
-    expect(placeholder).toBeTruthy();
+    expect(getByPlaceholderText("Select a file")).toBeTruthy();
   });
 
   it("should allow value to be controlled", async () => {
     const fakeOnChange = vi.fn();
-    const { getByText, queryByText, rerender } = render(
+    const { getByDisplayValue, rerender } = render(
       <TrackFilePicker
         tracks={testTracks}
         fileType={"graph"}
@@ -40,10 +45,7 @@ describe("TrackFilePicker", () => {
       />
     );
 
-    let displayed = getByText("fileA1.vg");
-    expect(displayed).toBeTruthy();
-    let notDisplayed = queryByText("fileC1.xg");
-    expect(notDisplayed).toBeFalsy();
+    expect(getByDisplayValue("fileA1.vg")).toBeTruthy();
 
     rerender(
       <TrackFilePicker
@@ -55,15 +57,12 @@ describe("TrackFilePicker", () => {
       />
     );
 
-    displayed = getByText("fileC1.xg");
-    expect(displayed).toBeTruthy();
-    notDisplayed = queryByText("fileA1.vg");
-    expect(notDisplayed).toBeFalsy();
+    expect(getByDisplayValue("fileC1.xg")).toBeTruthy();
   });
 
   it("should call onChange when an option is selected", async () => {
     const fakeOnChange = vi.fn();
-    const { getByText, queryByTestId } = render(
+    const { queryByTestId, findByRole } = render(
       <TrackFilePicker
         tracks={testTracks}
         fileType={"haplotype"}
@@ -72,24 +71,17 @@ describe("TrackFilePicker", () => {
       />
     );
 
-    // find div containing the component
     const fileSelectComponent = queryByTestId("file-select-component");
+    const input = openAutocomplete(fileSelectComponent);
 
-    expect(fileSelectComponent).toBeDefined();
-    expect(fileSelectComponent).not.toBeNull();
-
-    // expand the select box
-    fireEvent.keyDown(fileSelectComponent.firstChild, { key: "ArrowDown" });
-    await waitFor(() => getByText("fileB1.gbwt"));
-    fireEvent.click(getByText("fileB1.gbwt"));
+    fireEvent.click(await findByRole("option", { name: "fileB1.gbwt" }));
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1);
     expect(fakeOnChange).toHaveBeenCalledWith("fileB1.gbwt");
 
-    // make sure we can repeat the process
-    fireEvent.keyDown(fileSelectComponent.firstChild, { key: "ArrowDown" });
-    await waitFor(() => getByText("fileA2.gbwt"));
-    fireEvent.click(getByText("fileA2.gbwt"));
+    fireEvent.change(input, { target: { value: "" } });
+    openAutocomplete(fileSelectComponent);
+    fireEvent.click(await findByRole("option", { name: "fileA2.gbwt" }));
 
     expect(fakeOnChange).toHaveBeenCalledTimes(2);
     expect(fakeOnChange).toHaveBeenCalledWith("fileA2.gbwt");
@@ -97,7 +89,7 @@ describe("TrackFilePicker", () => {
 
   it("should call onChange when queried by input value", async () => {
     const fakeOnChange = vi.fn();
-    const { getByText, queryByTestId, container } = render(
+    const { queryByTestId, findByRole } = render(
       <TrackFilePicker
         tracks={testTracks}
         fileType={"graph"}
@@ -107,15 +99,10 @@ describe("TrackFilePicker", () => {
     );
 
     const fileSelectComponent = queryByTestId("file-select-component");
+    const input = openAutocomplete(fileSelectComponent);
 
-    fireEvent.change(container.querySelector("input"), {
-      target: { value: "fileC1.xg" },
-    });
-
-    fireEvent.keyDown(fileSelectComponent.firstChild, { key: "ArrowDown" });
-
-    await waitFor(() => getByText("fileC1.xg"));
-    fireEvent.click(getByText("fileC1.xg"));
+    fireEvent.change(input, { target: { value: "fileC1" } });
+    fireEvent.click(await findByRole("option", { name: "fileC1.xg" }));
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1);
     expect(fakeOnChange).toHaveBeenCalledWith("fileC1.xg");

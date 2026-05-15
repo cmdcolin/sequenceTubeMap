@@ -20,7 +20,6 @@ import {
 } from "@testing-library/react";
 import { setCopyCallback, writeToClipboard } from "./components/CopyLink";
 import userEvent from "@testing-library/user-event";
-import selectEvent from "react-select-event";
 import App from "./App";
 
 const getRegionInput = () => {

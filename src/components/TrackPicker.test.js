@@ -1,9 +1,19 @@
 import React from "react";
-import { render, fireEvent, waitFor } from "@testing-library/react";
+import { render, fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { TrackPicker } from "./TrackPicker";
 import "../config-client.js";
 import { config } from "../config-global.mjs";
 import { defaultTrackColors } from "../common.mjs";
+
+function openSelect(container) {
+  fireEvent.mouseDown(within(container).getByRole("combobox"));
+}
+
+function openAutocomplete(container) {
+  const input = within(container).getByRole("combobox");
+  input.focus();
+  fireEvent.keyDown(input, { key: "ArrowDown" });
+}
 
 describe("TrackPicker", () => {
   const tracks = {
@@ -103,36 +113,24 @@ describe("TrackPicker", () => {
     // select a file for all three track items
 
     // first track item
-    fireEvent.keyDown(queryByTestId("file-select-component1").firstChild, {
-      key: "ArrowDown",
-    });
-    await waitFor(() => getByText("fileA1.vg"));
-    fireEvent.click(getByText("fileA1.vg"));
+    openAutocomplete(queryByTestId("file-select-component1"));
+    fireEvent.click(await screen.findByRole("option", { name: "fileA1.vg" }));
 
     // onChange should not be called
     expect(fakeOnChange).toHaveBeenCalledTimes(0);
 
     // second track item
-    fireEvent.keyDown(queryByTestId("file-type-select-component2").firstChild, {
-      key: "ArrowDown",
-    });
-    await waitFor(() => getByText("haplotype"));
-    fireEvent.click(getByText("haplotype"));
+    openSelect(queryByTestId("file-type-select-component2"));
+    fireEvent.click(await screen.findByRole("option", { name: "haplotype" }));
 
-    fireEvent.keyDown(queryByTestId("file-select-component2").firstChild, {
-      key: "ArrowDown",
-    });
-    await waitFor(() => getByText("fileB1.gbwt"));
-    fireEvent.click(getByText("fileB1.gbwt"));
+    openAutocomplete(queryByTestId("file-select-component2"));
+    fireEvent.click(await screen.findByRole("option", { name: "fileB1.gbwt" }));
 
     expect(fakeOnChange).toHaveBeenCalledTimes(0);
 
     // third track item
-    fireEvent.keyDown(queryByTestId("file-select-component3").firstChild, {
-      key: "ArrowDown",
-    });
-    await waitFor(() => getByText("fileC1.xg"));
-    fireEvent.click(getByText("fileC1.xg"));
+    openAutocomplete(queryByTestId("file-select-component3"));
+    fireEvent.click(await screen.findByRole("option", { name: "fileC1.xg" }));
 
     let newTracks = JSON.parse(JSON.stringify(tracks));
 
@@ -163,17 +161,11 @@ describe("TrackPicker", () => {
       />
     );
 
-    fireEvent.keyDown(queryByTestId("file-type-select-component4").firstChild, {
-      key: "ArrowDown",
-    });
-    await waitFor(() => getByText("read"));
-    fireEvent.click(getByText("read"));
+    openSelect(queryByTestId("file-type-select-component4"));
+    fireEvent.click(await screen.findByRole("option", { name: "read" }));
 
-    fireEvent.keyDown(queryByTestId("file-select-component4").firstChild, {
-      key: "ArrowDown",
-    });
-    await waitFor(() => getByText("fileB2.gam"));
-    fireEvent.click(getByText("fileB2.gam"));
+    openAutocomplete(queryByTestId("file-select-component4"));
+    fireEvent.click(await screen.findByRole("option", { name: "fileB2.gam" }));
 
     newTracks[4] = {
       trackFile: "fileB2.gam",
@@ -208,10 +200,10 @@ describe("TrackPicker", () => {
     // close popup
     fireEvent.click(queryByTestId("TrackPickerCloseButton"));
 
-    expect(queryByTestId("file-type-select-component1")).toBeFalsy();
-
+    await waitFor(() => {
+      expect(queryByTestId("file-type-select-component1")).toBeFalsy();
+    });
     expect(queryByTestId("file-select-component1")).toBeFalsy();
-
     expect(queryByTestId("settings-button-component1")).toBeFalsy();
   });
 });

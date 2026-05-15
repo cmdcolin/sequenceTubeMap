@@ -894,6 +894,7 @@ function HeaderForm({
             </Label>
             <MuiSelect
               id="dataSourceSelect"
+              data-testid="dataSourceSelect"
               size="small"
               fullWidth
               value={dataSourceValue}

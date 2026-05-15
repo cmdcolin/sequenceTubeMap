@@ -1,6 +1,16 @@
 import React from "react";
-import { render, fireEvent, waitFor } from "@testing-library/react";
+import { render, fireEvent, waitFor, within, screen } from "@testing-library/react";
 import { TrackList } from "./TrackList";
+
+function openSelect(container) {
+  fireEvent.mouseDown(within(container).getByRole("combobox"));
+}
+
+function openAutocomplete(container) {
+  const input = within(container).getByRole("combobox");
+  input.focus();
+  fireEvent.keyDown(input, { key: "ArrowDown" });
+}
 describe("TrackList", () => {
   const tracks = {
     1: {
@@ -99,12 +109,8 @@ describe("TrackList", () => {
     );
 
     // select file type
-    const fileTypeSelectComponent = queryByTestId(
-      "file-type-select-component1"
-    );
-    fireEvent.keyDown(fileTypeSelectComponent.firstChild, { key: "ArrowDown" });
-    await waitFor(() => getByText("haplotype"));
-    fireEvent.click(getByText("haplotype"));
+    openSelect(queryByTestId("file-type-select-component1"));
+    fireEvent.click(await screen.findByRole("option", { name: "haplotype" }));
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1);
     let newTracks = JSON.parse(JSON.stringify(tracks));
@@ -112,10 +118,8 @@ describe("TrackList", () => {
     rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete);
 
     // change file name
-    const fileSelectComponent = queryByTestId("file-select-component1");
-    fireEvent.keyDown(fileSelectComponent.firstChild, { key: "ArrowDown" });
-    await waitFor(() => getByText("fileB1.gbwt"));
-    fireEvent.click(getByText("fileB1.gbwt"));
+    openAutocomplete(queryByTestId("file-select-component1"));
+    fireEvent.click(await screen.findByRole("option", { name: "fileB1.gbwt" }));
 
     expect(fakeOnChange).toHaveBeenCalledTimes(2);
     newTracks[1].trackFile = "fileB1.gbwt";
@@ -156,10 +160,8 @@ describe("TrackList", () => {
 
     rerenderTrackList(rerender, tracks, fakeOnChange2, fakeOnDelete);
 
-    const fileSelectComponent = queryByTestId("file-select-component1");
-    fireEvent.keyDown(fileSelectComponent.firstChild, { key: "ArrowDown" });
-    await waitFor(() => getByText("fileA1.vg"));
-    fireEvent.click(getByText("fileA1.vg"));
+    openAutocomplete(queryByTestId("file-select-component1"));
+    fireEvent.click(await screen.findByRole("option", { name: "fileA1.vg" }));
 
     expect(fakeOnChange1).toHaveBeenCalledTimes(0);
     expect(fakeOnChange2).toHaveBeenCalledTimes(1);

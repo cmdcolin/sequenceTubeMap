@@ -1,5 +1,5 @@
 import React from "react";
-import { render, fireEvent, waitFor } from "@testing-library/react";
+import { render, fireEvent, waitFor, within, screen } from "@testing-library/react";
 import { TrackListItem } from "./TrackListItem";
 describe("TrackListItem", () => {
   const trackFile = undefined;
@@ -43,14 +43,9 @@ describe("TrackListItem", () => {
       />
     );
 
-    let placeholder = getByRole("button", { name: /Settings/i });
-    expect(placeholder).toBeTruthy();
-
-    placeholder = await getByText("graph");
-    expect(placeholder).toBeTruthy();
-
-    placeholder = await getByText("Select a file");
-    expect(placeholder).toBeTruthy();
+    expect(getByRole("button", { name: /Settings/i })).toBeTruthy();
+    expect(getByText("graph")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Select a file")).toBeTruthy();
   });
 
   it("should call onChange correctly", async () => {
@@ -78,9 +73,8 @@ describe("TrackListItem", () => {
     const fileTypeSelectComponent = queryByTestId(
       "file-type-select-component1"
     );
-    fireEvent.keyDown(fileTypeSelectComponent.firstChild, { key: "ArrowDown" });
-    await waitFor(() => getByText("haplotype"));
-    fireEvent.click(getByText("haplotype"));
+    fireEvent.mouseDown(within(fileTypeSelectComponent).getByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "haplotype" }));
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1);
 
@@ -102,9 +96,10 @@ describe("TrackListItem", () => {
 
     // change file name
     const fileSelectComponent = queryByTestId("file-select-component1");
-    fireEvent.keyDown(fileSelectComponent.firstChild, { key: "ArrowDown" });
-    await waitFor(() => getByText("fileB1.gbwt"));
-    fireEvent.click(getByText("fileB1.gbwt"));
+    const fileInput = within(fileSelectComponent).getByRole("combobox");
+    fileInput.focus();
+    fireEvent.keyDown(fileInput, { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("option", { name: "fileB1.gbwt" }));
 
     expect(fakeOnChange).toHaveBeenCalledTimes(2);
     expect(fakeOnChange).toHaveBeenCalledWith(1, {

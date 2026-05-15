@@ -92,11 +92,12 @@ export const TrackFilePicker = ({
   }
   
   if (pickerType === "mounted") {
+    const placeholderActive = value === undefined;
     return (
       <div data-testid={testID}>
         <Autocomplete
           options={allOptions}
-          value={currentOption}
+          value={placeholderActive ? null : currentOption}
           size="small"
           disableClearable
           isOptionEqualToValue={(o, v) => o.value === v.value}
@@ -106,7 +107,12 @@ export const TrackFilePicker = ({
           }}
           className={className}
           sx={{ minWidth: 240 }}
-          renderInput={(params) => <TextField {...params} />}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder={placeholderActive ? "Select a file" : undefined}
+            />
+          )}
         />
       </div>
     );

@@ -1,12 +1,12 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { TrackSettingsButton } from "./TrackSettingsButton";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe("TrackSettingsButton", () => {
   it("opens popup", async () => {
-    const result = render(
+    render(
       <TrackSettingsButton
         fileType="graph"
         trackColorSettings={{
@@ -23,8 +23,10 @@ describe("TrackSettingsButton", () => {
 
     expect(screen.getByRole("heading")).toBeTruthy();
 
-    await userEvent.click(screen.getByTestId("settings-button-component"));
+    await userEvent.click(screen.getByTestId("PopupDialogCloseButton"));
 
-    expect(screen.queryByRole("heading")).toBeFalsy();
+    await waitFor(() => {
+      expect(screen.queryByRole("heading")).toBeFalsy();
+    });
   });
 });
