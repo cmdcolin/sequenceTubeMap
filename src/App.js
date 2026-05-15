@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState } from "react";
 import isEqual from "react-fast-compare";
 
 import "./App.css";
@@ -48,13 +48,11 @@ function getAPIMode(apiInterface) {
   }
 }
 
-function App({ apiUrl = (config.BACKEND_URL || `${window.location.origin}`) + "/api/v0" }) {
-  console.log("App component starting up with API URL: " + apiUrl);
+const defaultApiUrl = (config.BACKEND_URL || `${window.location.origin}`) + "/api/v0";
+const defaultViewTarget = urlParamsToViewTarget(document.location) ?? config.DATA_SOURCES[0];
 
-  const defaultViewTarget = useMemo(
-    () => urlParamsToViewTarget(document.location) ?? config.DATA_SOURCES[0],
-    []
-  );
+function App({ apiUrl = defaultApiUrl }) {
+  console.log("App component starting up with API URL: " + apiUrl);
 
   const [dataOrigin, setDataOrigin] = useState(dataOriginTypes.API);
   const [viewTarget, setViewTarget] = useState(defaultViewTarget);
@@ -71,7 +69,7 @@ function App({ apiUrl = (config.BACKEND_URL || `${window.location.origin}`) + "/
   });
   const [apiInterface, setApiInterface] = useState(() => new ServerAPI(apiUrl));
 
-  const setAPIMode = useCallback((mode) => {
+  const setAPIMode = (mode) => {
     if (mode === getAPIMode(apiInterface)) {
       return;
     }
@@ -91,9 +89,9 @@ function App({ apiUrl = (config.BACKEND_URL || `${window.location.origin}`) + "/
     } else {
       throw new Error("Unimplemented API mode: " + mode);
     }
-  }, [apiInterface, apiUrl, defaultViewTarget]);
+  };
 
-  const setCurrentViewTarget = useCallback((newTarget) => {
+  const setCurrentViewTarget = (newTarget) => {
     const newViewTarget = removeUndefined(newTarget);
     if (!isEqual(viewTarget, newViewTarget) || dataOrigin !== dataOriginTypes.API) {
       console.log("Adopting view target: ", newViewTarget);
@@ -103,19 +101,19 @@ function App({ apiUrl = (config.BACKEND_URL || `${window.location.origin}`) + "/
       setDataOrigin(dataOriginTypes.API);
       setVisOptions((v) => ({ ...v, colorSchemes: newColorSchemes }));
     }
-  }, [viewTarget, dataOrigin]);
+  };
 
-  const getCurrentViewTarget = useCallback(() => removeUndefined(viewTarget), [viewTarget]);
+  const getCurrentViewTarget = () => removeUndefined(viewTarget);
 
-  const toggleVisOptionFlag = useCallback((flagName) => {
+  const toggleVisOptionFlag = (flagName) => {
     setVisOptions((v) => ({ ...v, [flagName]: !v[flagName] }));
-  }, []);
+  };
 
-  const handleMappingQualityCutoffChange = useCallback((value) => {
+  const handleMappingQualityCutoffChange = (value) => {
     setVisOptions((v) => ({ ...v, mappingQualityCutoff: value }));
-  }, []);
+  };
 
-  const setColorSetting = useCallback((key, index, value) => {
+  const setColorSetting = (key, index, value) => {
     setVisOptions((v) => {
       const newcolors = [...v.colorSchemes];
       if (newcolors[index] === undefined) {
@@ -126,7 +124,7 @@ function App({ apiUrl = (config.BACKEND_URL || `${window.location.origin}`) + "/
       console.log("New colors: ", newcolors);
       return { ...v, colorSchemes: newcolors };
     });
-  }, []);
+  };
 
   return (
     <div>

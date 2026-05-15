@@ -1,7 +1,5 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import React, { useState, useEffect } from "react";
 import { Container, Row, Alert } from "reactstrap";
-import isEqual from "react-fast-compare";
 
 import TubeMap from "./TubeMap";
 import * as tubeMap from "../util/tubemap";
@@ -9,370 +7,201 @@ import { dataOriginTypes } from "../enums";
 import PopUpInfoDialog from "./PopUpInfoDialog";
 import ReadContextMenu from "./ReadContextMenu";
 
-class TubeMapContainer extends Component {
-  state = {
-    isLoading: true,
-    error: null,
-    infoDialogContent: undefined,
-    readContextMenu: null,
-    focusReadName: null,
-  };
+function readsFromStringToArray(readsString) {
+  return readsString.split("\n").filter((line) => line.length > 0).map((line) => JSON.parse(line));
+}
 
-  componentDidMount() {
-    this.fetchCanceler = new AbortController();
-    this.cancelSignal = this.fetchCanceler.signal;
-    this.getRemoteTubeMapData();
-  }
+function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [infoDialogContent, setInfoDialogContent] = useState(undefined);
+  const [readContextMenu, setReadContextMenu] = useState(null);
+  const [focusReadName, setFocusReadName] = useState(null);
+  const [nodes, setNodes] = useState(undefined);
+  const [tracks, setTracks] = useState(undefined);
+  const [reads, setReads] = useState(undefined);
+  const [region, setRegion] = useState(undefined);
+  const [coloredNodes, setColoredNodes] = useState(undefined);
 
-  componentWillUnmount() {
-    // Cancel the requests since we may have long running requests pending.
-    this.fetchCanceler.abort();
-  }
+  useEffect(() => {
+    const abortController = new AbortController();
+    const cancelSignal = abortController.signal;
 
-  handleFetchError(error, message) {
-    if (!this.cancelSignal.aborted) {
-      console.error(message, error);
-      this.setState({ error: error, isLoading: false });
+    if (dataOrigin === dataOriginTypes.API) {
+      setIsLoading(true);
+      setError(null);
+      APIInterface.getChunkedData(viewTarget, cancelSignal)
+        .then((json) => {
+          if (json.graph === undefined) {
+            throw new Error("Fetching remote data returned error");
+          }
+          let readTrackIDs = [];
+          let graphTrackID = null;
+          let haplotypeTrackID = null;
+          console.log("getting viewTarget ", viewTarget);
+          for (const i in viewTarget.tracks) {
+            const track = viewTarget.tracks[i];
+            if (track.trackType === "read") readTrackIDs.push(i);
+            if (track.trackType === "graph") graphTrackID = i;
+            if (track.trackType === "haplotype") haplotypeTrackID = i;
+          }
+          console.log("Graph track: " + graphTrackID + " Haplotype track: " + haplotypeTrackID);
+          const newNodes = tubeMap.vgExtractNodes(json.graph);
+          const newTracks = tubeMap.vgExtractTracks(json.graph, graphTrackID, haplotypeTrackID);
+          let readsArr = [];
+          let totalReads = 0;
+          for (const gam of json.gam) {
+            const newReads = tubeMap.vgExtractReads(newNodes, newTracks, gam, totalReads, readTrackIDs[readsArr.length]);
+            readsArr.push(newReads);
+            totalReads += newReads.length;
+          }
+          setNodes(newNodes);
+          setTracks(newTracks);
+          setReads(readsArr.flat());
+          setRegion(json.region);
+          setColoredNodes(json.coloredNodes);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          if (!cancelSignal.aborted) {
+            console.error("Fetching and parsing getChunkedData failed:", err);
+            setError(err);
+            setIsLoading(false);
+          } else {
+            console.log("fetch canceled by unmount", err.message);
+          }
+        });
     } else {
-      console.log("fetch canceled by componentWillUnmount", error.message);
-    }
-  }
-
-  componentDidUpdate(prevProps) {
-    // TODO: this is the way the React docs say to make requests (do them when
-    // the component updates), but when we make a request we pop ourselves into
-    // a loading state and immediately do another update, which then means we
-    // have to mess around with deep comparison to see we don't need yet a
-    // third update. Is there a way to let React keep track of the fact that we
-    // aren't up to date with the requested state yet?
-    if (this.props.dataOrigin !== prevProps.dataOrigin) {
-      this.props.dataOrigin === dataOriginTypes.API
-        ? this.getRemoteTubeMapData()
-        : this.getExampleData();
-    } else {
-      if (!isEqual(this.props.viewTarget, prevProps.viewTarget)) {
-        // We need to compare the fetch parameters with stringification because
-        // they will get swapped out for a different object all the time, and we
-        // don't want to compare object identity. TODO: stringify isn't
-        // guaranteed to be stable so we can still make extra requests.
-        this.getRemoteTubeMapData();
-      }
-    }
-    // updating visOptions will cause an error if the tubemap is not in place yet.
-    if (!this.state.isLoading) {
-      // Hook into item clicks form the tube map
-      tubeMap.setInfoCallback((text) => {
-        this.setState({ infoDialogContent: text });
+      setIsLoading(true);
+      import("../util/demo-data").then((data) => {
+        let newNodes = [];
+        let newTracks = [];
+        let newReads = [];
+        let newRegion = [];
+        let vg;
+        newNodes = data.inputNodes;
+        switch (dataOrigin) {
+          case dataOriginTypes.EXAMPLE_1:
+            newTracks = data.inputTracks1;
+            break;
+          case dataOriginTypes.EXAMPLE_2:
+            newTracks = data.inputTracks2;
+            break;
+          case dataOriginTypes.EXAMPLE_3:
+            newTracks = data.inputTracks3;
+            break;
+          case dataOriginTypes.EXAMPLE_4:
+            newTracks = data.inputTracks4;
+            break;
+          case dataOriginTypes.EXAMPLE_5:
+            newTracks = data.inputTracks5;
+            break;
+          case dataOriginTypes.EXAMPLE_6:
+            vg = JSON.parse(data.k3138);
+            newNodes = tubeMap.vgExtractNodes(vg);
+            newTracks = tubeMap.vgExtractTracks(vg, 0, 0);
+            newReads = tubeMap.vgExtractReads(newNodes, newTracks, readsFromStringToArray(data.demoReads), 0, 1);
+            break;
+          case dataOriginTypes.EXAMPLE_7:
+            vg = data.reverseAlignmentGraph;
+            newNodes = tubeMap.vgExtractNodes(vg);
+            newTracks = tubeMap.vgExtractTracks(vg, 0, 0);
+            newReads = tubeMap.vgExtractReads(newNodes, newTracks, data.mixedAlignmentReads, 0, 1);
+            break;
+          case dataOriginTypes.EXAMPLE_8:
+            vg = data.cycleGraph;
+            newNodes = tubeMap.vgExtractNodes(vg);
+            newTracks = tubeMap.vgExtractTracks(vg, 0, 0);
+            newReads = tubeMap.vgExtractReads(newNodes, newTracks, data.cycleReads, 0, 1);
+            break;
+          case dataOriginTypes.EXAMPLE_9:
+            vg = data.cycle2Graph;
+            newNodes = tubeMap.vgExtractNodes(vg);
+            newTracks = tubeMap.vgExtractTracks(vg, 0, 0);
+            newReads = tubeMap.vgExtractReads(newNodes, newTracks, data.cycle2Reads, 0, 1);
+            break;
+          case dataOriginTypes.NO_DATA:
+            break;
+          default:
+            console.log("invalid example data origin type:", dataOrigin);
+        }
+        setNodes(newNodes);
+        setTracks(newTracks);
+        setReads(newReads);
+        setRegion(newRegion);
+        setIsLoading(false);
       });
-      tubeMap.setReadContextMenuCallback((menu) => {
-        this.setState({ readContextMenu: menu });
-      });
-    }
-  }
-
-  render() {
-    const { isLoading, error } = this.state;
-
-    if (error) {
-      const message = error.message ? error.message : error;
-      return (
-        <div id="tubeMapContainer">
-          <Container>
-            <Row>
-              <Alert color="danger">{message}</Alert>
-            </Row>
-          </Container>
-        </div>
-      );
     }
 
-    if (isLoading) {
-      return (
-        <div id="tubeMapContainer">
-          <Container>
-            <Row>
-              <div id="loaderContainer">
-                <div id="loader" />
-              </div>
-            </Row>
-          </Container>
-        </div>
-      );
-    }
+    return () => abortController.abort();
+  }, [dataOrigin, viewTarget, APIInterface]);
 
-    // infoDialogContent's value was initialized to undefined, representing a closed dialog,
-    // and will be set to text to display to represent an open dialog.
-    // text stores the current value associated with infoDialogContent for this
-    // TubeMapContainer instance, so we can have a shorter name for it.
-    let attributes = this.state.infoDialogContent;
-    let isOpen;
-    if (attributes === undefined) {
-      isOpen = false;
-    } else {
-      isOpen = true;
-    }
-    // resets value of infoDialogContent upon close
-    const closePopup = () => this.setState({ infoDialogContent: undefined });
-    const { readContextMenu, focusReadName } = this.state;
+  useEffect(() => {
+    tubeMap.setInfoCallback((text) => setInfoDialogContent(text));
+    tubeMap.setReadContextMenuCallback((menu) => setReadContextMenu(menu));
+  }, []);
 
+  if (error) {
+    const message = error.message ? error.message : error;
     return (
       <div id="tubeMapContainer">
-        <PopUpInfoDialog
-          open={isOpen}
-          attributes={attributes}
-          close={closePopup}
-        />
-        {focusReadName ? (
-          <div
-            style={{
-              padding: "6px 12px",
-              background: "#fff3cd",
-              border: "1px solid #ffeeba",
-              borderRadius: "4px",
-              margin: "8px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              fontSize: "14px",
-            }}
-          >
-            <span>
-              Showing only read: <strong>{focusReadName}</strong>
-            </span>
-            <button
-              type="button"
-              onClick={() => this.setState({ focusReadName: null })}
-            >
-              Clear
-            </button>
-          </div>
-        ) : null}
-        <div id="tubeMapSVG">
-          <TubeMap
-            nodes={this.state.nodes}
-            tracks={this.state.tracks}
-            reads={this.state.reads}
-            region={this.state.region}
-            visOptions={{
-              coloredNodes: this.state.coloredNodes,
-              ...this.props.visOptions,
-              focusReadName: focusReadName,
-            }}
-            nodeSequences={!this.props.viewTarget.removeSequences}
-          />
-        </div>
-        {readContextMenu ? (
-          <ReadContextMenu
-            readName={readContextMenu.readName}
-            x={readContextMenu.x}
-            y={readContextMenu.y}
-            onFilter={(name) =>
-              this.setState({
-                focusReadName: name,
-                readContextMenu: null,
-              })
-            }
-            onClose={() => this.setState({ readContextMenu: null })}
-          />
-        ) : null}
+        <Container><Row><Alert color="danger">{message}</Alert></Row></Container>
       </div>
     );
   }
 
-  getRemoteTubeMapData = async () => {
-    this.setState({ isLoading: true, error: null });
-    try {
-      const json = await this.props.APIInterface.getChunkedData(
-        this.props.viewTarget,
-        this.cancelSignal
-      );
-      if (json.graph === undefined) {
-        // We did not get back a graph, even if we didn't get an error either.
-        const error = "Fetching remote data returned error";
-        throw new Error(error);
-      } else {
-        // go through viewTarget and create array of read file track numbers
-        let readTrackIDs = [];
-        // And the graph track number if any
-        let graphTrackID = null;
-        // And the haplotype track number if any
-        let haplotypeTrackID = null;
+  if (isLoading) {
+    return (
+      <div id="tubeMapContainer">
+        <Container><Row><div id="loaderContainer"><div id="loader" /></div></Row></Container>
+      </div>
+    );
+  }
 
-        console.log("getting viewTarget ", this.props.viewTarget);
-        for (const i in this.props.viewTarget.tracks) {
-          const track = this.props.viewTarget.tracks[i];
-          if (track.trackType === "read") {
-            //add track index to array if the track contains a gam file
-            readTrackIDs.push(i);
-          }
-          if (track.trackType === "graph") {
-            // Or note if it is a graph (one allowed)
-            graphTrackID = i;
-          }
-          if (track.trackType === "haplotype") {
-            // Or a collection of haplotypes (one allowed)
-            haplotypeTrackID = i;
-          }
-        }
+  const isOpen = infoDialogContent !== undefined;
 
-        console.log(
-          "Graph track: " +
-            graphTrackID +
-            " Haplotype track: " +
-            haplotypeTrackID
-        );
-
-        const nodes = tubeMap.vgExtractNodes(json.graph);
-        const tracks = tubeMap.vgExtractTracks(
-          json.graph,
-          graphTrackID,
-          haplotypeTrackID
-        );
-
-        // Call vgExtractReads on each file of reads and store in readsArr
-        let readsArr = [];
-        // Count total reads seen so far.
-        let totalReads = 0;
-        for (const gam of json.gam) {
-          // For each returned list of reads from a file, convert all those reads to tube map format.
-          // Include total read count to prevent duplicate ids.
-          // Also include the source track's ID.
-          let newReads = tubeMap.vgExtractReads(
-            nodes,
-            tracks,
-            gam,
-            totalReads,
-            readTrackIDs[readsArr.length]
-          );
-          readsArr.push(newReads);
-          totalReads += newReads.length;
-        }
-
-        // concatenate all reads together
-        const reads = readsArr.flat();
-
-        const region = json.region;
-        const coloredNodes = json.coloredNodes;
-        this.setState({
-          isLoading: false,
-          nodes,
-          tracks,
-          reads,
-          region,
-          coloredNodes,
-        });
-      }
-    } catch (error) {
-      this.handleFetchError(
-        error,
-        "Fetching and parsing getChunkedData failed:"
-      );
-    }
-  };
-
-  getExampleData = async () => {
-    this.setState({ isLoading: true });
-    // Nodes, tracks, and reads are all required, so start with defaults.
-    let nodes = [];
-    let tracks = [];
-    let reads = [];
-    let region = [];
-    let vg;
-    const data = await import("../util/demo-data");
-    nodes = data.inputNodes;
-    switch (this.props.dataOrigin) {
-      case dataOriginTypes.EXAMPLE_1:
-        tracks = data.inputTracks1;
-        break;
-      case dataOriginTypes.EXAMPLE_2:
-        tracks = data.inputTracks2;
-        break;
-      case dataOriginTypes.EXAMPLE_3:
-        tracks = data.inputTracks3;
-        break;
-      case dataOriginTypes.EXAMPLE_4:
-        tracks = data.inputTracks4;
-        break;
-      case dataOriginTypes.EXAMPLE_5:
-        tracks = data.inputTracks5;
-        break;
-      case dataOriginTypes.EXAMPLE_6:
-        vg = JSON.parse(data.k3138);
-        nodes = tubeMap.vgExtractNodes(vg);
-        tracks = tubeMap.vgExtractTracks(vg, 0, 0); // Examples have paths and haplotypes as track 0.
-        reads = tubeMap.vgExtractReads(
-          nodes,
-          tracks,
-          this.readsFromStringToArray(data.demoReads),
-          0,
-          1 // Examples always have reads as track 1
-        );
-        break;
-      case dataOriginTypes.EXAMPLE_7:
-        vg = data.reverseAlignmentGraph;
-        nodes = tubeMap.vgExtractNodes(vg);
-        tracks = tubeMap.vgExtractTracks(vg, 0, 0); // Examples have paths and haplotypes as track 0.
-        reads = tubeMap.vgExtractReads(
-          nodes,
-          tracks,
-          data.mixedAlignmentReads,
-          0,
-          1 // Examples always have reads as track 1
-        );
-        break;
-      case dataOriginTypes.EXAMPLE_8:
-        vg = data.cycleGraph;
-        nodes = tubeMap.vgExtractNodes(vg);
-        tracks = tubeMap.vgExtractTracks(vg, 0, 0); // Examples have paths and haplotypes as track 0.
-        reads = tubeMap.vgExtractReads(
-          nodes,
-          tracks,
-          data.cycleReads,
-          0,
-          1 // Examples always have reads as track 1
-        );
-
-        break;
-      case dataOriginTypes.EXAMPLE_9:
-        vg = data.cycle2Graph;
-        nodes = tubeMap.vgExtractNodes(vg);
-        tracks = tubeMap.vgExtractTracks(vg, 0, 0); // Examples have paths and haplotypes as track 0.
-        reads = tubeMap.vgExtractReads(
-          nodes,
-          tracks,
-          data.cycle2Reads,
-          0,
-          1 // Examples always have reads as track 1
-        );
-
-        break;
-      case dataOriginTypes.NO_DATA:
-        // Leave the data empty.
-        break;
-      default:
-        console.log("invalid example data origin type:", this.props.dataOrigin);
-    }
-
-    this.setState({ isLoading: false, nodes, tracks, reads, region });
-  };
-
-  readsFromStringToArray = (readsString) => {
-    const lines = readsString.split("\n");
-    const result = [];
-    lines.forEach((line) => {
-      if (line.length > 0) {
-        result.push(JSON.parse(line));
-      }
-    });
-    return result;
-  };
+  return (
+    <div id="tubeMapContainer">
+      <PopUpInfoDialog open={isOpen} attributes={infoDialogContent} close={() => setInfoDialogContent(undefined)} />
+      {focusReadName ? (
+        <div
+          style={{
+            padding: "6px 12px",
+            background: "#fff3cd",
+            border: "1px solid #ffeeba",
+            borderRadius: "4px",
+            margin: "8px 0",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "14px",
+          }}
+        >
+          <span>Showing only read: <strong>{focusReadName}</strong></span>
+          <button type="button" onClick={() => setFocusReadName(null)}>Clear</button>
+        </div>
+      ) : null}
+      <div id="tubeMapSVG">
+        <TubeMap
+          nodes={nodes}
+          tracks={tracks}
+          reads={reads}
+          region={region}
+          visOptions={{ coloredNodes, ...visOptions, focusReadName }}
+          nodeSequences={!viewTarget.removeSequences}
+        />
+      </div>
+      {readContextMenu ? (
+        <ReadContextMenu
+          readName={readContextMenu.readName}
+          x={readContextMenu.x}
+          y={readContextMenu.y}
+          onFilter={(name) => { setFocusReadName(name); setReadContextMenu(null); }}
+          onClose={() => setReadContextMenu(null)}
+        />
+      ) : null}
+    </div>
+  );
 }
-
-TubeMapContainer.propTypes = {
-  dataOrigin: PropTypes.oneOf(Object.values(dataOriginTypes)).isRequired,
-  viewTarget: PropTypes.object.isRequired,
-  visOptions: PropTypes.object.isRequired,
-  APIInterface: PropTypes.object.isRequired,
-};
 
 export default TubeMapContainer;

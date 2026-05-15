@@ -20,7 +20,11 @@ export default defineConfig({
         return transformWithOxc(code, id, { lang: 'jsx' })
       },
     },
-    react(),
+    react({
+      babel: {
+        plugins: [['babel-plugin-react-compiler', {}]],
+      },
+    }),
     wasm(),
   ],
   optimizeDeps: {
