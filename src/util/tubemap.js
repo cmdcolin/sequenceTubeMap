@@ -160,6 +160,7 @@ const config = {
     alert(info);
   },
   readContextMenuCallback: function () {},
+  nodeContextMenuCallback: function () {},
   focusReadNames: null,
 };
 
@@ -414,6 +415,30 @@ export function setInfoCallback(newCallback) {
 // The callback receives { readName, x, y } where x/y are clientX/clientY.
 export function setReadContextMenuCallback(newCallback) {
   config.readContextMenuCallback = newCallback;
+}
+
+// Set the callback fired when the user right-clicks a node in the tube map.
+// The callback receives { nodeName, readNames, x, y }.
+export function setNodeContextMenuCallback(newCallback) {
+  config.nodeContextMenuCallback = newCallback;
+}
+
+// Collect the names of all reads (from the unfiltered input) that traverse a
+// set of nodes. mode === "all" requires the read to visit every node in the
+// set (intersection); mode === "any" requires at least one (union).
+export function getReadNamesThroughNodes(nodeNames, mode) {
+  if (!inputReads || nodeNames.length === 0) return [];
+  const seen = new Set();
+  inputReads.forEach((read) => {
+    if (!read.name || !read.sequence) return;
+    const visited = new Set(read.sequence.map((s) => forward(s)));
+    const match =
+      mode === "all"
+        ? nodeNames.every((n) => visited.has(n))
+        : nodeNames.some((n) => visited.has(n));
+    if (match) seen.add(read.name);
+  });
+  return Array.from(seen);
 }
 
 // Restrict the displayed reads to the given set of read names. Pass null or
@@ -3377,6 +3402,7 @@ function drawNodes(dNodes, groupNode) {
     .on("mouseout", nodeMouseOut)
     .on("dblclick", nodeDoubleClick)
     .on("click", nodeSingleClick)
+    .on("contextmenu", nodeRightClick)
     .style("fill", (d) => colorNodes(d.name)["fill"])
     .style("fill-opacity", (d) => colorNodes(d.name)["fill-opacity"])
     .style("stroke", (d) => colorNodes(d.name)["outline"])
@@ -4426,6 +4452,20 @@ function trackRightClick() {
 // show track name when hovering mouse
 function getPopUpTrackText(trackid) {
   return trackid;
+}
+
+// Right-click on a node. Fires the node context-menu callback with the list of
+// read names (from the unfiltered input) that pass through the node.
+function nodeRightClick() {
+  /* jshint validthis: true */
+  const nodeName = d3.select(this).attr("id");
+  d3.event.preventDefault();
+  config.nodeContextMenuCallback({
+    nodeName,
+    readNames: getReadNamesThroughNodes([nodeName], "any"),
+    x: d3.event.clientX,
+    y: d3.event.clientY,
+  });
 }
 
 // Redraw with current node moved to beginning
