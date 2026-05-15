@@ -42,11 +42,10 @@ const DISABLED_ITEM_STYLE = {
   cursor: "default",
 };
 
-const MenuItem = ({ onClick, disabled, children }) => {
-  if (disabled) {
-    return <div style={DISABLED_ITEM_STYLE}>{children}</div>;
-  }
-  return (
+const MenuItem = ({ onClick, disabled, children }) =>
+  disabled ? (
+    <div style={DISABLED_ITEM_STYLE}>{children}</div>
+  ) : (
     <div
       style={ITEM_STYLE}
       onClick={() => onClick()}
@@ -56,7 +55,6 @@ const MenuItem = ({ onClick, disabled, children }) => {
       {children}
     </div>
   );
-};
 
 MenuItem.propTypes = {
   onClick: PropTypes.func,

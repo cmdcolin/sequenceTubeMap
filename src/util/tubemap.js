@@ -419,14 +419,10 @@ export function setReadContextMenuCallback(newCallback) {
 // Restrict the displayed reads to the given set of read names. Pass null or
 // an empty array to clear the filter.
 export function setFocusReadNames(value) {
-  const newValue =
-    value === undefined || value === null || value.length === 0 ? null : value;
-  const changed =
-    (config.focusReadNames === null) !== (newValue === null) ||
-    (newValue !== null &&
-      (newValue.length !== config.focusReadNames.length ||
-        newValue.some((n, i) => n !== config.focusReadNames[i])));
-  if (changed) {
+  const newValue = value && value.length > 0 ? value : null;
+  const oldKey = config.focusReadNames === null ? "" : config.focusReadNames.join("\0");
+  const newKey = newValue === null ? "" : newValue.join("\0");
+  if (oldKey !== newKey) {
     config.focusReadNames = newValue;
     if (svg !== undefined) {
       svg = d3.select(svgID);

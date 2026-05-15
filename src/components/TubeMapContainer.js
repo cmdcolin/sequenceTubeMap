@@ -18,7 +18,13 @@ const PENDING_PANEL_STYLE = {
   fontSize: "14px",
 };
 
-const PENDING_HEADER_STYLE = {
+const ACTIVE_FILTER_STYLE = {
+  ...PENDING_PANEL_STYLE,
+  background: "#fff3cd",
+  borderColor: "#ffeeba",
+};
+
+const PANEL_HEADER_STYLE = {
   display: "flex",
   alignItems: "center",
   gap: "8px",
@@ -36,7 +42,7 @@ const CHIP_STYLE = {
   alignItems: "center",
   gap: "4px",
   background: "white",
-  border: "1px solid #bcdcff",
+  border: "1px solid currentColor",
   borderRadius: "12px",
   padding: "2px 4px 2px 10px",
   fontSize: "13px",
@@ -50,18 +56,6 @@ const CHIP_REMOVE_STYLE = {
   lineHeight: "1",
   padding: "0 4px",
   color: "#666",
-};
-
-const ACTIVE_FILTER_STYLE = {
-  padding: "6px 12px",
-  background: "#fff3cd",
-  border: "1px solid #ffeeba",
-  borderRadius: "4px",
-  margin: "8px 0",
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  fontSize: "14px",
 };
 
 class TubeMapContainer extends Component {
@@ -170,16 +164,20 @@ class TubeMapContainer extends Component {
     // resets value of infoDialogContent upon close
     const closePopup = () => this.setState({ infoDialogContent: undefined });
     const { readContextMenu, pendingReadSet, focusReadNames } = this.state;
-    const isInPendingSet = (name) => pendingReadSet.includes(name);
+    // When the user starts editing a fresh set while a filter is active, seed
+    // pending with the active filter so adding/removing reads extends the
+    // current filter instead of replacing it.
+    const editingBase =
+      pendingReadSet.length === 0 && focusReadNames !== null
+        ? focusReadNames
+        : pendingReadSet;
     const addToPendingSet = (name) => {
-      if (!isInPendingSet(name)) {
-        this.setState({
-          pendingReadSet: [...pendingReadSet, name],
-          readContextMenu: null,
-        });
-      } else {
-        this.setState({ readContextMenu: null });
-      }
+      this.setState({
+        pendingReadSet: editingBase.includes(name)
+          ? editingBase
+          : [...editingBase, name],
+        readContextMenu: null,
+      });
     };
     const removeFromPendingSet = (name) => {
       this.setState({
@@ -188,7 +186,7 @@ class TubeMapContainer extends Component {
     };
     const applyPendingAsFilter = () => {
       this.setState({
-        focusReadNames: [...pendingReadSet],
+        focusReadNames: pendingReadSet,
         pendingReadSet: [],
       });
     };
@@ -202,10 +200,8 @@ class TubeMapContainer extends Component {
         />
         {pendingReadSet.length > 0 ? (
           <div style={PENDING_PANEL_STYLE}>
-            <div style={PENDING_HEADER_STYLE}>
-              <span>
-                Read set ({pendingReadSet.length}):
-              </span>
+            <div style={PANEL_HEADER_STYLE}>
+              <span>Read set ({pendingReadSet.length}):</span>
               <button type="button" onClick={() => applyPendingAsFilter()}>
                 Filter to these {pendingReadSet.length} read
                 {pendingReadSet.length === 1 ? "" : "s"}
@@ -236,29 +232,25 @@ class TubeMapContainer extends Component {
         ) : null}
         {focusReadNames ? (
           <div style={ACTIVE_FILTER_STYLE}>
-            <span>
-              {focusReadNames.length === 1 ? (
-                <>
-                  Showing only read: <strong>{focusReadNames[0]}</strong>
-                </>
-              ) : (
-                <>
-                  Showing only <strong>{focusReadNames.length}</strong> reads:{" "}
-                  <span title={focusReadNames.join(", ")}>
-                    {focusReadNames.slice(0, 3).join(", ")}
-                    {focusReadNames.length > 3
-                      ? `, +${focusReadNames.length - 3} more`
-                      : ""}
-                  </span>
-                </>
-              )}
-            </span>
-            <button
-              type="button"
-              onClick={() => this.setState({ focusReadNames: null })}
-            >
-              Clear filter
-            </button>
+            <div style={PANEL_HEADER_STYLE}>
+              <span>
+                Showing {focusReadNames.length} read
+                {focusReadNames.length === 1 ? "" : "s"}:
+              </span>
+              <button
+                type="button"
+                onClick={() => this.setState({ focusReadNames: null })}
+              >
+                Clear filter
+              </button>
+            </div>
+            <div style={CHIP_LIST_STYLE}>
+              {focusReadNames.map((name) => (
+                <span key={name} style={CHIP_STYLE}>
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
         ) : null}
         <div id="tubeMapSVG">
@@ -280,7 +272,7 @@ class TubeMapContainer extends Component {
             readName={readContextMenu.readName}
             x={readContextMenu.x}
             y={readContextMenu.y}
-            alreadyInSet={isInPendingSet(readContextMenu.readName)}
+            alreadyInSet={editingBase.includes(readContextMenu.readName)}
             onFilter={(name) =>
               this.setState({
                 focusReadNames: [name],
