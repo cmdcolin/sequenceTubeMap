@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardHeader, Collapse, CardBody, Button } from "reactstrap";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronRight, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 
 function PathsPanel({ pathInfo, onLoadPath }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,11 +12,20 @@ function PathsPanel({ pathInfo, onLoadPath }) {
     <Card className="mt-2">
       <CardHeader
         onClick={() => setIsOpen(!isOpen)}
-        style={{ cursor: "pointer" }}
+        style={{ cursor: "pointer", userSelect: "none" }}
         className="d-flex justify-content-between align-items-center"
+        role="button"
+        aria-expanded={isOpen}
       >
-        <span>Paths in this graph</span>
-        <span className="text-muted small">{pathInfo.length} paths</span>
+        <span>
+          <FontAwesomeIcon
+            icon={isOpen ? faChevronDown : faChevronRight}
+            className="me-2"
+            style={{ width: 12 }}
+          />
+          Paths in this graph
+        </span>
+        <span className="text-muted small">{pathInfo.length} paths {isOpen ? "(click to collapse)" : "(click to expand)"}</span>
       </CardHeader>
       <Collapse isOpen={isOpen}>
         <CardBody style={{ maxHeight: "300px", overflowY: "auto", padding: 0 }}>

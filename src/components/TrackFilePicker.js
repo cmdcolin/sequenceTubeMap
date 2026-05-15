@@ -1,4 +1,5 @@
-import Select from "react-select";
+import Autocomplete from "@mui/material/Autocomplete";
+import TextField from "@mui/material/TextField";
 import React from "react";
 import "../config-client.js";
 import { config } from "../config-global.mjs";
@@ -92,21 +93,20 @@ export const TrackFilePicker = ({
   
   if (pickerType === "mounted") {
     return (
-      // wrap Select container in div to easily query in tests
       <div data-testid={testID}>
-        <Select
+        <Autocomplete
           options={allOptions}
           value={currentOption}
-          // Identical-looking object literals will compare unequal, so we
-          // need to provide a way to turn them into strings so that
-          // `value` can be matched up with the corresponding item in
-          // `options`.
-          getOptionValue={(o) => {
-            return o["value"];
+          size="small"
+          disableClearable
+          isOptionEqualToValue={(o, v) => o.value === v.value}
+          getOptionLabel={(o) => o.label ?? ""}
+          onChange={(_event, newValue) => {
+            if (newValue) mountedOnChange(newValue);
           }}
-          onChange={mountedOnChange}
-          autoComplete="on"
           className={className}
+          sx={{ minWidth: 240 }}
+          renderInput={(params) => <TextField {...params} />}
         />
       </div>
     );

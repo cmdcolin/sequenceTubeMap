@@ -1,8 +1,8 @@
-import Popup from "reactjs-popup";
-import { Button } from "reactstrap";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
-import { Container, CardBody, Card } from "reactstrap";
 
 export const PopupDialog = ({
   open,
@@ -12,35 +12,35 @@ export const PopupDialog = ({
   width = "760px",
   testID = "PopupDialog",
 }) => {
-  // based off of https://react-popup.elazizi.com/controlled-popup/#using-open-prop
+  const handleClose = (_event, reason) => {
+    if (!closeOnDocumentClick && (reason === "backdropClick" || reason === "escapeKeyDown")) {
+      return;
+    }
+    close();
+  };
+
   return (
-    <>
-      <Popup
-        open={open}
-        closeOnDocumentClick={closeOnDocumentClick}
-        contentStyle={width !== null ? { width: width } : {}}
-        modal
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      data-testid={testID}
+      slotProps={{
+        paper: {
+          sx: width !== null ? { width, maxWidth: "none" } : {},
+        },
+      }}
+    >
+      <IconButton
+        onClick={() => close()}
+        data-testid={testID.concat("CloseButton")}
+        size="small"
+        sx={{ position: "absolute", top: 8, right: 8 }}
       >
-        <Container>
-          <Card style={{ boxShadow: "0 4px 8px 0 rgba(0, 0, 0, 0.2)" }}>
-            <CardBody>
-              {/* Close Button */}
-              <Button
-                className="closePopup"
-                onClick={close}
-                data-testid={testID.concat("CloseButton")}
-              >
-                <FontAwesomeIcon icon={faX} />
-              </Button>
-              <div>{children}</div>
-            </CardBody>
-          </Card>
-        </Container>
-      </Popup>
-    </>
+        <FontAwesomeIcon icon={faX} />
+      </IconButton>
+      <DialogContent>{children}</DialogContent>
+    </Dialog>
   );
 };
 
 export default PopupDialog;
-
-

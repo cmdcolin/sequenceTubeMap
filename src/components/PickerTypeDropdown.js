@@ -1,4 +1,5 @@
-import Select from "react-select";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 
 export const PickerTypeDropdown = ({
   value = "mounted",
@@ -6,30 +7,19 @@ export const PickerTypeDropdown = ({
   pickerOptions = ["upload, mounted"],
   testID = "picker-type-component",
 }) => {
-  function onChange(option) {
-    handleInputChange(option.value);
-  }
-
-  const dropDownOptions = pickerOptions.map((option) => ({
-    label: option,
-    value: option,
-  }));
-
   return (
     <div data-testid={testID}>
       <Select
-        options={dropDownOptions}
-        value={{ label: value, value: value }}
-        // Identical-looking object literals will compare unequal, so we
-        // need to provide a way to turn them into strings so that
-        // `value` can be matched up with the corresponding item in
-        // `options`.
-        getOptionValue={(o) => {
-          return o["value"];
-        }}
-        onChange={onChange}
-        autoComplete="on"
-      />
+        size="small"
+        value={value}
+        onChange={(e) => handleInputChange(e.target.value)}
+      >
+        {pickerOptions.map((option) => (
+          <MenuItem key={option} value={option}>
+            {option}
+          </MenuItem>
+        ))}
+      </Select>
     </div>
   );
 };
