@@ -543,14 +543,15 @@ function HeaderForm({
   }, []);
 
   function getNextViewTarget() {
+    const s = stateRef.current;
     return {
-      tracks,
-      bedFile,
-      name,
-      region,
-      dataType,
-      simplify: simplify && !readsExist(tracks),
-      removeSequences,
+      tracks: s.tracks,
+      bedFile: s.bedFile,
+      name: s.name,
+      region: s.region,
+      dataType: s.dataType,
+      simplify: s.simplify && !readsExist(s.tracks),
+      removeSequences: s.removeSequences,
     };
   }
 
