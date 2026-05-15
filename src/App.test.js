@@ -2,7 +2,6 @@
 
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import "@testing-library/jest-dom/extend-expect";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 
@@ -24,18 +23,14 @@ function clearFetchAndParseMock() {
   globalThis["__App.test.js_fetchAndParse_mock"] = undefined;
 }
 
-jest.mock("./fetchAndParse", () => {
-  // This dispatcher will replace fetchAndParse when we or anyone else imports it.
-  function fetchAndParseDispatcher() {
-    // Ge tthe real fetchAndParse
-    const { fetchAndParse } = jest.requireActual("./fetchAndParse");
-    // Grab the replacement or the real one if no replacement is set
-    let functionToUse =
+vi.mock("./fetchAndParse", async () => {
+  const actual = await vi.importActual("./fetchAndParse");
+  function fetchAndParseDispatcher(...args) {
+    const { fetchAndParse } = actual;
+    const functionToUse =
       globalThis["__App.test.js_fetchAndParse_mock"] ?? fetchAndParse;
-    // Give it any arguments we got and return its return value.
-    return functionToUse.apply(this, arguments);
+    return functionToUse.apply(this, args);
   }
-  // When someone asks for this module, hand them these contents instead.
   return {
     __esModule: true,
     fetchAndParse: fetchAndParseDispatcher,
@@ -45,7 +40,7 @@ jest.mock("./fetchAndParse", () => {
 // TODO: We won't need to do *any* of this if we actually get the ability to pass an API implementation into the app.
 
 beforeEach(() => {
-  jest.resetAllMocks();
+  vi.resetAllMocks();
   clearFetchAndParseMock();
 });
 
@@ -83,12 +78,12 @@ it("renders without crashing when sent bad fetch data from server", async () => 
   });
 });
 
-it("allows the data source to be changed", () => {
+it("allows the data source to be changed", async () => {
   render(<App />);
   expect(screen.getByLabelText(/Data/i).value).toEqual("snp1kg-BRCA1");
-  userEvent.selectOptions(screen.getByLabelText(/Data/i), "cactus");
+  await userEvent.selectOptions(screen.getByLabelText(/Data/i), "cactus");
   expect(screen.getByLabelText(/Data/i).value).toEqual("cactus");
-  userEvent.selectOptions(screen.getByLabelText(/Data/i), 'vg "small" example');
+  await userEvent.selectOptions(screen.getByLabelText(/Data/i), 'vg "small" example');
   expect(screen.getByLabelText(/Data/i).value).toEqual('vg "small" example');
 });
 

@@ -247,7 +247,7 @@ class FileSystemSyncAccessHandlePolyfill {
    *
    * Not implemented since we are read-only.
    */
-  truncate(to: number) {
+  truncate(to) {
     throw new Error("Truncate not implemented; blobs are read only");
   }
   

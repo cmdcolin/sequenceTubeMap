@@ -11,15 +11,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
  *
  */
 
-export function TrackDeleteButton(props) {
+export function TrackDeleteButton({ testID = "delete-button-component", ...rest }) {
   // https://stackoverflow.com/questions/49358560/react-wrapper-react-does-not-recognize-the-staticcontext-prop-on-a-dom-elemen
-  const { testID, ...rest } = props;
-
   // return button
   // upon click, call onClick function
 
   return (
-    <Button data-testid={props.testID} {...rest}>
+    <Button data-testid={testID} {...rest}>
       <FontAwesomeIcon icon={faX} />
     </Button>
   );
@@ -35,12 +33,6 @@ TrackDeleteButton.propTypes = {
   className: PropTypes.string,
   onClick: PropTypes.func.isRequired,
   testID: PropTypes.string,
-};
-
-TrackDeleteButton.defaultProps = {
-  id: undefined,
-  className: undefined,
-  testID: "delete-button-component",
 };
 
 export default TrackDeleteButton;

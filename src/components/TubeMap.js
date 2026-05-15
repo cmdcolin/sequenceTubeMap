@@ -4,6 +4,10 @@ import * as tubeMap from "../util/tubemap";
 import isEqual from "react-fast-compare";
 
 class TubeMap extends Component {
+  static defaultProps = {
+    nodeSequences: true,
+  };
+
   componentDidMount() {
     this.updateVisOptions();
     this.createTubeMap();
@@ -77,10 +81,6 @@ TubeMap.propTypes = {
   region: PropTypes.array.isRequired,
   visOptions: PropTypes.object.isRequired,
   nodeSequences: PropTypes.bool
-};
-
-TubeMap.defaultProps = {
-  nodeSequences: true
 };
 
 export default TubeMap;

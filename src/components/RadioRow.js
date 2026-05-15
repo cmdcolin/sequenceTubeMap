@@ -13,6 +13,10 @@ const colorMap = new Map([
 ]);
 
 class RadioRow extends Component {
+  static defaultProps = {
+    availableColors: ["greys", "ygreys", "blues", "reds", "plainColors", "lightColors"],
+  };
+
   onChange = (event) => {
     this.props.setColorSetting(
       this.props.setting,
@@ -62,17 +66,6 @@ RadioRow.propTypes = {
   setColorSetting: PropTypes.func.isRequired,
   setting: PropTypes.string.isRequired,
   availableColors: PropTypes.array,
-};
-
-RadioRow.defaultProps = {
-  availableColors: [
-    "greys",
-    "ygreys",
-    "blues",
-    "reds",
-    "plainColors",
-    "lightColors",
-  ],
 };
 
 export default RadioRow;

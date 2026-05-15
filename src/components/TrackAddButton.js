@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 // Component in TrackListDisplay, adds new track item into TrackList when pressed
-export const TrackAddButton = ({ onChange, testID }) => {
+export const TrackAddButton = ({ onChange, testID = "track-add-button-component" }) => {
   return (
     <Button
       aria-label="TrackAdd"
@@ -21,10 +21,6 @@ export const TrackAddButton = ({ onChange, testID }) => {
 TrackAddButton.propTypes = {
   onChange: PropTypes.func.isRequired,
   testID: PropTypes.string,
-};
-
-TrackAddButton.defaultProps = {
-  testID: "track-add-button-component",
 };
 
 export default TrackAddButton;

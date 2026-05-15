@@ -9,7 +9,13 @@
 /* eslint no-unused-vars: "off" */
 /* eslint no-return-assign: "off" */
 import * as d3 from "d3";
-import "d3-selection-multi";
+// d3-selection-multi is incompatible with d3 v7 — polyfill .attrs() and .styles() inline
+d3.selection.prototype.attrs = function(attrs) {
+  return Object.entries(attrs).reduce((sel, [k, v]) => sel.attr(k, v), this);
+};
+d3.selection.prototype.styles = function(styles) {
+  return Object.entries(styles).reduce((sel, [k, v]) => sel.style(k, v), this);
+};
 import "../config-client.js";
 import externalConfig from "../config-global.mjs";
 import { defaultTrackColors } from "../common.mjs";
@@ -1366,9 +1372,9 @@ function alignSVG() {
   // And find its parent holding element.
   let parentElement = svgElement.parentNode;
 
-  function zoomed() {
+  function zoomed(event) {
     // Apply the panning/zooming transform
-    const transform = d3.event.transform;
+    const transform = event.transform;
     svg.attr("transform", transform);
   }
 

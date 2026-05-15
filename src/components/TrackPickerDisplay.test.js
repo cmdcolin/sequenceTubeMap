@@ -1,7 +1,6 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react";
 import { TrackPickerDisplay } from "./TrackPickerDisplay";
-import "@testing-library/jest-dom";
 import config from "./../config.json";
 import { defaultTrackColors } from "../common.mjs";
 
@@ -27,7 +26,7 @@ describe("TrackPickerDisplay", () => {
   ];
 
   it("should render without errors", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { queryByTestId } = render(
       <TrackPickerDisplay
         tracks={tracks}
@@ -51,7 +50,7 @@ describe("TrackPickerDisplay", () => {
   });
 
   it("should add track items when the add button is pressed", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { queryByTestId } = render(
       <TrackPickerDisplay
         tracks={tracks}
@@ -80,7 +79,7 @@ describe("TrackPickerDisplay", () => {
   });
 
   it("should call onChange when all files are selected", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { queryByTestId, getByText, rerender } = render(
       <TrackPickerDisplay
         tracks={tracks}
@@ -183,7 +182,7 @@ describe("TrackPickerDisplay", () => {
   });
 
   it("should delete a trackitem when the delete button is pressed", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { queryByTestId } = render(
       <TrackPickerDisplay
         tracks={tracks}

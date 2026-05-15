@@ -1,8 +1,6 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react";
 import { TrackListItem } from "./TrackListItem";
-import "@testing-library/jest-dom";
-
 describe("TrackListItem", () => {
   const trackFile = undefined;
   const trackType = "graph";
@@ -28,8 +26,8 @@ describe("TrackListItem", () => {
   };
 
   it("should render without errors", async () => {
-    const fakeOnChange = jest.fn();
-    const fakeOnDelete = jest.fn();
+    const fakeOnChange = vi.fn();
+    const fakeOnDelete = vi.fn();
     const { getByText, getByRole } = render(
       <TrackListItem
         trackProps={{
@@ -56,8 +54,8 @@ describe("TrackListItem", () => {
   });
 
   it("should call onChange correctly", async () => {
-    const fakeOnChange = jest.fn();
-    const fakeOnDelete = jest.fn();
+    const fakeOnChange = vi.fn();
+    const fakeOnDelete = vi.fn();
 
     const { getByText, queryByTestId, rerender } = render(
       <TrackListItem
@@ -140,8 +138,8 @@ describe("TrackListItem", () => {
   });
 
   it("should call onDelete correctly", async () => {
-    const fakeOnChange = jest.fn();
-    const fakeOnDelete = jest.fn();
+    const fakeOnChange = vi.fn();
+    const fakeOnDelete = vi.fn();
     const { queryByTestId } = render(
       <TrackListItem
         trackProps={{

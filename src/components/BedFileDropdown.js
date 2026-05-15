@@ -104,11 +104,4 @@ BedFileDropdown.propTypes = {
   options: PropTypes.array.isRequired,
 };
 
-BedFileDropdown.defaultProps = {
-  id: undefined,
-  inputId: undefined,
-  className: undefined,
-  value: undefined,
-};
-
 export default BedFileDropdown;

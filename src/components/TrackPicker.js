@@ -9,10 +9,10 @@ import "../config-client.js";
 import { config } from "../config-global.mjs";
 
 export const TrackPicker = ({
-  tracks, // expects a trackList, same as trackListDisplay
+  tracks = { 1: config.defaultTrackProps }, // expects a trackList, same as trackListDisplay
   availableTracks,
   availableColors,
-  onChange,
+  onChange = () => {},
   handleFileUpload,
 }) => {
   // based off of https://react-popup.elazizi.com/controlled-popup/#using-open-prop
@@ -56,11 +56,6 @@ TrackPicker.propTypes = {
   availableColors: PropTypes.array,
   onChange: PropTypes.func,
   handleFileUpload: PropTypes.func,
-};
-
-TrackPicker.defaultProps = {
-  tracks: { 1: config.defaultTrackProps },
-  onChange: () => {},
 };
 
 export default TrackPicker;

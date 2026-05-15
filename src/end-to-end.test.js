@@ -19,7 +19,6 @@ import {
   within,
 } from "@testing-library/react";
 import { setCopyCallback, writeToClipboard } from "./components/CopyLink";
-import "@testing-library/jest-dom/extend-expect";
 import userEvent from "@testing-library/user-event";
 import selectEvent from "react-select-event";
 import App from "./App";

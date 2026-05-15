@@ -25,12 +25,28 @@ import ColorPicker from "./ColorPicker";
  */
 
 export const TrackSettings = ({
-  fileType,
-  trackColorSettings,
+  fileType = "haplotype",
+  trackColorSettings = {
+    mainPalette: "blues",
+    auxPalette: "reds",
+    colorReadsByMappingQuality: false,
+    alphaReadsByMappingQuality: false,
+  },
   setTrackColorSetting,
   label,
-  availableColors,
-  presetColors,
+  availableColors = ["greys", "ygreys", "blues", "reds", "plainColors", "lightColors"],
+  presetColors = [
+    "#FF6900",
+    "#FCB900",
+    "#7BDCB5",
+    "#00D084",
+    "#8ED1FC",
+    "#0693E3",
+    "#ABB8C3",
+    "#EB144C",
+    "#F78DA7",
+    "#9900EF",
+  ],
 }) => {
   function colorRenderSwitch(fileType) {
     switch (fileType) {
@@ -129,36 +145,6 @@ TrackSettings.propTypes = {
   label: PropTypes.string,
   availableColors: PropTypes.array,
   presetColors: PropTypes.array,
-};
-
-TrackSettings.defaultProps = {
-  fileType: "haplotype",
-  availableColors: [
-    "greys",
-    "ygreys",
-    "blues",
-    "reds",
-    "plainColors",
-    "lightColors",
-  ],
-  presetColors: [
-    "#FF6900",
-    "#FCB900",
-    "#7BDCB5",
-    "#00D084",
-    "#8ED1FC",
-    "#0693E3",
-    "#ABB8C3",
-    "#EB144C",
-    "#F78DA7",
-    "#9900EF",
-  ],
-  trackColorSettings: {
-    mainPalette: "blues",
-    auxPalette: "reds",
-    colorReadsByMappingQuality: false,
-    alphaReadsByMappingQuality: false,
-  },
 };
 
 export default TrackSettings;

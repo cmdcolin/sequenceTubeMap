@@ -11,8 +11,8 @@ export const TrackSettingsButton = ({
   trackColorSettings,
   setTrackColorSetting,
   label,
-  availableColors,
-  testID,
+  availableColors = ["greys", "ygreys", "blues", "reds", "plainColors", "lightColors"],
+  testID = "settings-button-component",
 }) => {
   // based off of https://react-popup.elazizi.com/controlled-popup/#using-open-prop
   const [open, setOpen] = useState(false);
@@ -42,18 +42,6 @@ TrackSettingsButton.propTypes = {
   label: PropTypes.string,
   availableColors: PropTypes.array,
   testID: PropTypes.string,
-};
-
-TrackSettingsButton.defaultProps = {
-  availableColors: [
-    "greys",
-    "ygreys",
-    "blues",
-    "reds",
-    "plainColors",
-    "lightColors",
-  ],
-  testID: "settings-button-component",
 };
 
 export default TrackSettingsButton;

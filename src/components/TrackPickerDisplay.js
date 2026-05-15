@@ -14,7 +14,7 @@ export const TrackPickerDisplay = ({
   tracks,
   availableTracks, // array of tracks(see types.ts)
   availableColors, // array of ColorPalettes
-  onChange, // expects a new tracks object
+  onChange = () => {}, // expects a new tracks object
   handleFileUpload,
 }) => {
   const [trackListChanges, setTrackListChanges] = useState({});
@@ -115,10 +115,6 @@ TrackPickerDisplay.propTypes = {
   availableColors: PropTypes.array,
   onChange: PropTypes.func,
   handleFileUpload: PropTypes.func.isRequired,
-};
-
-TrackPickerDisplay.defaultProps = {
-  onChange: () => {},
 };
 
 export default TrackPickerDisplay;

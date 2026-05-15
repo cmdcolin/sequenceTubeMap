@@ -3,10 +3,10 @@ import Select from "react-select";
 import React from "react";
 
 export const PickerTypeDropdown = ({
-  value,
+  value = "mounted",
   handleInputChange,
-  pickerOptions,
-  testID,
+  pickerOptions = ["upload, mounted"],
+  testID = "picker-type-component",
 }) => {
   function onChange(option) {
     handleInputChange(option.value);
@@ -41,12 +41,6 @@ PickerTypeDropdown.propTypes = {
   pickerOptions: PropTypes.array.isRequired,
   value: PropTypes.string.isRequired,
   testID: PropTypes.string,
-};
-
-PickerTypeDropdown.defaultProps = {
-  value: "mounted",
-  pickerOptions: ["upload, mounted"],
-  testID: "picker-type-component",
 };
 
 export default PickerTypeDropdown;

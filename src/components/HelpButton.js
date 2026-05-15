@@ -74,6 +74,4 @@ HelpButton.propTypes = {
   file: PropTypes.string.isRequired,
 };
 
-HelpButton.defaultProps = {};
-
 export default HelpButton;

@@ -1,8 +1,6 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react";
 import { TrackList } from "./TrackList";
-import "@testing-library/jest-dom";
-
 describe("TrackList", () => {
   const tracks = {
     1: {
@@ -64,8 +62,8 @@ describe("TrackList", () => {
   }
 
   it("should render without errors", async () => {
-    const fakeOnChange = jest.fn();
-    const fakeOnDelete = jest.fn();
+    const fakeOnChange = vi.fn();
+    const fakeOnDelete = vi.fn();
     const { queryByTestId } = render(
       <TrackList
         tracks={tracks}
@@ -88,8 +86,8 @@ describe("TrackList", () => {
   });
 
   it("should call onChange when a track is changed", async () => {
-    const fakeOnChange = jest.fn();
-    const fakeOnDelete = jest.fn();
+    const fakeOnChange = vi.fn();
+    const fakeOnDelete = vi.fn();
     const { queryByTestId, getByText, rerender } = render(
       <TrackList
         tracks={tracks}
@@ -141,9 +139,9 @@ describe("TrackList", () => {
   });
 
   it("should use a new event handler when passed", async () => {
-    const fakeOnChange1 = jest.fn();
-    const fakeOnChange2 = jest.fn();
-    const fakeOnDelete = jest.fn();
+    const fakeOnChange1 = vi.fn();
+    const fakeOnChange2 = vi.fn();
+    const fakeOnDelete = vi.fn();
     const { queryByTestId, getByText, rerender } = render(
       <TrackList
         tracks={tracks}

@@ -1,5 +1,7 @@
-import { enableFetchMocks } from "jest-fetch-mock";
-enableFetchMocks();
+import createFetchMock from "vitest-fetch-mock";
+import { vi } from "vitest";
+const fetchMocker = createFetchMock(vi);
+fetchMocker.enableMocks();
 
 import React from "react";
 import { render } from "@testing-library/react";

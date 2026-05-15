@@ -1,8 +1,6 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react";
 import { TrackSettings } from "./TrackSettings";
-import "@testing-library/jest-dom";
-
 describe("TrackSettings", () => {
   const availableColors = [
     "greys",
@@ -20,7 +18,7 @@ describe("TrackSettings", () => {
   };
 
   it("should render without errors", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { getByText } = render(
       <TrackSettings
         fileType={"haplotype"}
@@ -36,7 +34,7 @@ describe("TrackSettings", () => {
   });
 
   it("should call onChange when an option is selected", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { getByLabelText } = render(
       <TrackSettings
         fileType={"haplotype"}
@@ -60,7 +58,7 @@ describe("TrackSettings", () => {
   });
 
   it("should update the radio values when an option is selected", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { getByLabelText } = render(
       <TrackSettings
         fileType={"haplotype"}

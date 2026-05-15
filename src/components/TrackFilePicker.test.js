@@ -13,7 +13,7 @@ describe("TrackFilePicker", () => {
   ];
 
   it("should render without errors", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { getByText } = render(
       <TrackFilePicker
         tracks={testTracks}
@@ -29,7 +29,7 @@ describe("TrackFilePicker", () => {
   });
 
   it("should allow value to be controlled", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { getByText, queryByText, rerender } = render(
       <TrackFilePicker
         tracks={testTracks}
@@ -62,7 +62,7 @@ describe("TrackFilePicker", () => {
   });
 
   it("should call onChange when an option is selected", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { getByText, queryByTestId } = render(
       <TrackFilePicker
         tracks={testTracks}
@@ -96,7 +96,7 @@ describe("TrackFilePicker", () => {
   });
 
   it("should call onChange when queried by input value", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { getByText, queryByTestId, container } = render(
       <TrackFilePicker
         tracks={testTracks}
@@ -122,8 +122,8 @@ describe("TrackFilePicker", () => {
   });
 
   it("should call call handleFileUpload when a file is inputted", async () => {
-    const fakeOnChange = jest.fn();
-    const fakeHandleFileUpload = jest.fn();
+    const fakeOnChange = vi.fn();
+    const fakeHandleFileUpload = vi.fn();
 
     const { queryByTestId } = render(
       <TrackFilePicker
@@ -141,9 +141,7 @@ describe("TrackFilePicker", () => {
 
     const fileSelectComponent = queryByTestId("file-select-component");
 
-    await waitFor(() => {
-      userEvent.upload(fileSelectComponent, fakeFile);
-    });
+    await userEvent.upload(fileSelectComponent, fakeFile);
 
     expect(fakeHandleFileUpload).toHaveBeenCalledTimes(1);
     expect(fileSelectComponent.files.length).toBe(1);

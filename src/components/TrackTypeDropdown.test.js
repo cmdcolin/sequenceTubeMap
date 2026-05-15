@@ -5,7 +5,7 @@ import { screen } from "@testing-library/react";
 
 describe("TrackTypeDropdown", () => {
   it("calls the onChange callback handler", async () => {
-    const onChange = jest.fn();
+    const onChange = vi.fn();
     const { queryByTestId } = render(
       <TrackTypeDropdown
         value="haplotype"

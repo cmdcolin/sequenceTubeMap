@@ -1,7 +1,6 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react";
 import { TrackPicker } from "./TrackPicker";
-import "@testing-library/jest-dom";
 import "../config-client.js";
 import { config } from "../config-global.mjs";
 import { defaultTrackColors } from "../common.mjs";
@@ -28,7 +27,7 @@ describe("TrackPicker", () => {
   ];
 
   it("should render without errors", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { queryByTestId } = render(
       <TrackPicker
         tracks={tracks}
@@ -58,7 +57,7 @@ describe("TrackPicker", () => {
   });
 
   it("should add track items when the add button is pressed", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { queryByTestId } = render(
       <TrackPicker
         tracks={tracks}
@@ -87,7 +86,7 @@ describe("TrackPicker", () => {
   });
 
   it("should call onChange when all files are selected", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { queryByTestId, getByText, rerender } = render(
       <TrackPicker
         tracks={tracks}
@@ -187,7 +186,7 @@ describe("TrackPicker", () => {
   }, 50000);
 
   it("should close when the exit button is pressed", async () => {
-    const fakeOnChange = jest.fn();
+    const fakeOnChange = vi.fn();
     const { queryByTestId, getByText, rerender } = render(
       <TrackPicker
         tracks={tracks}

@@ -11,7 +11,7 @@ export const ColorPicker = ({
   color, // hex color or named color pallete currently selected.
   presetColors, // array of hex colors e.g ["#f44336", "#e91e63", "#9c27b0", "#673ab7"]
   onChange, // on change function expecting hex color as an argument
-  testID,
+  testID = "color-picker-component",
 }) => {
   const [nextColor, setNextColor] = useState(undefined);
   const [open, setOpen] = useState(false);
@@ -82,10 +82,6 @@ ColorPicker.propTypes = {
   presetColors: PropTypes.array.isRequired,
   onChange: PropTypes.func.isRequired,
   testID: PropTypes.string,
-};
-
-ColorPicker.defaultProps = {
-  testID: "color-picker-component",
 };
 
 export default ColorPicker;

@@ -10,9 +10,9 @@ export const PopupDialog = ({
   open,
   children,
   close,
-  closeOnDocumentClick,
-  width,
-  testID,
+  closeOnDocumentClick = false,
+  width = "760px",
+  testID = "PopupDialog",
 }) => {
   // based off of https://react-popup.elazizi.com/controlled-popup/#using-open-prop
   return (
@@ -54,8 +54,3 @@ PopupDialog.propTypes = {
   testID: PropTypes.string,
 };
 
-PopupDialog.defaultProps = {
-  closeOnDocumentClick: false,
-  width: "760px",
-  testID: "PopupDialog",
-};

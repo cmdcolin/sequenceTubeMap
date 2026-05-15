@@ -17,12 +17,12 @@ import { Input } from "reactstrap";
 //handleInputChange takes in a string trackType
 export const TrackFilePicker = ({
   tracks, // array of available tracks
-  fileType, // e.g read, gam, graph
+  fileType = "graph", // e.g read, gam, graph
   value, // input file
   handleInputChange,
-  pickerType, // either "dropdown or upload" to determine which component we render
-  className,
-  testID,
+  pickerType = "mounted", // either "dropdown or upload" to determine which component we render
+  className = undefined,
+  testID = "file-select-component",
   handleFileUpload,
 }) => {
   let uploadFileInput = React.createRef();
@@ -145,13 +145,6 @@ TrackFilePicker.propTypes = {
   className: PropTypes.string,
   testID: PropTypes.string,
   handleFileUpload: PropTypes.func.isRequired,
-};
-
-TrackFilePicker.defaultProps = {
-  fileType: "graph",
-  pickerType: "mounted",
-  className: undefined,
-  testID: "file-select-component",
 };
 
 export default TrackFilePicker;

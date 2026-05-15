@@ -1,8 +1,0 @@
-{
-    "pageTitle": "Jest Tests HTML Report",
-    "outputPath": "test-report/test-repot.html",
-    "includeFailureMsg": true,
-    "includeSuiteFailure": true,
-    "includeConsoleLog": true,
-    "sort": "status"
-  }
