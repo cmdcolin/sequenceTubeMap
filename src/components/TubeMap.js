@@ -32,11 +32,9 @@ function updateVisOptions(visOptions, nodeSequences) {
 
 function TubeMap({ nodes, tracks, reads, region, visOptions, nodeSequences = true }) {
   useEffect(() => {
-    console.log("New node count:", (nodes || []).length);
-    console.log("New read count:", (reads || []).length);
     updateVisOptions(visOptions, nodeSequences);
     tubeMap.create({ svgID: "#svg", nodes, tracks, reads, region, visOptions });
-  });
+  }, [nodes, tracks, reads, region, visOptions, nodeSequences]);
 
   return <svg id="svg" alt="Rendered sequence tube map visualization" />;
 }

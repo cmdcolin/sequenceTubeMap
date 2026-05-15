@@ -218,16 +218,9 @@ export function create(params) {
   if (!config.hideLegendFlag) drawLegend(tr);
 }
 
-// Deep copy something, but preserve array holes at the top level
+// structuredClone preserves sparse-array holes; JSON round-trip would fill them with null.
 function deepCopy(val) {
-  let newVal = JSON.parse(JSON.stringify(val));
-  for (let prop of Object.keys(newVal)) {
-    if (!Object.hasOwn(val, prop)) {
-      // This should be a hole, so punch it
-      delete newVal[prop];
-    }
-  }
-  return newVal;
+  return structuredClone(val);
 }
 
 // Return true if the given name names a reverse strand node, and false otherwise.
@@ -274,39 +267,35 @@ function moveTrackToFirstPosition(index) {
 }
 
 // straighten track given by index by inverting inverted nodes
-// only keep them inverted if this single track runs thrugh them in both directions
+// only keep them inverted if this single track runs through them in both directions
 // TODO: This operates on `inputNodes`, etc. when it probably ought to operate on `nodes`
 function straightenTrack(index) {
-  let i;
-  let j;
-  const nodesToInvert = [];
+  const nodesToInvert = new Set();
   let currentSequence;
   let nodeName;
 
   // find out which nodes should be inverted
   currentSequence = inputTracks[index].sequence;
-  for (i = 0; i < currentSequence.length; i += 1) {
+  for (let i = 0; i < currentSequence.length; i += 1) {
     if (isReverse(currentSequence[i])) {
       nodeName = forward(currentSequence[i]);
-      if (
-        currentSequence.indexOf(nodeName) === -1 ||
-        currentSequence.indexOf(nodeName) > i
-      ) {
+      const firstForwardIndex = currentSequence.indexOf(nodeName);
+      if (firstForwardIndex === -1 || firstForwardIndex > i) {
         // only if this inverted node is no repeat
-        nodesToInvert.push(nodeName);
+        nodesToInvert.add(nodeName);
       }
     }
   }
 
   // invert nodes in the tracks' sequence
-  for (i = 0; i < inputTracks.length; i += 1) {
+  for (let i = 0; i < inputTracks.length; i += 1) {
     currentSequence = inputTracks[i].sequence;
-    for (j = 0; j < currentSequence.length; j += 1) {
+    for (let j = 0; j < currentSequence.length; j += 1) {
       if (!isReverse(currentSequence[j])) {
-        if (nodesToInvert.indexOf(currentSequence[j]) !== -1) {
+        if (nodesToInvert.has(currentSequence[j])) {
           currentSequence[j] = reverse(currentSequence[j]);
         }
-      } else if (nodesToInvert.indexOf(forward(currentSequence[j])) !== -1) {
+      } else if (nodesToInvert.has(forward(currentSequence[j]))) {
         currentSequence[j] = forward(currentSequence[j]);
       }
     }
@@ -314,21 +303,16 @@ function straightenTrack(index) {
 
   // invert the sequence within the nodes
   inputNodes.forEach((node) => {
-    if (nodesToInvert.indexOf(node.name) !== -1) {
+    if (nodesToInvert.has(node.name)) {
       node.seq = node.seq.split("").reverse().join("");
     }
   });
 }
 
 export function changeTrackVisibility(trackID) {
-  let i = 0;
-  while (i < inputTracks.length && inputTracks[i].id !== trackID) i += 1;
-  if (i < inputTracks.length) {
-    if (inputTracks[i].hasOwnProperty("hidden")) {
-      inputTracks[i].hidden = !inputTracks[i].hidden;
-    } else {
-      inputTracks[i].hidden = true;
-    }
+  const track = inputTracks.find((t) => t.id === trackID);
+  if (track) {
+    track.hidden = !track.hidden;
   }
   createTubeMap();
 }
@@ -1587,41 +1571,27 @@ function generateNodeMap() {
 
 // adds a successor-array to each node containing the indices of the nodes coming directly after the current node
 function generateNodeSuccessors() {
-  let current;
-  let follower;
+  const successorSets = nodes.map(() => new Set());
+  const predecessorSets = nodes.map(() => new Set());
 
-  nodes.forEach((node) => {
-    node.successors = [];
-    node.predecessors = [];
-  });
-
-  tracks.forEach((track) => {
+  const addEdges = (track) => {
     for (let i = 0; i < track.indexSequence.length - 1; i += 1) {
-      current = Math.abs(track.indexSequence[i]);
-      follower = Math.abs(track.indexSequence[i + 1]);
-      if (nodes[current].successors.indexOf(follower) === -1) {
-        nodes[current].successors.push(follower);
-      }
-      if (nodes[follower].predecessors.indexOf(current) === -1) {
-        nodes[follower].predecessors.push(current);
-      }
+      const current = Math.abs(track.indexSequence[i]);
+      const follower = Math.abs(track.indexSequence[i + 1]);
+      successorSets[current].add(follower);
+      predecessorSets[follower].add(current);
     }
-  });
+  };
 
+  tracks.forEach(addEdges);
   if (reads && config.showReads) {
-    reads.forEach((track) => {
-      for (let i = 0; i < track.indexSequence.length - 1; i += 1) {
-        current = Math.abs(track.indexSequence[i]);
-        follower = Math.abs(track.indexSequence[i + 1]);
-        if (nodes[current].successors.indexOf(follower) === -1) {
-          nodes[current].successors.push(follower);
-        }
-        if (nodes[follower].predecessors.indexOf(current) === -1) {
-          nodes[follower].predecessors.push(current);
-        }
-      }
-    });
+    reads.forEach(addEdges);
   }
+
+  nodes.forEach((node, i) => {
+    node.successors = Array.from(successorSets[i]);
+    node.predecessors = Array.from(predecessorSets[i]);
+  });
 }
 
 function generateNodeOrderOfSingleTrack(sequence) {
@@ -1972,6 +1942,7 @@ function switchNodeOrientation() {
 // References and modifies the global nodes variable.
 function switchNodeOrientationForPaths(paths, pivotPath) {
   const toSwitch = new Map();
+  const pivotNames = pivotPath ? new Set(pivotPath.sequence) : null;
   let nodeName;
   let prevNode;
   let nextNode;
@@ -1982,7 +1953,7 @@ function switchNodeOrientationForPaths(paths, pivotPath) {
       nodeName = paths[i].sequence[j];
       nodeName = forward(nodeName);
       currentNode = nodes[nodeMap.get(nodeName)];
-      if (pivotPath && pivotPath.sequence.indexOf(nodeName) === -1) {
+      if (pivotNames && !pivotNames.has(nodeName)) {
         // do not change orientation for nodes which are part of the pivot path
         if (j > 0) {
           prevNode = nodes[nodeMap.get(forward(paths[i].sequence[j - 1]))];
@@ -3646,7 +3617,7 @@ export function coverage(node, allReads) {
   return Math.round((countBases / node.sequenceLength) * 100) / 100;
 }
 
-// draw seqence labels for nodes
+// draw sequence labels for nodes
 function drawLabels(dNodes) {
   if (config.nodeWidthOption === "normal") {
     svg
@@ -3871,7 +3842,7 @@ function drawRuler() {
   // Sort ticks on X coordinate
   ticks.sort(([bp1, x1], [bp2, x2]) => x1 > x2);
 
-  // Filter ticks for a minimum X separartion
+  // Filter ticks for a minimum X separation
   let separatedTicks = [];
   ticks.forEach((tick) => {
     if (
@@ -4403,7 +4374,7 @@ function drawLegend() {
     .addEventListener("click", () => changeAllTracksVisibility(false), false);
 }
 
-// Get a non-read input track index by the ID stored in ther d3 objects.
+// Get a non-read input track index by the ID stored in their d3 objects.
 function getInputTrackIndexByID(trackID) {
   let index = 0;
   while (
@@ -4480,7 +4451,7 @@ function trackDoubleClick() {
 }
 
 // Takes a track and returns a string describing the nodes it passes through
-// In the format of >1>2<3>4, with the intergers being nodeIDs
+// In the format of >1>2<3>4, with the integers being nodeIDs
 function getPathInfo(track) {
   let result = [];
   if (!track.sequence) {
@@ -4773,7 +4744,7 @@ function compareReadsByLeftEnd2(a, b) {
     return 1;
   }
 
-  // compare by last base withing last node
+  // compare by last base within last node
   if (a.finalNodeCoverLength < b.finalNodeCoverLength) return -1;
   else if (a.finalNodeCoverLength > b.finalNodeCoverLength) return 1;
 
@@ -4865,9 +4836,9 @@ export function vgExtractReads(
   }
   const extracted = [];
 
-  const nodeNames = [];
+  const nodeNames = new Set();
   myNodes.forEach((node) => {
-    nodeNames.push(node.name, 10); // TODO: why 10?
+    nodeNames.add(node.name);
   });
 
   for (let i = 0; i < myReads.length; i += 1) {
@@ -4883,7 +4854,7 @@ export function vgExtractReads(
     let firstIndex = -1; // index within mapping of the first node id contained in nodeNames
     let lastIndex = -1; // index within mapping of the last node id contained in nodeNames
     read.path.mapping.forEach((pos, j) => {
-      if (nodeNames.indexOf(pos.position.node_id) > -1) {
+      if (nodeNames.has(pos.position.node_id)) {
         const edit = {};
         let offset = 0;
         if (
@@ -5378,11 +5349,11 @@ function substitutionMouseOut() {
 
 function filterReads(reads) {
   if (!reads) return reads;
+  const focusNames = config.focusReadNames && new Set(config.focusReadNames);
   return reads.filter(
     (read) =>
       !read.is_secondary &&
       read.mapping_quality >= config.mappingQualityCutoff &&
-      (config.focusReadNames === null ||
-        config.focusReadNames.includes(read.name))
+      (!focusNames || focusNames.has(read.name))
   );
 }
