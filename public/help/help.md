@@ -32,6 +32,20 @@ The following procedure describes adding and updating settings of custom tracks.
 5. Click Go to see the selected tracks render in the visualization area.
 ![Go Button](helpGuideImages/img9.png)
 
+##### Recovering original GFA segment names
+
+When a GFA file with human-readable segment names (e.g. `chr1`, `gene_BRCA1`) is converted to XG or VG format, the original names are replaced with numeric node IDs. Adding a **translation track** tells the Tube Map to display the original names instead.
+
+**Step 1 — generate the translation file** when converting your GFA:
+```
+vg convert -g your.gfa -x your.xg --gfa-trans your.trans
+```
+This writes a TSV mapping original segment names to XG node IDs. If segments were chopped into smaller nodes, sub-nodes are labeled `segName:offset` (e.g. `chr1:5000`).
+
+**Step 2 — add a translation track** in the Track Picker. Set the type to `translation` and select `your.trans` as the file.
+
+Only one translation track is used per visualization. If no translation track is present, numeric node IDs are shown as usual.
+
 ##### How to make link-to-view URLs
 Users can compose URLs that link to a specific view, or a visualization of genomic data. The link describes which tracks and files will be displayed. 
 
@@ -88,7 +102,7 @@ This array's query string representation would be: `object[0][a]=b&object[1][c]=
      * Examples:
          * File in server working directory: `tracks[0][trackFile]=exampleData/internal/snp1kg-BRCA1.vg.xg`.
          * HTTP/HTTPS URL: `tracks[0][trackFile]=https://public.gi.ucsc.edu/~anovak/graphs/trivial-brca1.vg`.
-   * `trackType`: the type of the track, which can be `graph`, `haplotype`, `read`.
+   * `trackType`: the type of the track, which can be `graph`, `haplotype`, `read`, or `translation`.
       * Example: `tracks[0][trackType]=graph`.
    * `trackColorSettings` (optional): the color information for the track. It has subfields:
       * `mainPalette` and `auxPalette` (optional): The "main" and "auxilliary" color palettes to use, respectively. The values for each palette can be a hex code starting with a `#`, or one of the premade palette names: `greys`, `ygreys`, `blues`, `reds`, `plainColors`, or `lightColors`.

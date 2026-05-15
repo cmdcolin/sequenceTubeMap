@@ -119,7 +119,8 @@
   "fileTypeToExtensions": {
     "graph": ".xg,.vg,.hg,.gbz,.pg,.db",
     "haplotype": ".gbwt,.gbz",
-    "read": ".gam"
+    "read": ".gam",
+    "translation": ".tsv,.trans"
   },
 
   "MAXUPLOADSIZE": 5242880,

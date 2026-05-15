@@ -111,6 +111,7 @@ const fileTypes = {
   NODE: "node",
   READ: "read",
   BED: "bed",
+  TRANSLATION: "translation",
 };
 
 const lockMap = new Map();
@@ -448,6 +449,38 @@ function getGams(tracks) {
   return getFilesOfType(tracks, fileTypes.READ);
 }
 
+// Parse a vg --gfa-trans translation file into a node-ID-to-display-name map.
+// T lines: T\tsegmentName\tsegmentId  (original GFA name → pre-chop ID)
+// K lines: K\toldId\tforwardOffset\treverseOffset\tnewId  (chopped node mapping)
+async function parseGFATranslation(filePath) {
+  const content = await fs.readFile(filePath, "utf-8");
+  const originalIdToName = {};
+  const kLines = [];
+  const choppedIds = new Set();
+
+  for (const line of content.split("\n")) {
+    const fields = line.trimEnd().split("\t");
+    if (fields[0] === "T" && fields.length >= 3) {
+      originalIdToName[fields[2]] = fields[1];
+    } else if (fields[0] === "K" && fields.length >= 5) {
+      choppedIds.add(fields[1]);
+      kLines.push({ oldId: fields[1], forwardOffset: parseInt(fields[2]), newId: fields[4] });
+    }
+  }
+
+  const nameMap = {};
+  for (const [segId, segName] of Object.entries(originalIdToName)) {
+    if (!choppedIds.has(segId)) {
+      nameMap[segId] = segName;
+    }
+  }
+  for (const { oldId, forwardOffset, newId } of kLines) {
+    const segName = originalIdToName[oldId] ?? oldId;
+    nameMap[newId] = `${segName}:${forwardOffset}`;
+  }
+  return nameMap;
+}
+
 // To bridge Express next(err) error handling and async function error
 // handling, we have this adapter. It takes Express's next and an async
 // function and calls next with any error raised when the async function is
@@ -603,6 +636,8 @@ async function getChunkedData(req, res, next) {
   const gbwtFile = getFirstFileOfType(req.body.tracks, fileTypes.HAPLOTYPE);
   // We sometimes have a node tabix index
   const nodeFile = getFirstFileOfType(req.body.tracks, fileTypes.NODE);
+  // We sometimes have a GFA translation file for recovering original segment names
+  const translationFile = getFirstFileOfType(req.body.tracks, fileTypes.TRANSLATION);
   // We sometimes have a BED file with regions to look at
   const bedFile = req.body.bedFile;
 
@@ -630,6 +665,14 @@ async function getChunkedData(req, res, next) {
   if (!nodeFile || nodeFile === "none") {
     req.withNode = false;
     console.log("no node file provided.");
+  }
+
+  req.nameMap = {};
+  if (translationFile && translationFile !== "none") {
+    if (!isAllowedPath(translationFile)) {
+      throw new BadRequestError("Translation file path not allowed: " + translationFile);
+    }
+    req.nameMap = await parseGFATranslation(translationFile);
   }
 
   req.withBed = true;
@@ -1749,6 +1792,7 @@ function cleanUpAndSendResult(req, res, next) {
     result.gam = req.withGam === true ? req.gamResults : [];
     result.region = req.region;
     result.coloredNodes = req.coloredNodes;
+    result.nameMap = req.nameMap;
     res.json(result);
     console.timeEnd(`request-duration-${req.reqId}`);
   } catch (error) {

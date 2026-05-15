@@ -51,7 +51,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
             if (track.trackType === "haplotype") haplotypeTrackID = i;
           }
           console.log("Graph track: " + graphTrackID + " Haplotype track: " + haplotypeTrackID);
-          const newNodes = tubeMap.vgExtractNodes(json.graph);
+          const newNodes = tubeMap.vgExtractNodes(json.graph, json.nameMap);
           const newTracks = tubeMap.vgExtractTracks(json.graph, graphTrackID, haplotypeTrackID);
           let readsArr = [];
           let totalReads = 0;
