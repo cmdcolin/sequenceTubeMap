@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Container, Row, Alert } from "reactstrap";
 
 import TubeMap from "./TubeMap";
@@ -6,6 +6,8 @@ import * as tubeMap from "../util/tubemap";
 import { dataOriginTypes } from "../enums";
 import PopUpInfoDialog from "./PopUpInfoDialog";
 import ReadContextMenu from "./ReadContextMenu";
+import NodeContextMenu from "./NodeContextMenu";
+import PendingPanel from "./PendingPanel";
 
 function readsFromStringToArray(readsString) {
   return readsString.split("\n").filter((line) => line.length > 0).map((line) => JSON.parse(line));
@@ -16,7 +18,10 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
   const [error, setError] = useState(null);
   const [infoDialogContent, setInfoDialogContent] = useState(undefined);
   const [readContextMenu, setReadContextMenu] = useState(null);
-  const [focusReadName, setFocusReadName] = useState(null);
+  const [nodeContextMenu, setNodeContextMenu] = useState(null);
+  const [pendingReadSet, setPendingReadSet] = useState([]);
+  const [pendingNodeSet, setPendingNodeSet] = useState([]);
+  const [focusReadNames, setFocusReadNames] = useState(null);
   const [nodes, setNodes] = useState(undefined);
   const [tracks, setTracks] = useState(undefined);
   const [reads, setReads] = useState(undefined);
@@ -139,6 +144,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
   useEffect(() => {
     tubeMap.setInfoCallback((text) => setInfoDialogContent(text));
     tubeMap.setReadContextMenuCallback((menu) => setReadContextMenu(menu));
+    tubeMap.setNodeContextMenuCallback((menu) => setNodeContextMenu(menu));
   }, []);
 
   if (error) {
@@ -158,28 +164,94 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
     );
   }
 
+  // When the user starts editing a fresh set while a filter is active, seed
+  // pending with the active filter so adding/removing reads extends the
+  // current filter instead of replacing it.
+  const editingBase =
+    pendingReadSet.length === 0 && focusReadNames !== null
+      ? focusReadNames
+      : pendingReadSet;
+
+  const addNamesToPendingSet = (names) => {
+    const next = [...editingBase];
+    names.forEach((name) => {
+      if (!next.includes(name)) next.push(name);
+    });
+    setPendingReadSet(next);
+    setReadContextMenu(null);
+    setNodeContextMenu(null);
+  };
+
+  const addNodeToNodeSet = (nodeName) => {
+    setPendingNodeSet(
+      pendingNodeSet.includes(nodeName)
+        ? pendingNodeSet
+        : [...pendingNodeSet, nodeName]
+    );
+    setNodeContextMenu(null);
+  };
+
+  const addReadsThroughNodeSet = (mode) => {
+    addNamesToPendingSet(tubeMap.getReadNamesThroughNodes(pendingNodeSet, mode));
+  };
+
   const isOpen = infoDialogContent !== undefined;
 
   return (
     <div id="tubeMapContainer">
       <PopUpInfoDialog open={isOpen} attributes={infoDialogContent} close={() => setInfoDialogContent(undefined)} />
-      {focusReadName ? (
-        <div
-          style={{
-            padding: "6px 12px",
-            background: "#fff3cd",
-            border: "1px solid #ffeeba",
-            borderRadius: "4px",
-            margin: "8px 0",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            fontSize: "14px",
-          }}
-        >
-          <span>Showing only read: <strong>{focusReadName}</strong></span>
-          <button type="button" onClick={() => setFocusReadName(null)}>Clear</button>
-        </div>
+      {pendingNodeSet.length > 0 ? (
+        <PendingPanel
+          variant="node"
+          title={`Node set (${pendingNodeSet.length}):`}
+          items={pendingNodeSet}
+          onRemove={(nodeName) => setPendingNodeSet(pendingNodeSet.filter((n) => n !== nodeName))}
+          actions={[
+            {
+              label: `Add reads through all ${pendingNodeSet.length} node${pendingNodeSet.length === 1 ? "" : "s"} (intersection)`,
+              onClick: () => addReadsThroughNodeSet("all"),
+            },
+            {
+              label: "Add reads through any (union)",
+              onClick: () => addReadsThroughNodeSet("any"),
+            },
+            {
+              label: "Clear node set",
+              onClick: () => setPendingNodeSet([]),
+            },
+          ]}
+        />
+      ) : null}
+      {pendingReadSet.length > 0 ? (
+        <PendingPanel
+          variant="read"
+          title={`Read set (${pendingReadSet.length}):`}
+          items={pendingReadSet}
+          onRemove={(name) => setPendingReadSet(pendingReadSet.filter((n) => n !== name))}
+          actions={[
+            {
+              label: `Filter to these ${pendingReadSet.length} read${pendingReadSet.length === 1 ? "" : "s"}`,
+              onClick: () => { setFocusReadNames(pendingReadSet); setPendingReadSet([]); },
+            },
+            {
+              label: "Clear set",
+              onClick: () => setPendingReadSet([]),
+            },
+          ]}
+        />
+      ) : null}
+      {focusReadNames ? (
+        <PendingPanel
+          variant="filter"
+          title={`Showing ${focusReadNames.length} read${focusReadNames.length === 1 ? "" : "s"}:`}
+          items={focusReadNames}
+          actions={[
+            {
+              label: "Clear filter",
+              onClick: () => setFocusReadNames(null),
+            },
+          ]}
+        />
       ) : null}
       <div id="tubeMapSVG">
         <TubeMap
@@ -187,7 +259,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           tracks={tracks}
           reads={reads}
           region={region}
-          visOptions={{ coloredNodes, ...visOptions, focusReadName }}
+          visOptions={{ coloredNodes, ...visOptions, focusReadNames }}
           nodeSequences={!viewTarget.removeSequences}
         />
       </div>
@@ -196,8 +268,22 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           readName={readContextMenu.readName}
           x={readContextMenu.x}
           y={readContextMenu.y}
-          onFilter={(name) => { setFocusReadName(name); setReadContextMenu(null); }}
+          alreadyInSet={editingBase.includes(readContextMenu.readName)}
+          onFilter={(name) => { setFocusReadNames([name]); setReadContextMenu(null); }}
+          onAddToSet={(name) => addNamesToPendingSet([name])}
           onClose={() => setReadContextMenu(null)}
+        />
+      ) : null}
+      {nodeContextMenu ? (
+        <NodeContextMenu
+          nodeName={nodeContextMenu.nodeName}
+          readNames={nodeContextMenu.readNames}
+          alreadyInNodeSet={pendingNodeSet.includes(nodeContextMenu.nodeName)}
+          x={nodeContextMenu.x}
+          y={nodeContextMenu.y}
+          onAddReadsToSet={(names) => addNamesToPendingSet(names)}
+          onAddNodeToNodeSet={(name) => addNodeToNodeSet(name)}
+          onClose={() => setNodeContextMenu(null)}
         />
       ) : null}
     </div>

@@ -23,7 +23,7 @@ function updateVisOptions(visOptions, nodeSequences) {
     });
   }
   tubeMap.setMappingQualityCutoff(visOptions.mappingQualityCutoff);
-  tubeMap.setFocusReadName(visOptions.focusReadName);
+  tubeMap.setFocusReadNames(visOptions.focusReadNames);
 }
 
 function TubeMap({ nodes, tracks, reads, region, visOptions, nodeSequences = true }) {
