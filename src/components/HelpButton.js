@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import PropTypes from "prop-types";
 import { Button } from "reactstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faQuestion } from "@fortawesome/free-solid-svg-icons";
@@ -70,8 +69,5 @@ export const HelpButton = ({
   );
 };
 
-HelpButton.propTypes = {
-  file: PropTypes.string.isRequired,
-};
 
 export default HelpButton;

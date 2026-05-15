@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 import React, { useState } from "react";
 import { SketchPicker } from "react-color";
 import { Button } from "reactstrap";
@@ -77,11 +76,5 @@ export const ColorPicker = ({
   );
 };
 
-ColorPicker.propTypes = {
-  color: PropTypes.string,
-  presetColors: PropTypes.array.isRequired,
-  onChange: PropTypes.func.isRequired,
-  testID: PropTypes.string,
-};
 
 export default ColorPicker;

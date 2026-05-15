@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 import Select from "react-select";
 import React from "react";
 import "../config-client.js";
@@ -136,15 +135,5 @@ export const TrackFilePicker = ({
   }
 };
 
-TrackFilePicker.propTypes = {
-  tracks: PropTypes.array.isRequired,
-  fileType: PropTypes.string,
-  value: PropTypes.string,
-  handleInputChange: PropTypes.func.isRequired,
-  pickerType: PropTypes.string,
-  className: PropTypes.string,
-  testID: PropTypes.string,
-  handleFileUpload: PropTypes.func.isRequired,
-};
 
 export default TrackFilePicker;

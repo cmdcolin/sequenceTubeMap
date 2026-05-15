@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 import { Container, Row, Col } from "reactstrap";
 import { TrackFilePicker } from "./TrackFilePicker";
 import { TrackTypeDropdown } from "./TrackTypeDropdown";
@@ -134,14 +133,5 @@ export const TrackListItem = ({
   );
 };
 
-TrackListItem.propTypes = {
-  trackProps: PropTypes.object.isRequired,
-  availableTracks: PropTypes.array.isRequired,
-  availableColors: PropTypes.array,
-  onChange: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
-  trackID: PropTypes.number.isRequired,
-  handleFileUpload: PropTypes.func.isRequired,
-};
 
 export default TrackListItem;

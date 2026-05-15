@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
 import FormHelperText from "@mui/material/FormHelperText";
@@ -90,23 +89,6 @@ export const RegionInput = ({
       </FormHelperText>
     </>
   );
-};
-RegionInput.propTypes = {
-  // pathNames: The selectable options for pathNames
-  pathNames: PropTypes.array,
-  region: PropTypes.string,
-  handleRegionChange: PropTypes.func.isRequired,
-  // Each BED region has its own index
-  regionInfo: PropTypes.shape({
-    // Path
-    chr: PropTypes.array,
-    chunk: PropTypes.array,
-    chunk_path: PropTypes.array,
-    // Description of region from BED
-    desc: PropTypes.array,
-    end: PropTypes.array,
-    start: PropTypes.array,
-  }),
 };
 
 export default RegionInput;

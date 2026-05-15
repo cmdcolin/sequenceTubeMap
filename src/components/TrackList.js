@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 import { TrackListItem } from "./TrackListItem";
 
 export const TrackList = ({
@@ -48,13 +47,5 @@ export const TrackList = ({
   return <div>{renderTracks()}</div>;
 };
 
-TrackList.propTypes = {
-  tracks: PropTypes.object.isRequired,
-  availableTracks: PropTypes.array.isRequired,
-  availableColors: PropTypes.array,
-  onChange: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
-  handleFileUpload: PropTypes.func.isRequired,
-};
 
 export default TrackList;

@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import PropTypes from "prop-types";
 import TrackPickerDisplay from "./TrackPickerDisplay.js";
 import { Button } from "reactstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -50,12 +49,5 @@ export const TrackPicker = ({
   );
 };
 
-TrackPicker.propTypes = {
-  tracks: PropTypes.object.isRequired,
-  availableTracks: PropTypes.array.isRequired,
-  availableColors: PropTypes.array,
-  onChange: PropTypes.func,
-  handleFileUpload: PropTypes.func,
-};
 
 export default TrackPicker;

@@ -1,7 +1,6 @@
 import React from "react";
 import { Button } from "reactstrap";
 import { faX } from "@fortawesome/free-solid-svg-icons";
-import PropTypes from "prop-types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 /**
@@ -28,11 +27,5 @@ inputted to the component. For example, if 'id' is supposed to be a string, a nu
 be passed in - that would cause errors. However, if the prop has 'isRequired' specified, 
 it must be passed to the component. */
 
-TrackDeleteButton.propTypes = {
-  id: PropTypes.string,
-  className: PropTypes.string,
-  onClick: PropTypes.func.isRequired,
-  testID: PropTypes.string,
-};
 
 export default TrackDeleteButton;

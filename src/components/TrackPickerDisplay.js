@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 import React, { useState, useEffect } from "react";
 import { Row, Col } from "reactstrap";
 import { TrackList } from "./TrackList";
@@ -109,12 +108,5 @@ export const TrackPickerDisplay = ({
   );
 };
 
-TrackPickerDisplay.propTypes = {
-  tracks: PropTypes.object.isRequired,
-  availableTracks: PropTypes.array.isRequired,
-  availableColors: PropTypes.array,
-  onChange: PropTypes.func,
-  handleFileUpload: PropTypes.func.isRequired,
-};
 
 export default TrackPickerDisplay;

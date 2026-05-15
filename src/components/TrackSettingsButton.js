@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import PropTypes from "prop-types";
 import PopupDialog from "./PopupDialog.js";
 import TrackSettings from "./TrackSettings.js";
 import { Button } from "reactstrap";
@@ -35,13 +34,5 @@ export const TrackSettingsButton = ({
   );
 };
 
-TrackSettingsButton.propTypes = {
-  fileType: PropTypes.string.isRequired,
-  trackColorSettings: PropTypes.object.isRequired,
-  setTrackColorSetting: PropTypes.func.isRequired,
-  label: PropTypes.string,
-  availableColors: PropTypes.array,
-  testID: PropTypes.string,
-};
 
 export default TrackSettingsButton;

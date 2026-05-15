@@ -1,7 +1,6 @@
 import React from "react";
 import { Button } from "reactstrap";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
-import PropTypes from "prop-types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 // Component in TrackListDisplay, adds new track item into TrackList when pressed
@@ -18,9 +17,5 @@ export const TrackAddButton = ({ onChange, testID = "track-add-button-component"
   );
 };
 
-TrackAddButton.propTypes = {
-  onChange: PropTypes.func.isRequired,
-  testID: PropTypes.string,
-};
 
 export default TrackAddButton;

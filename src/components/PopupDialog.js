@@ -3,7 +3,6 @@ import Popup from "reactjs-popup";
 import { Button } from "reactstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
-import PropTypes from "prop-types";
 import { Container, CardBody, Card } from "reactstrap";
 
 export const PopupDialog = ({
@@ -45,12 +44,4 @@ export const PopupDialog = ({
 
 export default PopupDialog;
 
-PopupDialog.propTypes = {
-  open: PropTypes.bool.isRequired,
-  close: PropTypes.func.isRequired,
-  closeOnDocumentClick: PropTypes.bool,
-  width: PropTypes.string,
-  height: PropTypes.string,
-  testID: PropTypes.string,
-};
 

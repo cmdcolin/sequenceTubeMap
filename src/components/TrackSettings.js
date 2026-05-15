@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import { Form, Row, Col } from "reactstrap";
 import RadioRow from "./RadioRow";
 import ColorPicker from "./ColorPicker";
@@ -138,13 +137,5 @@ export const TrackSettings = ({
   );
 };
 
-TrackSettings.propTypes = {
-  fileType: PropTypes.string.isRequired,
-  trackColorSettings: PropTypes.object,
-  setTrackColorSetting: PropTypes.func.isRequired,
-  label: PropTypes.string,
-  availableColors: PropTypes.array,
-  presetColors: PropTypes.array,
-};
 
 export default TrackSettings;

@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 
 const BACKDROP_STYLE = {
   position: "fixed",
@@ -60,12 +59,5 @@ const ReadContextMenu = ({ readName, x, y, onFilter, onClose }) => (
   </>
 );
 
-ReadContextMenu.propTypes = {
-  readName: PropTypes.string.isRequired,
-  x: PropTypes.number.isRequired,
-  y: PropTypes.number.isRequired,
-  onFilter: PropTypes.func.isRequired,
-  onClose: PropTypes.func.isRequired,
-};
 
 export default ReadContextMenu;

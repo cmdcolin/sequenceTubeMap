@@ -1,4 +1,3 @@
-import PropTypes from "prop-types";
 import Select from "react-select";
 import React from "react";
 
@@ -36,11 +35,5 @@ export const PickerTypeDropdown = ({
   );
 };
 
-PickerTypeDropdown.propTypes = {
-  handleInputChange: PropTypes.func.isRequired,
-  pickerOptions: PropTypes.array.isRequired,
-  value: PropTypes.string.isRequired,
-  testID: PropTypes.string,
-};
 
 export default PickerTypeDropdown;

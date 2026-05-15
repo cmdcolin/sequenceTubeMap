@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import Select from "react-select";
 
 /**
@@ -49,13 +48,5 @@ inputted to the component. For example, if 'id' is supposed to be a string, a nu
 be passed in - that would cause errors. However, if the prop has 'isRequired' specified, 
 it must be passed to the component. */
 
-TrackTypeDropdown.propTypes = {
-  id: PropTypes.string,
-  className: PropTypes.string,
-  value: PropTypes.string,
-  onChange: PropTypes.func.isRequired,
-  testID: PropTypes.string,
-  options: PropTypes.array,
-};
 
 export default TrackTypeDropdown;
