@@ -7,12 +7,15 @@ import TubeMap from "./TubeMap";
 import * as tubeMap from "../util/tubemap";
 import { dataOriginTypes } from "../enums";
 import PopUpInfoDialog from "./PopUpInfoDialog";
+import ReadContextMenu from "./ReadContextMenu";
 
 class TubeMapContainer extends Component {
   state = {
     isLoading: true,
     error: null,
     infoDialogContent: undefined,
+    readContextMenu: null,
+    focusReadName: null,
   };
 
   componentDidMount() {
@@ -61,6 +64,9 @@ class TubeMapContainer extends Component {
       tubeMap.setInfoCallback((text) => {
         this.setState({ infoDialogContent: text });
       });
+      tubeMap.setReadContextMenuCallback((menu) => {
+        this.setState({ readContextMenu: menu });
+      });
     }
   }
 
@@ -107,6 +113,7 @@ class TubeMapContainer extends Component {
     }
     // resets value of infoDialogContent upon close
     const closePopup = () => this.setState({ infoDialogContent: undefined });
+    const { readContextMenu, focusReadName } = this.state;
 
     return (
       <div id="tubeMapContainer">
@@ -115,6 +122,31 @@ class TubeMapContainer extends Component {
           attributes={attributes}
           close={closePopup}
         />
+        {focusReadName ? (
+          <div
+            style={{
+              padding: "6px 12px",
+              background: "#fff3cd",
+              border: "1px solid #ffeeba",
+              borderRadius: "4px",
+              margin: "8px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+            }}
+          >
+            <span>
+              Showing only read: <strong>{focusReadName}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => this.setState({ focusReadName: null })}
+            >
+              Clear
+            </button>
+          </div>
+        ) : null}
         <div id="tubeMapSVG">
           <TubeMap
             nodes={this.state.nodes}
@@ -124,10 +156,25 @@ class TubeMapContainer extends Component {
             visOptions={{
               coloredNodes: this.state.coloredNodes,
               ...this.props.visOptions,
+              focusReadName: focusReadName,
             }}
             nodeSequences={!this.props.viewTarget.removeSequences}
           />
         </div>
+        {readContextMenu ? (
+          <ReadContextMenu
+            readName={readContextMenu.readName}
+            x={readContextMenu.x}
+            y={readContextMenu.y}
+            onFilter={(name) =>
+              this.setState({
+                focusReadName: name,
+                readContextMenu: null,
+              })
+            }
+            onClose={() => this.setState({ readContextMenu: null })}
+          />
+        ) : null}
       </div>
     );
   }

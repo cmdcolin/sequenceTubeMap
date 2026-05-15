@@ -63,6 +63,7 @@ class TubeMap extends Component {
       tubeMap.setColorSet(key, colorScheme);
     }
     tubeMap.setMappingQualityCutoff(visOptions.mappingQualityCutoff);
+    tubeMap.setFocusReadName(visOptions.focusReadName);
   }
 
   render() {

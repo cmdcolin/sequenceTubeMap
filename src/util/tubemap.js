@@ -159,6 +159,8 @@ const config = {
   showInfoCallback: function (info) {
     alert(info);
   },
+  readContextMenuCallback: function () {},
+  focusReadName: null,
 };
 
 // variables for storing info which can be directly translated into drawing instructions
@@ -406,6 +408,24 @@ export function setColoredNodes(value) {
 // as a string or number, to be displayed.
 export function setInfoCallback(newCallback) {
   config.showInfoCallback = newCallback;
+}
+
+// Set the callback fired when the user right-clicks a read in the tube map.
+// The callback receives { readName, x, y } where x/y are clientX/clientY.
+export function setReadContextMenuCallback(newCallback) {
+  config.readContextMenuCallback = newCallback;
+}
+
+// Restrict the displayed reads to a single read by name. Pass null to clear.
+export function setFocusReadName(value) {
+  const newValue = value === undefined ? null : value;
+  if (config.focusReadName !== newValue) {
+    config.focusReadName = newValue;
+    if (svg !== undefined) {
+      svg = d3.select(svgID);
+      createTubeMap();
+    }
+  }
 }
 
 export function setMappingQualityCutoff(value) {
@@ -3890,6 +3910,7 @@ function drawTrackRectangles(rectangles, type, groupTrack) {
     .on("mouseout", trackMouseOut)
     .on("dblclick", trackDoubleClick)
     .on("click", trackSingleClick)
+    .on("contextmenu", trackRightClick)
     .append("svg:title")
     .text((d) => getPopUpTrackText(d.name));
 }
@@ -4192,6 +4213,7 @@ function drawTrackCurves(type, groupTrack) {
     .on("mouseout", trackMouseOut)
     .on("dblclick", trackDoubleClick)
     .on("click", trackSingleClick)
+    .on("contextmenu", trackRightClick)
     .append("svg:title")
     .text((d) => getPopUpTrackText(d.name));
 }
@@ -4214,6 +4236,7 @@ function drawTrackCorners(corners, type, groupTrack) {
     .on("mouseout", trackMouseOut)
     .on("dblclick", trackDoubleClick)
     .on("click", trackSingleClick)
+    .on("contextmenu", trackRightClick)
     .append("svg:title")
     .text((d) => getPopUpTrackText(d.name));
 }
@@ -4379,6 +4402,22 @@ function trackSingleClick() {
   console.log("Single Click");
   console.log("read path");
   config.showInfoCallback(track_attributes);
+}
+
+// Right-click on a track. For reads, fires the context-menu callback with the
+// read's name and the click coordinates so the React layer can render a menu.
+function trackRightClick() {
+  /* jshint validthis: true */
+  const trackID = Number(d3.select(this).attr("trackID"));
+  const current_track = getTrackByID(trackID);
+  if (current_track && current_track.type === "read") {
+    d3.event.preventDefault();
+    config.readContextMenuCallback({
+      readName: current_track.name,
+      x: d3.event.clientX,
+      y: d3.event.clientY,
+    });
+  }
 }
 
 // show track name when hovering mouse
@@ -5203,6 +5242,8 @@ function filterReads(reads) {
   if (!reads) return reads;
   return reads.filter(
     (read) =>
-      !read.is_secondary && read.mapping_quality >= config.mappingQualityCutoff
+      !read.is_secondary &&
+      read.mapping_quality >= config.mappingQualityCutoff &&
+      (config.focusReadName === null || read.name === config.focusReadName)
   );
 }
