@@ -53,7 +53,7 @@ function PathsPanel({ pathInfo, onLoadPath }) {
                     <Button
                       size="sm"
                       disabled={length === null}
-                      onClick={() => onLoadPath(`${name}:0-${length}`)}
+                      onClick={() => onLoadPath(`${name}:0-${length - 1}`)}
                     >
                       Load
                     </Button>
