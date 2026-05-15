@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 
@@ -207,24 +206,6 @@ const ReadGroupsPanel = ({
     </div>
   </div>
   );
-};
-
-ReadGroupsPanel.propTypes = {
-  groups: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      name: PropTypes.string.isRequired,
-      color: PropTypes.string.isRequired,
-      reads: PropTypes.arrayOf(PropTypes.string).isRequired,
-    })
-  ).isRequired,
-  activeGroupId: PropTypes.string,
-  otherReadsColor: PropTypes.string.isRequired,
-  onSetActive: PropTypes.func.isRequired,
-  onRename: PropTypes.func.isRequired,
-  onRecolor: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
-  onRecolorOther: PropTypes.func.isRequired,
 };
 
 export default ReadGroupsPanel;

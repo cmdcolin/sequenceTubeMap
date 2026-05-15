@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 
 const PANEL_STYLE = {
   padding: "8px 12px",
@@ -49,12 +48,17 @@ const VARIANT_STYLE = {
   filter: { background: "#fff3cd", borderColor: "#ffeeba" },
 };
 
-const PendingPanel = ({ variant, title, items, onRemove, actions }) => (
+const PendingPanel = ({ variant, title, titleHint, items, onRemove, actions }) => (
   <div style={{ ...PANEL_STYLE, ...VARIANT_STYLE[variant] }}>
     <div style={HEADER_STYLE}>
-      <span>{title}</span>
+      <span title={titleHint}>{title}</span>
       {actions.map((action, idx) => (
-        <button key={idx} type="button" onClick={() => action.onClick()}>
+        <button
+          key={idx}
+          type="button"
+          title={action.hint}
+          onClick={() => action.onClick()}
+        >
           {action.label}
         </button>
       ))}
@@ -78,18 +82,5 @@ const PendingPanel = ({ variant, title, items, onRemove, actions }) => (
     </div>
   </div>
 );
-
-PendingPanel.propTypes = {
-  variant: PropTypes.oneOf(Object.keys(VARIANT_STYLE)).isRequired,
-  title: PropTypes.node.isRequired,
-  items: PropTypes.arrayOf(PropTypes.string).isRequired,
-  onRemove: PropTypes.func,
-  actions: PropTypes.arrayOf(
-    PropTypes.shape({
-      label: PropTypes.node.isRequired,
-      onClick: PropTypes.func.isRequired,
-    })
-  ).isRequired,
-};
 
 export default PendingPanel;

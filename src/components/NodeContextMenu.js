@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 import ContextMenu from "./ContextMenu";
 
 const NodeContextMenu = ({
@@ -47,21 +46,6 @@ const NodeContextMenu = ({
       items={items}
     />
   );
-};
-
-NodeContextMenu.propTypes = {
-  nodeName: PropTypes.string.isRequired,
-  readNames: PropTypes.arrayOf(PropTypes.string).isRequired,
-  alreadyInNodeSet: PropTypes.bool.isRequired,
-  x: PropTypes.number.isRequired,
-  y: PropTypes.number.isRequired,
-  activeGroup: PropTypes.shape({
-    name: PropTypes.string.isRequired,
-  }),
-  onAddReadsToSet: PropTypes.func.isRequired,
-  onAddReadsToActiveGroup: PropTypes.func.isRequired,
-  onAddNodeToNodeSet: PropTypes.func.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default NodeContextMenu;

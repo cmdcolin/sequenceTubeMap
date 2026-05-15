@@ -257,15 +257,18 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
   const pendingReadActions = [
     {
       label: `Filter to these ${pendingReadSet.length} read${pendingReadSet.length === 1 ? "" : "s"}`,
+      hint: "Hide every other read; show only these.",
       onClick: () => { setFocusReadNames(pendingReadSet); setPendingReadSet([]); },
     },
     {
       label: "Save as group",
+      hint: "Color these reads distinctly. Other reads stay visible but use the 'Other' color.",
       onClick: () => saveSetAsNewGroup(),
     },
     ...(activeGroup
       ? [{
           label: `Add to "${activeGroup.name}"`,
+          hint: `Merge these reads into the active group "${activeGroup.name}".`,
           onClick: () => {
             addNamesToActiveGroup(pendingReadSet);
             setPendingReadSet([]);
@@ -274,6 +277,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
       : []),
     {
       label: "Clear set",
+      hint: "Discard the staged reads without filtering or grouping.",
       onClick: () => setPendingReadSet([]),
     },
   ];
@@ -287,15 +291,18 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
         <PendingPanel
           variant="node"
           title={`Node set (${pendingNodeSet.length}):`}
+          titleHint="Nodes you've selected; use the actions below to stage reads that travel through them."
           items={pendingNodeSet}
           onRemove={(nodeName) => setPendingNodeSet(pendingNodeSet.filter((n) => n !== nodeName))}
           actions={[
             {
               label: `Add reads through all ${pendingNodeSet.length} node${pendingNodeSet.length === 1 ? "" : "s"} (intersection)`,
+              hint: "Only reads whose path visits every node in this set.",
               onClick: () => addReadsThroughNodeSet("all"),
             },
             {
               label: "Add reads through any (union)",
+              hint: "Any read whose path visits at least one node in this set.",
               onClick: () => addReadsThroughNodeSet("any"),
             },
             {
@@ -309,6 +316,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
         <PendingPanel
           variant="read"
           title={`Read set (${pendingReadSet.length}):`}
+          titleHint="Reads staged for an action: filter to only these, save as a color group, or merge into the active group."
           items={pendingReadSet}
           onRemove={(name) => setPendingReadSet(pendingReadSet.filter((n) => n !== name))}
           actions={pendingReadActions}
