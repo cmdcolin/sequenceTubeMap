@@ -4484,11 +4484,11 @@ function nodeDoubleClick() {
 }
 
 // extract info about nodes from vg-json
-export function vgExtractNodes(vg) {
+export function vgExtractNodes(vg, nameMap = {}) {
   const result = [];
   vg.node.forEach((node) => {
     result.push({
-      name: `${node.id}`,
+      name: nameMap[`${node.id}`] ?? `${node.id}`,
       sequenceLength: node.sequenceLength ?? node.sequence.length,
       seq: node.sequence,
     });

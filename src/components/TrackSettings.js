@@ -109,6 +109,9 @@ export const TrackSettings = ({
             </Row>
           </Form>
         );
+      case "node":
+      case "translation":
+        return null;
       default:
         throw new Error("Invalid file type");
     }

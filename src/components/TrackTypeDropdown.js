@@ -53,7 +53,7 @@ TrackTypeDropdown.defaultProps = {
   className: undefined,
   value: "graph",
   testID: "file-type-select-component",
-  options: ["graph", "haplotype", "read", "node"],
+  options: ["graph", "haplotype", "read", "node", "translation"],
 };
 
 export default TrackTypeDropdown;

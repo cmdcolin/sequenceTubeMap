@@ -319,7 +319,7 @@ class TubeMapContainer extends Component {
             haplotypeTrackID
         );
 
-        const nodes = tubeMap.vgExtractNodes(json.graph);
+        const nodes = tubeMap.vgExtractNodes(json.graph, json.nameMap);
         const tracks = tubeMap.vgExtractTracks(
           json.graph,
           graphTrackID,
