@@ -179,6 +179,16 @@ export class ServerAPI extends APIInterface {
     return json;
   }
 
+  async getPathInfo(graphFile, cancelSignal) {
+    const json = await fetchAndParse(`${this.apiUrl}/getPathInfo`, {
+      signal: cancelSignal,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ graphFile }),
+    });
+    return json;
+  }
+
   async getChunkTracks(bedFile, chunk, cancelSignal) {
     const json = await fetchAndParse(`${this.apiUrl}/getChunkTracks`, {
       signal: cancelSignal,

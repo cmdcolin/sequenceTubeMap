@@ -498,6 +498,12 @@ export class GBZBaseAPI extends APIInterface {
     };
   }
 
+  async getPathInfo(graphFile, cancelSignal) {
+    return {
+      pathInfo: [],
+    };
+  }
+
   async getChunkTracks(bedFile, chunk, cancelSignal) {
     return {
       tracks: [],

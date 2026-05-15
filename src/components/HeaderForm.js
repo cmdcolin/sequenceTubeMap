@@ -7,6 +7,7 @@ import { LocalAPI } from "../api/LocalAPI.mjs";
 import DataPositionFormRow from "./DataPositionFormRow";
 import ExampleSelectButtons from "./ExampleSelectButtons";
 import RegionInput from "./RegionInput";
+import PathsPanel from "./PathsPanel";
 import TrackPicker from "./TrackPicker";
 import BedFileDropdown from "./BedFileDropdown";
 import FormHelperText from "@mui/material/FormHelperText";
@@ -74,6 +75,8 @@ const CLEAR_STATE = {
   // Names of paths in the graph track. Always kept in sync with the first
   // graph track. Emptied out if it is to change, to be re-populated.
   pathNames: [],
+  // Path info (name, length, cyclic) for the current graph track.
+  pathInfo: [],
 
   tracks: {},
   // BED file of regions to jump between. Regions may have pre-extracted chunks in the last column.
@@ -362,6 +365,7 @@ function HeaderForm({
   const [desc, setDesc] = useState(EMPTY_STATE.desc);
   const [regionInfo, setRegionInfo] = useState(EMPTY_STATE.regionInfo);
   const [pathNames, setPathNames] = useState(EMPTY_STATE.pathNames);
+  const [pathInfo, setPathInfo] = useState(EMPTY_STATE.pathInfo);
   const [tracks, setTracks] = useState(EMPTY_STATE.tracks);
   const [bedFile, setBedFile] = useState(EMPTY_STATE.bedFile);
   const [region, setRegion] = useState(EMPTY_STATE.region);
@@ -384,7 +388,7 @@ function HeaderForm({
   // These refs are updated every render so async functions can read latest values.
   const stateRef = useRef({});
   stateRef.current = {
-    bedSelect, desc, regionInfo, pathNames, tracks, bedFile, region, name,
+    bedSelect, desc, regionInfo, pathNames, pathInfo, tracks, bedFile, region, name,
     dataType, fileSizeAlert, uploadInProgress, error, availableTracks,
     availableBeds, simplify, removeSequences, popupOpen,
   };
@@ -460,6 +464,22 @@ function HeaderForm({
     }
   }
 
+  async function getPathInfo(graphFile) {
+    if (graphFile === null) return;
+    try {
+      const json = await APIInterface.getPathInfo(graphFile, cancelSignalRef.current);
+      if (!Array.isArray(json.pathInfo)) {
+        throw new Error("Server did not send back an array of path info");
+      }
+      const laterGraphTrack = firstGraphTrack(stateRef.current.tracks);
+      if (laterGraphTrack && laterGraphTrack.trackFile === graphFile) {
+        setPathInfo(json.pathInfo);
+      }
+    } catch (err) {
+      handleFetchError(err, "API getPathInfo failed:");
+    }
+  }
+
   async function getMountedFilenames() {
     setError(null);
     try {
@@ -495,6 +515,7 @@ function HeaderForm({
             } else {
               console.log("Get path names for track:", graphTrack);
               getPathNames(graphTrack.trackFile);
+              getPathInfo(graphTrack.trackFile);
             }
           }
         }
@@ -648,6 +669,7 @@ function HeaderForm({
         setAvailableTracks(trackListWithImplied(currentAvailableTracks, availableTrackSet, trackObject));
         if (!newGraphTrack || !laterGraphTrack || newGraphTrack.trackFile !== laterGraphTrack.trackFile) {
           setPathNames([]);
+          setPathInfo([]);
         }
       }
 
@@ -658,6 +680,7 @@ function HeaderForm({
         if (newGraphTrack && !trackIsImplied(newGraphTrack, availableTrackSet)) {
           console.log("Get path names for chunk provided graph track:", newGraphTrack);
           getPathNames(newGraphTrack.trackFile);
+          getPathInfo(newGraphTrack.trackFile);
         }
       }
     }
@@ -670,6 +693,7 @@ function HeaderForm({
     setTracks(newTracks);
     if (!newGraphTrack || !laterGraphTrack || newGraphTrack.trackFile !== laterGraphTrack.trackFile) {
       setPathNames([]);
+      setPathInfo([]);
     }
 
     let currentGraphTrack = firstGraphTrack(stateRef.current.tracks);
@@ -678,6 +702,7 @@ function HeaderForm({
       if (newGraphTrack && !trackIsImplied(newGraphTrack, availableTrackSet)) {
         console.log("Get path names for newly selected graph track:", newGraphTrack);
         getPathNames(newGraphTrack.trackFile);
+        getPathInfo(newGraphTrack.trackFile);
       }
     }
   }
@@ -772,6 +797,7 @@ function HeaderForm({
       setDesc("");
       setRegionInfo({});
       setPathNames([]);
+      setPathInfo([]);
       setTracks({});
       setBedFile("none");
       setRegion("");
@@ -796,12 +822,14 @@ function HeaderForm({
           if (graphTrack) {
             console.log("Get path names for built-in track: ", graphTrack);
             getPathNames(graphTrack.trackFile);
+            getPathInfo(graphTrack.trackFile);
           }
 
           const laterGraphTrack = firstGraphTrack(stateRef.current.tracks);
           if (!laterGraphTrack || !graphTrack || laterGraphTrack.trackFile !== graphTrack.trackFile) {
             console.log("Discard old path names for", laterGraphTrack);
             setPathNames([]);
+            setPathInfo([]);
           }
 
           setTracks(ds.tracks);
@@ -1026,6 +1054,16 @@ function HeaderForm({
             ) : null}
           </Col>
         </Row>
+        {pathInfo.length > 0 && !examplesFlag && (
+          <Row>
+            <Col>
+              <PathsPanel
+                pathInfo={pathInfo}
+                onLoadPath={async (region) => { await handleRegionChange(region); handleGoButton(); }}
+              />
+            </Col>
+          </Row>
+        )}
       </Container>
     </div>
   );

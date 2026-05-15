@@ -53,6 +53,14 @@ export class APIInterface {
     throw new Error("getPathNames function not implemented");
   }
 
+  // Takes in a graphFile path.
+  // Returns object with key: pathInfo.
+  // pathInfo is an array of { name, length, cyclic } objects for each path in the graph.
+  // cancelSignal is an AbortSignal that can be used to cancel the request.
+  async getPathInfo(graphFile, cancelSignal) {
+    throw new Error("getPathInfo function not implemented");
+  }
+
   // Expects a bed file(or url) and a chunk name.
   // Attempts to download tracks associated with the chunk name from the bed file if it is a URL.
   // Returns object with key: tracks.

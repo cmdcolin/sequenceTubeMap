@@ -2112,6 +2112,105 @@ api.post("/getPathNames", (req, res, next) => {
   }
 });
 
+api.post("/getPathInfo", (req, res, next) => {
+  console.log("received request for pathInfo");
+  const graphFile = req.body.graphFile;
+
+  if (!isAllowedPath(graphFile)) {
+    throw new BadRequestError("Path to Graph file not allowed: " + req.body.graphFile);
+  }
+  if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
+    throw new BadRequestError("Path to Graph file does not end in valid extension: " + req.body.graphFile);
+  }
+
+  let sentResponse = false;
+  const sendError = (err) => {
+    if (!sentResponse) {
+      sentResponse = true;
+      next(err);
+    }
+  };
+
+  if (graphFile.endsWith('.pos.bed.gz')) {
+    // pgtabix mode: return names only, lengths not available
+    const tabixCall = spawn("tabix", ["-l", graphFile]);
+    let output = "";
+    tabixCall.stdout.on("data", (data) => { output += data.toString(); });
+    tabixCall.on("error", () => sendError(new VgExecutionError("tabix path info failed")));
+    tabixCall.on("close", (code) => {
+      if (code !== 0) return sendError(new VgExecutionError("tabix path info failed"));
+      const pathInfo = output
+        .split("\n")
+        .filter((a) => a !== "" && !a.startsWith("_"))
+        .sort()
+        .map((name) => ({ name, length: null, cyclic: false }));
+      if (!sentResponse) {
+        sentResponse = true;
+        res.json({ pathInfo });
+      }
+    });
+    return;
+  }
+
+  // VG mode: run vg paths -E for name+length and vg paths -E -C for cyclic-only paths
+  let lengthLines = [];
+  let cyclicNames = new Set();
+  let pendingProcesses = 2;
+
+  const tryFinish = () => {
+    if (pendingProcesses > 0 || sentResponse) return;
+    const pathInfo = lengthLines
+      .filter((line) => line !== "" && !line.startsWith("_"))
+      .map((line) => {
+        const [name, lengthStr] = line.split("\t");
+        return { name, length: parseInt(lengthStr, 10), cyclic: cyclicNames.has(name) };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    sentResponse = true;
+    res.json({ pathInfo });
+  };
+
+  // vg paths -E: all paths with name and length
+  const lengthsChild = spawn(find_vg(), ["paths", "-E", "-x", graphFile]);
+  lengthsChild.stderr.on("data", (data) => console.log(`vg paths -E stderr: ${data}`));
+
+  let lengthsCode = null;
+  let lengthsLinesDone = false;
+  const lengthsReader = rl.createInterface({ input: lengthsChild.stdout });
+  lengthsReader.on("line", (line) => { if (line) lengthLines.push(line); });
+
+  const handleLengthsDone = () => {
+    if (lengthsCode === null || !lengthsLinesDone) return;
+    if (lengthsCode !== 0) return sendError(new VgExecutionError("vg paths -E failed"));
+    pendingProcesses--;
+    tryFinish();
+  };
+  lengthsChild.on("error", () => sendError(new VgExecutionError("vg paths -E failed")));
+  lengthsChild.on("close", (code) => { lengthsCode = code; handleLengthsDone(); });
+  lengthsReader.on("close", () => { lengthsLinesDone = true; handleLengthsDone(); });
+
+  // vg paths -E -C: only cyclic paths (non-zero exit on acyclic graphs is OK)
+  const cyclicChild = spawn(find_vg(), ["paths", "-E", "-C", "-x", graphFile]);
+  cyclicChild.stderr.on("data", (data) => console.log(`vg paths -C stderr: ${data}`));
+
+  let cyclicCode = null;
+  let cyclicLinesDone = false;
+  const cyclicReader = rl.createInterface({ input: cyclicChild.stdout });
+  cyclicReader.on("line", (line) => {
+    if (line && !line.startsWith("_")) cyclicNames.add(line.split("\t")[0]);
+  });
+
+  const handleCyclicDone = () => {
+    if (cyclicCode === null || !cyclicLinesDone) return;
+    // Non-zero exit is fine — graph may simply have no cyclic paths
+    pendingProcesses--;
+    tryFinish();
+  };
+  cyclicChild.on("error", () => { pendingProcesses--; tryFinish(); });
+  cyclicChild.on("close", (code) => { cyclicCode = code; handleCyclicDone(); });
+  cyclicReader.on("close", () => { cyclicLinesDone = true; handleCyclicDone(); });
+});
+
 // Given a string, return a filename-safe string that is a hash of that string.
 // The hash is collision-resistant.
 function hashString(str) {

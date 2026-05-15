@@ -1,9 +1,6 @@
+import * as Comlink from "comlink";
 import { APIInterface } from "./APIInterface.mjs";
-
 import { makeWorker } from "./local/WorkerFactory.js";
-
-import { RpcProvider } from "worker-rpc";
-
 
 /**
  * API implementation that uses a web worker to run a GBZBaseAPI.
@@ -12,73 +9,41 @@ export class LocalAPI extends APIInterface {
   constructor() {
     super();
 
-    // Make a worker
     this.worker = makeWorker();
-
-    // Make an RPC channel to the worker
-    this.rpc = new RpcProvider((message, transfer) => {
-      this.worker.postMessage(message, transfer);
-    });
-
-    // Hook up the incoming messages to the provider.
-    this.worker.addEventListener("message", (e) => {
-      return this.rpc.dispatch(e.data);
-    });
-
-    // Each call that can be canceled gets an ID for canceling it over the
-    // channel to the worker.
-    this.nextID = 0;
-
-    // File name change subscriptions go through this EventTarget
+    this.workerAPI = Comlink.wrap(this.worker);
+    this.nextCancelID = 0;
     this.nameChangeEvents = new EventTarget();
 
-    this.rpc.registerRpcHandler("_filename_change", async () => {
-      // If a filename change message comes in from the worker, tell our
-      // subscribers.
-      this.nameChangeEvents.dispatchEvent(new CustomEvent("change"));
-    });
+    // Forward filename changes from worker to local EventTarget
+    this.workerAPI.subscribeToFilenameChanges(
+      Comlink.proxy(() => {
+        this.nameChangeEvents.dispatchEvent(new CustomEvent("change"));
+      })
+    );
   }
 
-  /// Get a fresh RPC cancelation ID that will be canceled if the given
-  /// AbortSignal aborts. If no AbortSignal is passed, returns undefined.
   getCancelID(signal) {
-    if (signal === undefined) {
-      // We don't need an ID, this request is uncancelable.
-      return undefined;
-    }
-    let cancelID = this.nextID;
-    this.nextID++;
+    if (signal === undefined) return undefined;
+    const cancelID = this.nextCancelID++;
     signal.addEventListener("abort", () => {
-      this.rpc.rpc("_cancel", {cancelID});
+      this.workerAPI.cancel(cancelID);
     });
-    return cancelID
+    return cancelID;
   }
-
-  /////////
-  // Tube Map API implementation
-  /////////
 
   async getChunkedData(viewTarget, cancelSignal) {
-    let cancelID = this.getCancelID(cancelSignal);
-    return await this.rpc.rpc("getChunkedData", {viewTarget, cancelID});
+    return await this.workerAPI.getChunkedData(viewTarget, this.getCancelID(cancelSignal));
   }
 
   async getFilenames(cancelSignal) {
-    let cancelID = this.getCancelID(cancelSignal);
-    return await this.rpc.rpc("getFilenames", {cancelID});
+    return await this.workerAPI.getFilenames(this.getCancelID(cancelSignal));
   }
 
   subscribeToFilenameChanges(handler, cancelSignal) {
-    let eventHandler = () => {
-      if (!cancelSignal.aborted) {
-        // Protect the real handler from event arguments and also calls after
-        // canceling.
-        handler();
-      }
+    const eventHandler = () => {
+      if (!cancelSignal.aborted) handler();
     };
-    let unsubscribe = () => {
-      // When the signal aborts, clean up everything so we don't keep any
-      // references to things.
+    const unsubscribe = () => {
       this.nameChangeEvents.removeEventListener("change", eventHandler);
       cancelSignal.removeEventListener("abort", unsubscribe);
     };
@@ -88,24 +53,23 @@ export class LocalAPI extends APIInterface {
   }
 
   async putFile(fileType, file, cancelSignal) {
-    let cancelID = this.getCancelID(cancelSignal);
-    // The RPC system magically takes care of transfering the file via transfer. Probably.
-    return await this.rpc.rpc("putFile", {fileType, file, cancelID});
+    return await this.workerAPI.putFile(fileType, file, this.getCancelID(cancelSignal));
   }
 
   async getBedRegions(bedFile, cancelSignal) {
-    let cancelID = this.getCancelID(cancelSignal);
-    return await this.rpc.rpc("getBedRegions", {bedFile, cancelID});
+    return await this.workerAPI.getBedRegions(bedFile, this.getCancelID(cancelSignal));
   }
 
   async getPathNames(graphFile, cancelSignal) {
-    let cancelID = this.getCancelID(cancelSignal);
-    return await this.rpc.rpc("getPathNames", {graphFile, cancelID});
+    return await this.workerAPI.getPathNames(graphFile, this.getCancelID(cancelSignal));
+  }
+
+  async getPathInfo(graphFile, cancelSignal) {
+    return await this.workerAPI.getPathInfo(graphFile, this.getCancelID(cancelSignal));
   }
 
   async getChunkTracks(bedFile, chunk, cancelSignal) {
-    let cancelID = this.getCancelID(cancelSignal);
-    return await this.rpc.rpc("getChunkTracks", {bedFile, chunk, cancelID});
+    return await this.workerAPI.getChunkTracks(bedFile, chunk, this.getCancelID(cancelSignal));
   }
 }
 

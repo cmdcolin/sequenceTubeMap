@@ -1,7 +1,6 @@
 /**
- * Fake a new worker in a way that works on Jest. This is used
- * under Jest to mock WorkerFactory.js with something that can run on
- * Jest.
+ * Simulates a Web Worker in-process for Vitest. Cross-connects two
+ * EventEmitters so Comlink's postMessage/addEventListener API works on both sides.
  */
 
 import { setUpWorker } from "../WorkerImplementation.mjs"

@@ -4491,15 +4491,15 @@ function getPopUpTrackText(trackid) {
 
 // Right-click on a node. Fires the node context-menu callback with the list of
 // read names (from the unfiltered input) that pass through the node.
-function nodeRightClick() {
+function nodeRightClick(event) {
   /* jshint validthis: true */
   const nodeName = d3.select(this).attr("id");
-  d3.event.preventDefault();
+  event.preventDefault();
   config.nodeContextMenuCallback({
     nodeName,
     readNames: getReadNamesThroughNodes([nodeName], "any"),
-    x: d3.event.clientX,
-    y: d3.event.clientY,
+    x: event.clientX,
+    y: event.clientY,
   });
 }
 
