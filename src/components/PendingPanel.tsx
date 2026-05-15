@@ -1,6 +1,6 @@
-import React from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
-const PANEL_STYLE = {
+const PANEL_STYLE: CSSProperties = {
   padding: '8px 12px',
   border: '1px solid',
   borderRadius: '4px',
@@ -8,20 +8,20 @@ const PANEL_STYLE = {
   fontSize: '14px',
 }
 
-const HEADER_STYLE = {
+const HEADER_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
   marginBottom: '6px',
 }
 
-const CHIP_LIST_STYLE = {
+const CHIP_LIST_STYLE: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '6px',
 }
 
-const CHIP_STYLE = {
+const CHIP_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '4px',
@@ -32,7 +32,7 @@ const CHIP_STYLE = {
   fontSize: '13px',
 }
 
-const CHIP_REMOVE_STYLE = {
+const CHIP_REMOVE_STYLE: CSSProperties = {
   background: 'transparent',
   border: 'none',
   cursor: 'pointer',
@@ -42,10 +42,27 @@ const CHIP_REMOVE_STYLE = {
   color: '#666',
 }
 
-const VARIANT_STYLE = {
+export type PendingPanelVariant = 'read' | 'node' | 'filter'
+
+const VARIANT_STYLE: Record<PendingPanelVariant, CSSProperties> = {
   read: { background: '#e7f3ff', borderColor: '#bcdcff' },
   node: { background: '#e3f9e5', borderColor: '#a3e0a8' },
   filter: { background: '#fff3cd', borderColor: '#ffeeba' },
+}
+
+export interface PendingPanelAction {
+  label: ReactNode
+  hint?: string
+  onClick: () => void
+}
+
+interface PendingPanelProps {
+  variant: PendingPanelVariant
+  title: ReactNode
+  titleHint?: string
+  items: string[]
+  onRemove?: (item: string) => void
+  actions: PendingPanelAction[]
 }
 
 const PendingPanel = ({
@@ -55,7 +72,7 @@ const PendingPanel = ({
   items,
   onRemove,
   actions,
-}) => (
+}: PendingPanelProps) => (
   <div style={{ ...PANEL_STYLE, ...VARIANT_STYLE[variant] }}>
     <div style={HEADER_STYLE}>
       <span title={titleHint}>{title}</span>

@@ -1,26 +1,26 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import type { ImgHTMLAttributes } from 'react'
 import { Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faQuestion } from '@fortawesome/free-solid-svg-icons'
 import Markdown from 'markdown-to-jsx'
-import PopupDialog from './PopupDialog.js'
+import PopupDialog from './PopupDialog'
 
-export const HelpButton = ({
-  /* Expects a file input */
-  file,
-}) => {
-  let fileURL = new URL(file, document.baseURI)
-  // based off of https://react-popup.elazizi.com/controlled-popup/#using-open-prop
+interface HelpButtonProps {
+  file: string
+}
+
+export const HelpButton = ({ file }: HelpButtonProps) => {
+  const fileURL = new URL(file, document.baseURI)
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
 
-  // based off of https://stackoverflow.com/questions/42928530/how-do-i-load-a-markdown-file-into-a-react-component/65584658#65584658
   const [content, setContent] = useState('')
 
-  const Image = ({ alt, src, ...props }) => (
+  const Image = ({ alt, src, ...props }: ImgHTMLAttributes<HTMLImageElement>) => (
     <img
       alt={alt}
-      src={new URL(src, fileURL)}
+      src={src ? new URL(src, fileURL).toString() : undefined}
       {...props}
       style={{
         margin: '5px 0',
@@ -44,11 +44,10 @@ export const HelpButton = ({
       .then(md => {
         setContent(md)
       })
-      // catch - error is link
-      .catch(e => {
-        // If the network drops or if the front-end static server isn't
-        // available (like in the end to end tests), put something instead of
-        // having an unhandled rejection.
+      .catch(() => {
+        // If the network drops or the front-end static server isn't available
+        // (like in the end to end tests), put something instead of having an
+        // unhandled rejection.
         setContent('Could not fetch help')
       })
   }, [file])
@@ -66,7 +65,7 @@ export const HelpButton = ({
         <div
           style={{ height: '90vh', overflowY: 'scroll', overflowX: 'hidden' }}
         >
-          <Markdown options={options} children={content} />
+          <Markdown options={options}>{content}</Markdown>
         </div>
       </PopupDialog>
     </>

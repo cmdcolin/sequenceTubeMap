@@ -1,28 +1,34 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLink } from '@fortawesome/free-solid-svg-icons'
 import * as qs from 'qs'
 import PopupDialog from './PopupDialog'
+import type { ViewTarget } from '../Types'
 
 const UNCLICKED_TEXT = ' Copy link to data'
 const CLICKED_TEXT = ' Copied link!'
 
 // uses Clipboard API to write text to clipboard
-export const writeToClipboard = text => {
+export const writeToClipboard = (text: string) => {
   navigator.clipboard.writeText(text)
 }
 
 // For testing purposes
-let copyCallback = writeToClipboard
+let copyCallback: (text: string) => void = writeToClipboard
 
 // sets value of copyCallback
-export const setCopyCallback = callback => (copyCallback = callback)
+export const setCopyCallback = (callback: (text: string) => void) =>
+  (copyCallback = callback)
 
-export function CopyLink(props) {
+interface CopyLinkProps {
+  getCurrentViewTarget: () => ViewTarget | Record<string, unknown>
+}
+
+export function CopyLink(props: CopyLinkProps) {
   // Button to copy a link with viewTarget to the data selected
   const [text, setText] = useState(UNCLICKED_TEXT)
-  const [dialogLink, setDialogLink] = useState(undefined)
+  const [dialogLink, setDialogLink] = useState<string | undefined>(undefined)
 
   const handleCopyLink = () => {
     // Turn viewTarget into a URL query string
@@ -33,17 +39,15 @@ export function CopyLink(props) {
     console.log('params ', params)
 
     // Make a new URL based off the current one
-    let url = new URL(window.location.toString())
+    const url = new URL(window.location.toString())
     url.search = '?' + params
     url.hash = ''
     console.log(url)
 
     try {
-      // copy full to clipboard
       copyCallback(url.toString())
-      // change text
       setText(CLICKED_TEXT)
-    } catch (err) {
+    } catch {
       setText(UNCLICKED_TEXT)
       setDialogLink(url.toString())
       console.log('copy error')
@@ -54,14 +58,12 @@ export function CopyLink(props) {
 
   return (
     <>
-      <Button id="copyLinkButton" color="primary" onClick={handleCopyLink}>
+      <Button id="copyLinkButton" color="primary" onClick={() => handleCopyLink()}>
         <FontAwesomeIcon icon={faLink} size="lg" />
         {text}
       </Button>
       <PopupDialog open={dialogLink != null} close={close}>
         <h5>Link to Data</h5>
-        {/* Received warning on build that simply using target="_blank" is a security risk in older browsers, so included rel="noopener noreferrer" as per this post: 
-         https://stackoverflow.com/questions/57628890/why-people-use-rel-noopener-noreferrer-instead-of-just-rel-noreferrer */}
         <p>
           <a href={dialogLink} target="_blank" rel="noopener noreferrer">
             Data
@@ -75,24 +77,24 @@ export function CopyLink(props) {
   )
 }
 
-export const urlParamsToViewTarget = url => {
+export const urlParamsToViewTarget = (
+  url: string | Location,
+): Record<string, unknown> | null => {
   // @param {string} url - url containing search params
   //  normally should be document.location
   // Take any saved parameters in the query part of the URL
   // and turn to object to populate in HeaderForm state and viewTarget
   // Returns: Object (viewTarget) - see App.js
-
-  let parsed = new URL(url)
-  let result = null
-  // If url contains information on viewObject
+  const parsed = new URL(url.toString())
+  let result: Record<string, unknown> | null = null
   if (parsed.search) {
-    result = qs.parse(parsed.search.substr(1))
+    result = qs.parse(parsed.search.substr(1)) as Record<string, unknown>
   }
 
   // Ensures that the flag fields are booleans, as the qs module can't tell
   // the difference between false and "false"
   if (result != null) {
-    for (let flag_name of ['simplify', 'removeSequences']) {
+    for (const flag_name of ['simplify', 'removeSequences']) {
       if (result[flag_name] === 'true') {
         result[flag_name] = true
       } else if (result[flag_name] === 'false') {

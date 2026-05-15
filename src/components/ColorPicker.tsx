@@ -1,26 +1,34 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { SketchPicker } from 'react-color'
-import { Button } from 'reactstrap'
+import { Button, Container } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPalette } from '@fortawesome/free-solid-svg-icons'
-import { Container } from 'reactstrap'
+import type { ColorHex, Palette } from '../Types'
+
+interface ColorPickerProps {
+  color?: Palette
+  presetColors?: string[]
+  onChange: (color: ColorHex) => void
+  testID?: string
+}
 
 // A react-color picker embedded within a button
 export const ColorPicker = ({
-  color, // hex color or named color palette currently selected.
-  presetColors, // array of hex colors e.g ["#f44336", "#e91e63", "#9c27b0", "#673ab7"]
-  onChange, // on change function expecting hex color as an argument
+  color,
+  presetColors,
+  onChange,
   testID = 'color-picker-component',
-}) => {
-  const [nextColor, setNextColor] = useState(undefined)
+}: ColorPickerProps) => {
+  const [nextColor, setNextColor] = useState<ColorHex | undefined>(undefined)
   const [open, setOpen] = useState(false)
 
-  const popover = {
+  const popover: CSSProperties = {
     position: 'absolute',
-    zIndex: '2',
+    zIndex: 2,
   }
 
-  const cover = {
+  const cover: CSSProperties = {
     position: 'fixed',
     top: '0px',
     right: '0px',
@@ -32,17 +40,13 @@ export const ColorPicker = ({
     if (open) {
       setOpen(false)
       if (nextColor) {
-        // Apply the color
         onChange(nextColor)
       }
     } else {
       setOpen(true)
       if (color && color.startsWith('#')) {
-        // If we had a color picked, use it to start
-        setNextColor(color)
+        setNextColor(color as ColorHex)
       } else {
-        // We don't have a color to start with. We don't want to apply
-        // a random color when we close.
         setNextColor(undefined)
       }
     }
@@ -52,7 +56,7 @@ export const ColorPicker = ({
     <div>
       <Button
         aria-label="ColorPicker"
-        onClick={togglePicker}
+        onClick={() => togglePicker()}
         data-testid={testID}
       >
         <FontAwesomeIcon icon={faPalette} />
@@ -60,13 +64,13 @@ export const ColorPicker = ({
 
       {open ? (
         <div style={popover}>
-          <div style={cover} onClick={togglePicker} />
+          <div style={cover} onClick={() => togglePicker()} />
           <Container>
             <SketchPicker
               color={nextColor || '#fff'}
               presetColors={presetColors}
               onChange={newColor => {
-                setNextColor(newColor['hex'])
+                setNextColor(newColor.hex as ColorHex)
               }}
             />
           </Container>

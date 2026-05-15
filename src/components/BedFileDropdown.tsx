@@ -1,12 +1,25 @@
 import Autocomplete from '@mui/material/Autocomplete'
 import TextField from '@mui/material/TextField'
 
-function getFilename(fullPath) {
+function getFilename(fullPath: string | null | undefined) {
   if (!fullPath || fullPath === 'none') {
     return ''
   }
   const segments = fullPath.split('/')
   return segments[segments.length - 1]
+}
+
+interface BedFileDropdownChangeEvent {
+  target: { id: string; value: string }
+}
+
+interface BedFileDropdownProps {
+  id: string
+  inputId: string
+  className?: string
+  value?: string | null
+  onChange: (event: BedFileDropdownChangeEvent) => void
+  options: string[]
 }
 
 export function BedFileDropdown({
@@ -16,9 +29,9 @@ export function BedFileDropdown({
   value,
   onChange,
   options,
-}) {
+}: BedFileDropdownProps) {
   return (
-    <Autocomplete
+    <Autocomplete<string, false, true, true>
       id={id}
       className={className}
       size="small"
@@ -40,7 +53,10 @@ export function BedFileDropdown({
           {...params}
           size="small"
           placeholder="None"
-          inputProps={{ ...params.inputProps, id: inputId }}
+          slotProps={{
+            ...params.slotProps,
+            htmlInput: { ...params.slotProps.htmlInput, id: inputId },
+          }}
         />
       )}
       fullWidth

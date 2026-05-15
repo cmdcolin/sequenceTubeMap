@@ -1,5 +1,18 @@
-import React from 'react'
-import ContextMenu from './ContextMenu'
+import ContextMenu, { type ContextMenuItem } from './ContextMenu'
+import type { ReadGroup } from './ReadGroupsPanel'
+
+interface NodeContextMenuProps {
+  nodeName: string
+  readNames: string[]
+  alreadyInNodeSet: boolean
+  x: number
+  y: number
+  activeGroup?: ReadGroup | null
+  onAddReadsToSet: (readNames: string[]) => void
+  onAddReadsToActiveGroup: (readNames: string[]) => void
+  onAddNodeToNodeSet: (nodeName: string) => void
+  onClose: () => void
+}
 
 const NodeContextMenu = ({
   nodeName,
@@ -12,9 +25,9 @@ const NodeContextMenu = ({
   onAddReadsToActiveGroup,
   onAddNodeToNodeSet,
   onClose,
-}) => {
+}: NodeContextMenuProps) => {
   const count = readNames.length
-  const items = [
+  const items: ContextMenuItem[] = [
     {
       label:
         count === 0

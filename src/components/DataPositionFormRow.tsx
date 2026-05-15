@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react'
 import { CopyLink } from './CopyLink'
 import { Form, Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -7,10 +8,23 @@ import {
   faSearchPlus,
   faSearchMinus,
 } from '@fortawesome/free-solid-svg-icons'
-import HelpButton from './HelpButton.js'
+import HelpButton from './HelpButton'
 import * as tubeMap from '../util/tubemap'
+import type { ViewTarget } from '../Types'
 
 const ZOOM_FACTOR = 2.0
+
+interface DataPositionFormRowProps {
+  handleGoButton: () => void
+  handleGoLeft: () => void
+  handleGoRight: () => void
+  uploadInProgress: boolean
+  getCurrentViewTarget: () => ViewTarget | Record<string, unknown>
+  viewTargetHasChange: boolean
+  canGoLeft: boolean
+  canGoRight: boolean
+  handleInputChange?: (event: KeyboardEvent<HTMLFormElement>) => void
+}
 
 function DataPositionFormRow({
   handleGoButton,
@@ -22,17 +36,18 @@ function DataPositionFormRow({
   canGoLeft,
   canGoRight,
   handleInputChange,
-}) {
-  const onKeyUp = event => {
+}: DataPositionFormRowProps) {
+  const onKeyUp = (event: KeyboardEvent<HTMLFormElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault()
-      handleInputChange(event)
+      handleInputChange?.(event)
       handleGoButton()
     }
   }
 
   const handleDownloadButton = () => {
     const svgN = document.getElementById('svg')
+    if (!svgN) return
     const svgData = new XMLSerializer().serializeToString(svgN)
     const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
     const svgUrl = URL.createObjectURL(svgBlob)

@@ -1,14 +1,23 @@
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 
+interface TrackTypeDropdownProps {
+  id?: string
+  className?: string
+  value?: string
+  onChange: (value: string) => void
+  testID?: string
+  options?: string[]
+}
+
 export function TrackTypeDropdown({
-  id = undefined,
-  className = undefined,
+  id,
+  className,
   value = 'graph',
   onChange,
   testID = 'file-type-select-component',
   options = ['graph', 'haplotype', 'read', 'node'],
-}) {
+}: TrackTypeDropdownProps) {
   return (
     <div data-testid={testID}>
       <Select
@@ -16,7 +25,7 @@ export function TrackTypeDropdown({
         className={className}
         size="small"
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value as string)}
       >
         {options.map(o => (
           <MenuItem key={o} value={o}>

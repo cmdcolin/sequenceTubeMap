@@ -1,8 +1,25 @@
 import { Form, Button } from 'reactstrap'
 import { dataOriginTypes } from '../enums'
+import type { ColorPaletteName } from '../Types'
 
-function ExampleSelectButtons({ setDataOrigin, setColorSetting }) {
-  const handleClick = (dataOrigin, haploColor, readColor) => {
+interface ExampleSelectButtonsProps {
+  setDataOrigin: (origin: string) => void
+  setColorSetting: (
+    key: string,
+    index: number,
+    value: ColorPaletteName,
+  ) => void
+}
+
+function ExampleSelectButtons({
+  setDataOrigin,
+  setColorSetting,
+}: ExampleSelectButtonsProps) {
+  const handleClick = (
+    dataOrigin: string,
+    haploColor: ColorPaletteName,
+    readColor?: ColorPaletteName,
+  ) => {
     setDataOrigin(dataOrigin)
     setColorSetting('mainPalette', 0, haploColor)
     if (readColor) {

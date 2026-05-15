@@ -1,4 +1,4 @@
-import React from 'react'
+import type { CSSProperties } from 'react'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 
@@ -11,7 +11,7 @@ const PALETTE_OPTIONS = [
   { value: 'lightColors', label: 'Light' },
 ]
 
-const PANEL_STYLE = {
+const PANEL_STYLE: CSSProperties = {
   padding: '8px 12px',
   border: '1px solid #d0d0d0',
   background: '#fafafa',
@@ -20,7 +20,7 @@ const PANEL_STYLE = {
   fontSize: '14px',
 }
 
-const HEADER_STYLE = {
+const HEADER_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
@@ -28,14 +28,14 @@ const HEADER_STYLE = {
   fontWeight: 500,
 }
 
-const ROW_STYLE = {
+const ROW_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
   padding: '4px 0',
 }
 
-const SWATCH_STYLE = {
+const SWATCH_STYLE: CSSProperties = {
   width: '24px',
   height: '20px',
   border: '1px solid #888',
@@ -44,7 +44,7 @@ const SWATCH_STYLE = {
   cursor: 'pointer',
 }
 
-const NAME_INPUT_STYLE = {
+const NAME_INPUT_STYLE: CSSProperties = {
   border: '1px solid transparent',
   background: 'transparent',
   fontSize: '14px',
@@ -53,12 +53,12 @@ const NAME_INPUT_STYLE = {
   minWidth: '120px',
 }
 
-const COUNT_STYLE = {
+const COUNT_STYLE: CSSProperties = {
   color: '#666',
   fontSize: '13px',
 }
 
-const DELETE_STYLE = {
+const DELETE_STYLE: CSSProperties = {
   background: 'transparent',
   border: 'none',
   cursor: 'pointer',
@@ -67,11 +67,11 @@ const DELETE_STYLE = {
   padding: '0 4px',
 }
 
-function isSolid(color) {
+function isSolid(color: unknown): color is string {
   return typeof color === 'string' && color.startsWith('#')
 }
 
-const OTHER_LABEL_STYLE = {
+const OTHER_LABEL_STYLE: CSSProperties = {
   fontSize: '14px',
   padding: '2px 4px',
   color: '#444',
@@ -79,11 +79,29 @@ const OTHER_LABEL_STYLE = {
   minWidth: '120px',
 }
 
-const OTHER_ROW_STYLE = {
+const OTHER_ROW_STYLE: CSSProperties = {
   ...ROW_STYLE,
   borderTop: '1px dashed #ccc',
   marginTop: '4px',
   paddingTop: '8px',
+}
+
+export interface ReadGroup {
+  id: string
+  name: string
+  color: string
+  reads: string[]
+}
+
+interface ReadGroupsPanelProps {
+  groups: ReadGroup[]
+  activeGroupId?: string | null
+  otherReadsColor: string
+  onSetActive: (id: string) => void
+  onRename: (id: string, name: string) => void
+  onRecolor: (id: string, color: string) => void
+  onDelete: (id: string) => void
+  onRecolorOther: (color: string) => void
 }
 
 const ReadGroupsPanel = ({
@@ -95,7 +113,7 @@ const ReadGroupsPanel = ({
   onRecolor,
   onDelete,
   onRecolorOther,
-}) => {
+}: ReadGroupsPanelProps) => {
   const otherSolid = isSolid(otherReadsColor)
   return (
     <div style={PANEL_STYLE}>
@@ -125,7 +143,7 @@ const ReadGroupsPanel = ({
               size="small"
               value={solid ? '__solid__' : group.color}
               onChange={e => {
-                const v = e.target.value
+                const v = e.target.value as string
                 onRecolor(group.id, v === '__solid__' ? '#ff7f00' : v)
               }}
               aria-label={`Palette for ${group.name}`}
@@ -179,7 +197,7 @@ const ReadGroupsPanel = ({
           size="small"
           value={otherSolid ? '__solid__' : otherReadsColor}
           onChange={e => {
-            const v = e.target.value
+            const v = e.target.value as string
             onRecolorOther(v === '__solid__' ? '#888888' : v)
           }}
           aria-label="Palette for other reads"

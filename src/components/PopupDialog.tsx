@@ -1,8 +1,18 @@
+import type { ReactNode } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogContent from '@mui/material/DialogContent'
 import IconButton from '@mui/material/IconButton'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faX } from '@fortawesome/free-solid-svg-icons'
+
+interface PopupDialogProps {
+  open: boolean
+  children?: ReactNode
+  close: () => void
+  closeOnDocumentClick?: boolean
+  width?: string | null
+  testID?: string
+}
 
 export const PopupDialog = ({
   open,
@@ -11,8 +21,8 @@ export const PopupDialog = ({
   closeOnDocumentClick = false,
   width = '760px',
   testID = 'PopupDialog',
-}) => {
-  const handleClose = (_event, reason) => {
+}: PopupDialogProps) => {
+  const handleClose = (_event: object, reason: string) => {
     if (
       !closeOnDocumentClick &&
       (reason === 'backdropClick' || reason === 'escapeKeyDown')

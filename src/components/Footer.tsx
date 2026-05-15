@@ -1,4 +1,4 @@
-/// Footer.js: main page footer component. Includes project page links and demo link.
+/// Footer.tsx: main page footer component. Includes project page links and demo link.
 
 import { Container, Row, Col, Navbar, Nav, NavItem } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'

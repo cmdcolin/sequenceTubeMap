@@ -1,4 +1,18 @@
-import ContextMenu from './ContextMenu'
+import ContextMenu, { type ContextMenuItem } from './ContextMenu'
+import type { ReadGroup } from './ReadGroupsPanel'
+
+interface ReadContextMenuProps {
+  readName: string
+  x: number
+  y: number
+  alreadyInSet: boolean
+  activeGroup?: ReadGroup | null
+  alreadyInActiveGroup: boolean
+  onFilter: (readName: string) => void
+  onAddToSet: (readName: string) => void
+  onAddToActiveGroup: (readName: string) => void
+  onClose: () => void
+}
 
 const ReadContextMenu = ({
   readName,
@@ -11,8 +25,8 @@ const ReadContextMenu = ({
   onAddToSet,
   onAddToActiveGroup,
   onClose,
-}) => {
-  const items = [
+}: ReadContextMenuProps) => {
+  const items: ContextMenuItem[] = [
     {
       label: 'Show only this read',
       onClick: () => onFilter(readName),

@@ -1,12 +1,12 @@
-import React from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
-const BACKDROP_STYLE = {
+const BACKDROP_STYLE: CSSProperties = {
   position: 'fixed',
   inset: 0,
   zIndex: 999,
 }
 
-const MENU_STYLE = {
+const MENU_STYLE: CSSProperties = {
   position: 'fixed',
   zIndex: 1000,
   background: 'white',
@@ -18,7 +18,7 @@ const MENU_STYLE = {
   fontSize: '14px',
 }
 
-const HEADER_STYLE = {
+const HEADER_STYLE: CSSProperties = {
   padding: '4px 12px',
   color: '#666',
   fontSize: '12px',
@@ -29,25 +29,37 @@ const HEADER_STYLE = {
   maxWidth: '320px',
 }
 
-const ITEM_STYLE = {
+const ITEM_STYLE: CSSProperties = {
   padding: '6px 12px',
   cursor: 'pointer',
   userSelect: 'none',
 }
 
-const DISABLED_ITEM_STYLE = {
+const DISABLED_ITEM_STYLE: CSSProperties = {
   ...ITEM_STYLE,
   color: '#aaa',
   cursor: 'default',
 }
 
-const MenuItem = ({ label, disabled, onClick }) =>
+export interface ContextMenuItem {
+  label: ReactNode
+  disabled?: boolean
+  onClick?: () => void
+}
+
+interface MenuItemProps {
+  label: ReactNode
+  disabled?: boolean
+  onClick?: () => void
+}
+
+const MenuItem = ({ label, disabled, onClick }: MenuItemProps) =>
   disabled ? (
     <div style={DISABLED_ITEM_STYLE}>{label}</div>
   ) : (
     <div
       style={ITEM_STYLE}
-      onClick={() => onClick()}
+      onClick={() => onClick?.()}
       onMouseEnter={e => (e.currentTarget.style.background = '#eef')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
@@ -55,7 +67,15 @@ const MenuItem = ({ label, disabled, onClick }) =>
     </div>
   )
 
-const ContextMenu = ({ header, items, x, y, onClose }) => (
+interface ContextMenuProps {
+  header: ReactNode
+  items: ContextMenuItem[]
+  x: number
+  y: number
+  onClose: () => void
+}
+
+const ContextMenu = ({ header, items, x, y, onClose }: ContextMenuProps) => (
   <>
     <div
       style={BACKDROP_STYLE}

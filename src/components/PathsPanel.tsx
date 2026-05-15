@@ -1,12 +1,18 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Card, CardHeader, Collapse, CardBody, Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faChevronRight,
   faChevronDown,
 } from '@fortawesome/free-solid-svg-icons'
+import type { PathInfo } from '../Types'
 
-function PathsPanel({ pathInfo, onLoadPath }) {
+interface PathsPanelProps {
+  pathInfo: PathInfo[]
+  onLoadPath: (region: string) => void
+}
+
+function PathsPanel({ pathInfo, onLoadPath }: PathsPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   if (!pathInfo.length) return null

@@ -5,53 +5,76 @@ import Tooltip from '@mui/material/Tooltip'
 import '../config-client.js'
 import '../config-global.mjs'
 import { isEmpty } from '../common.mjs'
+import type { RegionInfo } from '../Types'
+
+interface RegionOption {
+  label: string
+  value: string
+}
+
+interface RegionInputProps {
+  region: string
+  regionInfo: RegionInfo
+  handleRegionChange: (region: string) => void
+}
 
 // RegionInput: The path and region input box component
 // Responsible for selecting the path/chr and segment of data to look at
+export const RegionInput = ({
+  region,
+  regionInfo,
+  handleRegionChange,
+}: RegionInputProps) => {
+  const pathsWithRegion: RegionOption[] = []
 
-export const RegionInput = ({ region, regionInfo, handleRegionChange }) => {
-  const pathsWithRegion = []
+  const regionToDesc = new Map<string, string>()
 
-  const regionToDesc = new Map()
-
-  if (regionInfo && !isEmpty(regionInfo)) {
-    // Stitch path name + region start and end
-    for (const [index, path] of regionInfo['chr'].entries()) {
-      const pathWithRegion =
-        path + ':' + regionInfo.start[index] + '-' + regionInfo.end[index]
+  if (
+    regionInfo &&
+    !isEmpty(regionInfo) &&
+    regionInfo.chr &&
+    regionInfo.start &&
+    regionInfo.end &&
+    regionInfo.desc
+  ) {
+    const { chr, start, end, desc } = regionInfo
+    for (const [index, path] of chr.entries()) {
+      const pathWithRegion = `${path}:${start[index]}-${end[index]}`
       pathsWithRegion.push({
-        label: pathWithRegion + ' ' + regionInfo.desc[index],
+        label: `${pathWithRegion} ${desc[index]}`,
         value: pathWithRegion,
       })
-      regionToDesc.set(pathWithRegion, regionInfo.desc[index])
+      regionToDesc.set(pathWithRegion, desc[index])
     }
   }
 
   const displayRegions = pathsWithRegion
 
   let descLabel = 'Region'
-  if (regionToDesc.get(region)) {
-    descLabel = regionToDesc.get(region)
+  const matched = regionToDesc.get(region)
+  if (matched) {
+    descLabel = matched
   }
 
   return (
     <>
       <Tooltip title={descLabel} placement="top-start">
-        <Autocomplete
+        <Autocomplete<RegionOption | string, false, false, true>
           disablePortal
-          freeSolo // Allows custom input outside of the options
+          freeSolo
           size="small"
-          getOptionLabel={option => option.label || option.toString()}
+          getOptionLabel={option =>
+            typeof option === 'string' ? option : option.label
+          }
           value={region}
           inputValue={region}
           data-testid="autocomplete"
           id="regionInput"
-          onInputChange={(event, newInput) => {
+          onInputChange={(_event, newInput) => {
             let regionValue = newInput
             const regionObject = displayRegions.find(
               option => option.label === newInput,
             )
-            // If input is selected from one of the options
             if (regionObject) {
               regionValue = regionObject.value
             }
@@ -64,9 +87,6 @@ export const RegionInput = ({ region, regionInfo, handleRegionChange }) => {
               size="small"
               label={'Region'}
               name="Region Input"
-              inputProps={{
-                ...params.inputProps,
-              }}
             />
           )}
         />
