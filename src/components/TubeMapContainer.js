@@ -28,6 +28,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
   const [readGroups, setReadGroups] = useState([]);
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [groupCounter, setGroupCounter] = useState(0);
+  const [otherReadsColor, setOtherReadsColor] = useState("greys");
   const [nodes, setNodes] = useState(undefined);
   const [tracks, setTracks] = useState(undefined);
   const [reads, setReads] = useState(undefined);
@@ -323,10 +324,12 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
         <ReadGroupsPanel
           groups={readGroups}
           activeGroupId={activeGroupId}
+          otherReadsColor={otherReadsColor}
           onSetActive={(id) => setActiveGroupId(id)}
           onRename={(id, name) => renameGroup(id, name)}
           onRecolor={(id, color) => recolorGroup(id, color)}
           onDelete={(id) => deleteGroup(id)}
+          onRecolorOther={(color) => setOtherReadsColor(color)}
         />
       ) : null}
       {focusReadNames ? (
@@ -348,7 +351,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           tracks={tracks}
           reads={reads}
           region={region}
-          visOptions={{ coloredNodes, ...visOptions, focusReadNames, readGroups }}
+          visOptions={{ coloredNodes, ...visOptions, focusReadNames, readGroups, otherReadsColor }}
           nodeSequences={!viewTarget.removeSequences}
         />
       </div>

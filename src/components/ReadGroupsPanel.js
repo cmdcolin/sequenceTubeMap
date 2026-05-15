@@ -1,5 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 
 const PALETTE_OPTIONS = [
   { value: "plainColors", label: "Plain" },
@@ -43,11 +45,6 @@ const SWATCH_STYLE = {
   cursor: "pointer",
 };
 
-const PALETTE_SELECT_STYLE = {
-  fontSize: "13px",
-  padding: "2px 4px",
-};
-
 const NAME_INPUT_STYLE = {
   border: "1px solid transparent",
   background: "transparent",
@@ -75,16 +72,40 @@ function isSolid(color) {
   return typeof color === "string" && color.startsWith("#");
 }
 
+const OTHER_LABEL_STYLE = {
+  fontSize: "14px",
+  padding: "2px 4px",
+  color: "#444",
+  fontStyle: "italic",
+  minWidth: "120px",
+};
+
+const OTHER_ROW_STYLE = {
+  ...ROW_STYLE,
+  borderTop: "1px dashed #ccc",
+  marginTop: "4px",
+  paddingTop: "8px",
+};
+
 const ReadGroupsPanel = ({
   groups,
   activeGroupId,
+  otherReadsColor,
   onSetActive,
   onRename,
   onRecolor,
   onDelete,
-}) => (
+  onRecolorOther,
+}) => {
+  const otherSolid = isSolid(otherReadsColor);
+  return (
   <div style={PANEL_STYLE}>
-    <div style={HEADER_STYLE}>Read groups ({groups.length})</div>
+    <div style={HEADER_STYLE}>
+      Read coloring
+      <span style={COUNT_STYLE}>
+        ({groups.length} group{groups.length === 1 ? "" : "s"} + other)
+      </span>
+    </div>
     {groups.map((group) => {
       const isActive = group.id === activeGroupId;
       const solid = isSolid(group.color);
@@ -98,23 +119,24 @@ const ReadGroupsPanel = ({
             aria-label={`Set ${group.name} as active group`}
             title="Active group receives new selections"
           />
-          <select
+          <Select
+            size="small"
             value={solid ? "__solid__" : group.color}
-            style={PALETTE_SELECT_STYLE}
             onChange={(e) => {
               const v = e.target.value;
               onRecolor(group.id, v === "__solid__" ? "#ff7f00" : v);
             }}
             aria-label={`Palette for ${group.name}`}
             title="Choose a palette (reads cycle through it) or solid color"
+            sx={{ fontSize: "13px", minWidth: 120 }}
           >
             {PALETTE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <MenuItem key={opt.value} value={opt.value}>
                 {opt.label}
-              </option>
+              </MenuItem>
             ))}
-            <option value="__solid__">Solid color…</option>
-          </select>
+            <MenuItem value="__solid__">Solid color…</MenuItem>
+          </Select>
           {solid ? (
             <input
               type="color"
@@ -149,8 +171,40 @@ const ReadGroupsPanel = ({
         </div>
       );
     })}
+    <div style={OTHER_ROW_STYLE}>
+      <span style={{ width: "16px" }} />
+      <Select
+        size="small"
+        value={otherSolid ? "__solid__" : otherReadsColor}
+        onChange={(e) => {
+          const v = e.target.value;
+          onRecolorOther(v === "__solid__" ? "#888888" : v);
+        }}
+        aria-label="Palette for other reads"
+        title="Color for reads not in any group"
+        sx={{ fontSize: "13px", minWidth: 120 }}
+      >
+        {PALETTE_OPTIONS.map((opt) => (
+          <MenuItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </MenuItem>
+        ))}
+        <MenuItem value="__solid__">Solid color…</MenuItem>
+      </Select>
+      {otherSolid ? (
+        <input
+          type="color"
+          value={otherReadsColor}
+          style={SWATCH_STYLE}
+          onChange={(e) => onRecolorOther(e.target.value)}
+          aria-label="Solid color for other reads"
+        />
+      ) : null}
+      <span style={OTHER_LABEL_STYLE}>Other reads (ungrouped)</span>
+    </div>
   </div>
-);
+  );
+};
 
 ReadGroupsPanel.propTypes = {
   groups: PropTypes.arrayOf(
@@ -162,10 +216,12 @@ ReadGroupsPanel.propTypes = {
     })
   ).isRequired,
   activeGroupId: PropTypes.string,
+  otherReadsColor: PropTypes.string.isRequired,
   onSetActive: PropTypes.func.isRequired,
   onRename: PropTypes.func.isRequired,
   onRecolor: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+  onRecolorOther: PropTypes.func.isRequired,
 };
 
 export default ReadGroupsPanel;

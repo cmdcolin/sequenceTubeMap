@@ -173,6 +173,10 @@ const config = {
   // drawn in that color, overriding the default strand/palette coloring. The
   // last group in the array wins for reads belonging to multiple groups.
   readGroups: [],
+  // When readGroups is non-empty, reads outside every group use this palette
+  // (or hex) instead of the strand-based default. Prevents visual confusion
+  // from mixing strand-based and group-based color schemes simultaneously.
+  otherReadsColor: "greys",
 };
 
 // variables for storing info which can be directly translated into drawing instructions
@@ -493,6 +497,17 @@ export function setReadGroups(value) {
       color: g.color,
       reads: new Set(g.reads),
     }));
+    if (svg !== undefined) {
+      svg = d3.select(svgID);
+      createTubeMap();
+    }
+  }
+}
+
+export function setOtherReadsColor(value) {
+  const next = value || "greys";
+  if (config.otherReadsColor !== next) {
+    config.otherReadsColor = next;
     if (svg !== undefined) {
       svg = d3.select(svgID);
       createTubeMap();
@@ -2753,6 +2768,13 @@ function generateTrackColor(track, highlight) {
         const groupColors = getColorSet(config.readGroups[i].color);
         return groupColors[track.id % groupColors.length];
       }
+    }
+    // When any group is active, every read is colored through the group
+    // system — ungrouped reads use otherReadsColor so strand/palette and
+    // group-based coloring don't fight each other on screen.
+    if (config.readGroups.length > 0) {
+      const otherColors = getColorSet(config.otherReadsColor);
+      return otherColors[track.id % otherColors.length];
     }
     if (config.colorSchemes[sourceID].colorReadsByMappingQuality) {
       trackColor = d3.interpolateRdYlGn(
