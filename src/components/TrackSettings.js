@@ -1,4 +1,3 @@
-import React from "react";
 import { Form, Row, Col } from "reactstrap";
 import RadioRow from "./RadioRow";
 import ColorPicker from "./ColorPicker";

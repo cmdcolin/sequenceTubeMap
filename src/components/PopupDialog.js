@@ -1,4 +1,3 @@
-import React from "react";
 import Popup from "reactjs-popup";
 import { Button } from "reactstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";

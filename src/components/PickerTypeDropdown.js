@@ -1,5 +1,4 @@
 import Select from "react-select";
-import React from "react";
 
 export const PickerTypeDropdown = ({
   value = "mounted",

@@ -1,4 +1,3 @@
-import React from "react";
 import { Col, Label, Input, FormGroup } from "reactstrap";
 
 // map of all possible colors [displayedName, value]

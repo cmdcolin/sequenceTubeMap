@@ -1,4 +1,3 @@
-import React from "react";
 import { Button } from "reactstrap";
 import { faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";

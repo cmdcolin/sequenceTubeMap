@@ -1,4 +1,3 @@
-import React from "react";
 import PopupDialog from "./PopupDialog.js";
 
 export const PopUpInfoDialog = ({ open, attributes, close }) => {

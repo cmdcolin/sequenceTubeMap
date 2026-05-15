@@ -1,4 +1,3 @@
-import React from "react";
 import { Form, Button } from "reactstrap";
 import { dataOriginTypes } from "../enums";
 
