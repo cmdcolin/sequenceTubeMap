@@ -10,6 +10,8 @@ import RegionInput from "./RegionInput";
 import PathsPanel from "./PathsPanel";
 import TrackPicker from "./TrackPicker";
 import BedFileDropdown from "./BedFileDropdown";
+import MenuItem from "@mui/material/MenuItem";
+import MuiSelect from "@mui/material/Select";
 import FormHelperText from "@mui/material/FormHelperText";
 import PopupDialog from "./PopupDialog.js";
 import Switch from "react-switch";
@@ -843,21 +845,12 @@ function HeaderForm({
     );
   }
 
-  let dataSourceDropdownOptions = DATA_SOURCES.map((ds) => {
-    return (
-      <option value={ds.name} key={ds.name}>
-        {ds.name}
-      </option>
-    );
-  });
-  dataSourceDropdownOptions.push(
-    <option value={dataTypes.EXAMPLES} key="syntheticExamples">
-      synthetic data examples
-    </option>,
-    <option value={dataTypes.CUSTOM_FILES} key={dataTypes.CUSTOM_FILES}>
-      custom
-    </option>
-  );
+  const dataSourceDropdownOptions = [
+    ...DATA_SOURCES.map((ds) => ({ value: ds.name, label: ds.name })),
+    { value: dataTypes.EXAMPLES, label: "synthetic data examples" },
+    { value: dataTypes.CUSTOM_FILES, label: "custom" },
+  ];
+  const dataSourceValue = dataType === dataTypes.BUILT_IN ? (name ?? "") : dataType;
 
   const customFilesFlag = dataType === dataTypes.CUSTOM_FILES;
   const examplesFlag = dataType === dataTypes.EXAMPLES;
@@ -904,20 +897,19 @@ function HeaderForm({
             >
               Data:
             </Label>
-            <select
-              type="select"
-              value={
-                dataType === dataTypes.BUILT_IN
-                  ? name
-                  : dataType
-              }
+            <MuiSelect
               id="dataSourceSelect"
-              className="form-select
-                mb-2 mr-sm-4 mb-sm-0"
+              size="small"
+              fullWidth
+              value={dataSourceValue}
               onChange={(e) => handleDataSourceChange(e)}
             >
-              {dataSourceDropdownOptions}
-            </select>
+              {dataSourceDropdownOptions.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </MuiSelect>
             &nbsp;
             {customFilesFlag && (
               <React.Fragment>

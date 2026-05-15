@@ -89,11 +89,14 @@ export const TrackPickerDisplay = ({
     }
   }, [trackListChanges, onChange, tracks]);
 
+  const appliedTracks = applyTrackListChanges(tracks, trackListChanges);
+  const isEmpty = Object.keys(appliedTracks).length === 0;
+
   return (
-    <Col>
+    <Col style={{ minWidth: "500px" }}>
       <Row>
         <TrackList
-          tracks={applyTrackListChanges(tracks, trackListChanges)}
+          tracks={appliedTracks}
           availableTracks={availableTracks}
           availableColors={availableColors}
           onChange={trackListOnChange}
@@ -101,6 +104,13 @@ export const TrackPickerDisplay = ({
           handleFileUpload={handleFileUpload}
         />
       </Row>
+      {isEmpty && (
+        <Row>
+          <div style={{ padding: "12px 16px", color: "#666", fontStyle: "italic" }}>
+            No tracks configured. Click the + button below to add a track.
+          </div>
+        </Row>
+      )}
       <Row>
         <TrackAddButton onChange={addTrackItem} />
       </Row>

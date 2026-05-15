@@ -52,6 +52,7 @@ export const RegionInput = ({
         <Autocomplete
           disablePortal
           freeSolo // Allows custom input outside of the options
+          size="small"
           getOptionLabel={(option) => option.label || option.toString()}
           value={region}
           inputValue={region}
@@ -72,6 +73,7 @@ export const RegionInput = ({
           renderInput={(params) => (
             <TextField
               {...params}
+              size="small"
               label={"Region"}
               name="Region Input"
               inputProps={{
