@@ -913,7 +913,7 @@ function HeaderForm({
                   htmlFor="bedSelectInput"
                   className="customData tight-label mb-2 me-sm-2 mb-sm-0 ms-2"
                 >
-                  BED file:
+                  BED:
                 </Label>
                 &nbsp;
                 <BedFileDropdown

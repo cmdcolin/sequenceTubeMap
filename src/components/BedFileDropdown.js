@@ -36,7 +36,8 @@ export function BedFileDropdown({ id, inputId, className, value, onChange, optio
           inputProps={{ ...params.inputProps, id: inputId }}
         />
       )}
-      sx={{ minWidth: 200, display: "inline-block", verticalAlign: "middle" }}
+      fullWidth
+      sx={{ minWidth: 200 }}
     />
   );
 }
