@@ -526,7 +526,9 @@ function removeNodeSequencesInPlace(graph){
 // rewrite the flow of talking to vg in terms of async/await or abandon
 // async/await altogether in order to get out of it.
 async function getChunkedData(req, res, next) {
-  console.time("request-duration");
+  const reqId = uuid();
+  req.reqId = reqId;
+  console.time(`request-duration-${reqId}`);
   console.log("http POST getChunkedData received");
   console.log(`region = ${req.body.region}`);
   console.log(`tracks = ${JSON.stringify(req.body.tracks)}`);
@@ -721,7 +723,7 @@ async function getChunkedData(req, res, next) {
       chunkixParams.push("-r", stringifyRangeRegion(rangeRegion));
 
       console.log(`python3 ${chunkixParams.join(" ")}`);
-      console.time("chunkix");
+      console.time(`chunkix-${reqId}`);
 
       const chunkixCall = spawn("python3", chunkixParams);
       req.error = Buffer.alloc(0);
@@ -780,7 +782,7 @@ async function getChunkedData(req, res, next) {
 
         catCall.on("close", (code) => {
           console.log(`cat graph.json exited with code ${code}`);
-          console.timeEnd("chunkix");
+          console.timeEnd(`chunkix-${reqId}`);
           if (code !== 0) {
             // Execution failed
             if (!sentResponse) {
@@ -925,7 +927,7 @@ async function getChunkedData(req, res, next) {
 
       console.log(`vg ${vgChunkParams.join(" ")}`);
 
-      console.time("vg chunk");
+      console.time(`vg chunk-${reqId}`);
       const vgChunkCall = spawn(find_vg(), vgChunkParams);
       // vg simplify for gam files
       let vgSimplifyCall = null;
@@ -1039,7 +1041,7 @@ async function getChunkedData(req, res, next) {
 
       vgViewCall.on("close", (code) => {
         console.log(`vg view exited with code ${code}`);
-        console.timeEnd("vg chunk");
+        console.timeEnd(`vg chunk-${reqId}`);
         if (code !== 0) {
           // Execution failed
           if (!sentResponse) {
@@ -1392,7 +1394,7 @@ async function getChunkPath(bed, parsedRegion) {
 function processAnnotationFile(req, res, next) {
   try {
     // find annotation file
-    console.time("processing annotation file");
+    console.time(`processing annotation file-${req.reqId}`);
     fs.readdirSync(req.chunkDir).forEach((file) => {
       if (file.endsWith("annotate.txt")) {
         req.annotationFile = req.chunkDir + "/" + file;
@@ -1426,7 +1428,7 @@ function processAnnotationFile(req, res, next) {
     });
 
     lineReader.on("close", () => {
-      console.timeEnd("processing annotation file");
+      console.timeEnd(`processing annotation file-${req.reqId}`);
       if (req.withGam === true) {
         processGamFiles(req, res, next);
       } else {
@@ -1555,7 +1557,7 @@ function processGamFile(req, res, next, gamFile, gamFileNumber) {
 
 function processGamFiles(req, res, next) {
   try {
-    console.time("processing gam files");
+    console.time(`processing gam files-${req.reqId}`);
     const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH);
     // Find gam/gaf files
     let gamFiles = [];
@@ -1618,7 +1620,7 @@ function processGamFiles(req, res, next) {
     for (let i = 0; i < gamFiles.length; i++) {
       processGamFile(req, res, next, gamFiles[i], i);
     }
-    console.timeEnd("processing gam files");
+    console.timeEnd(`processing gam files-${req.reqId}`);
   } catch (error) {
     return next(error);
   }
@@ -1632,7 +1634,7 @@ function processRegionFile(req, res, next) {
   // TODO: With subpaths in vg chunk we no longer really need the concept of a
   // region file. Now we just use it to find the targeted path and mark it.
   try {
-    console.time("processing region file");
+    console.time(`processing region file-${req.reqId}`);
     let regionFile = `${req.chunkDir}/regions.tsv`;
     if (!fs.existsSync(regionFile)) {
       fs.readdirSync(req.chunkDir).forEach((file) => {
@@ -1676,7 +1678,7 @@ function processRegionFile(req, res, next) {
     });
 
     lineReader.on("close", () => {
-      console.timeEnd("processing region file");
+      console.timeEnd(`processing region file-${req.reqId}`);
       processNodeColorsFile(req, res, next);
     });
   } catch (error) {
@@ -1686,7 +1688,7 @@ function processRegionFile(req, res, next) {
 
 function processNodeColorsFile(req, res, next) {
   try {
-    console.time("processing node colors file");
+    console.time(`processing node colors file-${req.reqId}`);
     const nodeColorsFile = `${req.chunkDir}/nodeColors.tsv`;
     if (!isAllowedPath(nodeColorsFile)) {
       throw new BadRequestError(
@@ -1698,7 +1700,7 @@ function processNodeColorsFile(req, res, next) {
 
     // check if file exists
     if (!fs.existsSync(nodeColorsFile)) {
-      console.timeEnd("processing node colors file");
+      console.timeEnd(`processing node colors file-${req.reqId}`);
       cleanUpAndSendResult(req, res, next);
       return;
     }
@@ -1714,7 +1716,7 @@ function processNodeColorsFile(req, res, next) {
     });
 
     lineReader.on("close", () => {
-      console.timeEnd("processing node colors file");
+      console.timeEnd(`processing node colors file-${req.reqId}`);
       cleanUpAndSendResult(req, res, next);
     });
   } catch (error) {
@@ -1748,7 +1750,7 @@ function cleanUpAndSendResult(req, res, next) {
     result.region = req.region;
     result.coloredNodes = req.coloredNodes;
     res.json(result);
-    console.timeEnd("request-duration");
+    console.timeEnd(`request-duration-${req.reqId}`);
   } catch (error) {
     return next(error);
   }

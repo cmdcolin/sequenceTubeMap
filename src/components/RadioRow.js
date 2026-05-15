@@ -1,5 +1,4 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import React from "react";
 import { Col, Label, Input, FormGroup } from "reactstrap";
 
 // map of all possible colors [displayedName, value]
@@ -12,60 +11,39 @@ const colorMap = new Map([
   ["pale colors", "lightColors"],
 ]);
 
-class RadioRow extends Component {
-  static defaultProps = {
-    availableColors: ["greys", "ygreys", "blues", "reds", "plainColors", "lightColors"],
+const defaultAvailableColors = ["greys", "ygreys", "blues", "reds", "plainColors", "lightColors"];
+
+function RadioRow({ color, rowHeading, setColorSetting, setting, availableColors = defaultAvailableColors }) {
+  const onChange = (event) => {
+    setColorSetting(setting, colorMap.get(event.target.value));
   };
 
-  onChange = (event) => {
-    this.props.setColorSetting(
-      this.props.setting,
-      colorMap.get(event.target.value)
-    );
-  };
+  const currColorMap = new Map(
+    Array.from(colorMap).filter(([, valueColor]) => availableColors.includes(valueColor))
+  );
 
-  render() {
-    let currColorMap = new Map(colorMap);
-    for (const [keyColor, valueColor] of colorMap) {
-      if (!this.props.availableColors.includes(valueColor)) {
-        currColorMap.delete(keyColor);
-      }
-    }
-
-    const colorRadios = Array.from(currColorMap).map(
-      ([keyColor, valueColor]) => {
-        return (
-          <Col xs="auto" key={keyColor}>
-            <FormGroup check>
-              <Label check>
-                <Input
-                  type="radio"
-                  value={keyColor}
-                  checked={this.props.color === valueColor}
-                  onChange={this.onChange}
-                  key={keyColor}
-                />
-                {keyColor}
-              </Label>
-            </FormGroup>
-          </Col>
-        );
-      }
-    );
-    return (
-      <FormGroup row className="mb-1">
-        {this.props.rowHeading}:{colorRadios}
+  const colorRadios = Array.from(currColorMap).map(([keyColor, valueColor]) => (
+    <Col xs="auto" key={keyColor}>
+      <FormGroup check>
+        <Label check>
+          <Input
+            type="radio"
+            value={keyColor}
+            checked={color === valueColor}
+            onChange={onChange}
+            key={keyColor}
+          />
+          {keyColor}
+        </Label>
       </FormGroup>
-    );
-  }
-}
+    </Col>
+  ));
 
-RadioRow.propTypes = {
-  color: PropTypes.string.isRequired,
-  rowHeading: PropTypes.string.isRequired,
-  setColorSetting: PropTypes.func.isRequired,
-  setting: PropTypes.string.isRequired,
-  availableColors: PropTypes.array,
-};
+  return (
+    <FormGroup row className="mb-1">
+      {rowHeading}:{colorRadios}
+    </FormGroup>
+  );
+}
 
 export default RadioRow;

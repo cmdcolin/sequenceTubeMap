@@ -19,8 +19,7 @@ d3.selection.prototype.styles = function(styles) {
 import "../config-client.js";
 import externalConfig from "../config-global.mjs";
 import { defaultTrackColors } from "../common.mjs";
-
-const deepEqual = require("deep-equal");
+import deepEqual from "deep-equal";
 
 const DEBUG = false;
 
@@ -4412,16 +4411,16 @@ function trackSingleClick() {
 
 // Right-click on a track. For reads, fires the context-menu callback with the
 // read's name and the click coordinates so the React layer can render a menu.
-function trackRightClick() {
+function trackRightClick(event) {
   /* jshint validthis: true */
   const trackID = Number(d3.select(this).attr("trackID"));
   const current_track = getTrackByID(trackID);
   if (current_track && current_track.type === "read") {
-    d3.event.preventDefault();
+    event.preventDefault();
     config.readContextMenuCallback({
       readName: current_track.name,
-      x: d3.event.clientX,
-      y: d3.event.clientY,
+      x: event.clientX,
+      y: event.clientY,
     });
   }
 }
