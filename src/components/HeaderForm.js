@@ -860,11 +860,6 @@ function HeaderForm({
   );
   const displayDescription = desc;
 
-  console.log(
-    "Rendering header form with availableTracks: ",
-    availableTracks
-  );
-
   const regionIndex = determineRegionIndex(region, regionInfo);
 
   const DataPositionFormRowComponent = (
@@ -892,8 +887,8 @@ function HeaderForm({
           </Col>
           <Col>
             <Label
-              className="tight-label mb-2 mr-sm-2 mb-sm-0 ml-2"
-              for="dataSourceSelect"
+              className="tight-label mb-2 me-sm-2 mb-sm-0 ms-2"
+              htmlFor="dataSourceSelect"
             >
               Data:
             </Label>
@@ -914,14 +909,14 @@ function HeaderForm({
             {customFilesFlag && (
               <React.Fragment>
                 <Label
-                  for="bedSelectInput"
-                  className="customData tight-label mb-2 mr-sm-2 mb-sm-0 ml-2"
+                  htmlFor="bedSelectInput"
+                  className="customData tight-label mb-2 me-sm-2 mb-sm-0 ms-2"
                 >
                   BED file:
                 </Label>
                 &nbsp;
                 <BedFileDropdown
-                  className="customDataMounted dropdown mb-2 mr-sm-4 mb-sm-0"
+                  className="customDataMounted dropdown mb-2 me-sm-4 mb-sm-0"
                   id="bedSelect"
                   inputId="bedSelectInput"
                   value={bedSelect}

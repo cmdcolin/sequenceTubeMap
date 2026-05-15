@@ -198,12 +198,12 @@ function VisualizationOptions({
                       </Label>
                     </FormGroup>
                     <Form>
-                      <Label className="mr-sm-2 " for="dataSourceSelect">
+                      <Label className="me-sm-2 " htmlFor="mappingQualitySelect">
                         Mapping Quality Cutoff:
                       </Label>
                       <Input
                         type="select"
-                        id="dataSourceSelect"
+                        id="mappingQualitySelect"
                         className="custom-select"
                         value={visOptions.mappingQualityCutoff}
                         onChange={(e) => handleMappingQualityCutoffChange(e.target.value)}
@@ -228,7 +228,7 @@ function VisualizationOptions({
           <Collapse isOpen={isOpenServer}>
             <CardBody>
               <Form>
-                <Label className="mr-sm-2 " for="dataSourceSelect">
+                <Label className="me-sm-2 " htmlFor="apiSelect">
                   Extract tube map data:
                 </Label>
                 <Input
