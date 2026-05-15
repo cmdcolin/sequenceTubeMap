@@ -1,63 +1,69 @@
-import React from "react";
-import { render, fireEvent, waitFor, within, screen } from "@testing-library/react";
-import { TrackList } from "./TrackList";
+import React from 'react'
+import {
+  render,
+  fireEvent,
+  waitFor,
+  within,
+  screen,
+} from '@testing-library/react'
+import { TrackList } from './TrackList'
 
 function openSelect(container) {
-  fireEvent.mouseDown(within(container).getByRole("combobox"));
+  fireEvent.mouseDown(within(container).getByRole('combobox'))
 }
 
 function openAutocomplete(container) {
-  const input = within(container).getByRole("combobox");
-  input.focus();
-  fireEvent.keyDown(input, { key: "ArrowDown" });
+  const input = within(container).getByRole('combobox')
+  input.focus()
+  fireEvent.keyDown(input, { key: 'ArrowDown' })
 }
-describe("TrackList", () => {
+describe('TrackList', () => {
   const tracks = {
     1: {
       trackFile: undefined,
-      trackType: "graph",
+      trackType: 'graph',
       trackColorSettings: {
-        mainPalette: "blues",
-        auxPalette: "reds",
+        mainPalette: 'blues',
+        auxPalette: 'reds',
         colorReadsByMappingQuality: false,
         alphaReadsByMappingQuality: false,
       },
     },
     2: {
       trackFile: undefined,
-      trackType: "graph",
+      trackType: 'graph',
       trackColorSettings: {
-        mainPalette: "blues",
-        auxPalette: "reds",
+        mainPalette: 'blues',
+        auxPalette: 'reds',
         colorReadsByMappingQuality: false,
         alphaReadsByMappingQuality: false,
       },
     },
     3: {
       trackFile: undefined,
-      trackType: "graph",
+      trackType: 'graph',
       trackColorSettings: {
-        mainPalette: "blues",
-        auxPalette: "reds",
+        mainPalette: 'blues',
+        auxPalette: 'reds',
         colorReadsByMappingQuality: false,
         alphaReadsByMappingQuality: false,
       },
     },
-  };
+  }
   const availableColors = [
-    "greys",
-    "ygreys",
-    "reds",
-    "plainColors",
-    "lightColors",
-  ];
+    'greys',
+    'ygreys',
+    'reds',
+    'plainColors',
+    'lightColors',
+  ]
   const availableTracks = [
-    { trackFile: "fileA1.vg", trackType: "graph" },
-    { trackFile: "fileA2.gbwt", trackType: "haplotype" },
-    { trackFile: "fileB1.gbwt", trackType: "haplotype" },
-    { trackFile: "fileB2.gam", trackType: "read" },
-    { trackFile: "fileC1.xg", trackType: "graph" },
-  ];
+    { trackFile: 'fileA1.vg', trackType: 'graph' },
+    { trackFile: 'fileA2.gbwt', trackType: 'haplotype' },
+    { trackFile: 'fileB1.gbwt', trackType: 'haplotype' },
+    { trackFile: 'fileB2.gam', trackType: 'read' },
+    { trackFile: 'fileC1.xg', trackType: 'graph' },
+  ]
 
   function rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete) {
     rerender(
@@ -67,13 +73,13 @@ describe("TrackList", () => {
         availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
-      />
-    );
+      />,
+    )
   }
 
-  it("should render without errors", async () => {
-    const fakeOnChange = vi.fn();
-    const fakeOnDelete = vi.fn();
+  it('should render without errors', async () => {
+    const fakeOnChange = vi.fn()
+    const fakeOnDelete = vi.fn()
     const { queryByTestId } = render(
       <TrackList
         tracks={tracks}
@@ -81,23 +87,23 @@ describe("TrackList", () => {
         availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
-      />
-    );
+      />,
+    )
 
-    expect(queryByTestId("file-type-select-component1")).toBeTruthy();
+    expect(queryByTestId('file-type-select-component1')).toBeTruthy()
 
-    expect(queryByTestId("file-type-select-component2")).toBeTruthy();
+    expect(queryByTestId('file-type-select-component2')).toBeTruthy()
 
-    expect(queryByTestId("file-select-component1")).toBeTruthy();
+    expect(queryByTestId('file-select-component1')).toBeTruthy()
 
-    expect(queryByTestId("settings-button-component1")).toBeTruthy();
+    expect(queryByTestId('settings-button-component1')).toBeTruthy()
 
-    expect(queryByTestId("delete-button-component1")).toBeTruthy();
-  });
+    expect(queryByTestId('delete-button-component1')).toBeTruthy()
+  })
 
-  it("should call onChange when a track is changed", async () => {
-    const fakeOnChange = vi.fn();
-    const fakeOnDelete = vi.fn();
+  it('should call onChange when a track is changed', async () => {
+    const fakeOnChange = vi.fn()
+    const fakeOnDelete = vi.fn()
     const { queryByTestId, getByText, rerender } = render(
       <TrackList
         tracks={tracks}
@@ -105,47 +111,47 @@ describe("TrackList", () => {
         availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
-      />
-    );
+      />,
+    )
 
     // select file type
-    openSelect(queryByTestId("file-type-select-component1"));
-    fireEvent.click(await screen.findByRole("option", { name: "haplotype" }));
+    openSelect(queryByTestId('file-type-select-component1'))
+    fireEvent.click(await screen.findByRole('option', { name: 'haplotype' }))
 
-    expect(fakeOnChange).toHaveBeenCalledTimes(1);
-    let newTracks = JSON.parse(JSON.stringify(tracks));
-    newTracks[1].trackType = "haplotype";
-    rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete);
+    expect(fakeOnChange).toHaveBeenCalledTimes(1)
+    let newTracks = JSON.parse(JSON.stringify(tracks))
+    newTracks[1].trackType = 'haplotype'
+    rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete)
 
     // change file name
-    openAutocomplete(queryByTestId("file-select-component1"));
-    fireEvent.click(await screen.findByRole("option", { name: "fileB1.gbwt" }));
+    openAutocomplete(queryByTestId('file-select-component1'))
+    fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
 
-    expect(fakeOnChange).toHaveBeenCalledTimes(2);
-    newTracks[1].trackFile = "fileB1.gbwt";
-    newTracks[1].trackType = "haplotype";
-    expect(fakeOnChange).toHaveBeenCalledWith(newTracks);
+    expect(fakeOnChange).toHaveBeenCalledTimes(2)
+    newTracks[1].trackFile = 'fileB1.gbwt'
+    newTracks[1].trackType = 'haplotype'
+    expect(fakeOnChange).toHaveBeenCalledWith(newTracks)
 
     // rerender file select effect
-    rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete);
+    rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete)
 
     // change color
-    const settingsButtonComponent = queryByTestId("settings-button-component1");
-    fireEvent.click(settingsButtonComponent);
-    await waitFor(() => getByText("reds"));
-    fireEvent.click(getByText("reds"));
-    fireEvent.click(document);
+    const settingsButtonComponent = queryByTestId('settings-button-component1')
+    fireEvent.click(settingsButtonComponent)
+    await waitFor(() => getByText('reds'))
+    fireEvent.click(getByText('reds'))
+    fireEvent.click(document)
 
-    expect(fakeOnChange).toHaveBeenCalledTimes(3);
+    expect(fakeOnChange).toHaveBeenCalledTimes(3)
 
-    newTracks[1].trackColorSettings.mainPalette = "reds";
-    expect(fakeOnChange).toHaveBeenCalledWith(newTracks);
-  });
+    newTracks[1].trackColorSettings.mainPalette = 'reds'
+    expect(fakeOnChange).toHaveBeenCalledWith(newTracks)
+  })
 
-  it("should use a new event handler when passed", async () => {
-    const fakeOnChange1 = vi.fn();
-    const fakeOnChange2 = vi.fn();
-    const fakeOnDelete = vi.fn();
+  it('should use a new event handler when passed', async () => {
+    const fakeOnChange1 = vi.fn()
+    const fakeOnChange2 = vi.fn()
+    const fakeOnDelete = vi.fn()
     const { queryByTestId, getByText, rerender } = render(
       <TrackList
         tracks={tracks}
@@ -153,17 +159,17 @@ describe("TrackList", () => {
         availableColors={availableColors}
         onChange={fakeOnChange1}
         onDelete={fakeOnDelete}
-      />
-    );
+      />,
+    )
 
-    expect(fakeOnChange1).toHaveBeenCalledTimes(0);
+    expect(fakeOnChange1).toHaveBeenCalledTimes(0)
 
-    rerenderTrackList(rerender, tracks, fakeOnChange2, fakeOnDelete);
+    rerenderTrackList(rerender, tracks, fakeOnChange2, fakeOnDelete)
 
-    openAutocomplete(queryByTestId("file-select-component1"));
-    fireEvent.click(await screen.findByRole("option", { name: "fileA1.vg" }));
+    openAutocomplete(queryByTestId('file-select-component1'))
+    fireEvent.click(await screen.findByRole('option', { name: 'fileA1.vg' }))
 
-    expect(fakeOnChange1).toHaveBeenCalledTimes(0);
-    expect(fakeOnChange2).toHaveBeenCalledTimes(1);
-  });
-});
+    expect(fakeOnChange1).toHaveBeenCalledTimes(0)
+    expect(fakeOnChange2).toHaveBeenCalledTimes(1)
+  })
+})

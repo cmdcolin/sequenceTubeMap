@@ -25,12 +25,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
     transformIgnorePatterns: [
-      'node_modules/(?!(@streamparser/json|@bjorn3/browser_wasi_shim)/)'
+      'node_modules/(?!(@streamparser/json|@bjorn3/browser_wasi_shim)/)',
     ],
     environmentOptions: {
       jsdom: {
-        url: 'http://localhost/'
-      }
-    }
-  }
+        url: 'http://localhost/',
+      },
+    },
+  },
 })

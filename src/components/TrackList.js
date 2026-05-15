@@ -1,4 +1,4 @@
-import { TrackListItem } from "./TrackListItem";
+import { TrackListItem } from './TrackListItem'
 
 export const TrackList = ({
   // tracks expects an object mapping an trackID to trackProps, which includes
@@ -15,18 +15,18 @@ export const TrackList = ({
   handleFileUpload,
 }) => {
   function trackItemOnChange(trackID, trackProps) {
-    let newTracks = { ...tracks };
-    newTracks[trackID] = trackProps;
+    let newTracks = { ...tracks }
+    newTracks[trackID] = trackProps
     if (JSON.stringify(newTracks) !== JSON.stringify(tracks)) {
-      onChange(newTracks);
+      onChange(newTracks)
     }
   }
 
   function renderTracks() {
-    let trackHTML = [];
+    let trackHTML = []
 
     Object.keys(tracks).forEach((trackID, index) => {
-      const trackProps = tracks[trackID];
+      const trackProps = tracks[trackID]
       trackHTML.push(
         <TrackListItem
           trackProps={trackProps}
@@ -37,15 +37,14 @@ export const TrackList = ({
           trackID={parseInt(trackID)}
           key={trackID}
           handleFileUpload={handleFileUpload}
-        />
-      );
-    });
+        />,
+      )
+    })
 
-    return trackHTML;
+    return trackHTML
   }
 
-  return <div>{renderTracks()}</div>;
-};
+  return <div>{renderTracks()}</div>
+}
 
-
-export default TrackList;
+export default TrackList

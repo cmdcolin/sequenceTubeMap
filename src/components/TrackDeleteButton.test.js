@@ -1,18 +1,18 @@
-import React from "react";
-import { render } from "@testing-library/react";
-import { TrackDeleteButton } from "./TrackDeleteButton";
-import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import React from 'react'
+import { render } from '@testing-library/react'
+import { TrackDeleteButton } from './TrackDeleteButton'
+import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
-describe("TrackDeleteButton", () => {
-  it("calls onClick", async () => {
-    const onClick = vi.fn();
+describe('TrackDeleteButton', () => {
+  it('calls onClick', async () => {
+    const onClick = vi.fn()
     const result = render(
-      <TrackDeleteButton onClick={onClick}></TrackDeleteButton>
-    );
+      <TrackDeleteButton onClick={onClick}></TrackDeleteButton>,
+    )
 
-    await userEvent.click(screen.getByRole("button"));
+    await userEvent.click(screen.getByRole('button'))
 
-    expect(onClick).toHaveBeenCalledTimes(1);
-  });
-});
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+})

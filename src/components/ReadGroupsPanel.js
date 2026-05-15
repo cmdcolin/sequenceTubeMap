@@ -1,90 +1,90 @@
-import React from "react";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
+import React from 'react'
+import Select from '@mui/material/Select'
+import MenuItem from '@mui/material/MenuItem'
 
 const PALETTE_OPTIONS = [
-  { value: "plainColors", label: "Plain" },
-  { value: "reds", label: "Reds" },
-  { value: "blues", label: "Blues" },
-  { value: "greys", label: "Greys" },
-  { value: "ygreys", label: "Yellow-greys" },
-  { value: "lightColors", label: "Light" },
-];
+  { value: 'plainColors', label: 'Plain' },
+  { value: 'reds', label: 'Reds' },
+  { value: 'blues', label: 'Blues' },
+  { value: 'greys', label: 'Greys' },
+  { value: 'ygreys', label: 'Yellow-greys' },
+  { value: 'lightColors', label: 'Light' },
+]
 
 const PANEL_STYLE = {
-  padding: "8px 12px",
-  border: "1px solid #d0d0d0",
-  background: "#fafafa",
-  borderRadius: "4px",
-  margin: "8px 0",
-  fontSize: "14px",
-};
+  padding: '8px 12px',
+  border: '1px solid #d0d0d0',
+  background: '#fafafa',
+  borderRadius: '4px',
+  margin: '8px 0',
+  fontSize: '14px',
+}
 
 const HEADER_STYLE = {
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  marginBottom: "6px",
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  marginBottom: '6px',
   fontWeight: 500,
-};
+}
 
 const ROW_STYLE = {
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  padding: "4px 0",
-};
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '4px 0',
+}
 
 const SWATCH_STYLE = {
-  width: "24px",
-  height: "20px",
-  border: "1px solid #888",
-  borderRadius: "3px",
+  width: '24px',
+  height: '20px',
+  border: '1px solid #888',
+  borderRadius: '3px',
   padding: 0,
-  cursor: "pointer",
-};
+  cursor: 'pointer',
+}
 
 const NAME_INPUT_STYLE = {
-  border: "1px solid transparent",
-  background: "transparent",
-  fontSize: "14px",
-  padding: "2px 4px",
-  borderRadius: "3px",
-  minWidth: "120px",
-};
+  border: '1px solid transparent',
+  background: 'transparent',
+  fontSize: '14px',
+  padding: '2px 4px',
+  borderRadius: '3px',
+  minWidth: '120px',
+}
 
 const COUNT_STYLE = {
-  color: "#666",
-  fontSize: "13px",
-};
+  color: '#666',
+  fontSize: '13px',
+}
 
 const DELETE_STYLE = {
-  background: "transparent",
-  border: "none",
-  cursor: "pointer",
-  fontSize: "16px",
-  color: "#666",
-  padding: "0 4px",
-};
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: '16px',
+  color: '#666',
+  padding: '0 4px',
+}
 
 function isSolid(color) {
-  return typeof color === "string" && color.startsWith("#");
+  return typeof color === 'string' && color.startsWith('#')
 }
 
 const OTHER_LABEL_STYLE = {
-  fontSize: "14px",
-  padding: "2px 4px",
-  color: "#444",
-  fontStyle: "italic",
-  minWidth: "120px",
-};
+  fontSize: '14px',
+  padding: '2px 4px',
+  color: '#444',
+  fontStyle: 'italic',
+  minWidth: '120px',
+}
 
 const OTHER_ROW_STYLE = {
   ...ROW_STYLE,
-  borderTop: "1px dashed #ccc",
-  marginTop: "4px",
-  paddingTop: "8px",
-};
+  borderTop: '1px dashed #ccc',
+  marginTop: '4px',
+  paddingTop: '8px',
+}
 
 const ReadGroupsPanel = ({
   groups,
@@ -96,116 +96,116 @@ const ReadGroupsPanel = ({
   onDelete,
   onRecolorOther,
 }) => {
-  const otherSolid = isSolid(otherReadsColor);
+  const otherSolid = isSolid(otherReadsColor)
   return (
-  <div style={PANEL_STYLE}>
-    <div
-      style={HEADER_STYLE}
-      title="Reads in a named group use that group's palette. All ungrouped reads use the 'Other reads' palette below. Deleting every group restores the default strand-based coloring."
-    >
-      Read coloring
-      <span style={COUNT_STYLE}>
-        ({groups.length} group{groups.length === 1 ? "" : "s"} + other)
-      </span>
-    </div>
-    {groups.map((group) => {
-      const isActive = group.id === activeGroupId;
-      const solid = isSolid(group.color);
-      return (
-        <div key={group.id} style={ROW_STYLE}>
-          <input
-            type="radio"
-            name="active-read-group"
-            checked={isActive}
-            onChange={() => onSetActive(group.id)}
-            aria-label={`Set ${group.name} as active group`}
-            title="Active group receives new selections"
-          />
-          <Select
-            size="small"
-            value={solid ? "__solid__" : group.color}
-            onChange={(e) => {
-              const v = e.target.value;
-              onRecolor(group.id, v === "__solid__" ? "#ff7f00" : v);
-            }}
-            aria-label={`Palette for ${group.name}`}
-            title="Choose a palette (reads cycle through it) or solid color"
-            sx={{ fontSize: "13px", minWidth: 120 }}
-          >
-            {PALETTE_OPTIONS.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </MenuItem>
-            ))}
-            <MenuItem value="__solid__">Solid color…</MenuItem>
-          </Select>
-          {solid ? (
-            <input
-              type="color"
-              value={group.color}
-              style={SWATCH_STYLE}
-              onChange={(e) => onRecolor(group.id, e.target.value)}
-              aria-label={`Solid color for ${group.name}`}
-            />
-          ) : null}
-          <input
-            type="text"
-            value={group.name}
-            style={{
-              ...NAME_INPUT_STYLE,
-              borderColor: isActive ? "#888" : "transparent",
-            }}
-            onChange={(e) => onRename(group.id, e.target.value)}
-            aria-label={`Name for ${group.name}`}
-          />
-          <span style={COUNT_STYLE}>
-            {group.reads.length} read{group.reads.length === 1 ? "" : "s"}
-          </span>
-          <button
-            type="button"
-            style={DELETE_STYLE}
-            onClick={() => onDelete(group.id)}
-            aria-label={`Delete group ${group.name}`}
-            title="Delete group"
-          >
-            ×
-          </button>
-        </div>
-      );
-    })}
-    <div style={OTHER_ROW_STYLE}>
-      <span style={{ width: "16px" }} />
-      <Select
-        size="small"
-        value={otherSolid ? "__solid__" : otherReadsColor}
-        onChange={(e) => {
-          const v = e.target.value;
-          onRecolorOther(v === "__solid__" ? "#888888" : v);
-        }}
-        aria-label="Palette for other reads"
-        title="Color for reads not in any group"
-        sx={{ fontSize: "13px", minWidth: 120 }}
+    <div style={PANEL_STYLE}>
+      <div
+        style={HEADER_STYLE}
+        title="Reads in a named group use that group's palette. All ungrouped reads use the 'Other reads' palette below. Deleting every group restores the default strand-based coloring."
       >
-        {PALETTE_OPTIONS.map((opt) => (
-          <MenuItem key={opt.value} value={opt.value}>
-            {opt.label}
-          </MenuItem>
-        ))}
-        <MenuItem value="__solid__">Solid color…</MenuItem>
-      </Select>
-      {otherSolid ? (
-        <input
-          type="color"
-          value={otherReadsColor}
-          style={SWATCH_STYLE}
-          onChange={(e) => onRecolorOther(e.target.value)}
-          aria-label="Solid color for other reads"
-        />
-      ) : null}
-      <span style={OTHER_LABEL_STYLE}>Other reads (ungrouped)</span>
+        Read coloring
+        <span style={COUNT_STYLE}>
+          ({groups.length} group{groups.length === 1 ? '' : 's'} + other)
+        </span>
+      </div>
+      {groups.map(group => {
+        const isActive = group.id === activeGroupId
+        const solid = isSolid(group.color)
+        return (
+          <div key={group.id} style={ROW_STYLE}>
+            <input
+              type="radio"
+              name="active-read-group"
+              checked={isActive}
+              onChange={() => onSetActive(group.id)}
+              aria-label={`Set ${group.name} as active group`}
+              title="Active group receives new selections"
+            />
+            <Select
+              size="small"
+              value={solid ? '__solid__' : group.color}
+              onChange={e => {
+                const v = e.target.value
+                onRecolor(group.id, v === '__solid__' ? '#ff7f00' : v)
+              }}
+              aria-label={`Palette for ${group.name}`}
+              title="Choose a palette (reads cycle through it) or solid color"
+              sx={{ fontSize: '13px', minWidth: 120 }}
+            >
+              {PALETTE_OPTIONS.map(opt => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+              <MenuItem value="__solid__">Solid color…</MenuItem>
+            </Select>
+            {solid ? (
+              <input
+                type="color"
+                value={group.color}
+                style={SWATCH_STYLE}
+                onChange={e => onRecolor(group.id, e.target.value)}
+                aria-label={`Solid color for ${group.name}`}
+              />
+            ) : null}
+            <input
+              type="text"
+              value={group.name}
+              style={{
+                ...NAME_INPUT_STYLE,
+                borderColor: isActive ? '#888' : 'transparent',
+              }}
+              onChange={e => onRename(group.id, e.target.value)}
+              aria-label={`Name for ${group.name}`}
+            />
+            <span style={COUNT_STYLE}>
+              {group.reads.length} read{group.reads.length === 1 ? '' : 's'}
+            </span>
+            <button
+              type="button"
+              style={DELETE_STYLE}
+              onClick={() => onDelete(group.id)}
+              aria-label={`Delete group ${group.name}`}
+              title="Delete group"
+            >
+              ×
+            </button>
+          </div>
+        )
+      })}
+      <div style={OTHER_ROW_STYLE}>
+        <span style={{ width: '16px' }} />
+        <Select
+          size="small"
+          value={otherSolid ? '__solid__' : otherReadsColor}
+          onChange={e => {
+            const v = e.target.value
+            onRecolorOther(v === '__solid__' ? '#888888' : v)
+          }}
+          aria-label="Palette for other reads"
+          title="Color for reads not in any group"
+          sx={{ fontSize: '13px', minWidth: 120 }}
+        >
+          {PALETTE_OPTIONS.map(opt => (
+            <MenuItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </MenuItem>
+          ))}
+          <MenuItem value="__solid__">Solid color…</MenuItem>
+        </Select>
+        {otherSolid ? (
+          <input
+            type="color"
+            value={otherReadsColor}
+            style={SWATCH_STYLE}
+            onChange={e => onRecolorOther(e.target.value)}
+            aria-label="Solid color for other reads"
+          />
+        ) : null}
+        <span style={OTHER_LABEL_STYLE}>Other reads (ungrouped)</span>
+      </div>
     </div>
-  </div>
-  );
-};
+  )
+}
 
-export default ReadGroupsPanel;
+export default ReadGroupsPanel

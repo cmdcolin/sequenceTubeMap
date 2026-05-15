@@ -2,28 +2,33 @@
 /* eslint strict:0 */
 /* eslint no-param-reassign: 'off' */
 
-"use strict";
+'use strict'
 
-import "./config-server.mjs";
-import { config } from "./config-global.mjs";
-import { find_vg } from "./vg.mjs"
-import { TubeMapError, BadRequestError, InternalServerError, VgExecutionError } from "./errors.mjs"
+import './config-server.mjs'
+import { config } from './config-global.mjs'
+import { find_vg } from './vg.mjs'
+import {
+  TubeMapError,
+  BadRequestError,
+  InternalServerError,
+  VgExecutionError,
+} from './errors.mjs'
 
-import assert from "assert";
-import { spawn } from "child_process";
-import express from "express";
-import bodyParser from "body-parser";
-import multer from "multer";
-import { v1 as uuid } from "uuid";
-import fs from "fs-extra";
-import path from "path";
-import pathIsInside from "path-is-inside";
-import rl from "readline";
-import compression from "compression";
-import { server as WebSocketServer } from "websocket";
-import dotenv from "dotenv";
-import { fileURLToPath } from "url";
-import { readFileSync, writeFile } from "fs";
+import assert from 'assert'
+import { spawn } from 'child_process'
+import express from 'express'
+import bodyParser from 'body-parser'
+import multer from 'multer'
+import { v1 as uuid } from 'uuid'
+import fs from 'fs-extra'
+import path from 'path'
+import pathIsInside from 'path-is-inside'
+import rl from 'readline'
+import compression from 'compression'
+import { server as WebSocketServer } from 'websocket'
+import dotenv from 'dotenv'
+import { fileURLToPath } from 'url'
+import { readFileSync, writeFile } from 'fs'
 import {
   parseRegion,
   convertRegionToRangeRegion,
@@ -31,17 +36,17 @@ import {
   stringifyRegion,
   isValidURL,
   readsExist,
-} from "./common.mjs";
-import { Readable } from "stream";
-import { finished } from "stream/promises";
-import sanitize from "sanitize-filename";
-import { createHash } from "node:crypto";
-import cron from "node-cron";
-import { RWLock, combine } from "readers-writer-lock";
+} from './common.mjs'
+import { Readable } from 'stream'
+import { finished } from 'stream/promises'
+import sanitize from 'sanitize-filename'
+import { createHash } from 'node:crypto'
+import cron from 'node-cron'
+import { RWLock, combine } from 'readers-writer-lock'
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== 'production') {
   // Load any .env file config
-  dotenv.config();
+  dotenv.config()
 }
 
 /// Return the python script chunkix.py
@@ -52,42 +57,42 @@ function find_chunkix() {
   if (find_chunkix.found_chunkix !== null) {
     // Cache the answer and don't re-check all the time.
     // Nobody should be deleting it.
-    return find_chunkix.found_chunkix;
+    return find_chunkix.found_chunkix
   }
   for (let prefix of config.chunkixPath) {
-    if (prefix === "") {
+    if (prefix === '') {
       // Add trailing slash
-      prefix = "./";
+      prefix = './'
     }
-    if (prefix.length > 0 && prefix[prefix.length - 1] !== "/") {
+    if (prefix.length > 0 && prefix[prefix.length - 1] !== '/') {
       // Add trailing slash
-      prefix = prefix + "/";
+      prefix = prefix + '/'
     }
-    let chunkix_filename = prefix + "chunkix.py";
-    console.log("Check for chunkix.py at:", chunkix_filename);
+    let chunkix_filename = prefix + 'chunkix.py'
+    console.log('Check for chunkix.py at:', chunkix_filename)
     if (fs.existsSync(chunkix_filename)) {
-      find_chunkix.found_chunkix = chunkix_filename;
-      console.log("Found chunkix at:", find_chunkix.found_chunkix);
-      return find_chunkix.found_chunkix;
+      find_chunkix.found_chunkix = chunkix_filename
+      console.log('Found chunkix at:', find_chunkix.found_chunkix)
+      return find_chunkix.found_chunkix
     }
   }
   // If we get here we don't see chunkix at all.
-  throw new InternalServerError("The chunkix.py script was not found. Check that chunkixPath is correct in the config");
+  throw new InternalServerError(
+    'The chunkix.py script was not found. Check that chunkixPath is correct in the config',
+  )
 }
-find_chunkix.found_chunkix = null;
+find_chunkix.found_chunkix = null
 
-
-
-const MOUNTED_DATA_PATH = config.dataPath;
-const INTERNAL_DATA_PATH = config.internalDataPath;
+const MOUNTED_DATA_PATH = config.dataPath
+const INTERNAL_DATA_PATH = config.internalDataPath
 // THis is where we will store uploaded files
-const UPLOAD_DATA_PATH = "uploads/";
+const UPLOAD_DATA_PATH = 'uploads/'
 // This is where we will store per-request generated files
-const SCRATCH_DATA_PATH = "tmp/";
+const SCRATCH_DATA_PATH = 'tmp/'
 // This is where data downloaded from URLs is cached.
 // This directory will be recursively removed!
-const DOWNLOAD_DATA_PATH = config.tempDirPath;
-const SERVER_BIND_ADDRESS = config.serverBindAddress || undefined;
+const DOWNLOAD_DATA_PATH = config.tempDirPath
+const SERVER_BIND_ADDRESS = config.serverBindAddress || undefined
 
 // This holds a collection of all the absolute path root directories that the
 // server is allowed to access on behalf of users.
@@ -97,39 +102,39 @@ const ALLOWED_DATA_DIRECTORIES = [
   UPLOAD_DATA_PATH,
   SCRATCH_DATA_PATH,
   DOWNLOAD_DATA_PATH,
-].map((p) => path.resolve(p));
+].map(p => path.resolve(p))
 
-const GRAPH_EXTENSIONS = [".xg", ".vg", ".pg", ".hg", ".gbz", ".pos.bed.gz"];
+const GRAPH_EXTENSIONS = ['.xg', '.vg', '.pg', '.hg', '.gbz', '.pos.bed.gz']
 
-const HAPLOTYPE_EXTENSIONS = [".gbwt", ".gbz", ".haps.gaf.gz"];
-const HAPLOTYPE_EXTENSIONS_VG = [".gbwt", ".gbz"];
+const HAPLOTYPE_EXTENSIONS = ['.gbwt', '.gbz', '.haps.gaf.gz']
+const HAPLOTYPE_EXTENSIONS_VG = ['.gbwt', '.gbz']
 
 const fileTypes = {
-  GRAPH: "graph",
-  HAPLOTYPE: "haplotype",
-  NODE: "node",
-  READ: "read",
-  BED: "bed",
-  TRANSLATION: "translation",
-};
+  GRAPH: 'graph',
+  HAPLOTYPE: 'haplotype',
+  NODE: 'node',
+  READ: 'read',
+  BED: 'bed',
+  TRANSLATION: 'translation',
+}
 
-const lockMap = new Map();
+const lockMap = new Map()
 
 const lockTypes = {
-  READ_LOCK: "read_lock",
-  WRITE_LOCK: "write_lock",
-};
+  READ_LOCK: 'read_lock',
+  WRITE_LOCK: 'write_lock',
+}
 
 // In memory storage of fetched file eTags
 // Used to check if the file has been updated and we need to fetch again
 // Stores urls mapped to the eTag from the most recently received request
-const ETagMap = new Map();
+const ETagMap = new Map()
 
 // Make sure that the scratch directory exists at startup, so multiple requests
 // can't fight over its creation.
-fs.mkdirSync(SCRATCH_DATA_PATH, { recursive: true });
+fs.mkdirSync(SCRATCH_DATA_PATH, { recursive: true })
 
-if (typeof setImmediate === "undefined") {
+if (typeof setImmediate === 'undefined') {
   // On newer Jest/React tests, setImmediate is removed from the environment,
   // because browsers don't have it. See
   // <https://github.com/facebook/jest/pull/11222>.
@@ -141,89 +146,89 @@ if (typeof setImmediate === "undefined") {
   // a jsdom JS environment.
   // TODO: Resesign the frontend components so that network access and server
   // responses can be easily faked.
-  const timers = require("timers");
-  window.setImmediate = timers.setImmediate;
-  window.clearImmediate = timers.clearImmediate;
+  const timers = require('timers')
+  window.setImmediate = timers.setImmediate
+  window.clearImmediate = timers.clearImmediate
 }
 
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, UPLOAD_DATA_PATH);
+    cb(null, UPLOAD_DATA_PATH)
   },
   filename: function (req, file, cb) {
     let ext = file.originalname.substring(
-      file.originalname.lastIndexOf("."),
-      file.originalname.length
-    );
+      file.originalname.lastIndexOf('.'),
+      file.originalname.length,
+    )
     // TODO: This can collide and can also be guessed by other users.
-    cb(null, Date.now() + ext);
+    cb(null, Date.now() + ext)
   },
-});
+})
 var limits = {
   files: 1, // allow only 1 file per request
   fileSize: 1024 * 1024 * 5, // 5 MB (max file size)
-};
-var upload = multer({ storage, limits });
+}
+var upload = multer({ storage, limits })
 
 // deletes expired files given a directory, recursively calls itself for nested directories
 // expired files are files not accessed for a certain amount of time
 // TODO: find a more reliable way to detect file accessed time than stat.atime?
 // atime requires correct environment configurations
 function deleteExpiredFiles(directoryPath) {
-  console.log("deleting expired files in ", directoryPath);
-  const currentTime = new Date().getTime();
+  console.log('deleting expired files in ', directoryPath)
+  const currentTime = new Date().getTime()
 
   if (!fs.existsSync(directoryPath)) {
-    return;
+    return
   }
 
-  const files = fs.readdirSync(directoryPath);
+  const files = fs.readdirSync(directoryPath)
 
-  files.forEach((file) => {
-    const filePath = path.join(directoryPath, file);
+  files.forEach(file => {
+    const filePath = path.join(directoryPath, file)
 
     if (fs.statSync(filePath).isFile()) {
       // check to see if file needs to be deleted
-      const lastAccessedTime = fs.statSync(filePath).atime;
+      const lastAccessedTime = fs.statSync(filePath).atime
       if (currentTime - lastAccessedTime >= config.fileExpirationTime) {
-        if (file !== ".gitignore" && file !== "directory.lock") {
-          fs.unlinkSync(filePath);
-          console.log("Deleting file: ", filePath);
+        if (file !== '.gitignore' && file !== 'directory.lock') {
+          fs.unlinkSync(filePath)
+          console.log('Deleting file: ', filePath)
         }
       }
     } else if (fs.statSync(filePath).isDirectory()) {
       // call deleteExpiredFiles on the nested directory
-      deleteExpiredFiles(filePath);
+      deleteExpiredFiles(filePath)
 
       // if the nested directory is empty after deleting expired files, remove it
       if (fs.readdirSync(filePath).length === 0) {
-        fs.rmdirSync(filePath);
-        console.log("Deleting directory: ", filePath);
+        fs.rmdirSync(filePath)
+        console.log('Deleting directory: ', filePath)
       }
     }
-  });
+  })
 }
 
 // takes in an async function, locks the directory for the duration of the function
 async function lockDirectory(directoryPath, lockType, func) {
-  console.log("Acquiring", lockType, "for", directoryPath);
+  console.log('Acquiring', lockType, 'for', directoryPath)
   // look into lockMap to see if there is a lock assigned to the directory
-  let lock = lockMap.get(directoryPath);
+  let lock = lockMap.get(directoryPath)
   // if there are no locks, create a new lock and store it in the lock dictionary
   if (!lock) {
-    lock = new RWLock();
+    lock = new RWLock()
 
-    lockMap.set(directoryPath, lock);
+    lockMap.set(directoryPath, lock)
   }
 
   if (lockType == lockTypes.READ_LOCK) {
     // lock is released when func returns
-    return lock.read(func);
+    return lock.read(func)
   } else if (lockType == lockTypes.WRITE_LOCK) {
-    return lock.write(func);
+    return lock.write(func)
   } else {
-    console.log("Not a valid lock type:", lockType);
-    return 1;
+    console.log('Not a valid lock type:', lockType)
+    return 1
   }
 }
 
@@ -233,171 +238,173 @@ async function lockDirectory(directoryPath, lockType, func) {
 async function lockDirectories(directoryPaths, lockType, func) {
   // input is unexpected
   if (!directoryPaths || directoryPaths.length === 0) {
-    return;
+    return
   }
 
   // last lock to acquire, ready to proceed
   if (directoryPaths.length === 1) {
-    return lockDirectory(directoryPaths[0], lockType, func);
+    return lockDirectory(directoryPaths[0], lockType, func)
   }
 
   // attempt to acquire a lock for the next directory, and call lockDirectories on the remaining directories
-  const currDirectory = directoryPaths.pop();
+  const currDirectory = directoryPaths.pop()
   return lockDirectory(currDirectory, lockType, async function () {
-    return lockDirectories(directoryPaths, lockType, func);
-  });
+    return lockDirectories(directoryPaths, lockType, func)
+  })
 }
 
 // runs every hour
 // deletes any files in the download directory past the set fileExpirationTime set in config
-cron.schedule("0 * * * *", async () => {
-  console.log("cron scheduled check");
+cron.schedule('0 * * * *', async () => {
+  console.log('cron scheduled check')
   // attempt to acquire a write lock for each on the directory before attempting to delete files
   for (const dir of [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH]) {
     try {
       await lockDirectory(dir, lockTypes.WRITE_LOCK, async function () {
-        deleteExpiredFiles(dir);
-      });
+        deleteExpiredFiles(dir)
+      })
     } catch (e) {
-      console.error("Error checking for expired files in " + dir + ":", e);
+      console.error('Error checking for expired files in ' + dir + ':', e)
     }
   }
-});
+})
 
-const app = express();
+const app = express()
 
 // Configure global server settings
-app.use(bodyParser.json()); // to support JSON-encoded bodies
+app.use(bodyParser.json()) // to support JSON-encoded bodies
 app.use(
   bodyParser.urlencoded({
     // to support URL-encoded bodies
     extended: true,
-  })
-);
-app.use(compression());
+  }),
+)
+app.use(compression())
 
 // Serve the frontend
-app.use(express.static("./build"));
+app.use(express.static('./build'))
 
 // Make another Express object to keep all the API calls on a sensible path
 // that can be proxied around if needed.
-const api = express();
-app.use("/api/v0", api);
+const api = express()
+app.use('/api/v0', api)
 
 // Open up CORS.
 // TODO: can we avoid this?
 // required for local usage with the Docker container (access docker container from outside)
 api.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  res.header('Access-Control-Allow-Origin', '*')
   res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
-  );
-  next();
-});
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept',
+  )
+  next()
+})
 
 // Store files uploaded from trackFilePicker via multer
-api.post("/trackFileSubmission", upload.single("trackFile"), (req, res, next) => {
-  // We would like this to be an async function, but then Express error
-  // handling doesn't work, because it doesn't detect returned promise
-  // rejections until Express 5. We have to pass an error to next() or else
-  // throw synchronously.
-  captureErrors(next, async () => {
-    console.log("/trackFileSubmission");
-    console.log(req.file);
-    // We don't get a lock because we're putting new files in and so we don't
-    // need to block using them or cleaning old files.
-    
-    if (req.body.fileType === fileTypes["READ"]) {
-      indexGamSorted(req, res, next);
-    } else {
-      res.json({ path: path.relative(".", req.file.path) });
-    }
-  });
-});
+api.post(
+  '/trackFileSubmission',
+  upload.single('trackFile'),
+  (req, res, next) => {
+    // We would like this to be an async function, but then Express error
+    // handling doesn't work, because it doesn't detect returned promise
+    // rejections until Express 5. We have to pass an error to next() or else
+    // throw synchronously.
+    captureErrors(next, async () => {
+      console.log('/trackFileSubmission')
+      console.log(req.file)
+      // We don't get a lock because we're putting new files in and so we don't
+      // need to block using them or cleaning old files.
+
+      if (req.body.fileType === fileTypes['READ']) {
+        indexGamSorted(req, res, next)
+      } else {
+        res.json({ path: path.relative('.', req.file.path) })
+      }
+    })
+  },
+)
 
 function indexGamSorted(req, res, next) {
-  let readsPath = req.file.path;
-  let prefix;
-  let sortedSuffix;
-  let indexSuffix;
-  if (readsPath.endsWith(".gaf") || readsPath.endsWith(".gaf.gz")) {
-    throw new BadRequestError(`Server-side sorting and indexing not yet implemented for GAF: ${readsPath}`);
-  } else if (readsPath.endsWith(".gam")) {
-    prefix = readsPath.substring(0, req.file.path.lastIndexOf(".gam"));
-    sortedSuffix = ".sorted.gam";
-    indexSuffix = ".sorted.gam.gai";
+  let readsPath = req.file.path
+  let prefix
+  let sortedSuffix
+  let indexSuffix
+  if (readsPath.endsWith('.gaf') || readsPath.endsWith('.gaf.gz')) {
+    throw new BadRequestError(
+      `Server-side sorting and indexing not yet implemented for GAF: ${readsPath}`,
+    )
+  } else if (readsPath.endsWith('.gam')) {
+    prefix = readsPath.substring(0, req.file.path.lastIndexOf('.gam'))
+    sortedSuffix = '.sorted.gam'
+    indexSuffix = '.sorted.gam.gai'
   } else {
-    throw new BadRequestError(`Read file is not a GAF or GAM: ${readsPath}`);
+    throw new BadRequestError(`Read file is not a GAF or GAM: ${readsPath}`)
   }
 
   const sortedReadsFile = fs.createWriteStream(prefix + sortedSuffix, {
-    encoding: "binary",
-  });
+    encoding: 'binary',
+  })
 
-  let vgGamsortParams = [
-    "gamsort",
-    "-i",
-    prefix + indexSuffix,
-    req.file.path,
-  ];
-  const vgGamsortChild = spawn(find_vg(), vgGamsortParams);
+  let vgGamsortParams = ['gamsort', '-i', prefix + indexSuffix, req.file.path]
+  const vgGamsortChild = spawn(find_vg(), vgGamsortParams)
 
-  req.error = Buffer.alloc(0);
+  req.error = Buffer.alloc(0)
 
-  let sentResponse = false;
+  let sentResponse = false
 
-  vgGamsortChild.on("error", function (err) {
+  vgGamsortChild.on('error', function (err) {
     console.log(
-      "Error executing " +
-        find_vg() + " " +
-        vgGamsortParams.join(" ") +
-        ": " +
-        err
-    );
+      'Error executing ' +
+        find_vg() +
+        ' ' +
+        vgGamsortParams.join(' ') +
+        ': ' +
+        err,
+    )
     if (!sentResponse) {
-      sentResponse = true;
-      return next(new VgExecutionError("vg gamsort failed"));
+      sentResponse = true
+      return next(new VgExecutionError('vg gamsort failed'))
     }
-  });
+  })
 
-  vgGamsortChild.stderr.on("data", (data) => {
-    console.log(`err data: ${data}`);
-    req.error += data;
-  });
+  vgGamsortChild.stderr.on('data', data => {
+    console.log(`err data: ${data}`)
+    req.error += data
+  })
 
-  vgGamsortChild.stdout.on("data", function (data) {
-    sortedReadsFile.write(data);
-  });
+  vgGamsortChild.stdout.on('data', function (data) {
+    sortedReadsFile.write(data)
+  })
 
-  vgGamsortChild.on("close", (code) => {
-    console.log(`vg gamsort exited with code ${code}`);
-    sortedReadsFile.end();
-    
+  vgGamsortChild.on('close', code => {
+    console.log(`vg gamsort exited with code ${code}`)
+    sortedReadsFile.end()
+
     if (code !== 0) {
       // Execution failed
       if (!sentResponse) {
-        sentResponse = true;
-        return next(new VgExecutionError("vg gamsort failed"));
+        sentResponse = true
+        return next(new VgExecutionError('vg gamsort failed'))
       }
-      return;
+      return
     }
 
     if (!sentResponse) {
-      sentResponse = true;
-      res.json({ path: path.relative(".", prefix + sortedSuffix) });
+      sentResponse = true
+      res.json({ path: path.relative('.', prefix + sortedSuffix) })
     }
-  });
+  })
 }
 
 // Checks if a file has one of the extensions provided
 function endsWithExtensions(file, extensions) {
   for (const extension of extensions) {
     if (file.endsWith(extension)) {
-      return true;
+      return true
     }
   }
-  return false;
+  return false
 }
 
 // INPUT: (track {files: }, string)
@@ -406,9 +413,9 @@ function endsWithExtensions(file, extensions) {
 // returns falsy value if file type is not found
 function getFileFromType(track, type) {
   if (track.trackType === type) {
-    return track.trackFile;
+    return track.trackFile
   }
-  return "none";
+  return 'none'
 }
 
 // Given a collection of tracks (each of which may have a files array with
@@ -418,66 +425,70 @@ function getFileFromType(track, type) {
 // This is a fancy ES6 generator.
 function* eachFileOfType(tracks, type) {
   for (const key in tracks) {
-    const file = getFileFromType(tracks[key], type);
-    if (file && file !== "none") {
-      yield file;
+    const file = getFileFromType(tracks[key], type)
+    if (file && file !== 'none') {
+      yield file
     }
   }
 }
 
 // Get the first files of the given type from all the given tracks.
 function getFilesOfType(tracks, type) {
-  let results = [];
+  let results = []
   for (const file of eachFileOfType(tracks, type)) {
-    results.push(file);
+    results.push(file)
   }
-  return results;
+  return results
 }
 
 // Get the first file from the first track with a file of the given type, or
 // undefined if no such track exists.
 function getFirstFileOfType(tracks, type) {
   for (const file of eachFileOfType(tracks, type)) {
-    return file;
+    return file
   }
-  return undefined;
+  return undefined
 }
 
 // Returns an array of the first gam file of every track with a gam file
 function getGams(tracks) {
-  return getFilesOfType(tracks, fileTypes.READ);
+  return getFilesOfType(tracks, fileTypes.READ)
 }
 
 // Parse a vg --gfa-trans translation file into a node-ID-to-display-name map.
 // T lines: T\tsegmentName\tsegmentId  (original GFA name → pre-chop ID)
 // K lines: K\toldId\tforwardOffset\treverseOffset\tnewId  (chopped node mapping)
 async function parseGFATranslation(filePath) {
-  const content = await fs.readFile(filePath, "utf-8");
-  const originalIdToName = {};
-  const kLines = [];
-  const choppedIds = new Set();
+  const content = await fs.readFile(filePath, 'utf-8')
+  const originalIdToName = {}
+  const kLines = []
+  const choppedIds = new Set()
 
-  for (const line of content.split("\n")) {
-    const fields = line.trimEnd().split("\t");
-    if (fields[0] === "T" && fields.length >= 3) {
-      originalIdToName[fields[2]] = fields[1];
-    } else if (fields[0] === "K" && fields.length >= 5) {
-      choppedIds.add(fields[1]);
-      kLines.push({ oldId: fields[1], forwardOffset: parseInt(fields[2]), newId: fields[4] });
+  for (const line of content.split('\n')) {
+    const fields = line.trimEnd().split('\t')
+    if (fields[0] === 'T' && fields.length >= 3) {
+      originalIdToName[fields[2]] = fields[1]
+    } else if (fields[0] === 'K' && fields.length >= 5) {
+      choppedIds.add(fields[1])
+      kLines.push({
+        oldId: fields[1],
+        forwardOffset: parseInt(fields[2]),
+        newId: fields[4],
+      })
     }
   }
 
-  const nameMap = {};
+  const nameMap = {}
   for (const [segId, segName] of Object.entries(originalIdToName)) {
     if (!choppedIds.has(segId)) {
-      nameMap[segId] = segName;
+      nameMap[segId] = segName
     }
   }
   for (const { oldId, forwardOffset, newId } of kLines) {
-    const segName = originalIdToName[oldId] ?? oldId;
-    nameMap[newId] = `${segName}:${forwardOffset}`;
+    const segName = originalIdToName[oldId] ?? oldId
+    nameMap[newId] = `${segName}:${forwardOffset}`
   }
-  return nameMap;
+  return nameMap
 }
 
 // To bridge Express next(err) error handling and async function error
@@ -486,13 +497,13 @@ async function parseGFATranslation(filePath) {
 // initially called *or* when its promise is awaited.
 async function captureErrors(next, callback) {
   try {
-    await callback();
+    await callback()
   } catch (e) {
-    next(e);
+    next(e)
   }
 }
 
-api.post("/getChunkedData", (req, res, next) => {
+api.post('/getChunkedData', (req, res, next) => {
   // We would like this to be an async function, but then Express error
   // handling doesn't work, because it doesn't detect returned promise
   // rejections until Express 5. We have to pass an error to next() or else
@@ -503,12 +514,11 @@ api.post("/getChunkedData", (req, res, next) => {
       [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH],
       lockTypes.READ_LOCK,
       async function () {
-        return getChunkedData(req, res, next);
-      }
-    );
-  });
-});
-
+        return getChunkedData(req, res, next)
+      },
+    )
+  })
+})
 
 /*
 graph = {
@@ -541,14 +551,14 @@ graph = {
 */
 
 // read a graph object and remove "sequence" fields in place
-function removeNodeSequencesInPlace(graph){
-  console.log("graph:", graph)
-  if (!graph.node){
-    return;
+function removeNodeSequencesInPlace(graph) {
+  console.log('graph:', graph)
+  if (!graph.node) {
+    return
   }
-  graph.node.forEach(function(node) {
-    node.sequenceLength = node.sequence.length;
-    delete node.sequence;
+  graph.node.forEach(function (node) {
+    node.sequenceLength = node.sequence.length
+    delete node.sequence
   })
 }
 
@@ -558,305 +568,335 @@ function removeNodeSequencesInPlace(graph){
 // rewrite the flow of talking to vg in terms of async/await or abandon
 // async/await altogether in order to get out of it.
 async function getChunkedData(req, res, next) {
-  const reqId = uuid();
-  req.reqId = reqId;
-  console.time(`request-duration-${reqId}`);
-  console.log("http POST getChunkedData received");
-  console.log(`region = ${req.body.region}`);
-  console.log(`tracks = ${JSON.stringify(req.body.tracks)}`);
+  const reqId = uuid()
+  req.reqId = reqId
+  console.time(`request-duration-${reqId}`)
+  console.log('http POST getChunkedData received')
+  console.log(`region = ${req.body.region}`)
+  console.log(`tracks = ${JSON.stringify(req.body.tracks)}`)
 
   // This will have a conitg, start, end, or a contig, start, distance
-  let parsedRegion;
+  let parsedRegion
   try {
-    parsedRegion = parseRegion(req.body.region);
+    parsedRegion = parseRegion(req.body.region)
   } catch (e) {
     // Whatever went wrong in the parsing, it makes the request bad.
     throw new BadRequestError(
-      "Wrong query: " + e.message + " See the Help (?) button above for the expected region format."
-    );
+      'Wrong query: ' +
+        e.message +
+        ' See the Help (?) button above for the expected region format.',
+    )
   }
 
   // There's a chance this request was sent before the proper tracks were fetched
   // This can happen when the bed file is a url and track names need to be downloaded
   // Check if there are tracks specified by the bedFile
-  if (req.body.bedFile && req.body.bedFile !== "none") {
-    const chunk = await getChunkName(req.body.bedFile, parsedRegion);
-    const fetchedTracks = await getChunkTracks(req.body.bedFile, chunk);
+  if (req.body.bedFile && req.body.bedFile !== 'none') {
+    const chunk = await getChunkName(req.body.bedFile, parsedRegion)
+    const fetchedTracks = await getChunkTracks(req.body.bedFile, chunk)
 
     // We're always replacing the given tracks if we were able to find tracks from the bed file
     if (fetchedTracks) {
       // Color Settings are retained from the initial request
       // if newly fetched tracks have matching file names
       // Store current colors and file names
-      const fileToColor = new Map();
+      const fileToColor = new Map()
       for (const key of Object.keys(req.body.tracks)) {
-        const track = req.body.tracks[key];
-        fileToColor.set(track["trackFile"], track["trackColorSettings"]);
+        const track = req.body.tracks[key]
+        fileToColor.set(track['trackFile'], track['trackColorSettings'])
       }
 
       // Replace new track colors if there's a matching file name
       for (const track of fetchedTracks) {
-        if (fileToColor.has(track["trackFile"])) {
-          track["trackColorSettings"] = fileToColor.get(track["trackFile"]);
+        if (fileToColor.has(track['trackFile'])) {
+          track['trackColorSettings'] = fileToColor.get(track['trackFile'])
         }
       }
 
       // Convert fetchedTracks into an object format the server expects
       let fetchedTracksObject = fetchedTracks.reduce(
         (accumulator, obj, index) => {
-          accumulator[index] = obj;
-          return accumulator;
+          accumulator[index] = obj
+          return accumulator
         },
-        {}
-      );
+        {},
+      )
 
       console.log(
-        "Using new fetched tracks",
-        JSON.stringify(fetchedTracksObject)
-      );
-      req.body.tracks = fetchedTracksObject;
+        'Using new fetched tracks',
+        JSON.stringify(fetchedTracksObject),
+      )
+      req.body.tracks = fetchedTracksObject
     }
   }
 
   // Assign each request a UUID. v1 UUIDs can be very similar for similar
   // timestamps on the same node, but are still guaranteed to be unique within
   // a given nodejs process.
-  req.uuid = uuid();
+  req.uuid = uuid()
 
   // Make a temp directory for vg output files for this request
-  req.chunkDir = path.join(SCRATCH_DATA_PATH, `tmp-${req.uuid}`);
-  fs.mkdirSync(req.chunkDir);
+  req.chunkDir = path.join(SCRATCH_DATA_PATH, `tmp-${req.uuid}`)
+  fs.mkdirSync(req.chunkDir)
   // This request owns the directory, so clean it up when the request finishes.
-  req.rmChunk = true;
+  req.rmChunk = true
 
   // We always have an graph file
-  const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH);
+  const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
   // We sometimes have a GBWT with haplotypes that override any in the graph file
-  const gbwtFile = getFirstFileOfType(req.body.tracks, fileTypes.HAPLOTYPE);
+  const gbwtFile = getFirstFileOfType(req.body.tracks, fileTypes.HAPLOTYPE)
   // We sometimes have a node tabix index
-  const nodeFile = getFirstFileOfType(req.body.tracks, fileTypes.NODE);
+  const nodeFile = getFirstFileOfType(req.body.tracks, fileTypes.NODE)
   // We sometimes have a GFA translation file for recovering original segment names
-  const translationFile = getFirstFileOfType(req.body.tracks, fileTypes.TRANSLATION);
+  const translationFile = getFirstFileOfType(
+    req.body.tracks,
+    fileTypes.TRANSLATION,
+  )
   // We sometimes have a BED file with regions to look at
-  const bedFile = req.body.bedFile;
+  const bedFile = req.body.bedFile
 
-  let gamFiles = getGams(req.body.tracks);
+  let gamFiles = getGams(req.body.tracks)
 
-  console.log("graphFile ", graphFile);
-  console.log("gbwtFile ", gbwtFile);
-  console.log("nodeFile ", nodeFile);
-  console.log("bedFile ", bedFile);
-  console.log("gamFiles ", gamFiles);
+  console.log('graphFile ', graphFile)
+  console.log('gbwtFile ', gbwtFile)
+  console.log('nodeFile ', nodeFile)
+  console.log('bedFile ', bedFile)
+  console.log('gamFiles ', gamFiles)
 
-  req.withGam = true;
+  req.withGam = true
   if (!gamFiles || !gamFiles.length) {
-    req.withGam = false;
-    console.log("no gam index provided.");
+    req.withGam = false
+    console.log('no gam index provided.')
   }
 
-  req.withGbwt = true;
-  if (!gbwtFile || gbwtFile === "none") {
-    req.withGbwt = false;
-    console.log("no gbwt file provided.");
+  req.withGbwt = true
+  if (!gbwtFile || gbwtFile === 'none') {
+    req.withGbwt = false
+    console.log('no gbwt file provided.')
   }
 
-  req.withNode = true;
-  if (!nodeFile || nodeFile === "none") {
-    req.withNode = false;
-    console.log("no node file provided.");
+  req.withNode = true
+  if (!nodeFile || nodeFile === 'none') {
+    req.withNode = false
+    console.log('no node file provided.')
   }
 
-  req.nameMap = {};
-  if (translationFile && translationFile !== "none") {
+  req.nameMap = {}
+  if (translationFile && translationFile !== 'none') {
     if (!isAllowedPath(translationFile)) {
-      throw new BadRequestError("Translation file path not allowed: " + translationFile);
+      throw new BadRequestError(
+        'Translation file path not allowed: ' + translationFile,
+      )
     }
-    req.nameMap = await parseGFATranslation(translationFile);
+    req.nameMap = await parseGFATranslation(translationFile)
   }
 
-  req.withBed = true;
-  if (!bedFile || bedFile === "none") {
-    req.withBed = false;
-    console.log("no BED file provided.");
+  req.withBed = true
+  if (!bedFile || bedFile === 'none') {
+    req.withBed = false
+    console.log('no BED file provided.')
   }
   // client is going to send simplify = true if they want to simplify view
-  req.simplify = false;
+  req.simplify = false
   if (req.body.simplify) {
     if (readsExist(req.body.tracks)) {
-      throw new BadRequestError("Simplify cannot be used on read tracks.");
+      throw new BadRequestError('Simplify cannot be used on read tracks.')
     }
-    req.simplify = true;
+    req.simplify = true
   }
 
   // client is going to send removeSequences = true if they don't want sequences of nodes to be displayed
-  req.removeSequences = false;
+  req.removeSequences = false
   if (req.body.removeSequences) {
-    req.removeSequences = true;
+    req.removeSequences = true
   }
 
   // check the bed file if this region has been pre-fetched
-  let chunkPath = "";
+  let chunkPath = ''
   if (req.withBed) {
     // We need to parse the BED file we have been referred to so we can look up
     // the pre-parsed chunk.
-    chunkPath = await getChunkPath(bedFile, parsedRegion);
+    chunkPath = await getChunkPath(bedFile, parsedRegion)
   }
 
   // We only want to have one downstream callback chain out of here, and we
   // want to make sure it can only start after there's no possibility that we
   // concurrently reject.
-  let sentResponse = false;
+  let sentResponse = false
 
   // We always need a range-version of the region, to fill in req.region, to
   // generate the region part of the response with the range.
-  let rangeRegion = convertRegionToRangeRegion(parsedRegion);
+  let rangeRegion = convertRegionToRangeRegion(parsedRegion)
 
-  if (chunkPath === "") {
-    
+  if (chunkPath === '') {
     // double-check that the file has a valid graph extension and is allowed
     if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
       throw new BadRequestError(
-        "Graph file does not end in valid extension: " + graphFile
-      );
+        'Graph file does not end in valid extension: ' + graphFile,
+      )
     }
     if (!isAllowedPath(graphFile)) {
-      throw new BadRequestError("Graph file path not allowed: " + graphFile);
+      throw new BadRequestError('Graph file path not allowed: ' + graphFile)
     }
 
-    if (graphFile.endsWith(".pos.bed.gz")) {
+    if (graphFile.endsWith('.pos.bed.gz')) {
       // use tabix-based pangenome (experimental)
-      
+
       if (!req.withGbwt) {
-        throw new BadRequestError("Need to specify tabix-indexed haplotype file, ending with .haps.gaf.gz, paired with " + graphFile);
+        throw new BadRequestError(
+          'Need to specify tabix-indexed haplotype file, ending with .haps.gaf.gz, paired with ' +
+            graphFile,
+        )
       }
       if (!isAllowedPath(gbwtFile)) {
-        throw new BadRequestError("Tabix-indexed haplotype file path not allowed: " + gbwtFile);
+        throw new BadRequestError(
+          'Tabix-indexed haplotype file path not allowed: ' + gbwtFile,
+        )
       }
       if (!req.withNode) {
-        throw new BadRequestError("Need to specify tabix-indexed node file, ending with .nodes.tsv.gz, paired with " + graphFile);
+        throw new BadRequestError(
+          'Need to specify tabix-indexed node file, ending with .nodes.tsv.gz, paired with ' +
+            graphFile,
+        )
       }
       if (!isAllowedPath(nodeFile)) {
-        throw new BadRequestError("Tabix-indexed node file path not allowed: " + nodeFile);
+        throw new BadRequestError(
+          'Tabix-indexed node file path not allowed: ' + nodeFile,
+        )
       }
-      
-      let chunkixParams = [find_chunkix(),
-                           "-n", nodeFile,
-                           "-p", graphFile,
-                           "-g", gbwtFile,
-                           "-j", "-s",
-                           "-o", `${req.chunkDir}/chunk`];
+
+      let chunkixParams = [
+        find_chunkix(),
+        '-n',
+        nodeFile,
+        '-p',
+        graphFile,
+        '-g',
+        gbwtFile,
+        '-j',
+        '-s',
+        '-o',
+        `${req.chunkDir}/chunk`,
+      ]
 
       // push all indexed gaf files
       for (const gafFile of gamFiles) {
-        if (!gafFile.endsWith(".gaf.gz")) {
-          if (gafFile.endsWith(".gam")) {
+        if (!gafFile.endsWith('.gaf.gz')) {
+          if (gafFile.endsWith('.gam')) {
             // slightly different message if GAM provided instead of GAF
-            throw new BadRequestError("Tabix-index mode only works with indexed GAF files");
+            throw new BadRequestError(
+              'Tabix-index mode only works with indexed GAF files',
+            )
           } else {
-            throw new BadRequestError("GAF file doesn't end .gaf.gz: " + gafFile);
+            throw new BadRequestError(
+              "GAF file doesn't end .gaf.gz: " + gafFile,
+            )
           }
         }
         if (!isAllowedPath(gafFile)) {
-          throw new BadRequestError("GAF file path not allowed: " + gafFile);
+          throw new BadRequestError('GAF file path not allowed: ' + gafFile)
         }
-        console.log("pushing gaf file", gafFile);
-        chunkixParams.push("-a", gafFile);
+        console.log('pushing gaf file', gafFile)
+        chunkixParams.push('-a', gafFile)
       }
-      chunkixParams.push("-r", stringifyRangeRegion(rangeRegion));
+      chunkixParams.push('-r', stringifyRangeRegion(rangeRegion))
 
-      console.log(`python3 ${chunkixParams.join(" ")}`);
-      console.time(`chunkix-${reqId}`);
+      console.log(`python3 ${chunkixParams.join(' ')}`)
+      console.time(`chunkix-${reqId}`)
 
-      const chunkixCall = spawn("python3", chunkixParams);
-      req.error = Buffer.alloc(0);
+      const chunkixCall = spawn('python3', chunkixParams)
+      req.error = Buffer.alloc(0)
 
-      chunkixCall.on("error", function (err) {
-        console.log("Error executing " + "python3 ", chunkixParams.join(" ") +
-            ": " + err
-        );
+      chunkixCall.on('error', function (err) {
+        console.log(
+          'Error executing ' + 'python3 ',
+          chunkixParams.join(' ') + ': ' + err,
+        )
         if (!sentResponse) {
-          sentResponse = true;
-          return next(new VgExecutionError("chunkix failed"));
+          sentResponse = true
+          return next(new VgExecutionError('chunkix failed'))
         }
-        return;
-      });
+        return
+      })
 
-      chunkixCall.stderr.on("data", (data) => {
-        console.log(`chunkix err data: ${data}`);
-        req.error += data;
-      });
+      chunkixCall.stderr.on('data', data => {
+        console.log(`chunkix err data: ${data}`)
+        req.error += data
+      })
 
-      chunkixCall.stdout.on("data", function (data) {
-        console.log(`chunkix out data: ${data}`);
-      });
+      chunkixCall.stdout.on('data', function (data) {
+        console.log(`chunkix out data: ${data}`)
+      })
 
-      chunkixCall.on("close", (code) => {
-        console.log(`chunkix exited with code ${code}`);
+      chunkixCall.on('close', code => {
+        console.log(`chunkix exited with code ${code}`)
         if (code !== 0) {
-          console.log("Error from python3 " + chunkixParams.join(" "));
+          console.log('Error from python3 ' + chunkixParams.join(' '))
           // Execution failed
           if (!sentResponse) {
-            sentResponse = true;
-            return next(new VgExecutionError("chunkix failed"));
+            sentResponse = true
+            return next(new VgExecutionError('chunkix failed'))
           }
         }
-        
+
         // read json graph output
-        const catCall = spawn("cat", [`${req.chunkDir}/chunk.graph.json`]);
-        let graphAsString = "";
+        const catCall = spawn('cat', [`${req.chunkDir}/chunk.graph.json`])
+        let graphAsString = ''
 
-        catCall.on("error", function (err) {
-          console.log('Error executing "cat": ' + err);
+        catCall.on('error', function (err) {
+          console.log('Error executing "cat": ' + err)
           if (!sentResponse) {
-            sentResponse = true;
-            return next(new VgExecutionError("cat graph.json failed"));
+            sentResponse = true
+            return next(new VgExecutionError('cat graph.json failed'))
           }
-          return;
-        });
+          return
+        })
 
-        catCall.stderr.on("data", (data) => {
-          console.log(`cat graph.json err data: ${data}`);
-        });
+        catCall.stderr.on('data', data => {
+          console.log(`cat graph.json err data: ${data}`)
+        })
 
-        catCall.stdout.on("data", function (data) {
-          graphAsString += data.toString();
-        });
+        catCall.stdout.on('data', function (data) {
+          graphAsString += data.toString()
+        })
 
-        catCall.on("close", (code) => {
-          console.log(`cat graph.json exited with code ${code}`);
-          console.timeEnd(`chunkix-${reqId}`);
+        catCall.on('close', code => {
+          console.log(`cat graph.json exited with code ${code}`)
+          console.timeEnd(`chunkix-${reqId}`)
           if (code !== 0) {
             // Execution failed
             if (!sentResponse) {
-              sentResponse = true;
-              return next(new VgExecutionError("cat graph.json failed"));
+              sentResponse = true
+              return next(new VgExecutionError('cat graph.json failed'))
             }
-            return;
+            return
           }
-          if (graphAsString === "") {
+          if (graphAsString === '') {
             if (!sentResponse) {
-              sentResponse = true;
-              return next(new VgExecutionError("cat graph.json produced empty graph"));
+              sentResponse = true
+              return next(
+                new VgExecutionError('cat graph.json produced empty graph'),
+              )
             }
-            return;
+            return
           }
-          req.graph = JSON.parse(graphAsString);
-          if (req.removeSequences){
+          req.graph = JSON.parse(graphAsString)
+          if (req.removeSequences) {
             removeNodeSequencesInPlace(req.graph)
-          } 
-          req.region = [rangeRegion.start, rangeRegion.end];
+          }
+          req.region = [rangeRegion.start, rangeRegion.end]
           // vg chunk always puts the path we reference on first automatically
           if (!sentResponse) {
-            sentResponse = true;
-            processAnnotationFile(req, res, next);
+            sentResponse = true
+            processAnnotationFile(req, res, next)
           }
-        });
-      });      
+        })
+      })
     } else {
       // use vg-based pangenome
-    
+
       // call 'vg chunk' to generate graph
-      let vgChunkParams = ["chunk"];
+      let vgChunkParams = ['chunk']
       // TODO: Use same variable for check and command line?
 
       // Maybe check using file types in the future
@@ -866,421 +906,436 @@ async function getChunkedData(req, res, next) {
       if (req.withGbwt) {
         //either push gbz with graph and haplotype or push separate graph and gbwt file
         if (
-          graphFile.endsWith(".gbz") &&
-            gbwtFile.endsWith(".gbz") &&
-            graphFile === gbwtFile
+          graphFile.endsWith('.gbz') &&
+          gbwtFile.endsWith('.gbz') &&
+          graphFile === gbwtFile
         ) {
           // use gbz haplotype
-          vgChunkParams.push("-x", graphFile);
-        } else if (!graphFile.endsWith(".gbz") && gbwtFile.endsWith(".gbz")) {
-          throw new BadRequestError("Cannot use gbz as haplotype alone.");
+          vgChunkParams.push('-x', graphFile)
+        } else if (!graphFile.endsWith('.gbz') && gbwtFile.endsWith('.gbz')) {
+          throw new BadRequestError('Cannot use gbz as haplotype alone.')
         } else {
           // ignoring haplotype from graph file and using haplotype from gbwt file
-          vgChunkParams.push("--no-embedded-haplotypes", "-x", graphFile);
+          vgChunkParams.push('--no-embedded-haplotypes', '-x', graphFile)
 
           // double-check that the file is a .gbwt and allowed
           if (!endsWithExtensions(gbwtFile, HAPLOTYPE_EXTENSIONS_VG)) {
             throw new BadRequestError(
-              "GBWT file doesn't end in .gbwt or .gbz: " + gbwtFile
-            );
+              "GBWT file doesn't end in .gbwt or .gbz: " + gbwtFile,
+            )
           }
           if (!isAllowedPath(gbwtFile)) {
-            throw new BadRequestError("GBWT file path not allowed: " + gbwtFile);
+            throw new BadRequestError('GBWT file path not allowed: ' + gbwtFile)
           }
           // Use a GBWT haplotype database
-          vgChunkParams.push("--gbwt-name", gbwtFile);
+          vgChunkParams.push('--gbwt-name', gbwtFile)
         }
       } else {
         // push graph file
-        if (graphFile.endsWith(".gbz")) {
-          vgChunkParams.push("-x", graphFile, "--no-embedded-haplotypes");
+        if (graphFile.endsWith('.gbz')) {
+          vgChunkParams.push('-x', graphFile, '--no-embedded-haplotypes')
         } else {
-          vgChunkParams.push("-x", graphFile);
+          vgChunkParams.push('-x', graphFile)
         }
       }
 
       // push all gam files
-      let anyGam = false;
-      let anyGaf = false;
+      let anyGam = false
+      let anyGaf = false
       for (const gamFile of gamFiles) {
-        if (!gamFile.endsWith(".gam") && !gamFile.endsWith(".gaf") && !gamFile.endsWith(".gaf.gz")) {
-          throw new BadRequestError("GAM/GAF file doesn't end in .gam, .gaf, or .gaf.gz: " + gamFile);
+        if (
+          !gamFile.endsWith('.gam') &&
+          !gamFile.endsWith('.gaf') &&
+          !gamFile.endsWith('.gaf.gz')
+        ) {
+          throw new BadRequestError(
+            "GAM/GAF file doesn't end in .gam, .gaf, or .gaf.gz: " + gamFile,
+          )
         }
         if (!isAllowedPath(gamFile)) {
-          throw new BadRequestError("GAM/GAF file path not allowed: " + gamFile);
+          throw new BadRequestError('GAM/GAF file path not allowed: ' + gamFile)
         }
-        if (gamFile.endsWith(".gam")) {
+        if (gamFile.endsWith('.gam')) {
           // Use a GAM
-          console.log("pushing gam file", gamFile);
-          anyGam = true;
+          console.log('pushing gam file', gamFile)
+          anyGam = true
         }
-        if (gamFile.endsWith(".gaf")) {
+        if (gamFile.endsWith('.gaf')) {
           // Use a small GAF without an index
-          console.log("pushing gaf file", gamFile);
-          anyGaf = true;
+          console.log('pushing gaf file', gamFile)
+          anyGaf = true
         }
-        if (gamFile.endsWith(".gaf.gz")) {
+        if (gamFile.endsWith('.gaf.gz')) {
           // Use a GAF with index
-          console.log("pushing hopefully indexed gaf file", gamFile);
-          anyGaf = true;
+          console.log('pushing hopefully indexed gaf file', gamFile)
+          anyGaf = true
         }
-        vgChunkParams.push("-a", gamFile);
+        vgChunkParams.push('-a', gamFile)
       }
-      if (anyGam && anyGaf){
-        throw new BadRequestError("Reads must be either GAM files or GAF files, not mix both.");
+      if (anyGam && anyGaf) {
+        throw new BadRequestError(
+          'Reads must be either GAM files or GAF files, not mix both.',
+        )
       }
-      if (anyGaf){
-        vgChunkParams.push("-F", "-g");
+      if (anyGaf) {
+        vgChunkParams.push('-F', '-g')
       }
-      if (anyGam){
-        vgChunkParams.push("-g");
+      if (anyGam) {
+        vgChunkParams.push('-g')
       }
 
       // to search by node ID use "node" for the sequence name, e.g. 'node:1-10'
-      if (parsedRegion.contig === "node") {
+      if (parsedRegion.contig === 'node') {
         if (parsedRegion.distance !== undefined) {
           // Start and distance of node IDs, so send that idiomatically.
           vgChunkParams.push(
-            "-r",
+            '-r',
             parsedRegion.start,
-            "-c",
-            parsedRegion.distance
-          );
+            '-c',
+            parsedRegion.distance,
+          )
         } else {
           // Start and end of node IDs
           vgChunkParams.push(
-            "-r",
-            "".concat(parsedRegion.start, ":", parsedRegion.end),
-            "-c",
-            20
-          );
+            '-r',
+            ''.concat(parsedRegion.start, ':', parsedRegion.end),
+            '-c',
+            20,
+          )
         }
       } else {
         // Ask for the whole region by start - end range.
-        vgChunkParams.push("-c", "20", "-p", stringifyRangeRegion(rangeRegion));
+        vgChunkParams.push('-c', '20', '-p', stringifyRangeRegion(rangeRegion))
       }
       vgChunkParams.push(
-        "-T",
-        "-b",
+        '-T',
+        '-b',
         `${req.chunkDir}/chunk`,
-        "-E",
-        `${req.chunkDir}/regions.tsv`
-      );
+        '-E',
+        `${req.chunkDir}/regions.tsv`,
+      )
 
-      console.log(`vg ${vgChunkParams.join(" ")}`);
+      console.log(`vg ${vgChunkParams.join(' ')}`)
 
-      console.time(`vg chunk-${reqId}`);
-      const vgChunkCall = spawn(find_vg(), vgChunkParams);
+      console.time(`vg chunk-${reqId}`)
+      const vgChunkCall = spawn(find_vg(), vgChunkParams)
       // vg simplify for gam files
-      let vgSimplifyCall = null;
+      let vgSimplifyCall = null
       if (req.simplify) {
-        vgSimplifyCall = spawn(find_vg(), ["simplify", "-"]);
-        console.log("Spawning vg simplify call");
+        vgSimplifyCall = spawn(find_vg(), ['simplify', '-'])
+        console.log('Spawning vg simplify call')
       }
 
-      const vgViewCall = spawn(find_vg(), ["view", "-j", "-"]);
-      let graphAsString = "";
-      req.error = Buffer.alloc(0);
+      const vgViewCall = spawn(find_vg(), ['view', '-j', '-'])
+      let graphAsString = ''
+      req.error = Buffer.alloc(0)
 
-      vgChunkCall.on("error", function (err) {
+      vgChunkCall.on('error', function (err) {
         console.log(
-          "Error executing " +
-            find_vg() + " " +
-            vgChunkParams.join(" ") +
-            ": " +
-            err
-        );
+          'Error executing ' +
+            find_vg() +
+            ' ' +
+            vgChunkParams.join(' ') +
+            ': ' +
+            err,
+        )
         if (!sentResponse) {
-          sentResponse = true;
-          return next(new VgExecutionError("vg chunk failed"));
+          sentResponse = true
+          return next(new VgExecutionError('vg chunk failed'))
         }
-        return;
-      });
+        return
+      })
 
-      vgChunkCall.stderr.on("data", (data) => {
-        console.log(`vg chunk err data: ${data}`);
-        req.error += data;
-      });
+      vgChunkCall.stderr.on('data', data => {
+        console.log(`vg chunk err data: ${data}`)
+        req.error += data
+      })
 
-      vgChunkCall.stdout.on("data", function (data) {
+      vgChunkCall.stdout.on('data', function (data) {
         if (req.simplify) {
-          vgSimplifyCall.stdin.write(data);
+          vgSimplifyCall.stdin.write(data)
         } else {
-          vgViewCall.stdin.write(data);
+          vgViewCall.stdin.write(data)
         }
-      });
+      })
 
-      vgChunkCall.on("close", (code) => {
-        console.log(`vg chunk exited with code ${code}`);
+      vgChunkCall.on('close', code => {
+        console.log(`vg chunk exited with code ${code}`)
         if (req.simplify) {
-          vgSimplifyCall.stdin.end();
+          vgSimplifyCall.stdin.end()
         } else {
-          vgViewCall.stdin.end();
+          vgViewCall.stdin.end()
         }
         if (code !== 0) {
-          console.log("Error from " + find_vg() + " " + vgChunkParams.join(" "));
+          console.log('Error from ' + find_vg() + ' ' + vgChunkParams.join(' '))
           // Execution failed
           if (!sentResponse) {
-            sentResponse = true;
-            return next(new VgExecutionError("vg chunk failed"));
+            sentResponse = true
+            return next(new VgExecutionError('vg chunk failed'))
           }
         }
-      });
+      })
 
       // vg simplify
       if (req.simplify) {
-        vgSimplifyCall.on("error", function (err) {
+        vgSimplifyCall.on('error', function (err) {
           console.log(
-            "Error executing " + find_vg() + " simplify " + "- " + ": " + err
-          );
+            'Error executing ' + find_vg() + ' simplify ' + '- ' + ': ' + err,
+          )
           if (!sentResponse) {
-            sentResponse = true;
-            return next(new VgExecutionError("vg simplify failed"));
+            sentResponse = true
+            return next(new VgExecutionError('vg simplify failed'))
           }
-          return;
-        });
+          return
+        })
 
-        vgSimplifyCall.stderr.on("data", (data) => {
-          console.log(`vg simplify err data: ${data}`);
-          req.error += data;
-        });
+        vgSimplifyCall.stderr.on('data', data => {
+          console.log(`vg simplify err data: ${data}`)
+          req.error += data
+        })
 
-        vgSimplifyCall.stdout.on("data", function (data) {
-          vgViewCall.stdin.write(data);
-        });
+        vgSimplifyCall.stdout.on('data', function (data) {
+          vgViewCall.stdin.write(data)
+        })
 
-        vgSimplifyCall.on("close", (code) => {
-          console.log(`vg simplify exited with code ${code}`);
-          vgViewCall.stdin.end();
+        vgSimplifyCall.on('close', code => {
+          console.log(`vg simplify exited with code ${code}`)
+          vgViewCall.stdin.end()
           if (code !== 0) {
-            console.log("Error from " + find_vg() + " " + "simplify - ");
+            console.log('Error from ' + find_vg() + ' ' + 'simplify - ')
             // Execution failed
             if (!sentResponse) {
-              sentResponse = true;
-              return next(new VgExecutionError("vg simplify failed"));
+              sentResponse = true
+              return next(new VgExecutionError('vg simplify failed'))
             }
           }
-        });
+        })
       }
 
       // vg view
-      vgViewCall.on("error", function (err) {
-        console.log('Error executing "vg view": ' + err);
+      vgViewCall.on('error', function (err) {
+        console.log('Error executing "vg view": ' + err)
         if (!sentResponse) {
-          sentResponse = true;
-          return next(new VgExecutionError("vg view failed"));
+          sentResponse = true
+          return next(new VgExecutionError('vg view failed'))
         }
-        return;
-      });
+        return
+      })
 
-      vgViewCall.stderr.on("data", (data) => {
-        console.log(`vg view err data: ${data}`);
-      });
+      vgViewCall.stderr.on('data', data => {
+        console.log(`vg view err data: ${data}`)
+      })
 
-      vgViewCall.stdout.on("data", function (data) {
-        graphAsString += data.toString();
-      });
+      vgViewCall.stdout.on('data', function (data) {
+        graphAsString += data.toString()
+      })
 
-      vgViewCall.on("close", (code) => {
-        console.log(`vg view exited with code ${code}`);
-        console.timeEnd(`vg chunk-${reqId}`);
+      vgViewCall.on('close', code => {
+        console.log(`vg view exited with code ${code}`)
+        console.timeEnd(`vg chunk-${reqId}`)
         if (code !== 0) {
           // Execution failed
           if (!sentResponse) {
-            sentResponse = true;
-            return next(new VgExecutionError("vg view failed"));
+            sentResponse = true
+            return next(new VgExecutionError('vg view failed'))
           }
-          return;
+          return
         }
-        if (graphAsString === "") {
+        if (graphAsString === '') {
           if (!sentResponse) {
-            sentResponse = true;
-            return next(new VgExecutionError("vg view produced empty graph"));
+            sentResponse = true
+            return next(new VgExecutionError('vg view produced empty graph'))
           }
-          return;
+          return
         }
-        req.graph = JSON.parse(graphAsString);
-        if (req.removeSequences){
+        req.graph = JSON.parse(graphAsString)
+        if (req.removeSequences) {
           removeNodeSequencesInPlace(req.graph)
         }
-        if (rangeRegion.contig === "node") {
-          req.region = [null, null];
+        if (rangeRegion.contig === 'node') {
+          req.region = [null, null]
         } else {
           // If the query came in on a path with a subrange defined already,
           // translate it into base path coordinates.
-          let subrangeStart = getSubrangeStart(rangeRegion.contig);
-          req.region = [rangeRegion.start + subrangeStart, rangeRegion.end + subrangeStart];
+          let subrangeStart = getSubrangeStart(rangeRegion.contig)
+          req.region = [
+            rangeRegion.start + subrangeStart,
+            rangeRegion.end + subrangeStart,
+          ]
         }
 
         // We might not have the path we are referencing on appearing first.
-        req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path);
+        req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path)
 
         if (!sentResponse) {
-          sentResponse = true;
-          processAnnotationFile(req, res, next);
+          sentResponse = true
+          processAnnotationFile(req, res, next)
         }
-      });
+      })
     }
   } else {
     // chunk has already been pre-fetched and is saved in chunkPath
-    req.chunkDir = chunkPath;
+    req.chunkDir = chunkPath
     // We're using a shared directory for this request, so leave it in place
     // when the request finishes.
-    req.rmChunk = false;
-    let filename = `${req.chunkDir}/chunk.vg`;
+    req.rmChunk = false
+    let filename = `${req.chunkDir}/chunk.vg`
     // vg simplify for bed files
-    let vgSimplifyCall = null;
-    let vgViewArguments = ["view", "-j"];
+    let vgSimplifyCall = null
+    let vgViewArguments = ['view', '-j']
     if (req.simplify) {
-      vgSimplifyCall = spawn(find_vg(), ["simplify", filename]);
-      vgViewArguments.push("-");
-      console.log("Spawning vg simplify call");
+      vgSimplifyCall = spawn(find_vg(), ['simplify', filename])
+      vgViewArguments.push('-')
+      console.log('Spawning vg simplify call')
     } else {
-      vgViewArguments.push(filename);
+      vgViewArguments.push(filename)
     }
 
-    let vgViewCall = spawn(find_vg(), vgViewArguments);
+    let vgViewCall = spawn(find_vg(), vgViewArguments)
 
-    let graphAsString = "";
-    req.error = Buffer.alloc(0);
+    let graphAsString = ''
+    req.error = Buffer.alloc(0)
 
     // vg simplify
     if (req.simplify) {
-      vgSimplifyCall.on("error", function (err) {
+      vgSimplifyCall.on('error', function (err) {
         console.log(
-          "Error executing " +
-            find_vg() + " " +
-            "simplify " +
+          'Error executing ' +
+            find_vg() +
+            ' ' +
+            'simplify ' +
             filename +
-            ": " +
-            err
-        );
+            ': ' +
+            err,
+        )
         if (!sentResponse) {
-          sentResponse = true;
-          return next(new VgExecutionError("vg simplify failed"));
+          sentResponse = true
+          return next(new VgExecutionError('vg simplify failed'))
         }
-        return;
-      });
+        return
+      })
 
-      vgSimplifyCall.stderr.on("data", (data) => {
-        console.log(`vg simplify err data: ${data}`);
-        req.error += data;
-      });
+      vgSimplifyCall.stderr.on('data', data => {
+        console.log(`vg simplify err data: ${data}`)
+        req.error += data
+      })
 
-      vgSimplifyCall.stdout.on("data", function (data) {
-        vgViewCall.stdin.write(data);
-      });
+      vgSimplifyCall.stdout.on('data', function (data) {
+        vgViewCall.stdin.write(data)
+      })
 
-      vgSimplifyCall.on("close", (code) => {
-        console.log(`vg simplify exited with code ${code}`);
-        vgViewCall.stdin.end();
+      vgSimplifyCall.on('close', code => {
+        console.log(`vg simplify exited with code ${code}`)
+        vgViewCall.stdin.end()
         if (code !== 0) {
-          console.log("Error from " + find_vg() + " simplify " + filename);
+          console.log('Error from ' + find_vg() + ' simplify ' + filename)
           // Execution failed
           if (!sentResponse) {
-            sentResponse = true;
-            return next(new VgExecutionError("vg simplify failed"));
+            sentResponse = true
+            return next(new VgExecutionError('vg simplify failed'))
           }
         }
-      });
+      })
     }
 
-    vgViewCall.on("error", function (err) {
-      console.log('Error executing "vg view": ' + err);
+    vgViewCall.on('error', function (err) {
+      console.log('Error executing "vg view": ' + err)
       if (!sentResponse) {
-        sentResponse = true;
-        return next(new VgExecutionError("vg view failed"));
+        sentResponse = true
+        return next(new VgExecutionError('vg view failed'))
       }
-      return;
-    });
+      return
+    })
 
-    vgViewCall.stderr.on("data", (data) => {
-      console.log(`vg view err data: ${data}`);
-    });
+    vgViewCall.stderr.on('data', data => {
+      console.log(`vg view err data: ${data}`)
+    })
 
-    vgViewCall.stdout.on("data", function (data) {
-      graphAsString += data.toString();
-    });
+    vgViewCall.stdout.on('data', function (data) {
+      graphAsString += data.toString()
+    })
 
-    vgViewCall.on("close", (code) => {
-      console.log(`vg view exited with code ${code}`);
+    vgViewCall.on('close', code => {
+      console.log(`vg view exited with code ${code}`)
       if (code !== 0) {
         // Execution failed
         if (!sentResponse) {
-          sentResponse = true;
-          return next(new VgExecutionError("vg view failed"));
+          sentResponse = true
+          return next(new VgExecutionError('vg view failed'))
         }
-        return;
+        return
       }
-      if (graphAsString === "") {
+      if (graphAsString === '') {
         if (!sentResponse) {
-          sentResponse = true;
+          sentResponse = true
           return next(
-            new VgExecutionError("vg view produced empty graph failed")
-          );
+            new VgExecutionError('vg view produced empty graph failed'),
+          )
         }
-        return;
+        return
       }
-      req.graph = JSON.parse(graphAsString);
-      if (req.removeSequences){
+      req.graph = JSON.parse(graphAsString)
+      if (req.removeSequences) {
         removeNodeSequencesInPlace(req.graph)
       }
-      if (rangeRegion.contig === "node") {
-        req.region = [null, null];
+      if (rangeRegion.contig === 'node') {
+        req.region = [null, null]
       } else {
         // If the query came in on a path with a subrange defined already,
         // translate it into base path coordinates.
-        let subrangeStart = getSubrangeStart(rangeRegion.contig);
-        req.region = [rangeRegion.start + subrangeStart, rangeRegion.end + subrangeStart];
+        let subrangeStart = getSubrangeStart(rangeRegion.contig)
+        req.region = [
+          rangeRegion.start + subrangeStart,
+          rangeRegion.end + subrangeStart,
+        ]
       }
 
       // We might not have the path we are referencing on appearing first.
-      req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path);
+      req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path)
 
       if (!sentResponse) {
-        sentResponse = true;
-        processAnnotationFile(req, res, next);
+        sentResponse = true
+        processAnnotationFile(req, res, next)
       }
-    });
+    })
   }
 }
 
-const SUBRANGE_REGEX = /\[([0-9]+)(-([0-9]+))?\]$/;
+const SUBRANGE_REGEX = /\[([0-9]+)(-([0-9]+))?\]$/
 
 /// Given a path name, get the start position of its subrange as a number, or 0.
 function getSubrangeStart(pathName) {
-  let match = pathName.match(SUBRANGE_REGEX);
+  let match = pathName.match(SUBRANGE_REGEX)
   if (!match) {
-    return 0;
+    return 0
   }
-  return Number(match[1]);
+  return Number(match[1])
 }
 
 /// Given an array of paths, organize them so that the paths(s) corresponding
 /// to the requested region are first, and return a re-ordered array of paths.
 function organizePathsTargetFirst(region, pathList) {
-  if (region.contig !== "node") {
-    
+  if (region.contig !== 'node') {
     // We pull the subrange off the path names when comparing them
-    let targetBasePath = region.contig.replace(SUBRANGE_REGEX, "");
+    let targetBasePath = region.contig.replace(SUBRANGE_REGEX, '')
 
     // Make sure that path 0 is the path we actually asked about
-    let refPaths = [];
-    let otherPaths = [];
+    let refPaths = []
+    let otherPaths = []
     for (let path of pathList) {
-      let pathBasePath = path.name.replace(SUBRANGE_REGEX, "");
+      let pathBasePath = path.name.replace(SUBRANGE_REGEX, '')
       if (pathBasePath === targetBasePath) {
         // This is the path we asked about, so it goes first
-        refPaths.push(path);
+        refPaths.push(path)
       } else {
         // Then we put each other path
-        otherPaths.push(path);
+        otherPaths.push(path)
       }
     }
-    return refPaths.concat(otherPaths);
+    return refPaths.concat(otherPaths)
   } else {
     // No target path
-    return pathList;
+    return pathList
   }
 }
 
@@ -1289,45 +1344,45 @@ function organizePathsTargetFirst(region, pathList) {
 // endpoint promise rejections until Express 5.
 function returnErrorMiddleware(err, req, res, next) {
   // Clean up the temp directory for the request, if any
-  cleanUpChunkIfOwned(req, res);
+  cleanUpChunkIfOwned(req, res)
 
   // Because we take err, Express makes sure err is always set.
   if (res.headersSent) {
     // We can't send a nice message. Try the next middleware, if any.
-    return next(err);
+    return next(err)
   }
   // We have an error we want to send back to the user.
-  const result = { error: "" };
+  const result = { error: '' }
   if (!(err instanceof TubeMapError)) {
     // Unexpected error: we do not have a custom message for this error
-    result.error += "Something about this request has caused a server error: ";
+    result.error += 'Something about this request has caused a server error: '
   }
   if (err.message) {
     // We have an error message to pass along.
-    result.error += err.message;
+    result.error += err.message
   }
   if (req.error) {
     // We have an error data buffer from a vg call
     if (result.error) {
       // Separate from existing message
-      result.error += ":\n";
+      result.error += ':\n'
     }
-    result.error += req.error.toString("utf-8");
+    result.error += req.error.toString('utf-8')
   }
-  console.log("returning error: " + result.error);
-  console.error(err);
+  console.log('returning error: ' + result.error)
+  console.error(err)
   if (err.status) {
     // Error comes with a status
-    res.status(err.status);
+    res.status(err.status)
   } else {
     // We don't know what's wrong, so it's our fault.
-    res.status(500);
+    res.status(500)
   }
-  res.json(result);
+  res.json(result)
 }
 
 // Hook up the error handling middleware.
-app.use(returnErrorMiddleware);
+app.use(returnErrorMiddleware)
 
 // Given a BED file local path or URL, and a relative URL from the BED file for
 // a chunk data directory, get the local path at which the chunk data directory
@@ -1344,52 +1399,52 @@ function bedChunkLocalPath(bed, chunk) {
   if (isValidURL(bed)) {
     // Hash the BED URL and the chunk path together to a unique value
     // guaranteed not to contain slashes or '.'.
-    const hashedBED = hashString(bed + chunk);
+    const hashedBED = hashString(bed + chunk)
     // Use that as a directory under the download path. We know this is under
     // the download path and does not end in slash.
-    return path.resolve(DOWNLOAD_DATA_PATH, hashedBED);
+    return path.resolve(DOWNLOAD_DATA_PATH, hashedBED)
   } else {
     // This is a local BED file. Evaluate the path in the BED file relative to it.
-    let destination = path.resolve(path.dirname(bed), chunk);
+    let destination = path.resolve(path.dirname(bed), chunk)
 
-    if (destination.endsWith("/")) {
+    if (destination.endsWith('/')) {
       // Drop any trailing slashes
-      destination = destination.substring(0, destination.length - 1);
+      destination = destination.substring(0, destination.length - 1)
     }
 
     // That can go up by e.g. starting with / or involving .., so make sure we
     // are still pointing somewhere allowed.
     if (!isAllowedPath(destination)) {
-      throw new BadRequestError("Path to chunk not allowed: " + destination);
+      throw new BadRequestError('Path to chunk not allowed: ' + destination)
     }
 
-    return destination;
+    return destination
   }
 }
 
 // Gets the chunk name from a region specified in a bedfile
 // Returns an empty string if the region is not found within the bed file
 async function getChunkName(bed, parsedRegion) {
-  let chunk = "";
-  let regionInfo = await getBedRegions(bed);
+  let chunk = ''
+  let regionInfo = await getBedRegions(bed)
 
-  for (let i = 0; i < regionInfo["desc"].length; i++) {
+  for (let i = 0; i < regionInfo['desc'].length; i++) {
     let entryRegion = {
-      contig: regionInfo["chr"][i],
-      start: regionInfo["start"][i],
-      end: regionInfo["end"][i],
-    };
+      contig: regionInfo['chr'][i],
+      start: regionInfo['start'][i],
+      end: regionInfo['end'][i],
+    }
     if (stringifyRegion(entryRegion) === stringifyRegion(parsedRegion)) {
       // A BED entry is defined for this region exactly
-      if (regionInfo["chunk"][i] !== "") {
+      if (regionInfo['chunk'][i] !== '') {
         // And a chunk file is stored for it, so use that.
-        chunk = regionInfo["chunk"][i];
-        break;
+        chunk = regionInfo['chunk'][i]
+        break
       }
     }
   }
 
-  return chunk;
+  return chunk
 }
 
 // Gets the chunk path from a region specified in a bedfile, which may be a URL
@@ -1401,86 +1456,86 @@ async function getChunkName(bed, parsedRegion) {
 // The returned path is either an allowed path, or an empty string if we are
 // using a BED without a pre-generated chunk for the given region.
 async function getChunkPath(bed, parsedRegion) {
-  const chunk = await getChunkName(bed, parsedRegion);
+  const chunk = await getChunkName(bed, parsedRegion)
 
-  if (chunk === "") {
+  if (chunk === '') {
     // There is no pre-generated chunk for this region.
-    return "";
+    return ''
   }
 
   // Work out where data for this chunk will be, locally
-  let chunkPath = bedChunkLocalPath(bed, chunk);
+  let chunkPath = bedChunkLocalPath(bed, chunk)
 
   if (isValidURL(bed)) {
     // download the rest of the chunk
-    await retrieveChunk(bed, chunk, true);
+    await retrieveChunk(bed, chunk, true)
   }
 
-  console.log("returning chunk path: ", chunkPath);
+  console.log('returning chunk path: ', chunkPath)
 
   // check that the 'chunk.vg' file exists in the chunk folder
-  let chunk_file = path.resolve(chunkPath, "chunk.vg");
+  let chunk_file = path.resolve(chunkPath, 'chunk.vg')
   // We already checked allowed-ness in making the chunk path.
   if (fs.existsSync(chunk_file)) {
-    console.log(`found pre-fetched chunk at ${chunk_file}`);
+    console.log(`found pre-fetched chunk at ${chunk_file}`)
   } else {
     // The chunk doesn't exist, but was supposed to.
     throw new BadRequestError(
-      `Couldn't find pre-fetched chunk at ${chunk_file}`
-    );
+      `Couldn't find pre-fetched chunk at ${chunk_file}`,
+    )
   }
 
-  return chunkPath;
+  return chunkPath
 }
 
 function processAnnotationFile(req, res, next) {
   try {
     // find annotation file
-    console.time(`processing annotation file-${req.reqId}`);
-    fs.readdirSync(req.chunkDir).forEach((file) => {
-      if (file.endsWith("annotate.txt")) {
-        req.annotationFile = req.chunkDir + "/" + file;
+    console.time(`processing annotation file-${req.reqId}`)
+    fs.readdirSync(req.chunkDir).forEach(file => {
+      if (file.endsWith('annotate.txt')) {
+        req.annotationFile = req.chunkDir + '/' + file
       }
-    });
+    })
 
     if (
-      !req.hasOwnProperty("annotationFile") ||
-      typeof req.annotationFile === "undefined"
+      !req.hasOwnProperty('annotationFile') ||
+      typeof req.annotationFile === 'undefined'
     ) {
-      throw new VgExecutionError("annotation file not created");
+      throw new VgExecutionError('annotation file not created')
     }
-    console.log(`annotationFile: ${req.annotationFile}`);
+    console.log(`annotationFile: ${req.annotationFile}`)
 
     // read annotation file
     const lineReader = rl.createInterface({
       input: fs.createReadStream(req.annotationFile),
-    });
+    })
 
-    let i = 0;
-    lineReader.on("line", (line) => {
+    let i = 0
+    lineReader.on('line', line => {
       // WARNING may break normal vg chunk output if it doesn't use tabs
-      const arr = line.split("\t");
+      const arr = line.split('\t')
       // const arr = line.replace(/\s+/g, " ").split(" ");
       if (req.graph.path[i].name === arr[0]) {
-        req.graph.path[i].freq = arr[1];
+        req.graph.path[i].freq = arr[1]
       } else {
-        console.log("Mismatch");
+        console.log('Mismatch')
       }
-      i += 1;
-    });
+      i += 1
+    })
 
-    lineReader.on("close", () => {
-      console.timeEnd(`processing annotation file-${req.reqId}`);
+    lineReader.on('close', () => {
+      console.timeEnd(`processing annotation file-${req.reqId}`)
       if (req.withGam === true) {
-        processGamFiles(req, res, next);
+        processGamFiles(req, res, next)
       } else {
-        processRegionFile(req, res, next);
+        processRegionFile(req, res, next)
       }
-    });
+    })
   } catch (error) {
     // Send errors into Express's processing instead of off into Node's event
     // machinery.
-    return next(error);
+    return next(error)
   }
 }
 
@@ -1488,183 +1543,184 @@ function processGamFile(req, res, next, gamFile, gamFileNumber) {
   try {
     if (!isAllowedPath(gamFile)) {
       // This is probably under SCRATCH_DATA_PATH
-      throw new BadRequestError("Path to GAM/GAF file not allowed: " + req.gamFile);
+      throw new BadRequestError(
+        'Path to GAM/GAF file not allowed: ' + req.gamFile,
+      )
     }
 
-    if (gamFile.endsWith(".json")){
-      const catCall = spawn("cat", [gamFile]);
-      catCall.stderr.on("data", (data) => {
-        console.log(`err data: ${data}`);
-      });
+    if (gamFile.endsWith('.json')) {
+      const catCall = spawn('cat', [gamFile])
+      catCall.stderr.on('data', data => {
+        console.log(`err data: ${data}`)
+      })
 
-      let gamJSON = "";
-      catCall.stdout.on("data", function (data) {
-        gamJSON += data.toString();
-      });
+      let gamJSON = ''
+      catCall.stdout.on('data', function (data) {
+        gamJSON += data.toString()
+      })
 
-      catCall.on("close", () => {
+      catCall.on('close', () => {
         const gamArr = gamJSON
-              .split("\n")
-              .filter(function (a) {
-                return a !== "";
-              })
-              .map(function (a) {
-                return JSON.parse(a);
-              });
+          .split('\n')
+          .filter(function (a) {
+            return a !== ''
+          })
+          .map(function (a) {
+            return JSON.parse(a)
+          })
         // Organize the results by number
-        req.gamResults[gamFileNumber] = gamArr;
-        req.gamRemaining -= 1;
+        req.gamResults[gamFileNumber] = gamArr
+        req.gamRemaining -= 1
         if (req.gamRemaining == 0) {
-          processRegionFile(req, res, next);
+          processRegionFile(req, res, next)
         }
-      });
-      
+      })
     } else {
-    
-      let vgViewParams = ["view", "-j", "-a"];
-      let vgConvertParams = ["convert"];
-      
-      if (gamFile.endsWith(".gaf")) {
+      let vgViewParams = ['view', '-j', '-a']
+      let vgConvertParams = ['convert']
+
+      if (gamFile.endsWith('.gaf')) {
         // if input is GAF, vg convert will be piped into vg view
-        vgViewParams.push("-");
+        vgViewParams.push('-')
         // vg convert needs the graph to convert GAF to GAM
-        const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH);
-        vgConvertParams.push("-F", gamFile, graphFile);
+        const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
+        vgConvertParams.push('-F', gamFile, graphFile)
       }
-      if (gamFile.endsWith(".gam")) {
+      if (gamFile.endsWith('.gam')) {
         // if input is GAM, no need to convert input to vg view is the file
-        vgViewParams.push(gamFile);
+        vgViewParams.push(gamFile)
       }
-      
-      const vgViewChild = spawn(find_vg(), vgViewParams);
 
-      if (gamFile.endsWith(".gaf")) {
+      const vgViewChild = spawn(find_vg(), vgViewParams)
+
+      if (gamFile.endsWith('.gaf')) {
         // if input was a GAF, run vg convert and pipe stdout to vg view
-        const vgConvertChild = spawn(find_vg(), vgConvertParams);
+        const vgConvertChild = spawn(find_vg(), vgConvertParams)
 
-        vgConvertChild.stdout.on("data", function (data) {
-          vgViewChild.stdin.write(data);
-        });
-        
-        vgConvertChild.stderr.on("data", (data) => {
-          console.log(`vg convert err data: ${data}`);
-          req.error += data;
-        });
+        vgConvertChild.stdout.on('data', function (data) {
+          vgViewChild.stdin.write(data)
+        })
 
-        vgConvertChild.on("close", (code) => {
-          console.log(`vg convert exited with code ${code}`);
-          vgViewChild.stdin.end();
+        vgConvertChild.stderr.on('data', data => {
+          console.log(`vg convert err data: ${data}`)
+          req.error += data
+        })
+
+        vgConvertChild.on('close', code => {
+          console.log(`vg convert exited with code ${code}`)
+          vgViewChild.stdin.end()
           if (code !== 0) {
-            console.log("Error from " + find_vg() + " " + vgConvertParams.join(" "));
+            console.log(
+              'Error from ' + find_vg() + ' ' + vgConvertParams.join(' '),
+            )
             // Execution failed
             if (!sentResponse) {
-              sentResponse = true;
-              return next(new VgExecutionError("vg convert failed"));
+              sentResponse = true
+              return next(new VgExecutionError('vg convert failed'))
             }
           }
-        });
-        
-      } 
-      
-      vgViewChild.stderr.on("data", (data) => {
-        console.log(`err data: ${data}`);
-      });
+        })
+      }
 
-      let gamJSON = "";
-      vgViewChild.stdout.on("data", function (data) {
-        gamJSON += data.toString();
-      });
+      vgViewChild.stderr.on('data', data => {
+        console.log(`err data: ${data}`)
+      })
 
-      vgViewChild.on("close", () => {
+      let gamJSON = ''
+      vgViewChild.stdout.on('data', function (data) {
+        gamJSON += data.toString()
+      })
+
+      vgViewChild.on('close', () => {
         const gamArr = gamJSON
-              .split("\n")
-              .filter(function (a) {
-                return a !== "";
-              })
-              .map(function (a) {
-                return JSON.parse(a);
-              });
+          .split('\n')
+          .filter(function (a) {
+            return a !== ''
+          })
+          .map(function (a) {
+            return JSON.parse(a)
+          })
         // Organize the results by number
-        req.gamResults[gamFileNumber] = gamArr;
-        req.gamRemaining -= 1;
+        req.gamResults[gamFileNumber] = gamArr
+        req.gamRemaining -= 1
         if (req.gamRemaining == 0) {
-          processRegionFile(req, res, next);
+          processRegionFile(req, res, next)
         }
-      });
+      })
     }
   } catch (error) {
-    return next(error);
+    return next(error)
   }
 }
 
 function processGamFiles(req, res, next) {
   try {
-    console.time(`processing gam files-${req.reqId}`);
-    const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH);
+    console.time(`processing gam files-${req.reqId}`)
+    const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
     // Find gam/gaf files
-    let gamFiles = [];
-    if (graphFile.endsWith(".pos.bed.gz")) {
+    let gamFiles = []
+    if (graphFile.endsWith('.pos.bed.gz')) {
       // use tabix-based pangenome (experimental)
       // look for json files
-      fs.readdirSync(req.chunkDir).forEach((file) => {
-        console.log(file);
-        if (file.endsWith("annot.json")) {
-          gamFiles.push(req.chunkDir + "/" + file);
+      fs.readdirSync(req.chunkDir).forEach(file => {
+        console.log(file)
+        if (file.endsWith('annot.json')) {
+          gamFiles.push(req.chunkDir + '/' + file)
         }
-      });
+      })
     } else {
       // look for typical GAM or GAF files
-      fs.readdirSync(req.chunkDir).forEach((file) => {
-        console.log(file);
-        if (file.endsWith(".gam") || file.endsWith(".gaf")) {
-          gamFiles.push(req.chunkDir + "/" + file);
+      fs.readdirSync(req.chunkDir).forEach(file => {
+        console.log(file)
+        if (file.endsWith('.gam') || file.endsWith('.gaf')) {
+          gamFiles.push(req.chunkDir + '/' + file)
         }
-      });
+      })
     }
 
     // Parse a GAM chunk name and get the GAM number from it
     // Names are like, with either .gam or .gaf suffixes:
     // */chunk_*.gam for 0
     // */chunk-1_*.gam for 1, 2, 3, etc.
-    let gamNameToNumber = (gamName) => {
-      if(gamName.endsWith('.json')){
+    let gamNameToNumber = gamName => {
+      if (gamName.endsWith('.json')) {
         const pattern = /.*\/chunk.([0-9]+).annot.json/
         let matches = gamName.match(pattern)
         if (!matches) {
-          throw new InternalServerError("Bad GAF/JSON name " + gamName) 
+          throw new InternalServerError('Bad GAF/JSON name ' + gamName)
         }
-        return parseInt(matches[1]);
+        return parseInt(matches[1])
       } else {
         const pattern = /.*\/chunk(-([0-9])+)?_.*\.ga[mf]/
         let matches = gamName.match(pattern)
         if (!matches) {
-          throw new InternalServerError("Bad GAM/GAF name " + gamName) 
+          throw new InternalServerError('Bad GAM/GAF name ' + gamName)
         }
         if (matches[2] !== undefined) {
           // We have a number
-          return parseInt(matches[2]);
+          return parseInt(matches[2])
         }
       }
       // If there's no number we are chunk 0
-      return 0;
-    };
+      return 0
+    }
 
     // Sort all the GAM files we found in order of their chunk number,
     // ascending. This will also be the order of the GAM files passed to chunk,
     // and so the order we got the tracks in, and thus the order we want the
     // results in.
     gamFiles.sort((a, b) => {
-      return gamNameToNumber(a) - gamNameToNumber(b);
-    });
+      return gamNameToNumber(a) - gamNameToNumber(b)
+    })
 
-    req.gamResults = [];
-    req.gamRemaining = gamFiles.length;
+    req.gamResults = []
+    req.gamRemaining = gamFiles.length
     for (let i = 0; i < gamFiles.length; i++) {
-      processGamFile(req, res, next, gamFiles[i], i);
+      processGamFile(req, res, next, gamFiles[i], i)
     }
-    console.timeEnd(`processing gam files-${req.reqId}`);
+    console.timeEnd(`processing gam files-${req.reqId}`)
   } catch (error) {
-    return next(error);
+    return next(error)
   }
 }
 
@@ -1676,93 +1732,100 @@ function processRegionFile(req, res, next) {
   // TODO: With subpaths in vg chunk we no longer really need the concept of a
   // region file. Now we just use it to find the targeted path and mark it.
   try {
-    console.time(`processing region file-${req.reqId}`);
-    let regionFile = `${req.chunkDir}/regions.tsv`;
+    console.time(`processing region file-${req.reqId}`)
+    let regionFile = `${req.chunkDir}/regions.tsv`
     if (!fs.existsSync(regionFile)) {
-      fs.readdirSync(req.chunkDir).forEach((file) => {
-        if (file.endsWith("regions.tsv")) {
-          regionFile = req.chunkDir + "/" + file;
+      fs.readdirSync(req.chunkDir).forEach(file => {
+        if (file.endsWith('regions.tsv')) {
+          regionFile = req.chunkDir + '/' + file
         }
-      });
+      })
     }
     if (!isAllowedPath(regionFile)) {
       throw new BadRequestError(
-        "Path to region file not allowed: " + regionFile
-      );
+        'Path to region file not allowed: ' + regionFile,
+      )
     }
 
     const lineReader = rl.createInterface({
       input: fs.createReadStream(regionFile),
-    });
+    })
 
-    lineReader.on("line", (line) => {
-      console.log("Region: " + line);
-      const arr = line.replace(/\s+/g, " ").split(" ");
-      
+    lineReader.on('line', line => {
+      console.log('Region: ' + line)
+      const arr = line.replace(/\s+/g, ' ').split(' ')
+
       // First 3 fields are path base name, start, and end.
       // Build the subpath string we are talking about
-      let subpathName = arr[0] + "[" + arr[1] + "-" + arr[2] + "]";
+      let subpathName = arr[0] + '[' + arr[1] + '-' + arr[2] + ']'
 
-      req.graph.path.forEach((p) => {
+      req.graph.path.forEach(p => {
         if (p.name === subpathName) {
           // Remove subpath from name and store indexOfFirstBase instead, so
           // the frontend draws the ruler on the base path.
-          console.log("Rename " + subpathName + " to " + arr[0] + " and mark start as " + arr[1]);
-          p.name = arr[0];
-          p.indexOfFirstBase = arr[1];
+          console.log(
+            'Rename ' +
+              subpathName +
+              ' to ' +
+              arr[0] +
+              ' and mark start as ' +
+              arr[1],
+          )
+          p.name = arr[0]
+          p.indexOfFirstBase = arr[1]
         } else if (p.name === arr[0]) {
           // We might be looking at a pre-extracted region that predates real
           // subpath support (like the Lancet paper data), in which case we
           // need to grab the real start point from the regions file.
-          p.indexOfFirstBase = arr[1];
+          p.indexOfFirstBase = arr[1]
         }
-      });
-    });
+      })
+    })
 
-    lineReader.on("close", () => {
-      console.timeEnd(`processing region file-${req.reqId}`);
-      processNodeColorsFile(req, res, next);
-    });
+    lineReader.on('close', () => {
+      console.timeEnd(`processing region file-${req.reqId}`)
+      processNodeColorsFile(req, res, next)
+    })
   } catch (error) {
-    return next(error);
+    return next(error)
   }
 }
 
 function processNodeColorsFile(req, res, next) {
   try {
-    console.time(`processing node colors file-${req.reqId}`);
-    const nodeColorsFile = `${req.chunkDir}/nodeColors.tsv`;
+    console.time(`processing node colors file-${req.reqId}`)
+    const nodeColorsFile = `${req.chunkDir}/nodeColors.tsv`
     if (!isAllowedPath(nodeColorsFile)) {
       throw new BadRequestError(
-        "Path to node colors file not allowed: " + nodeColorsFile
-      );
+        'Path to node colors file not allowed: ' + nodeColorsFile,
+      )
     }
 
-    req.coloredNodes = [];
+    req.coloredNodes = []
 
     // check if file exists
     if (!fs.existsSync(nodeColorsFile)) {
-      console.timeEnd(`processing node colors file-${req.reqId}`);
-      cleanUpAndSendResult(req, res, next);
-      return;
+      console.timeEnd(`processing node colors file-${req.reqId}`)
+      cleanUpAndSendResult(req, res, next)
+      return
     }
 
     const lineReader = rl.createInterface({
       input: fs.createReadStream(nodeColorsFile),
-    });
+    })
 
-    lineReader.on("line", (line) => {
-      console.log("Node name: " + line);
-      const nodeName = line.replace("\n", "");
-      req.coloredNodes.push(nodeName);
-    });
+    lineReader.on('line', line => {
+      console.log('Node name: ' + line)
+      const nodeName = line.replace('\n', '')
+      req.coloredNodes.push(nodeName)
+    })
 
-    lineReader.on("close", () => {
-      console.timeEnd(`processing node colors file-${req.reqId}`);
-      cleanUpAndSendResult(req, res, next);
-    });
+    lineReader.on('close', () => {
+      console.timeEnd(`processing node colors file-${req.reqId}`)
+      cleanUpAndSendResult(req, res, next)
+    })
   } catch (error) {
-    return next(error);
+    return next(error)
   }
 }
 
@@ -1776,26 +1839,26 @@ function cleanUpChunkIfOwned(req, res) {
     // and they were outside our acceptable directory tree.
 
     // Clean up the temp directory for the request recursively
-    fs.remove(req.chunkDir);
+    fs.remove(req.chunkDir)
   }
 }
 
 function cleanUpAndSendResult(req, res, next) {
   try {
-    cleanUpChunkIfOwned(req, res);
+    cleanUpChunkIfOwned(req, res)
 
-    const result = {};
+    const result = {}
     // TODO: Any standard error output will make an error response.
-    result.error = req.error.toString("utf-8");
-    result.graph = req.graph;
-    result.gam = req.withGam === true ? req.gamResults : [];
-    result.region = req.region;
-    result.coloredNodes = req.coloredNodes;
-    result.nameMap = req.nameMap;
-    res.json(result);
-    console.timeEnd(`request-duration-${req.reqId}`);
+    result.error = req.error.toString('utf-8')
+    result.graph = req.graph
+    result.gam = req.withGam === true ? req.gamResults : []
+    result.region = req.region
+    result.coloredNodes = req.coloredNodes
+    result.nameMap = req.nameMap
+    res.json(result)
+    console.timeEnd(`request-duration-${req.reqId}`)
   } catch (error) {
-    return next(error);
+    return next(error)
   }
 }
 
@@ -1806,26 +1869,26 @@ function isAllowedPath(inputPath) {
   // Note that thing.param..xg is a perfectly good filename and contains ..; we
   // need to check for it as a path component.
   if (
-    inputPath.includes("//") ||
-    inputPath.includes("\\\\") ||
-    inputPath.includes("/\\") ||
-    inputPath.includes("\\/")
+    inputPath.includes('//') ||
+    inputPath.includes('\\\\') ||
+    inputPath.includes('/\\') ||
+    inputPath.includes('\\/')
   ) {
     // Prohibit double delimiters (probably mostly from internal errors)
-    return false;
+    return false
   }
   // Split on delimiters
-  let parts = inputPath.split(/[\/\\]/);
+  let parts = inputPath.split(/[\/\\]/)
   for (let part of parts) {
-    if (part === "..") {
+    if (part === '..') {
       // One of the path components is a .., so disallow it.
-      return false;
+      return false
     }
   }
 
   // Now that we know the path doesn't go up, we can safely resolve it to an
   // absolute path.
-  let resolvedPath = path.resolve(inputPath);
+  let resolvedPath = path.resolve(inputPath)
 
   for (let allowed of ALLOWED_DATA_DIRECTORIES) {
     // Go through all the allowed directories
@@ -1834,11 +1897,11 @@ function isAllowedPath(inputPath) {
     // it doesn't do any relative/absolute conversion.
     if (pathIsInside(resolvedPath, allowed)) {
       // This path is inside this allowed directory
-      return true;
+      return true
     }
   }
   // Otherwise the path wasn't in any of the allowed directories
-  return false;
+  return false
 }
 
 // Make sure that, at server startup, all the important directories are
@@ -1846,20 +1909,20 @@ function isAllowedPath(inputPath) {
 // something in it and break on every user request.
 assert(
   isAllowedPath(MOUNTED_DATA_PATH),
-  "Configured dataPath is not acceptable; does it contain .. or //?"
-);
+  'Configured dataPath is not acceptable; does it contain .. or //?',
+)
 assert(
   isAllowedPath(INTERNAL_DATA_PATH),
-  "Configured internalDataPath is not acceptable; does it contain .. or //?"
-);
+  'Configured internalDataPath is not acceptable; does it contain .. or //?',
+)
 assert(
   isAllowedPath(UPLOAD_DATA_PATH),
-  "Upload data path is not acceptable; does it contain .. or //?"
-);
+  'Upload data path is not acceptable; does it contain .. or //?',
+)
 assert(
   isAllowedPath(SCRATCH_DATA_PATH),
-  "Scratch path is not acceptable; does it contain .. or //?"
-);
+  'Scratch path is not acceptable; does it contain .. or //?',
+)
 
 /**
  * Convert an absolute path to a path relative to the current directory, if it
@@ -1870,11 +1933,11 @@ assert(
  * directory out of the path unless it is needed.
  */
 function toClientPath(absPath) {
-  let relPath = path.relative('.', absPath);
+  let relPath = path.relative('.', absPath)
   if (isAllowedPath(relPath)) {
-    return relPath;
+    return relPath
   } else {
-    return absPath;
+    return absPath
   }
 }
 
@@ -1885,202 +1948,255 @@ function toClientPath(absPath) {
  * Hides directories that look like pre-extracted chunk directories.
  */
 function forEachFileUnder(directory, callback) {
-  
   // Make a list of all the files in the directory
-  let children = new Set();
-  fs.readdirSync(directory).forEach((basename) => {
-    children.add(basename);
-  });
+  let children = new Set()
+  fs.readdirSync(directory).forEach(basename => {
+    children.add(basename)
+  })
 
-  if (directory !== MOUNTED_DATA_PATH && ((children.has("regions.tsv") && children.has("chunk.vg")) || children.has("chunk_contents.txt"))) {
+  if (
+    directory !== MOUNTED_DATA_PATH &&
+    ((children.has('regions.tsv') && children.has('chunk.vg')) ||
+      children.has('chunk_contents.txt'))
+  ) {
     // This smells like a pre-extracted chunk directory, so skip it.
-    return;
+    return
   }
 
   for (let basename of children) {
     // Go through all the files in the directory
-    let absPath = path.resolve(directory, basename);
-    let stat = fs.statSync(absPath, {throwIfNoEntry: false});
+    let absPath = path.resolve(directory, basename)
+    let stat = fs.statSync(absPath, { throwIfNoEntry: false })
     if (stat) {
       // It actually exists
       if (stat.isDirectory()) {
         // Recurse
-        forEachFileUnder(absPath, callback);
+        forEachFileUnder(absPath, callback)
       } else if (stat.isFile()) {
         // Show the file
-        callback(absPath);
+        callback(absPath)
       } else {
-        console.log("Found file of unknown type:", absPath);
+        console.log('Found file of unknown type:', absPath)
       }
     } else {
-      console.log("File vanished:", absPath);
+      console.log('File vanished:', absPath)
     }
   }
 }
 
-api.get("/getFilenames", (req, res) => {
-  console.log("received request for filenames");
+api.get('/getFilenames', (req, res) => {
+  console.log('received request for filenames')
   const result = {
     files: [], // store a list of file object, excluding bed files, {  name: string; type: filetype;}
     bedFiles: [],
-  };
+  }
 
   if (isAllowedPath(MOUNTED_DATA_PATH)) {
     // list files in folder
-    forEachFileUnder(MOUNTED_DATA_PATH, (file) => {
-      const clientPath = toClientPath(file);
+    forEachFileUnder(MOUNTED_DATA_PATH, file => {
+      const clientPath = toClientPath(file)
       if (endsWithExtensions(file, GRAPH_EXTENSIONS)) {
-        result.files.push({ trackFile: clientPath, trackType: "graph" });
+        result.files.push({ trackFile: clientPath, trackType: 'graph' })
       }
       if (endsWithExtensions(file, HAPLOTYPE_EXTENSIONS)) {
-        result.files.push({ trackFile: clientPath, trackType: "haplotype" });
+        result.files.push({ trackFile: clientPath, trackType: 'haplotype' })
       }
-      if (file.endsWith(".sorted.gam")) {
-        result.files.push({ trackFile: clientPath, trackType: "read" });
+      if (file.endsWith('.sorted.gam')) {
+        result.files.push({ trackFile: clientPath, trackType: 'read' })
       }
       // We don't allow un-sorted-and-indexed plain GAF files here
-      if (file.endsWith(".gaf.gz")) {
-        result.files.push({"trackFile": file, "trackType": "read"});
+      if (file.endsWith('.gaf.gz')) {
+        result.files.push({ trackFile: file, trackType: 'read' })
       }
-      if (file.endsWith(".nodes.tsv.gz")) {
-        result.files.push({"trackFile": file, "trackType": "node"});
+      if (file.endsWith('.nodes.tsv.gz')) {
+        result.files.push({ trackFile: file, trackType: 'node' })
       }
-      if (file.endsWith(".bed")) {
-        result.bedFiles.push(clientPath);
+      if (file.endsWith('.bed')) {
+        result.bedFiles.push(clientPath)
       }
-    });
+    })
   } else {
     // Somehow MOUNTED_DATA_PATH isn't one of our ALLOWED_DATA_DIRECTORIES (anymore?).
     // Perhaps the server administrator has put a .. in it.
     throw new InternalServerError(
-      "MOUNTED_DATA_PATH not allowed. Server is misconfigured."
-    );
+      'MOUNTED_DATA_PATH not allowed. Server is misconfigured.',
+    )
   }
 
-  console.log(result);
-  res.json(result);
-});
+  console.log(result)
+  res.json(result)
+})
 
 // Spawn a vg process and collect stdout lines. Resolves when the process exits
 // successfully, rejects (VgExecutionError) on non-zero exit.
 function runVgLines(args, onLine) {
   return new Promise((resolve, reject) => {
-    const child = spawn(find_vg(), args);
-    child.stderr.on("data", (d) => console.log(`vg ${args[0]} stderr: ${d}`));
-    const reader = rl.createInterface({ input: child.stdout });
-    reader.on("line", onLine);
-    let code = null;
-    let readerDone = false;
+    const child = spawn(find_vg(), args)
+    child.stderr.on('data', d => console.log(`vg ${args[0]} stderr: ${d}`))
+    const reader = rl.createInterface({ input: child.stdout })
+    reader.on('line', onLine)
+    let code = null
+    let readerDone = false
     const finish = () => {
-      if (code === null || !readerDone) return;
-      code !== 0 ? reject(new VgExecutionError(`vg ${args.join(" ")} failed`)) : resolve();
-    };
-    child.on("error", reject);
-    child.on("close", (c) => { code = c; finish(); });
-    reader.on("close", () => { readerDone = true; finish(); });
-  });
+      if (code === null || !readerDone) return
+      code !== 0
+        ? reject(new VgExecutionError(`vg ${args.join(' ')} failed`))
+        : resolve()
+    }
+    child.on('error', reject)
+    child.on('close', c => {
+      code = c
+      finish()
+    })
+    reader.on('close', () => {
+      readerDone = true
+      finish()
+    })
+  })
 }
 
-api.post("/getPathNames", async (req, res, next) => {
-  console.log("received request for pathNames");
-  const graphFile = req.body.graphFile;
+api.post('/getPathNames', async (req, res, next) => {
+  console.log('received request for pathNames')
+  const graphFile = req.body.graphFile
 
   if (!isAllowedPath(graphFile)) {
-    throw new BadRequestError("Path to Graph file not allowed: " + req.body.graphFile);
+    throw new BadRequestError(
+      'Path to Graph file not allowed: ' + req.body.graphFile,
+    )
   }
   if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
     throw new BadRequestError(
-      "Path to Graph file does not end in valid extension: " + req.body.graphFile
-    );
+      'Path to Graph file does not end in valid extension: ' +
+        req.body.graphFile,
+    )
   }
 
   if (graphFile.endsWith('.pos.bed.gz')) {
-    let sentResponse = false;
-    const tabixCall = spawn("tabix", ["-l", graphFile]);
-    let output = "";
-    tabixCall.stdout.on("data", (data) => { output += data.toString(); });
-    tabixCall.on("error", () => {
-      if (!sentResponse) { sentResponse = true; next(new VgExecutionError("tabix path names failed")); }
-    });
-    tabixCall.on("close", (code) => {
-      if (code !== 0) {
-        if (!sentResponse) { sentResponse = true; next(new VgExecutionError("tabix path names failed")); }
-        return;
+    let sentResponse = false
+    const tabixCall = spawn('tabix', ['-l', graphFile])
+    let output = ''
+    tabixCall.stdout.on('data', data => {
+      output += data.toString()
+    })
+    tabixCall.on('error', () => {
+      if (!sentResponse) {
+        sentResponse = true
+        next(new VgExecutionError('tabix path names failed'))
       }
-      const pathNames = output.split("\n").filter((a) => a !== "" && !a.startsWith("_")).sort();
-      console.log(`Found ${pathNames.length} paths`);
-      if (!sentResponse) { sentResponse = true; res.json({ pathNames }); }
-    });
-    return;
+    })
+    tabixCall.on('close', code => {
+      if (code !== 0) {
+        if (!sentResponse) {
+          sentResponse = true
+          next(new VgExecutionError('tabix path names failed'))
+        }
+        return
+      }
+      const pathNames = output
+        .split('\n')
+        .filter(a => a !== '' && !a.startsWith('_'))
+        .sort()
+      console.log(`Found ${pathNames.length} paths`)
+      if (!sentResponse) {
+        sentResponse = true
+        res.json({ pathNames })
+      }
+    })
+    return
   }
 
-  const lines = [];
+  const lines = []
   try {
-    await runVgLines(["paths", "-L", "-x", graphFile], (line) => { lines.push(line); });
-    const pathNames = lines.filter((a) => a !== "" && !a.startsWith("_")).sort();
-    console.log(`Found ${pathNames.length} paths`);
-    res.json({ pathNames });
+    await runVgLines(['paths', '-L', '-x', graphFile], line => {
+      lines.push(line)
+    })
+    const pathNames = lines.filter(a => a !== '' && !a.startsWith('_')).sort()
+    console.log(`Found ${pathNames.length} paths`)
+    res.json({ pathNames })
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
-api.post("/getPathInfo", async (req, res, next) => {
-  console.log("received request for pathInfo");
-  const graphFile = req.body.graphFile;
+api.post('/getPathInfo', async (req, res, next) => {
+  console.log('received request for pathInfo')
+  const graphFile = req.body.graphFile
 
   if (!isAllowedPath(graphFile)) {
-    throw new BadRequestError("Path to Graph file not allowed: " + req.body.graphFile);
+    throw new BadRequestError(
+      'Path to Graph file not allowed: ' + req.body.graphFile,
+    )
   }
   if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
-    throw new BadRequestError("Path to Graph file does not end in valid extension: " + req.body.graphFile);
+    throw new BadRequestError(
+      'Path to Graph file does not end in valid extension: ' +
+        req.body.graphFile,
+    )
   }
 
   if (graphFile.endsWith('.pos.bed.gz')) {
     // pgtabix mode: return names only, lengths not available
-    let sentResponse = false;
-    const tabixCall = spawn("tabix", ["-l", graphFile]);
-    let output = "";
-    tabixCall.stdout.on("data", (data) => { output += data.toString(); });
-    tabixCall.on("error", () => {
-      if (!sentResponse) { sentResponse = true; next(new VgExecutionError("tabix path info failed")); }
-    });
-    tabixCall.on("close", (code) => {
-      if (code !== 0) {
-        if (!sentResponse) { sentResponse = true; next(new VgExecutionError("tabix path info failed")); }
-        return;
+    let sentResponse = false
+    const tabixCall = spawn('tabix', ['-l', graphFile])
+    let output = ''
+    tabixCall.stdout.on('data', data => {
+      output += data.toString()
+    })
+    tabixCall.on('error', () => {
+      if (!sentResponse) {
+        sentResponse = true
+        next(new VgExecutionError('tabix path info failed'))
       }
-      const pathInfo = output.split("\n")
-        .filter((a) => a !== "" && !a.startsWith("_"))
+    })
+    tabixCall.on('close', code => {
+      if (code !== 0) {
+        if (!sentResponse) {
+          sentResponse = true
+          next(new VgExecutionError('tabix path info failed'))
+        }
+        return
+      }
+      const pathInfo = output
+        .split('\n')
+        .filter(a => a !== '' && !a.startsWith('_'))
         .sort()
-        .map((name) => ({ name, length: null, cyclic: false }));
-      if (!sentResponse) { sentResponse = true; res.json({ pathInfo }); }
-    });
-    return;
+        .map(name => ({ name, length: null, cyclic: false }))
+      if (!sentResponse) {
+        sentResponse = true
+        res.json({ pathInfo })
+      }
+    })
+    return
   }
 
-  const lengthLines = [];
-  const cyclicNames = new Set();
+  const lengthLines = []
+  const cyclicNames = new Set()
   try {
     await Promise.all([
-      runVgLines(["paths", "-E", "-x", graphFile], (line) => { if (line) lengthLines.push(line); }),
+      runVgLines(['paths', '-E', '-x', graphFile], line => {
+        if (line) lengthLines.push(line)
+      }),
       // Non-zero exit is fine — graph may simply have no cyclic paths
-      runVgLines(["paths", "-E", "-C", "-x", graphFile], (line) => {
-        if (line && !line.startsWith("_")) cyclicNames.add(line.split("\t")[0]);
+      runVgLines(['paths', '-E', '-C', '-x', graphFile], line => {
+        if (line && !line.startsWith('_')) cyclicNames.add(line.split('\t')[0])
       }).catch(() => {}),
-    ]);
+    ])
     const pathInfo = lengthLines
-      .filter((line) => line !== "" && !line.startsWith("_"))
-      .map((line) => {
-        const [name, lengthStr] = line.split("\t");
-        return { name, length: parseInt(lengthStr, 10), cyclic: cyclicNames.has(name) };
+      .filter(line => line !== '' && !line.startsWith('_'))
+      .map(line => {
+        const [name, lengthStr] = line.split('\t')
+        return {
+          name,
+          length: parseInt(lengthStr, 10),
+          cyclic: cyclicNames.has(name),
+        }
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
-    res.json({ pathInfo });
+      .sort((a, b) => a.name.localeCompare(b.name))
+    res.json({ pathInfo })
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
 // Given a string, return a filename-safe string that is a hash of that string.
 // The hash is collision-resistant.
@@ -2089,112 +2205,112 @@ function hashString(str) {
   // probably not worth it for a URL's worth of data. So use Node's crypto
   // library.
   // See <https://stackoverflow.com/a/75872519>
-  return createHash("sha256").update(str).digest("hex");
+  return createHash('sha256').update(str).digest('hex')
 }
 
 // Given a URL and a filename, download the given URL to that filename. Assumes required directories exist.
 const downloadFile = async (fileURL, destination) => {
   if (!isAllowedPath(destination)) {
     throw new BadRequestError(
-      "Download destination path not allowed: " + destination
-    );
+      'Download destination path not allowed: ' + destination,
+    )
   }
 
   const response = await fetchAndValidate(
     fileURL,
     config.maxFileSizeBytes,
-    destination
-  );
+    destination,
+  )
 
   // file has already been downloaded and has not been updated since last fetch
   if (!response) {
-    console.log("File has already been downloaded at ", destination);
-    return;
+    console.log('File has already been downloaded at ', destination)
+    return
   }
 
-  console.log("Save to:", destination);
+  console.log('Save to:', destination)
 
   // overwrites file if it already exists
-  const fileStream = fs.createWriteStream(destination, { flags: "w" });
-  await finished(Readable.fromWeb(response.body).pipe(fileStream));
-};
+  const fileStream = fs.createWriteStream(destination, { flags: 'w' })
+  await finished(Readable.fromWeb(response.body).pipe(fileStream))
+}
 
 // url: url destination to fetch from
 // maxBytes: maxBytes before aborting fetch
 // existingLocation: the existing location of a file, to prevent duplicate fetches of a file already on disk
 //                   leaving it empty will result in always fetching
 const fetchAndValidate = async (url, maxBytes, existingLocation = null) => {
-  let fetchHeader = {};
+  let fetchHeader = {}
   // We don't want to fetch again if we have a copy on disk
   // Use a "If-None-Match" header to only fetch if our copy is outdated
   if (existingLocation && fs.existsSync(existingLocation)) {
     fetchHeader = {
-      "If-None-Match": ETagMap.get(url) || "-1",
-    };
+      'If-None-Match': ETagMap.get(url) || '-1',
+    }
   }
-  let controller = timeoutController(config.fetchTimeout);
+  let controller = timeoutController(config.fetchTimeout)
   const options = {
-    method: "GET",
-    credentials: "omit",
-    cache: "default",
+    method: 'GET',
+    credentials: 'omit',
+    cache: 'default',
     signal: controller.signal,
     headers: fetchHeader,
-  };
+  }
 
-  console.log("Fetching URL:", url);
-  let response = await fetch(url, options);
+  console.log('Fetching URL:', url)
+  let response = await fetch(url, options)
 
   // file exists on disk and file has not been updated since last fetch
   if (response.status === 304) {
-    console.log("file not modified since last fetch");
-    return 0;
+    console.log('file not modified since last fetch')
+    return 0
   }
 
   // update our eTag for this url
-  ETagMap.set(url, response.headers.get("ETag"));
+  ETagMap.set(url, response.headers.get('ETag'))
 
   // check for unsuccessful response codes
   if (!response.ok) {
     throw new BadRequestError(
-      `Fetch request for ${url} failed: ` + response.status
-    );
+      `Fetch request for ${url} failed: ` + response.status,
+    )
   }
 
   // check for size specified in header
-  const contentLength = response.headers.get("Content-Length");
+  const contentLength = response.headers.get('Content-Length')
 
   if (contentLength > maxBytes) {
     throw new Error(
-      `Fetch request for ${url} failed: Content-Length exceeds maximum file size of ${maxBytes} bytes`
-    );
+      `Fetch request for ${url} failed: Content-Length exceeds maximum file size of ${maxBytes} bytes`,
+    )
   }
 
   // use a reader to make sure we're not reading past the max size allowed
-  const reader = response.body.getReader();
+  const reader = response.body.getReader()
 
-  let bytesRead = 0;
-  const dataRead = [];
+  let bytesRead = 0
+  const dataRead = []
 
   while (true) {
-    let { done, value } = await reader.read();
+    let { done, value } = await reader.read()
 
     if (done) {
-      break;
+      break
     }
 
-    dataRead.push(value);
-    bytesRead += new Blob([value]).size;
+    dataRead.push(value)
+    bytesRead += new Blob([value]).size
 
     if (bytesRead > maxBytes) {
-      reader.cancel();
+      reader.cancel()
       throw new Error(
-        `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`
-      );
+        `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`,
+      )
     }
   }
 
-  return new Response(new Blob(dataRead), { headers: response.headers });
-};
+  return new Response(new Blob(dataRead), { headers: response.headers })
+}
 
 // Download files for the specified relative chunk path, for the BED file at
 // the given URL.
@@ -2205,60 +2321,60 @@ const fetchAndValidate = async (url, maxBytes, existingLocation = null) => {
 // includeContent is true when the go button is pressed and a getChunkedData request is called
 const retrieveChunk = async (bedURL, chunk, includeContent) => {
   // path to the designated chunk in the temp directory
-  const chunkDir = bedChunkLocalPath(bedURL, chunk);
+  const chunkDir = bedChunkLocalPath(bedURL, chunk)
 
   if (!fs.existsSync(chunkDir)) {
-    fs.mkdirSync(chunkDir, { recursive: true });
+    fs.mkdirSync(chunkDir, { recursive: true })
   }
 
   // URL under which all the chunk files will exist. Make sure it ends in '/'
   // so we can look up the contents relative to it.
-  let chunkURL = new URL(chunk, bedURL).toString();
-  if (!chunkURL.endsWith("/")) {
-    chunkURL = chunkURL + "/";
+  let chunkURL = new URL(chunk, bedURL).toString()
+  if (!chunkURL.endsWith('/')) {
+    chunkURL = chunkURL + '/'
   }
 
   // Each chunk has an index in "chunk_contents.txt"
-  let chunkContentURL = new URL("chunk_contents.txt", chunkURL).toString();
+  let chunkContentURL = new URL('chunk_contents.txt', chunkURL).toString()
 
   let response = await fetchAndValidate(
     chunkContentURL,
-    config.maxFileSizeBytes
-  );
+    config.maxFileSizeBytes,
+  )
 
-  const chunkContent = await response.text();
-  const fileNames = chunkContent.split("\n");
+  const chunkContent = await response.text()
+  const fileNames = chunkContent.split('\n')
 
   // download all the files in the chunk
   for (const fileName of fileNames) {
-    if (fileName == "") {
+    if (fileName == '') {
       // Skip blank lines/trailing newline
-      continue;
+      continue
     }
     if (fileName !== sanitize(fileName)) {
       // Make sure we don't do things like get out of the directory.
       throw new BadRequestError(
-        `Chunk index at ${chunkContentURL} contains disallowed filename ${fileName}`
-      );
+        `Chunk index at ${chunkContentURL} contains disallowed filename ${fileName}`,
+      )
     }
 
     // We can interpret all the files in chunk_contents.txt relative to the file they are listed in.
-    let chunkFileURL = new URL(fileName, chunkContentURL).toString();
+    let chunkFileURL = new URL(fileName, chunkContentURL).toString()
 
     // download only the tracks.json file if the includeContent flag is false
-    if (includeContent || fileName == "tracks.json") {
-      let chunkFilePath = path.resolve(chunkDir, fileName);
-      await downloadFile(chunkFileURL, chunkFilePath);
+    if (includeContent || fileName == 'tracks.json') {
+      let chunkFilePath = path.resolve(chunkDir, fileName)
+      await downloadFile(chunkFileURL, chunkFilePath)
     }
   }
-};
+}
 
 // aborts fetch request after certain amount of time
-const timeoutController = (seconds) => {
-  let controller = new AbortController();
-  setTimeout(() => controller.abort(), seconds * 1000);
-  return controller;
-};
+const timeoutController = seconds => {
+  let controller = new AbortController()
+  setTimeout(() => controller.abort(), seconds * 1000)
+  return controller
+}
 
 // Expects a bed file and a chunk name
 // Attempts to download tracks associated with the chunk name from the bed file if it is a URL
@@ -2266,64 +2382,64 @@ const timeoutController = (seconds) => {
 async function getChunkTracks(bedFile, chunk) {
   // Download tracks.json file if it is a URL
   if (isValidURL(bedFile)) {
-    await retrieveChunk(bedFile, chunk, false);
+    await retrieveChunk(bedFile, chunk, false)
   }
 
   // Get the path to where the track is downloaded
-  let chunkPath = bedChunkLocalPath(bedFile, chunk);
-  let track_json = path.resolve(chunkPath, "tracks.json");
-  let tracks = null;
+  let chunkPath = bedChunkLocalPath(bedFile, chunk)
+  let track_json = path.resolve(chunkPath, 'tracks.json')
+  let tracks = null
   // Attempt to read tracks.json and convert it into a tracks object
   if (fs.existsSync(track_json)) {
     // Create string of tracks data
-    const string_data = fs.readFileSync(track_json);
+    const string_data = fs.readFileSync(track_json)
 
     // Convert to object container like the client component prop types expect
-    tracks = JSON.parse(string_data);
+    tracks = JSON.parse(string_data)
   }
 
-  return tracks;
+  return tracks
 }
 
 // Expects a request with a bed file and a chunk name
 // Returns tracks retrieved from getChunkTracks
-api.post("/getChunkTracks", (req, res, next) => {
+api.post('/getChunkTracks', (req, res, next) => {
   captureErrors(next, async () => {
-    console.log("received request for chunk tracks");
+    console.log('received request for chunk tracks')
     if (!req.body.bedFile || !req.body.chunk) {
       throw new BadRequestError(
-        "Invalid request format",
+        'Invalid request format',
         req.body.bedFile,
-        req.body.chunk
-      );
+        req.body.chunk,
+      )
     }
 
     // tracks are falsy if fetch is unsuccessful
 
     // TODO: This operation needs to hold a reader lock on the upload/download directories.
     // waiting for lock changes to be merged
-    const tracks = await getChunkTracks(req.body.bedFile, req.body.chunk);
-    res.json({ tracks: tracks });
-  });
-});
+    const tracks = await getChunkTracks(req.body.bedFile, req.body.chunk)
+    res.json({ tracks: tracks })
+  })
+})
 
-api.post("/getBedRegions", (req, res, next) => {
+api.post('/getBedRegions', (req, res, next) => {
   captureErrors(next, async () => {
-    console.log("received request for bedRegions");
+    console.log('received request for bedRegions')
     const result = {
       bedRegions: [],
       error: null,
-    };
+    }
 
     if (req.body.bedFile) {
-      let bed_info = await getBedRegions(req.body.bedFile);
-      result.bedRegions = bed_info;
-      res.json(result);
+      let bed_info = await getBedRegions(req.body.bedFile)
+      result.bedRegions = bed_info
+      res.json(result)
     } else {
-      throw new BadRequestError("No BED file specified");
+      throw new BadRequestError('No BED file specified')
     }
-  });
-});
+  })
+})
 
 // Load up the given BED file by URL or path, and
 // return a data structure describing all the pre-cached regions it defines.
@@ -2336,85 +2452,87 @@ async function getBedRegions(bed) {
     desc: [],
     chunk: [],
     tracks: [],
-  };
-  let bed_data;
-  let lines;
-  let isURL = false;
-  console.log("bed file received ", bed);
+  }
+  let bed_data
+  let lines
+  let isURL = false
+  console.log('bed file received ', bed)
   if (isValidURL(bed)) {
-    isURL = true;
-    const response = await fetchAndValidate(bed, config.maxFileSizeBytes);
-    bed_data = await response.text();
+    isURL = true
+    const response = await fetchAndValidate(bed, config.maxFileSizeBytes)
+    bed_data = await response.text()
   } else {
     // otherwise search for bed file in dataPath
-    if (!bed.endsWith(".bed")) {
-      throw new BadRequestError("BED file path does not end in .bed: " + bed);
+    if (!bed.endsWith('.bed')) {
+      throw new BadRequestError('BED file path does not end in .bed: ' + bed)
     }
     if (!isAllowedPath(bed)) {
-      throw new BadRequestError("BED file path not allowed: " + bed);
+      throw new BadRequestError('BED file path not allowed: ' + bed)
     }
     if (!fs.existsSync(bed)) {
-      throw new BadRequestError("BED file not found: " + bed);
+      throw new BadRequestError('BED file not found: ' + bed)
     }
 
     // Load and parse the BED file
-    bed_data = fs.readFileSync(bed).toString();
+    bed_data = fs.readFileSync(bed).toString()
   }
 
-  lines = bed_data.split(/\r?\n/);
-  
+  lines = bed_data.split(/\r?\n/)
+
   for (let [index, line] of lines.entries()) {
-    let records = line.split("\t");
+    let records = line.split('\t')
 
     if (records.length < 3) {
       // This is an empty line or otherwise not BED
-      if (line !== "") {
+      if (line !== '') {
         // This is a bad line
-        throw new BadRequestError("BED line " + (index + 1) + " could not be parsed");
+        throw new BadRequestError(
+          'BED line ' + (index + 1) + ' could not be parsed',
+        )
       }
-      continue;
+      continue
     }
-    bed_info["chr"].push(records[0]);
-    bed_info["start"].push(records[1]);
-    bed_info["end"].push(records[2]);
-    let desc = records.join("_");
+    bed_info['chr'].push(records[0])
+    bed_info['start'].push(records[1])
+    bed_info['end'].push(records[2])
+    let desc = records.join('_')
     if (records.length > 3) {
-      desc = records[3];
+      desc = records[3]
     }
-    bed_info["desc"].push(desc);
-    let chunk = "";
+    bed_info['desc'].push(desc)
+    let chunk = ''
     if (records.length > 4) {
-      chunk = records[4];
+      chunk = records[4]
     }
-    bed_info["chunk"].push(chunk);
+    bed_info['chunk'].push(chunk)
   }
 
   if (bed_info.length === 0) {
-    BadRequestError("BED file is empty");
+    BadRequestError('BED file is empty')
   }
 
   // check for a tracks.json file to prefill tracks configuration
-  for (let i = 0; i < bed_info["chunk"].length; i++) {
-    let tracks = null;
+  for (let i = 0; i < bed_info['chunk'].length; i++) {
+    let tracks = null
 
-    let chunk = bed_info["chunk"][i];
-    if (chunk !== "") {
+    let chunk = bed_info['chunk'][i]
+    if (chunk !== '') {
       // There is a premade chunk for this BED region.
 
       // Work out where it should be locally.
-      const chunk_path = bedChunkLocalPath(bed, chunk);
+      const chunk_path = bedChunkLocalPath(bed, chunk)
 
       // See if we have downloaded tracks.json in a previous instance
-      let track_json = path.resolve(chunk_path, "tracks.json");
+      let track_json = path.resolve(chunk_path, 'tracks.json')
 
       // If json file specifying the tracks exists, pass its information into a tracks object
       // future selection of this region won't re-fetch tracks.json
       if (fs.existsSync(track_json)) {
         // Create string of tracks data
-        const string_data = fs.readFileSync(track_json);
+        const string_data = fs.readFileSync(track_json)
 
         // Convert to object container like the client component prop types expect
-        tracks = JSON.parse(string_data);
+        tracks = JSON.parse(string_data)
       }
     }
 
@@ -2422,25 +2540,25 @@ async function getBedRegions(bed) {
     // for tracks, which means whatever tracks were already selected will be
     // retained.
 
-    bed_info["tracks"].push(tracks);
+    bed_info['tracks'].push(tracks)
   }
 
-  console.log("returning bed_info, ", bed_info);
-  return bed_info;
+  console.log('returning bed_info, ', bed_info)
+  return bed_info
 }
 
 // Return the string URL for the host and port at which the given Express app
 // server is listening, with HTTP scheme.
 function getServerURL(server) {
-  let address = server.address();
+  let address = server.address()
   return (
-    "http://" +
-    (address.family === "IPv6"
-      ? "[" + address.address + "]"
+    'http://' +
+    (address.family === 'IPv6'
+      ? '[' + address.address + ']'
       : address.address) +
-    ":" +
+    ':' +
     address.port
-  );
+  )
 }
 
 // Start the server. Returns a promise that resolves when the server is ready.
@@ -2462,50 +2580,50 @@ export function start() {
       // Shut down the server
       close: async () => {
         // remove the temporary directory
-        fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true });
+        fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
 
         // Shutdown the Websocket Server.
-        state.wss.shutDown();
+        state.wss.shutDown()
         // Close the file watcher.
-        state.watcher.close();
+        state.watcher.close()
 
         await new Promise((resolve, reject) => {
           function stopIfReady() {
             if (state.connections.size === 0) {
               // No more open connections!
-              resolve();
+              resolve()
             } else {
               // Check back later
-              setTimeout(stopIfReady, 10);
+              setTimeout(stopIfReady, 10)
             }
           }
-          stopIfReady();
-        });
+          stopIfReady()
+        })
 
         // Wait for the HTTP server to close.
         await new Promise((resolve, reject) => {
           // close server
-          state.server.close((err) => {
+          state.server.close(err => {
             if (err) {
-              console.log("HTTP server has closed with error: " + err.message);
+              console.log('HTTP server has closed with error: ' + err.message)
             } else {
-              console.log("HTTP server has closed.");
+              console.log('HTTP server has closed.')
             }
-            resolve();
-          });
-        });
+            resolve()
+          })
+        })
 
-        console.log("TubeMapServer stopped.");
+        console.log('TubeMapServer stopped.')
       },
       // Get the URL the server is listening on
       getUrl: () => {
-        return getServerURL(state.server);
+        return getServerURL(state.server)
       },
       // Get the URL the server is listening on for the API
       getApiUrl: () => {
-        return state.getUrl() + "/api/v0";
+        return state.getUrl() + '/api/v0'
       },
-    };
+    }
 
     // If the state fields are all filled in, resolve the promise for the closeable server object.
     function resolveIfReady() {
@@ -2514,66 +2632,69 @@ export function start() {
         state.wss !== undefined &&
         state.watcher !== undefined
       ) {
-        resolve(state);
+        resolve(state)
       }
     }
 
-    const serverPort = process.env.SERVER_PORT || config.serverPort || 3000;
+    const serverPort = process.env.SERVER_PORT || config.serverPort || 3000
     const server = app.listen(serverPort, SERVER_BIND_ADDRESS, () => {
-      console.log("TubeMapServer listening on " + getServerURL(server));
-      state.server = server;
-      resolveIfReady();
-    });
-    server.on('error', (err) => { console.error("TubeMapServer error:", err); reject(err); });
+      console.log('TubeMapServer listening on ' + getServerURL(server))
+      state.server = server
+      resolveIfReady()
+    })
+    server.on('error', err => {
+      console.error('TubeMapServer error:', err)
+      reject(err)
+    })
     // Create the WebSocketServer, for watching for updated files, using the HTTP server instance
     // Note that all websocket connections on any path end up here!
-    const wss = new WebSocketServer({ httpServer: server });
+    const wss = new WebSocketServer({ httpServer: server })
 
     // Set that holds all the WebSocketConnection instances that
     // notify the client of file directory changes
-    state.connections = new Set();
+    state.connections = new Set()
 
-    wss.on("request", function (request) {
+    wss.on('request', function (request) {
       // We received a websocket connection request and we need to accept it.
       console.log(
-        `${new Date()} New WebSocket connection from origin: ${request.origin}.`
-      );
-      const connection = request.accept(null, request.origin);
+        `${new Date()} New WebSocket connection from origin: ${request.origin}.`,
+      )
+      const connection = request.accept(null, request.origin)
       // We save the connection so that we can notify them when there is a change in the file system
-      state.connections.add(connection);
-      connection.on("close", function (reasonCode, description) {
+      state.connections.add(connection)
+      connection.on('close', function (reasonCode, description) {
         // When the websocket connection closes, we delete it from our set of open connections
-        state.connections.delete(connection);
+        state.connections.delete(connection)
         console.log(
-          `A WebSocket connection has been closed: ${state.connections.size} remain open.`
-        );
-      });
-    });
+          `A WebSocket connection has been closed: ${state.connections.size} remain open.`,
+        )
+      })
+    })
 
-    state.wss = wss;
+    state.wss = wss
 
     const watcher = fs.watch(MOUNTED_DATA_PATH, function (event, filename) {
       // There was a change in the file directory
-      console.log("Directory has been changed");
+      console.log('Directory has been changed')
       for (let conn of state.connections) {
         // Notify all open connections about the change
-        conn.send("change");
+        conn.send('change')
       }
-    });
+    })
 
-    state.watcher = watcher;
-    resolveIfReady();
-  });
+    state.watcher = watcher
+    resolveIfReady()
+  })
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  start();
+  start()
 }
 
-process.on("SIGINT", function () {
-  console.log("\nshutting down from SIGINT");
+process.on('SIGINT', function () {
+  console.log('\nshutting down from SIGINT')
   // remove the temporary directory
-  fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true });
+  fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
 
-  process.exit();
-});
+  process.exit()
+})

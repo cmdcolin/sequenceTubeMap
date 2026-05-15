@@ -1,17 +1,17 @@
 /// Footer.js: main page footer component. Includes project page links and demo link.
 
-import { Container, Row, Col, Navbar, Nav, NavItem } from "reactstrap";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGithub } from "@fortawesome/free-brands-svg-icons";
-import { faCode, faDna } from "@fortawesome/free-solid-svg-icons";
+import { Container, Row, Col, Navbar, Nav, NavItem } from 'reactstrap'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faGithub } from '@fortawesome/free-brands-svg-icons'
+import { faCode, faDna } from '@fortawesome/free-solid-svg-icons'
 
-import SafeLink from "./SafeLink";
+import SafeLink from './SafeLink'
 
-import PACKAGE from "../../package.json";
+import PACKAGE from '../../package.json'
 
 export const Footer = () => {
   return (
-    <Container tag="footer" fluid={true} style={{ marginTop: "1em" }}>
+    <Container tag="footer" fluid={true} style={{ marginTop: '1em' }}>
       <Row className="bg-light">
         <Col lg={{ offset: 2, size: 8 }}>
           <Navbar>
@@ -46,7 +46,7 @@ export const Footer = () => {
                   className="nav-link"
                   to="/demo"
                   title="Component Demos"
-                  style={{ textDecoration: "none" }}
+                  style={{ textDecoration: 'none' }}
                 >
                   <FontAwesomeIcon icon={faCode} /> Component Demos
                 </SafeLink>
@@ -56,7 +56,7 @@ export const Footer = () => {
         </Col>
       </Row>
     </Container>
-  );
-};
+  )
+}
 
-export default Footer;
+export default Footer

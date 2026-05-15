@@ -1,32 +1,32 @@
-import React from "react";
-import { render, waitFor } from "@testing-library/react";
-import { TrackSettingsButton } from "./TrackSettingsButton";
-import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import React from 'react'
+import { render, waitFor } from '@testing-library/react'
+import { TrackSettingsButton } from './TrackSettingsButton'
+import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
-describe("TrackSettingsButton", () => {
-  it("opens popup", async () => {
+describe('TrackSettingsButton', () => {
+  it('opens popup', async () => {
     render(
       <TrackSettingsButton
         fileType="graph"
         trackColorSettings={{
-          mainPalette: "blues",
-          auxPalette: "reds",
+          mainPalette: 'blues',
+          auxPalette: 'reds',
           colorReadsByMappingQuality: false,
           alphaReadsByMappingQuality: false,
         }}
         setTrackColorSetting={function (a, b) {}}
-      ></TrackSettingsButton>
-    );
+      ></TrackSettingsButton>,
+    )
 
-    await userEvent.click(screen.getByTestId("settings-button-component"));
+    await userEvent.click(screen.getByTestId('settings-button-component'))
 
-    expect(screen.getByRole("heading")).toBeTruthy();
+    expect(screen.getByRole('heading')).toBeTruthy()
 
-    await userEvent.click(screen.getByTestId("PopupDialogCloseButton"));
+    await userEvent.click(screen.getByTestId('PopupDialogCloseButton'))
 
     await waitFor(() => {
-      expect(screen.queryByRole("heading")).toBeFalsy();
-    });
-  });
-});
+      expect(screen.queryByRole('heading')).toBeFalsy()
+    })
+  })
+})

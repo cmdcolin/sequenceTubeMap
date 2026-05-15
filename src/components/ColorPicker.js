@@ -1,49 +1,49 @@
-import React, { useState } from "react";
-import { SketchPicker } from "react-color";
-import { Button } from "reactstrap";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPalette } from "@fortawesome/free-solid-svg-icons";
-import { Container } from "reactstrap";
+import React, { useState } from 'react'
+import { SketchPicker } from 'react-color'
+import { Button } from 'reactstrap'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faPalette } from '@fortawesome/free-solid-svg-icons'
+import { Container } from 'reactstrap'
 
 // A react-color picker embedded within a button
 export const ColorPicker = ({
   color, // hex color or named color palette currently selected.
   presetColors, // array of hex colors e.g ["#f44336", "#e91e63", "#9c27b0", "#673ab7"]
   onChange, // on change function expecting hex color as an argument
-  testID = "color-picker-component",
+  testID = 'color-picker-component',
 }) => {
-  const [nextColor, setNextColor] = useState(undefined);
-  const [open, setOpen] = useState(false);
+  const [nextColor, setNextColor] = useState(undefined)
+  const [open, setOpen] = useState(false)
 
   const popover = {
-    position: "absolute",
-    zIndex: "2",
-  };
+    position: 'absolute',
+    zIndex: '2',
+  }
 
   const cover = {
-    position: "fixed",
-    top: "0px",
-    right: "0px",
-    bottom: "0px",
-    left: "0px",
-  };
+    position: 'fixed',
+    top: '0px',
+    right: '0px',
+    bottom: '0px',
+    left: '0px',
+  }
 
   function togglePicker() {
     if (open) {
-      setOpen(false);
+      setOpen(false)
       if (nextColor) {
         // Apply the color
-        onChange(nextColor);
+        onChange(nextColor)
       }
     } else {
-      setOpen(true);
-      if (color && color.startsWith("#")) {
+      setOpen(true)
+      if (color && color.startsWith('#')) {
         // If we had a color picked, use it to start
-        setNextColor(color);
+        setNextColor(color)
       } else {
         // We don't have a color to start with. We don't want to apply
         // a random color when we close.
-        setNextColor(undefined);
+        setNextColor(undefined)
       }
     }
   }
@@ -63,18 +63,17 @@ export const ColorPicker = ({
           <div style={cover} onClick={togglePicker} />
           <Container>
             <SketchPicker
-              color={nextColor || "#fff"}
+              color={nextColor || '#fff'}
               presetColors={presetColors}
-              onChange={(newColor) => {
-                setNextColor(newColor["hex"]);
+              onChange={newColor => {
+                setNextColor(newColor['hex'])
               }}
             />
           </Container>
         </div>
       ) : null}
     </div>
-  );
-};
+  )
+}
 
-
-export default ColorPicker;
+export default ColorPicker

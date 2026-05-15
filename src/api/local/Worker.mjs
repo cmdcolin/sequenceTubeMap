@@ -7,7 +7,7 @@
  * WorkerFactory.js and its mock.
  */
 
-import { setUpWorker } from "./WorkerImplementation.mjs";
+import { setUpWorker } from './WorkerImplementation.mjs'
 
 // Because of Create React App's Opinions, we can't use the idiomatic "self"
 // here without fiddling with the linter, even if we claim to be in the
@@ -18,4 +18,4 @@ import { setUpWorker } from "./WorkerImplementation.mjs";
 //
 // So we turn off that linting rule
 /* eslint-disable no-restricted-globals */
-setUpWorker(self);
+setUpWorker(self)

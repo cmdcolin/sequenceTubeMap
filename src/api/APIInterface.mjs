@@ -9,7 +9,7 @@ export class APIInterface {
   // If the request is not structured correctly, or something goes wrong
   // internally, throws an Error.
   async getChunkedData(viewTarget, cancelSignal) {
-    throw new Error("getChunkedData function not implemented");
+    throw new Error('getChunkedData function not implemented')
   }
 
   // Returns files used to determine what options are available in the track picker.
@@ -18,14 +18,14 @@ export class APIInterface {
   // bedFiles just holds an array of strings.
   // cancelSignal is an AbortSignal that can be used to cancel the request.
   async getFilenames(cancelSignal) {
-    throw new Error("getFilenames function not implemented");
+    throw new Error('getFilenames function not implemented')
   }
 
   // Get notifications (via calls to handler()) when the set of filenames available from getFilenames() has changed.
   // Returns a subscription object that should be kept around as long as you still want updates.
   // cancelSignal is an AbortSignal that can be used to cancel the stream of notifications.
   subscribeToFilenameChanges(handler, cancelSignal) {
-    throw new Error("subscribeToFilenameChanges function not implemented");
+    throw new Error('subscribeToFilenameChanges function not implemented')
   }
 
   // Upload a file.
@@ -34,7 +34,7 @@ export class APIInterface {
   // cancelSignal is an AbortSignal that can be used to cancel the upload.
   // Resolves with the file name that can be used to refer to the uploaded file.
   async putFile(fileType, file, cancelSignal) {
-    throw new Error("putFile function not implemented");
+    throw new Error('putFile function not implemented')
   }
 
   // Takes in a bedfile path or a url pointing to a raw bed file.
@@ -42,7 +42,7 @@ export class APIInterface {
   // bedRegions contains information extrapolated from each line of the bedfile.
   // cancelSignal is an AbortSignal that can be used to cancel the request.
   async getBedRegions(bedFile, cancelSignal) {
-    throw new Error("getBedRegions function not implemented");
+    throw new Error('getBedRegions function not implemented')
   }
 
   // Takes in a graphFile path.
@@ -50,7 +50,7 @@ export class APIInterface {
   // Returns pathnames available in a graphfile.
   // cancelSignal is an AbortSignal that can be used to cancel the request.
   async getPathNames(graphFile, cancelSignal) {
-    throw new Error("getPathNames function not implemented");
+    throw new Error('getPathNames function not implemented')
   }
 
   // Takes in a graphFile path.
@@ -58,7 +58,7 @@ export class APIInterface {
   // pathInfo is an array of { name, length, cyclic } objects for each path in the graph.
   // cancelSignal is an AbortSignal that can be used to cancel the request.
   async getPathInfo(graphFile, cancelSignal) {
-    throw new Error("getPathInfo function not implemented");
+    throw new Error('getPathInfo function not implemented')
   }
 
   // Expects a bed file(or url) and a chunk name.
@@ -67,8 +67,8 @@ export class APIInterface {
   // Returns tracks found from local directories as a tracks object.
   // cancelSignal is an AbortSignal that can be used to cancel the request.
   async getChunkTracks(bedFile, chunk, cancelSignal) {
-    throw new Error("getChunkTracks function not implemented");
+    throw new Error('getChunkTracks function not implemented')
   }
 }
 
-export default APIInterface;
+export default APIInterface

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react'
 import {
   Container,
   Collapse,
@@ -9,8 +9,8 @@ import {
   Label,
   Input,
   FormGroup,
-} from "reactstrap";
-import TrackSettings from "./TrackSettings";
+} from 'reactstrap'
+import TrackSettings from './TrackSettings'
 
 function VisualizationOptions({
   visOptions,
@@ -23,24 +23,27 @@ function VisualizationOptions({
   currentAPIMode,
   setAPIMode,
 }) {
-  const [isOpenLegend, setIsOpenLegend] = useState(false);
-  const [isOpenVisualizationOptions, setIsOpenVisualizationOptions] = useState(true);
-  const [isOpenServer, setIsOpenServer] = useState(false);
+  const [isOpenLegend, setIsOpenLegend] = useState(false)
+  const [isOpenVisualizationOptions, setIsOpenVisualizationOptions] =
+    useState(true)
+  const [isOpenServer, setIsOpenServer] = useState(false)
 
-  const mappingQualityOptions = Array.from(Array(61).keys()).map((i) => (
-    <option value={i} key={i}>{i}</option>
-  ));
+  const mappingQualityOptions = Array.from(Array(61).keys()).map(i => (
+    <option value={i} key={i}>
+      {i}
+    </option>
+  ))
 
-  let readTrackNumber = 1;
-  let trackSettingsList = [];
+  let readTrackNumber = 1
+  let trackSettingsList = []
   for (let key in tracks) {
-    const track = tracks[key];
-    console.log(track);
+    const track = tracks[key]
+    console.log(track)
     if (!track.trackFile) {
-      continue;
+      continue
     }
-    const type = track.trackType;
-    if (type === "graph") {
+    const type = track.trackType
+    if (type === 'graph') {
       trackSettingsList.push(
         <TrackSettings
           key={key}
@@ -48,27 +51,27 @@ function VisualizationOptions({
           fileType={type}
           trackColorSettings={visOptions.colorSchemes[key]}
           setTrackColorSetting={(k, v) => setColorSetting(k, key, v)}
-        />
-      );
-    } else if (type === "haplotype") {
+        />,
+      )
+    } else if (type === 'haplotype') {
       // TODO: Do nothing for now. Haplotypes get assigned to the graph as their source track right now.
-    } else if (type === "node") {
+    } else if (type === 'node') {
       // TODO: Do nothing for now. Haplotypes get assigned to the graph as their source track right now.
-    } else if (type === "read") {
+    } else if (type === 'read') {
       if (visOptions.showReads) {
         trackSettingsList.push(
           <TrackSettings
             key={key}
-            label={"Read Track " + readTrackNumber}
+            label={'Read Track ' + readTrackNumber}
             fileType={type}
             trackColorSettings={visOptions.colorSchemes[key]}
             setTrackColorSetting={(k, v) => setColorSetting(k, key, v)}
-          />
-        );
-        readTrackNumber++;
+          />,
+        )
+        readTrackNumber++
       }
     } else {
-      throw new Error("Unknown track type " + type);
+      throw new Error('Unknown track type ' + type)
     }
   }
 
@@ -78,7 +81,13 @@ function VisualizationOptions({
         <Card>
           <CardHeader id="legendCard">
             <h5 className="mb-0">
-              <a href="#collapse" onClick={(e) => { setIsOpenLegend(!isOpenLegend); e.preventDefault(); }}>
+              <a
+                href="#collapse"
+                onClick={e => {
+                  setIsOpenLegend(!isOpenLegend)
+                  e.preventDefault()
+                }}
+              >
                 Legend
               </a>
             </h5>
@@ -93,7 +102,13 @@ function VisualizationOptions({
         <Card>
           <CardHeader id="visOptionsCard">
             <h5 className="mb-0">
-              <a href="#collapse" onClick={(e) => { setIsOpenVisualizationOptions(!isOpenVisualizationOptions); e.preventDefault(); }}>
+              <a
+                href="#collapse"
+                onClick={e => {
+                  setIsOpenVisualizationOptions(!isOpenVisualizationOptions)
+                  e.preventDefault()
+                }}
+              >
                 Visualization Options
               </a>
             </h5>
@@ -107,7 +122,7 @@ function VisualizationOptions({
                     <Input
                       type="checkbox"
                       checked={visOptions.removeRedundantNodes}
-                      onChange={() => toggleFlag("removeRedundantNodes")}
+                      onChange={() => toggleFlag('removeRedundantNodes')}
                     />
                     Remove redundant nodes
                   </Label>
@@ -118,7 +133,7 @@ function VisualizationOptions({
                       type="checkbox"
                       checked={visOptions.compressedView}
                       disabled={enableCompressedNodes}
-                      onChange={() => toggleFlag("compressedView")}
+                      onChange={() => toggleFlag('compressedView')}
                     />
                     Compressed view
                   </Label>
@@ -128,7 +143,7 @@ function VisualizationOptions({
                     <Input
                       type="checkbox"
                       checked={visOptions.transparentNodes}
-                      onChange={() => toggleFlag("transparentNodes")}
+                      onChange={() => toggleFlag('transparentNodes')}
                     />
                     Fully transparent nodes
                   </Label>
@@ -138,7 +153,7 @@ function VisualizationOptions({
                     <Input
                       type="checkbox"
                       checked={visOptions.showNodeLabels}
-                      onChange={() => toggleFlag("showNodeLabels")}
+                      onChange={() => toggleFlag('showNodeLabels')}
                     />
                     Show node labels
                   </Label>
@@ -148,7 +163,9 @@ function VisualizationOptions({
                     fileType="nodeLabel"
                     label="Node Label"
                     trackColorSettings={visOptions.nodeLabelColorScheme}
-                    setTrackColorSetting={(k, v) => setNodeLabelColorSetting(k, v)}
+                    setTrackColorSetting={(k, v) =>
+                      setNodeLabelColorSetting(k, v)
+                    }
                   />
                 )}
               </FormGroup>
@@ -160,7 +177,7 @@ function VisualizationOptions({
                     <Input
                       type="checkbox"
                       checked={visOptions.showReads}
-                      onChange={() => toggleFlag("showReads")}
+                      onChange={() => toggleFlag('showReads')}
                     />
                     Show sequence reads
                   </Label>
@@ -172,7 +189,7 @@ function VisualizationOptions({
                         <Input
                           type="checkbox"
                           checked={visOptions.showSoftClips}
-                          onChange={() => toggleFlag("showSoftClips")}
+                          onChange={() => toggleFlag('showSoftClips')}
                         />
                         Show soft clips
                       </Label>
@@ -182,7 +199,9 @@ function VisualizationOptions({
                         <Input
                           type="checkbox"
                           checked={visOptions.colorReadsByMappingQuality}
-                          onChange={() => toggleFlag("colorReadsByMappingQuality")}
+                          onChange={() =>
+                            toggleFlag('colorReadsByMappingQuality')
+                          }
                         />
                         Color reads by mapping quality
                       </Label>
@@ -192,13 +211,18 @@ function VisualizationOptions({
                         <Input
                           type="checkbox"
                           checked={visOptions.alphaReadsByMappingQuality}
-                          onChange={() => toggleFlag("alphaReadsByMappingQuality")}
+                          onChange={() =>
+                            toggleFlag('alphaReadsByMappingQuality')
+                          }
                         />
                         Transparency of reads by mapping quality
                       </Label>
                     </FormGroup>
                     <Form>
-                      <Label className="me-sm-2 " htmlFor="mappingQualitySelect">
+                      <Label
+                        className="me-sm-2 "
+                        htmlFor="mappingQualitySelect"
+                      >
                         Mapping Quality Cutoff:
                       </Label>
                       <Input
@@ -206,7 +230,9 @@ function VisualizationOptions({
                         id="mappingQualitySelect"
                         className="custom-select"
                         value={visOptions.mappingQualityCutoff}
-                        onChange={(e) => handleMappingQualityCutoffChange(e.target.value)}
+                        onChange={e =>
+                          handleMappingQualityCutoffChange(e.target.value)
+                        }
                       >
                         {mappingQualityOptions}
                       </Input>
@@ -220,7 +246,13 @@ function VisualizationOptions({
         <Card>
           <CardHeader id="serverCard">
             <h5 className="mb-0">
-              <a href="#collapse" onClick={(e) => { setIsOpenServer(!isOpenServer); e.preventDefault(); }}>
+              <a
+                href="#collapse"
+                onClick={e => {
+                  setIsOpenServer(!isOpenServer)
+                  e.preventDefault()
+                }}
+              >
                 Backend Configuration
               </a>
             </h5>
@@ -236,10 +268,12 @@ function VisualizationOptions({
                   id="apiSelect"
                   className="custom-select"
                   value={currentAPIMode}
-                  onChange={(e) => setAPIMode(e.target.value)}
+                  onChange={e => setAPIMode(e.target.value)}
                 >
                   <option value="server">On remote server</option>
-                  <option value="local">In-browser (.gbz.db uploads only!)</option>
+                  <option value="local">
+                    In-browser (.gbz.db uploads only!)
+                  </option>
                 </Input>
               </Form>
             </CardBody>
@@ -247,7 +281,7 @@ function VisualizationOptions({
         </Card>
       </div>
     </Container>
-  );
+  )
 }
 
-export default VisualizationOptions;
+export default VisualizationOptions

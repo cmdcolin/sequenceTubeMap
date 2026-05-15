@@ -6,21 +6,27 @@
 // during the Webpack build.
 /* eslint-env worker */
 
-import { createRequire } from "module";
-import "../config-client.js";
-import { APIInterface } from "./APIInterface.mjs";
-import { WASI, File, OpenFile, SyncOPFSFile, PreopenDirectory } from "@bjorn3/browser_wasi_shim";
+import { createRequire } from 'module'
+import '../config-client.js'
+import { APIInterface } from './APIInterface.mjs'
+import {
+  WASI,
+  File,
+  OpenFile,
+  SyncOPFSFile,
+  PreopenDirectory,
+} from '@bjorn3/browser_wasi_shim'
 
 import {
   parseRegion,
   convertRegionToRangeRegion,
-  stringifyRegion
-} from "../common.mjs";
+  stringifyRegion,
+} from '../common.mjs'
 
 // The Webpack way to get the WASM would be something like:
-// 
+//
 // import QueryWasm from "gbz-base/query.wasm";
-// 
+//
 // In Jest, not only is the export mapping not working, but also it can't get
 // us a fetch-able string from the import like Webpack does.
 //
@@ -30,23 +36,25 @@ import {
 // Resolve with the bytes or Response of the WASM query blob.
 async function getWasmBytes() {
   if (getWasmBytes.cached) {
-    return getWasmBytes.cached;
+    return getWasmBytes.cached
   }
 
   // In a browser+webpack build, dynamic import of .wasm assets works and
   // webpack returns a URL we can fetch. In test/Node environments the import
   // fails, so we fall back to reading from the filesystem.
   try {
-    let blobImport = await import("gbz-base/query.wasm");
-    return fetch(blobImport.default);
+    let blobImport = await import('gbz-base/query.wasm')
+    return fetch(blobImport.default)
   } catch {
     // Don't try to ship the filesystem module in the browser bundle.
     // see <https://webpack.js.org/api/module-methods/#webpackignore>
-    let fs = await import(/* webpackIgnore: true */ "fs-extra");
-    const wasmPath = createRequire(import.meta.url).resolve("gbz-base/query.wasm");
-    let blobBytes = await fs.readFile(wasmPath);
-    getWasmBytes.cached = blobBytes;
-    return blobBytes;
+    let fs = await import(/* webpackIgnore: true */ 'fs-extra')
+    const wasmPath = createRequire(import.meta.url).resolve(
+      'gbz-base/query.wasm',
+    )
+    let blobBytes = await fs.readFile(wasmPath)
+    getWasmBytes.cached = blobBytes
+    return blobBytes
   }
 }
 
@@ -62,11 +70,15 @@ export async function blobToArrayBuffer(blob) {
   } catch {
     // jsdom blob needs to go through a FileReader
     return new Promise((resolve, reject) => {
-      let reader = new FileReader();
-      reader.addEventListener("load", () => { resolve(reader.result); });
-      reader.addEventListener("error", () => { reject(reader.error); });
-      reader.readAsArrayBuffer(blob);
-    });
+      let reader = new FileReader()
+      reader.addEventListener('load', () => {
+        resolve(reader.result)
+      })
+      reader.addEventListener('error', () => {
+        reject(reader.error)
+      })
+      reader.readAsArrayBuffer(blob)
+    })
   }
 }
 
@@ -78,45 +90,44 @@ export async function blobToArrayBuffer(blob) {
  * Does not leave the input graph intact.
  */
 function convertSchema(inGraph) {
-  
-  let outGraph = {};
+  let outGraph = {}
 
   // "nodes" becomes "node"
-  outGraph["node"] = inGraph["nodes"];
+  outGraph['node'] = inGraph['nodes']
 
   // We have to track the node lengths to synthisize the path mappings.
-  let nodeLength = new Map();
-  for (let node of outGraph["node"]) {
-    nodeLength.set(node["id"], node["sequence"].length);
+  let nodeLength = new Map()
+  for (let node of outGraph['node']) {
+    nodeLength.set(node['id'], node['sequence'].length)
   }
 
   // "edges" becomes "edge"
-  outGraph["edge"] = inGraph["edges"];
-  for (let edge of outGraph["edge"]) {
+  outGraph['edge'] = inGraph['edges']
+  for (let edge of outGraph['edge']) {
     // And the names for the reverse flags change.
-    edge["from_start"] = edge["from_is_reverse"];
-    delete edge["from_is_reverse"];
-    edge["to_end"] = edge["to_is_reverse"];
-    delete edge["to_is_reverse"];
+    edge['from_start'] = edge['from_is_reverse']
+    delete edge['from_is_reverse']
+    edge['to_end'] = edge['to_is_reverse']
+    delete edge['to_is_reverse']
   }
 
   // "paths" becomes "path"
-  outGraph["path"] = inGraph["paths"];
-  for (let path of outGraph["path"]) {
-    path["mapping"] = [];
-    for (let visit of path["path"]) {
-      let length = nodeLength.get(visit["id"]);
+  outGraph['path'] = inGraph['paths']
+  for (let path of outGraph['path']) {
+    path['mapping'] = []
+    for (let visit of path['path']) {
+      let length = nodeLength.get(visit['id'])
       // Make a full-length perfect match mapping
       let mapping = {
-        "position": {"node_id": visit["id"], "is_reverse": visit["is_reverse"]},
-        "edit": [{"from_length": length, "to_length": length}]
-      };
-      path["mapping"].push(mapping);
+        position: { node_id: visit['id'], is_reverse: visit['is_reverse'] },
+        edit: [{ from_length: length, to_length: length }],
+      }
+      path['mapping'].push(mapping)
     }
 
-    delete path["path"];
+    delete path['path']
   }
-  return outGraph;
+  return outGraph
 }
 
 /**
@@ -128,7 +139,9 @@ function convertSchema(inGraph) {
  */
 class SyncWorkerBlobFile extends SyncOPFSFile {
   constructor(backing_blob) {
-    super(new FileSystemSyncAccessHandlePolyfill(backing_blob), {readonly: true});
+    super(new FileSystemSyncAccessHandlePolyfill(backing_blob), {
+      readonly: true,
+    })
   }
 }
 
@@ -149,18 +162,18 @@ class FileSystemSyncAccessHandlePolyfill {
    */
   constructor(blob) {
     // Start open
-    this.closed = false;
+    this.closed = false
     // Save the blob
-    this.blob = blob;
+    this.blob = blob
     // Make sure right away we actually can have a FileReaderSync
-    this.reader = new FileReaderSync();
+    this.reader = new FileReaderSync()
   }
-  
+
   /**
    * Close the file.
    */
   close() {
-    this.closed = true;
+    this.closed = true
   }
 
   /**
@@ -169,7 +182,7 @@ class FileSystemSyncAccessHandlePolyfill {
    * Not implemented since we are read-only.
    */
   flush() {
-    throw new Error("Flush not implemented; blobs are read only");
+    throw new Error('Flush not implemented; blobs are read only')
   }
 
   /**
@@ -177,10 +190,10 @@ class FileSystemSyncAccessHandlePolyfill {
    */
   getSize() {
     if (this.closed) {
-      throw new Error("Can't get size of closed file");
+      throw new Error("Can't get size of closed file")
     }
-    
-    return this.blob.size;
+
+    return this.blob.size
   }
 
   /**
@@ -195,16 +208,16 @@ class FileSystemSyncAccessHandlePolyfill {
    */
   read(buffer, options) {
     if (this.closed) {
-      throw new Error("Can't read closed file");
+      throw new Error("Can't read closed file")
     }
 
     // Use the actual buffer we got with offset 0, or get the buffer and offset
     // out of the view
-    let destinationBuffer = buffer.buffer ?? buffer;
-    let destinationOffset = buffer.byteOffset ?? 0;
-  
+    let destinationBuffer = buffer.buffer ?? buffer
+    let destinationOffset = buffer.byteOffset ?? 0
+
     // Where should we start in the file
-    let startByte = options?.at ?? 0;
+    let startByte = options?.at ?? 0
 
     // How many bytes are we going to move?
     //
@@ -212,32 +225,36 @@ class FileSystemSyncAccessHandlePolyfill {
     // we were asked for.
     //
     // But we can't read past the end of the Blob.
-    let length = Math.min(buffer.byteLength, this.blob.size - startByte);
+    let length = Math.min(buffer.byteLength, this.blob.size - startByte)
 
     // Slice the blob to the part we want to read.
-    let partBlob = this.blob.slice(startByte, startByte + length);
+    let partBlob = this.blob.slice(startByte, startByte + length)
 
     // And read into a new ArrayBuffer using the sync reader.
-    let partBuffer = this.reader.readAsArrayBuffer(partBlob);
+    let partBuffer = this.reader.readAsArrayBuffer(partBlob)
 
     // Now blit from that buffer into the destination
-    let destinationArray = new Uint8Array(destinationBuffer, destinationOffset, length);
-    let sourceArray = new Uint8Array(partBuffer, 0, length);
-    destinationArray.set(sourceArray);
+    let destinationArray = new Uint8Array(
+      destinationBuffer,
+      destinationOffset,
+      length,
+    )
+    let sourceArray = new Uint8Array(partBuffer, 0, length)
+    destinationArray.set(sourceArray)
 
     // Return the length we thought we could do
-    return length;
+    return length
   }
-  
+
   /**
    * Truncate the file to the given number of bytes.
    *
    * Not implemented since we are read-only.
    */
   truncate(to) {
-    throw new Error("Truncate not implemented; blobs are read only");
+    throw new Error('Truncate not implemented; blobs are read only')
   }
-  
+
   /**
    * Write the given buffer or view's contents to the file.
    *
@@ -248,9 +265,8 @@ class FileSystemSyncAccessHandlePolyfill {
    * Not actually implemented since we are read-only.
    */
   write(buffer, options) {
-    throw new Error("Write not implemented; blobs are read only");
+    throw new Error('Write not implemented; blobs are read only')
   }
-
 }
 
 /**
@@ -261,37 +277,37 @@ class FileSystemSyncAccessHandlePolyfill {
  */
 export class GBZBaseAPI extends APIInterface {
   constructor() {
-    super();
+    super()
 
     // We can take user uploads, in which case we need to hold on to them somewhere.
     // This holds all the file objects.
-    this.files = [];
+    this.files = []
 
     // We need to index all their names by type.
-    this.filesByType = new Map();
+    this.filesByType = new Map()
 
     // This is a promise for the compiled WebAssembly blob.
-    this.compiledWasm = undefined;
+    this.compiledWasm = undefined
   }
 
   // Make sure our WASM backend is ready.
   async setUp() {
     if (this.compiledWasm === undefined) {
       // Kick off and save exactly one request to get and load the WASM bytes.
-      this.compiledWasm = getWasmBytes().then((result) => {
+      this.compiledWasm = getWasmBytes().then(result => {
         if (result instanceof Response) {
           // If a fetch request was made, compile as it streams in
-          return WebAssembly.compileStreaming(result);
+          return WebAssembly.compileStreaming(result)
         } else {
           // We have all the bytes, so compile right away.
           // TODO: Put this logic in the function?
-          return WebAssembly.compile(result);
+          return WebAssembly.compile(result)
         }
-      });
+      })
     }
 
     // Wait for the bytes to be available.
-    this.compiledWasm = await this.compiledWasm;
+    this.compiledWasm = await this.compiledWasm
   }
 
   // Make a call into the WebAssembly code and return the result.
@@ -301,80 +317,88 @@ export class GBZBaseAPI extends APIInterface {
   async callWasm(argv, workingDirectory) {
     if (argv.length < 1) {
       // We need at least one command line argument to be the program name.
-      throw new Error("Not safe to invoke main() without program name");
+      throw new Error('Not safe to invoke main() without program name')
     }
-    
+
     // Make sure this.compiledWasm is set.
     // TODO: Change to an accessor method?
-    await this.setUp();
-    
+    await this.setUp()
+
     // Define the places to store program input and output
-    let stdin = new File([]);
-    let stdout = new File([]);
-    let stderr = new File([]);
+    let stdin = new File([])
+    let stdout = new File([])
+    let stderr = new File([])
 
     // Environment variables as NAME=value strings
-    const environment = ["RUST_BACKTRACE=full"];
-    
+    const environment = ['RUST_BACKTRACE=full']
+
     // File descriptors for the process in number order
-    let fileDescriptors = [new OpenFile(stdin), new OpenFile(stdout), new OpenFile(stderr)];
-    
+    let fileDescriptors = [
+      new OpenFile(stdin),
+      new OpenFile(stdout),
+      new OpenFile(stderr),
+    ]
+
     if (workingDirectory) {
-      const nameToWASIFile = new Map();
+      const nameToWASIFile = new Map()
       for (const [filename, blob] of Object.entries(workingDirectory)) {
-        console.log(`Mount ${blob.size} byte blob:`, blob);
-        if (typeof FileReaderSync !== "undefined") {
+        console.log(`Mount ${blob.size} byte blob:`, blob)
+        if (typeof FileReaderSync !== 'undefined') {
           // On a worker where we can do sync reads
-          nameToWASIFile.set(filename, new SyncWorkerBlobFile(blob));
+          nameToWASIFile.set(filename, new SyncWorkerBlobFile(blob))
         } else {
           // In the main thread where we can't do sync reads
-          console.warn("Sync blob read is not available. Reading " + blob.size + " byte blob into memory asynchronously to consult synchronously later!");
-          nameToWASIFile.set(filename, new File(await blobToArrayBuffer(blob)));
+          console.warn(
+            'Sync blob read is not available. Reading ' +
+              blob.size +
+              ' byte blob into memory asynchronously to consult synchronously later!',
+          )
+          nameToWASIFile.set(filename, new File(await blobToArrayBuffer(blob)))
         }
-        console.log("Mount file:", nameToWASIFile.get(filename));
+        console.log('Mount file:', nameToWASIFile.get(filename))
       }
-      fileDescriptors.push(new PreopenDirectory(".", nameToWASIFile));
+      fileDescriptors.push(new PreopenDirectory('.', nameToWASIFile))
     }
 
     // Set up the WASI interface
-    let wasi = new WASI(argv, environment, fileDescriptors);
-    
+    let wasi = new WASI(argv, environment, fileDescriptors)
+
     // Set up the WebAssembly run
     let instantiation = await WebAssembly.instantiate(this.compiledWasm, {
-        "wasi_snapshot_preview1": wasi.wasiImport,
-    });
-    
-    console.log("Running WASM with arguments:", argv)
-    console.log("Running WASM with FDs:", fileDescriptors)
+      wasi_snapshot_preview1: wasi.wasiImport,
+    })
 
-    let returnCode = null;
-    let stdOutText = null;
-    let stdErrText = null;
+    console.log('Running WASM with arguments:', argv)
+    console.log('Running WASM with FDs:', fileDescriptors)
+
+    let returnCode = null
+    let stdOutText = null
+    let stdErrText = null
 
     try {
       // Make the WASI system call main
-      returnCode = wasi.start(instantiation);
+      returnCode = wasi.start(instantiation)
       // TODO: the shim logs loads of attempts to make/open the lock file, is it maybe not being allowed to be read back?
       // TODO: Our return code is undefined for some reason; it is supposed to come out of start.
-      console.log("Execution finished with return code:", returnCode);
+      console.log('Execution finished with return code:', returnCode)
     } finally {
       // The WASM code can throw right out of the WASI shim if Rust panics.
-      stdOutText = new TextDecoder().decode(stdout.data);
-      stdErrText = new TextDecoder().decode(stderr.data);
-      console.log("Standard Output:", stdOutText);
-      console.log("Standard Error:", stdErrText);
+      stdOutText = new TextDecoder().decode(stdout.data)
+      stdErrText = new TextDecoder().decode(stderr.data)
+      console.log('Standard Output:', stdOutText)
+      console.log('Standard Error:', stdErrText)
     }
 
-    return {returnCode, stdout: stdOutText, stderr: stdErrText}
+    return { returnCode, stdout: stdOutText, stderr: stdErrText }
   }
-  
+
   // Return true if the WASM setup is working, and false otherwise.
   async available() {
     try {
-      await this.callWasm(["query", "--help"]);
-      return true;
+      await this.callWasm(['query', '--help'])
+      return true
     } catch {
-      return false;
+      return false
     }
   }
 
@@ -383,49 +407,63 @@ export class GBZBaseAPI extends APIInterface {
   /////////
 
   async getChunkedData(viewTarget, cancelSignal) {
-  
-    console.log("Got view target:", viewTarget)
+    console.log('Got view target:', viewTarget)
 
     // Find the graph track
     let graphTrack = null
     // TODO: We need to handle object tracks; move to array tracks only!
     for (let trackKey in viewTarget.tracks) {
-      let track = viewTarget.tracks[trackKey];
-      if (track.trackType === "graph") {
-        graphTrack = track;
+      let track = viewTarget.tracks[trackKey]
+      if (track.trackType === 'graph') {
+        graphTrack = track
       }
     }
     if (!graphTrack) {
-      throw new Error("No graph track selected");
+      throw new Error('No graph track selected')
     }
 
     // Since all the names are numbers, parse it and get the real file blob
-    let graphFileBlob = this.files[parseInt(graphTrack.trackFile)];
+    let graphFileBlob = this.files[parseInt(graphTrack.trackFile)]
 
     if (graphFileBlob === undefined) {
-      throw new Error("Graph file " + graphTrack.trackFile + " does not exist");
+      throw new Error('Graph file ' + graphTrack.trackFile + ' does not exist')
     }
 
     // Find the region
-    let region = convertRegionToRangeRegion(parseRegion(viewTarget.region));
+    let region = convertRegionToRangeRegion(parseRegion(viewTarget.region))
 
-    if (!region.contig.includes("#")) {
+    if (!region.contig.includes('#')) {
       // This isn't PanSN already so adjust to ask for a generic path.
-      region.contig = "_gbwt_ref#" + region.contig;
+      region.contig = '_gbwt_ref#' + region.contig
     }
 
-    let parts = region.contig.split("#");
+    let parts = region.contig.split('#')
 
-    let {stdout} = await this.callWasm(["query", "--sample", parts[0], "--contig", parts[parts.length - 1], "--interval", `${region.start}..${region.end}`, "--format", "json", "--distinct", "graph.gbz.db"], {"graph.gbz.db": graphFileBlob});
+    let { stdout } = await this.callWasm(
+      [
+        'query',
+        '--sample',
+        parts[0],
+        '--contig',
+        parts[parts.length - 1],
+        '--interval',
+        `${region.start}..${region.end}`,
+        '--format',
+        'json',
+        '--distinct',
+        'graph.gbz.db',
+      ],
+      { 'graph.gbz.db': graphFileBlob },
+    )
 
-    let result = convertSchema(JSON.parse(stdout));
+    let result = convertSchema(JSON.parse(stdout))
 
     return {
       graph: result,
       gam: [],
       region: stringifyRegion(region),
       coloredNodes: [],
-    };
+    }
   }
 
   async getFilenames(cancelSignal) {
@@ -433,67 +471,67 @@ export class GBZBaseAPI extends APIInterface {
     let response = {
       files: [],
       bedFiles: [],
-    };
+    }
 
     for (let [type, files] of this.filesByType) {
-      if (type === "bed") {
+      if (type === 'bed') {
         // Just send all these files in bedFiles.
-        response.bedFiles = files;
+        response.bedFiles = files
       } else {
         for (let fileName of files) {
           // We sens a name/type record for each non-BED file
-          response.files.push({ name: fileName, type: type });
+          response.files.push({ name: fileName, type: type })
         }
       }
     }
 
-    return response;
+    return response
   }
 
   subscribeToFilenameChanges(handler, cancelSignal) {
-    return {};
+    return {}
   }
 
   async putFile(fileType, file, cancelSignal) {
     // We track files just by array index.
-    let fileName = this.files.length.toString();
+    let fileName = this.files.length.toString()
     // Just hang on to the File object.
-    this.files.push(file);
+    this.files.push(file)
 
-    console.log(`Store ${file.size} byte upload:`, file);
+    console.log(`Store ${file.size} byte upload:`, file)
 
     if (!this.filesByType.has(fileType)) {
-      this.filesByType.set(fileType, []);
+      this.filesByType.set(fileType, [])
     }
     // Index the name we produced by type.
-    this.filesByType.get(fileType).push(fileName);
+    this.filesByType.get(fileType).push(fileName)
 
-    return fileName;
+    return fileName
   }
 
   async getBedRegions(bedFile, cancelSignal) {
     return {
       bedRegions: [],
-    };
+    }
   }
 
   async getPathNames(graphFile, cancelSignal) {
     return {
       pathNames: [],
-    };
+    }
   }
 
   async getPathInfo(graphFile, cancelSignal) {
     return {
       pathInfo: [],
-    };
+    }
   }
 
   async getChunkTracks(bedFile, chunk, cancelSignal) {
     return {
       tracks: [],
-    };
+    }
   }
 }
 
-export default GBZBaseAPI;
+export default GBZBaseAPI

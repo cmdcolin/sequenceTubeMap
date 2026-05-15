@@ -16,7 +16,9 @@ export default {
   output: {
     path: path.resolve(__dirname, 'build'),
     publicPath: '/',
-    filename: isProduction ? 'static/js/[name].[contenthash:8].js' : 'static/js/bundle.js',
+    filename: isProduction
+      ? 'static/js/[name].[contenthash:8].js'
+      : 'static/js/bundle.js',
     chunkFilename: isProduction
       ? 'static/js/[name].[contenthash:8].chunk.js'
       : 'static/js/[name].chunk.js',
@@ -49,7 +51,14 @@ export default {
         sideEffects: true,
       },
       {
-        exclude: [/^$/, /\.(js|mjs|jsx)$/, /\.html$/, /\.json$/, /\.wasm$/, /\.css$/],
+        exclude: [
+          /^$/,
+          /\.(js|mjs|jsx)$/,
+          /\.html$/,
+          /\.json$/,
+          /\.wasm$/,
+          /\.css$/,
+        ],
         type: 'asset/resource',
       },
     ],
@@ -57,7 +66,11 @@ export default {
   plugins: [
     new HtmlWebpackPlugin({ template: './public/index.html' }),
     ...(isProduction
-      ? [new MiniCssExtractPlugin({ filename: 'static/css/[name].[contenthash:8].css' })]
+      ? [
+          new MiniCssExtractPlugin({
+            filename: 'static/css/[name].[contenthash:8].css',
+          }),
+        ]
       : []),
   ],
   devServer: {
@@ -65,7 +78,9 @@ export default {
     port: parseInt(process.env.PORT || '3001'),
     hot: true,
     historyApiFallback: true,
-    proxy: [{ context: ['/api'], target: `http://localhost:${serverPort}`, ws: true }],
+    proxy: [
+      { context: ['/api'], target: `http://localhost:${serverPort}`, ws: true },
+    ],
     static: { directory: path.resolve(__dirname, 'public') },
   },
   performance: false,

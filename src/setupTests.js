@@ -1,9 +1,9 @@
-import { TextEncoder, TextDecoder } from "util";
+import { TextEncoder, TextDecoder } from 'util'
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
-globalThis.TextEncoder = TextEncoder;
-globalThis.TextDecoder = TextDecoder;
+globalThis.TextEncoder = TextEncoder
+globalThis.TextDecoder = TextDecoder
 
 // jsdom's WebSocket and undici's native Event class are incompatible in
 // Node.js 22+, causing uncaught exceptions. Since WebSocket is only used for
@@ -18,6 +18,6 @@ globalThis.WebSocket = class MockWebSocket {
   set onopen(_v) {}
   addEventListener() {}
   removeEventListener() {}
-};
+}
 
-vi.mock("./api/local/WorkerFactory")
+vi.mock('./api/local/WorkerFactory')

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { Row, Col } from "reactstrap";
-import { TrackList } from "./TrackList";
-import { TrackAddButton } from "./TrackAddButton";
-import "../config-client.js";
-import { config } from "../config-global.mjs";
+import React, { useState, useEffect } from 'react'
+import { Row, Col } from 'reactstrap'
+import { TrackList } from './TrackList'
+import { TrackAddButton } from './TrackAddButton'
+import '../config-client.js'
+import { config } from '../config-global.mjs'
 
 export const TrackPickerDisplay = ({
   // tracks expects an object mapping a trackID to trackProps, which includes
@@ -16,84 +16,84 @@ export const TrackPickerDisplay = ({
   onChange = () => {}, // expects a new tracks object
   handleFileUpload,
 }) => {
-  const [trackListChanges, setTrackListChanges] = useState({});
+  const [trackListChanges, setTrackListChanges] = useState({})
 
   // gets the highest trackID between pending changes and tracks + 1
   let nextTrackID =
     parseInt(
       Object.keys({ ...tracks, ...trackListChanges }).reduce((t1, t2) => {
-        t1 = parseInt(t1);
-        t2 = parseInt(t2);
+        t1 = parseInt(t1)
+        t2 = parseInt(t2)
         if (t1 > t2) {
-          return t1;
+          return t1
         }
-        return t2;
-      }, 0)
-    ) + 1;
+        return t2
+      }, 0),
+    ) + 1
 
   // returns an updated track list combining the 2 inputs, with trackChanges taking priority
   const applyTrackListChanges = (tracks, trackChanges) => {
-    let newTrackList = { ...tracks };
+    let newTrackList = { ...tracks }
     Object.keys(trackChanges).forEach((trackID, index) => {
       // if the trackprops are marked as -1, they are deleted
       if (trackChanges[trackID] === -1) {
-        delete newTrackList[trackID];
+        delete newTrackList[trackID]
       } else {
-        newTrackList[trackID] = trackChanges[trackID];
+        newTrackList[trackID] = trackChanges[trackID]
       }
-    });
-    return newTrackList;
-  };
+    })
+    return newTrackList
+  }
 
   const addTrackItem = () => {
-    let newTrackList = { ...trackListChanges };
+    let newTrackList = { ...trackListChanges }
 
     // create a track item with default trackProps
-    newTrackList[nextTrackID.toString()] = { ...config.defaultTrackProps };
-    setTrackListChanges(newTrackList);
-  };
+    newTrackList[nextTrackID.toString()] = { ...config.defaultTrackProps }
+    setTrackListChanges(newTrackList)
+  }
 
-  const trackListOnChange = (newTracks) => {
-    setTrackListChanges(applyTrackListChanges(trackListChanges, newTracks));
-  };
+  const trackListOnChange = newTracks => {
+    setTrackListChanges(applyTrackListChanges(trackListChanges, newTracks))
+  }
 
-  const onDelete = (trackID) => {
-    let newTrackList = { ...trackListChanges };
+  const onDelete = trackID => {
+    let newTrackList = { ...trackListChanges }
     // store to be deleted tracks as -1
-    newTrackList[trackID] = -1;
-    setTrackListChanges(newTrackList);
-  };
+    newTrackList[trackID] = -1
+    setTrackListChanges(newTrackList)
+  }
 
   useEffect(() => {
     // construct the new track list
-    let newTrackList = applyTrackListChanges(tracks, trackListChanges);
+    let newTrackList = applyTrackListChanges(tracks, trackListChanges)
 
-    let validTrackList = true;
+    let validTrackList = true
     // track list is valid to commit if all fileNames have been selected
     Object.keys(newTrackList).forEach((trackID, index) => {
-      const trackProps = newTrackList[trackID];
+      const trackProps = newTrackList[trackID]
       if (trackProps.trackFile === undefined) {
-        validTrackList = false;
+        validTrackList = false
       }
-    });
+    })
 
     // call onChange if the track list is valid and changes have been made
     if (
       validTrackList &&
       JSON.stringify(newTrackList) !== JSON.stringify(tracks)
     ) {
-      console.log("calling Track Picker Display onChange with ", newTrackList);
-      onChange(newTrackList);
+      console.log('calling Track Picker Display onChange with ', newTrackList)
+      onChange(newTrackList)
       // clear out pending changes
-      setTrackListChanges({});
+      setTrackListChanges({})
     }
-  }, [trackListChanges, onChange, tracks]);
+  }, [trackListChanges, onChange, tracks])
 
-  const appliedTracks = applyTrackListChanges(tracks, trackListChanges);
-  const isEmpty = Object.keys(appliedTracks).length === 0;
+  const appliedTracks = applyTrackListChanges(tracks, trackListChanges)
+  const isEmpty = Object.keys(appliedTracks).length === 0
 
   return (
-    <Col style={{ minWidth: "500px" }}>
+    <Col style={{ minWidth: '500px' }}>
       <Row>
         <TrackList
           tracks={appliedTracks}
@@ -106,7 +106,9 @@ export const TrackPickerDisplay = ({
       </Row>
       {isEmpty && (
         <Row>
-          <div style={{ padding: "12px 16px", color: "#666", fontStyle: "italic" }}>
+          <div
+            style={{ padding: '12px 16px', color: '#666', fontStyle: 'italic' }}
+          >
             No tracks configured. Click the + button below to add a track.
           </div>
         </Row>
@@ -115,8 +117,7 @@ export const TrackPickerDisplay = ({
         <TrackAddButton onChange={addTrackItem} />
       </Row>
     </Col>
-  );
-};
+  )
+}
 
-
-export default TrackPickerDisplay;
+export default TrackPickerDisplay

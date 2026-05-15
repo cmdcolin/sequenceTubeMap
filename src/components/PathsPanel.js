@@ -1,18 +1,21 @@
-import React, { useState } from "react";
-import { Card, CardHeader, Collapse, CardBody, Button } from "reactstrap";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronRight, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import React, { useState } from 'react'
+import { Card, CardHeader, Collapse, CardBody, Button } from 'reactstrap'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faChevronRight,
+  faChevronDown,
+} from '@fortawesome/free-solid-svg-icons'
 
 function PathsPanel({ pathInfo, onLoadPath }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false)
 
-  if (!pathInfo.length) return null;
+  if (!pathInfo.length) return null
 
   return (
     <Card className="mt-2">
       <CardHeader
         onClick={() => setIsOpen(!isOpen)}
-        style={{ cursor: "pointer", userSelect: "none" }}
+        style={{ cursor: 'pointer', userSelect: 'none' }}
         className="d-flex justify-content-between align-items-center"
         role="button"
         aria-expanded={isOpen}
@@ -25,10 +28,13 @@ function PathsPanel({ pathInfo, onLoadPath }) {
           />
           Paths in this graph
         </span>
-        <span className="text-muted small">{pathInfo.length} paths {isOpen ? "(click to collapse)" : "(click to expand)"}</span>
+        <span className="text-muted small">
+          {pathInfo.length} paths{' '}
+          {isOpen ? '(click to collapse)' : '(click to expand)'}
+        </span>
       </CardHeader>
       <Collapse isOpen={isOpen}>
-        <CardBody style={{ maxHeight: "300px", overflowY: "auto", padding: 0 }}>
+        <CardBody style={{ maxHeight: '300px', overflowY: 'auto', padding: 0 }}>
           <table className="table table-sm table-hover mb-0">
             <thead>
               <tr>
@@ -43,12 +49,15 @@ function PathsPanel({ pathInfo, onLoadPath }) {
                   <td>
                     {name}
                     {cyclic && (
-                      <span className="badge bg-info ms-1" style={{ fontSize: "0.7em" }}>
+                      <span
+                        className="badge bg-info ms-1"
+                        style={{ fontSize: '0.7em' }}
+                      >
                         cyclic
                       </span>
                     )}
                   </td>
-                  <td>{length !== null ? `${length} bp` : "—"}</td>
+                  <td>{length !== null ? `${length} bp` : '—'}</td>
                   <td>
                     <Button
                       size="sm"
@@ -65,7 +74,7 @@ function PathsPanel({ pathInfo, onLoadPath }) {
         </CardBody>
       </Collapse>
     </Card>
-  );
+  )
 }
 
-export default PathsPanel;
+export default PathsPanel

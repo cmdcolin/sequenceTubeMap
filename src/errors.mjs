@@ -6,7 +6,7 @@
 // be caused by bad user input to vg).
 export class TubeMapError extends Error {
   constructor(message) {
-    super(message);
+    super(message)
   }
 }
 
@@ -15,8 +15,8 @@ export class TubeMapError extends Error {
 // unacceptable.
 export class BadRequestError extends TubeMapError {
   constructor(message) {
-    super(message);
-    this.status = 400;
+    super(message)
+    this.status = 400
   }
 }
 
@@ -24,8 +24,8 @@ export class BadRequestError extends TubeMapError {
 // error message
 export class InternalServerError extends TubeMapError {
   constructor(message) {
-    super(message);
-    this.status = 500;
+    super(message)
+    this.status = 500
   }
 }
 
@@ -33,6 +33,6 @@ export class InternalServerError extends TubeMapError {
 // error message about vg.
 export class VgExecutionError extends InternalServerError {
   constructor(message) {
-    super(message);
+    super(message)
   }
 }

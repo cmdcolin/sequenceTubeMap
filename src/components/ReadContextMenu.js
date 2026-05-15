@@ -1,4 +1,4 @@
-import ContextMenu from "./ContextMenu";
+import ContextMenu from './ContextMenu'
 
 const ReadContextMenu = ({
   readName,
@@ -14,15 +14,15 @@ const ReadContextMenu = ({
 }) => {
   const items = [
     {
-      label: "Show only this read",
+      label: 'Show only this read',
       onClick: () => onFilter(readName),
     },
     {
-      label: alreadyInSet ? "Already in set" : "Add to set",
+      label: alreadyInSet ? 'Already in set' : 'Add to set',
       disabled: alreadyInSet,
       onClick: () => onAddToSet(readName),
     },
-  ];
+  ]
   if (activeGroup) {
     items.push({
       label: alreadyInActiveGroup
@@ -30,7 +30,7 @@ const ReadContextMenu = ({
         : `Add to "${activeGroup.name}"`,
       disabled: alreadyInActiveGroup,
       onClick: () => onAddToActiveGroup(readName),
-    });
+    })
   }
   return (
     <ContextMenu
@@ -40,8 +40,7 @@ const ReadContextMenu = ({
       onClose={onClose}
       items={items}
     />
-  );
-};
+  )
+}
 
-
-export default ReadContextMenu;
+export default ReadContextMenu

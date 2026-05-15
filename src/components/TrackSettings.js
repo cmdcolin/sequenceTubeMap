@@ -1,6 +1,6 @@
-import { Form, Row, Col } from "reactstrap";
-import RadioRow from "./RadioRow";
-import ColorPicker from "./ColorPicker";
+import { Form, Row, Col } from 'reactstrap'
+import RadioRow from './RadioRow'
+import ColorPicker from './ColorPicker'
 
 /**
  * A component meant to contain settings related to an individual track
@@ -23,32 +23,39 @@ import ColorPicker from "./ColorPicker";
  */
 
 export const TrackSettings = ({
-  fileType = "haplotype",
+  fileType = 'haplotype',
   trackColorSettings = {
-    mainPalette: "blues",
-    auxPalette: "reds",
+    mainPalette: 'blues',
+    auxPalette: 'reds',
     colorReadsByMappingQuality: false,
     alphaReadsByMappingQuality: false,
   },
   setTrackColorSetting,
   label,
-  availableColors = ["greys", "ygreys", "blues", "reds", "plainColors", "lightColors"],
+  availableColors = [
+    'greys',
+    'ygreys',
+    'blues',
+    'reds',
+    'plainColors',
+    'lightColors',
+  ],
   presetColors = [
-    "#FF6900",
-    "#FCB900",
-    "#7BDCB5",
-    "#00D084",
-    "#8ED1FC",
-    "#0693E3",
-    "#ABB8C3",
-    "#EB144C",
-    "#F78DA7",
-    "#9900EF",
+    '#FF6900',
+    '#FCB900',
+    '#7BDCB5',
+    '#00D084',
+    '#8ED1FC',
+    '#0693E3',
+    '#ABB8C3',
+    '#EB144C',
+    '#F78DA7',
+    '#9900EF',
   ],
 }) => {
   function colorRenderSwitch(fileType) {
     switch (fileType) {
-      case "haplotype":
+      case 'haplotype':
         return (
           <Form>
             <Row>
@@ -65,23 +72,23 @@ export const TrackSettings = ({
                 <ColorPicker
                   color={trackColorSettings.mainPalette}
                   presetColors={presetColors}
-                  onChange={(color) => {
-                    setTrackColorSetting("mainPalette", color);
+                  onChange={color => {
+                    setTrackColorSetting('mainPalette', color)
                   }}
                 />
               </Col>
             </Row>
           </Form>
-        );
-      case "graph":
-      case "read":
+        )
+      case 'graph':
+      case 'read':
         return (
           <Form>
             <Row>
               <Col className="radio-row">
                 <RadioRow
                   rowHeading={
-                    fileType === "read" ? "Forward Reads" : "Reference Path"
+                    fileType === 'read' ? 'Forward Reads' : 'Reference Path'
                   }
                   color={trackColorSettings.mainPalette}
                   setting="mainPalette"
@@ -93,8 +100,8 @@ export const TrackSettings = ({
                 <ColorPicker
                   color={trackColorSettings.mainPalette}
                   presetColors={presetColors}
-                  onChange={(color) => {
-                    setTrackColorSetting("mainPalette", color);
+                  onChange={color => {
+                    setTrackColorSetting('mainPalette', color)
                   }}
                 />
               </Col>
@@ -103,7 +110,7 @@ export const TrackSettings = ({
               <Col className="radio-row">
                 <RadioRow
                   rowHeading={
-                    fileType === "read" ? "Reverse Reads" : "Non-Reference Path"
+                    fileType === 'read' ? 'Reverse Reads' : 'Non-Reference Path'
                   }
                   color={trackColorSettings.auxPalette}
                   setting="auxPalette"
@@ -115,15 +122,15 @@ export const TrackSettings = ({
                 <ColorPicker
                   color={trackColorSettings.auxPalette}
                   presetColors={presetColors}
-                  onChange={(color) => {
-                    setTrackColorSetting("auxPalette", color);
+                  onChange={color => {
+                    setTrackColorSetting('auxPalette', color)
                   }}
                 />
               </Col>
             </Row>
           </Form>
-        );
-      case "nodeLabel":
+        )
+      case 'nodeLabel':
         return (
           <Form>
             <Row>
@@ -140,19 +147,19 @@ export const TrackSettings = ({
                 <ColorPicker
                   color={trackColorSettings.mainPalette}
                   presetColors={presetColors}
-                  onChange={(color) => {
-                    setTrackColorSetting("mainPalette", color);
+                  onChange={color => {
+                    setTrackColorSetting('mainPalette', color)
                   }}
                 />
               </Col>
             </Row>
           </Form>
-        );
-      case "node":
-      case "translation":
-        return null;
+        )
+      case 'node':
+      case 'translation':
+        return null
       default:
-        throw new Error("Invalid file type");
+        throw new Error('Invalid file type')
     }
   }
 
@@ -161,8 +168,7 @@ export const TrackSettings = ({
       <h5>{label} Colors</h5>
       {colorRenderSwitch(fileType)}
     </>
-  );
-};
+  )
+}
 
-
-export default TrackSettings;
+export default TrackSettings

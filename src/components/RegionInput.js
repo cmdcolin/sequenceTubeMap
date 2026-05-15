@@ -1,41 +1,37 @@
-import TextField from "@mui/material/TextField";
-import Autocomplete from "@mui/material/Autocomplete";
-import FormHelperText from "@mui/material/FormHelperText";
-import Tooltip from "@mui/material/Tooltip";
-import "../config-client.js";
-import "../config-global.mjs";
-import { isEmpty } from "../common.mjs";
+import TextField from '@mui/material/TextField'
+import Autocomplete from '@mui/material/Autocomplete'
+import FormHelperText from '@mui/material/FormHelperText'
+import Tooltip from '@mui/material/Tooltip'
+import '../config-client.js'
+import '../config-global.mjs'
+import { isEmpty } from '../common.mjs'
 
 // RegionInput: The path and region input box component
 // Responsible for selecting the path/chr and segment of data to look at
 
-export const RegionInput = ({
-  region,
-  regionInfo,
-  handleRegionChange,
-}) => {
-  const pathsWithRegion = [];
+export const RegionInput = ({ region, regionInfo, handleRegionChange }) => {
+  const pathsWithRegion = []
 
-  const regionToDesc = new Map();
+  const regionToDesc = new Map()
 
   if (regionInfo && !isEmpty(regionInfo)) {
     // Stitch path name + region start and end
-    for (const [index, path] of regionInfo["chr"].entries()) {
+    for (const [index, path] of regionInfo['chr'].entries()) {
       const pathWithRegion =
-        path + ":" + regionInfo.start[index] + "-" + regionInfo.end[index];
+        path + ':' + regionInfo.start[index] + '-' + regionInfo.end[index]
       pathsWithRegion.push({
-        label: pathWithRegion + " " + regionInfo.desc[index],
+        label: pathWithRegion + ' ' + regionInfo.desc[index],
         value: pathWithRegion,
-      });
-      regionToDesc.set(pathWithRegion, regionInfo.desc[index]);
+      })
+      regionToDesc.set(pathWithRegion, regionInfo.desc[index])
     }
   }
 
-  const displayRegions = pathsWithRegion;
+  const displayRegions = pathsWithRegion
 
-  let descLabel = "Region";
+  let descLabel = 'Region'
   if (regionToDesc.get(region)) {
-    descLabel = regionToDesc.get(region);
+    descLabel = regionToDesc.get(region)
   }
 
   return (
@@ -45,28 +41,28 @@ export const RegionInput = ({
           disablePortal
           freeSolo // Allows custom input outside of the options
           size="small"
-          getOptionLabel={(option) => option.label || option.toString()}
+          getOptionLabel={option => option.label || option.toString()}
           value={region}
           inputValue={region}
           data-testid="autocomplete"
           id="regionInput"
           onInputChange={(event, newInput) => {
-            let regionValue = newInput;
+            let regionValue = newInput
             const regionObject = displayRegions.find(
-              (option) => option.label === newInput
-            );
+              option => option.label === newInput,
+            )
             // If input is selected from one of the options
             if (regionObject) {
-              regionValue = regionObject.value;
+              regionValue = regionObject.value
             }
-            handleRegionChange(regionValue);
+            handleRegionChange(regionValue)
           }}
           options={displayRegions}
-          renderInput={(params) => (
+          renderInput={params => (
             <TextField
               {...params}
               size="small"
-              label={"Region"}
+              label={'Region'}
               name="Region Input"
               inputProps={{
                 ...params.inputProps,
@@ -81,7 +77,7 @@ export const RegionInput = ({
           `}
       </FormHelperText>
     </>
-  );
-};
+  )
+}
 
-export default RegionInput;
+export default RegionInput
