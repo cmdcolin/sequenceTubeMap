@@ -14,6 +14,8 @@ function updateVisOptions(visOptions, nodeSequences) {
   tubeMap.setShowReadsFlag(visOptions.showReads);
   tubeMap.setSoftClipsFlag(visOptions.showSoftClips);
   tubeMap.setColoredNodes(visOptions.coloredNodes);
+  tubeMap.setShowNodeLabels(visOptions.showNodeLabels);
+  tubeMap.setNodeLabelColorScheme(visOptions.nodeLabelColorScheme);
 
   for (let key of Object.keys(visOptions.colorSchemes)) {
     tubeMap.setColorSet(key, {

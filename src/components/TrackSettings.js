@@ -123,6 +123,31 @@ export const TrackSettings = ({
             </Row>
           </Form>
         );
+      case "nodeLabel":
+        return (
+          <Form>
+            <Row>
+              <Col className="radio-row">
+                <RadioRow
+                  rowHeading="Node Labels"
+                  color={trackColorSettings.mainPalette}
+                  setting="mainPalette"
+                  setColorSetting={setTrackColorSetting}
+                  availableColors={availableColors}
+                />
+              </Col>
+              <Col className="tracklist-button" md="1">
+                <ColorPicker
+                  color={trackColorSettings.mainPalette}
+                  presetColors={presetColors}
+                  onChange={(color) => {
+                    setTrackColorSetting("mainPalette", color);
+                  }}
+                />
+              </Col>
+            </Row>
+          </Form>
+        );
       case "node":
       case "translation":
         return null;

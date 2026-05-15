@@ -152,6 +152,8 @@ const config = {
   // small...scale node width with 1% of number of bases within node
   // fixed...set fixed node width to 1 base
   nodeWidthOption: "normal",
+  showNodeLabels: false,
+  nodeLabelColorScheme: { mainPalette: "plainColors" },
   showReads: true,
   showSoftClips: true,
   colorSchemes: {},
@@ -409,6 +411,14 @@ export function setColoredNodes(value) {
   config.coloredNodes = value;
 }
 
+export function setShowNodeLabels(value) {
+  config.showNodeLabels = value;
+}
+
+export function setNodeLabelColorScheme(scheme) {
+  config.nodeLabelColorScheme = scheme;
+}
+
 // sets callback function that would generate React popup of track information. The callback would
 // accept an array argument of track attribute pairs containing attribute name as a string and attribute value
 // as a string or number, to be displayed.
@@ -606,7 +616,8 @@ function createTubeMap() {
   // all drawn nodes are grouped
   let nodeGroup = svg.append("g").attr("class", "node");
   drawNodes(dNodes, nodeGroup);
-  if (config.nodeWidthOption === "normal") drawLabels(dNodes);
+  if (config.nodeWidthOption === "normal" && !config.showNodeLabels) drawLabels(dNodes);
+  if (config.showNodeLabels) drawNodeLabels(dNodes);
   if (trackForRuler !== undefined) drawRuler();
   if (config.nodeWidthOption === "normal") drawMismatches(); // TODO: call this before drawLabels and fix d3 data/append/enter stuff
   if (DEBUG) {
@@ -3591,6 +3602,25 @@ function drawLabels(dNodes) {
       .attr("fill", "black")
       .style("pointer-events", "none");
   }
+}
+
+function drawNodeLabels(dNodes) {
+  const colorSet = getColorSet(config.nodeLabelColorScheme.mainPalette);
+  svg
+    .append("g")
+    .attr("class", "node-labels")
+    .selectAll("text")
+    .data(dNodes)
+    .enter()
+    .append("text")
+    .attr("x", (d) => d.x + d.pixelWidth / 2)
+    .attr("y", (d) => d.y - 12)
+    .attr("text-anchor", "middle")
+    .text((d) => d.name)
+    .attr("font-family", fonts)
+    .attr("font-size", "10px")
+    .attr("fill", (d, i) => colorSet[i % colorSet.length])
+    .style("pointer-events", "none");
 }
 
 function nodePixelCoordinatesInX(node) {

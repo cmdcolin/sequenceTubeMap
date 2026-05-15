@@ -17,6 +17,7 @@ function VisualizationOptions({
   toggleFlag,
   tracks,
   setColorSetting,
+  setNodeLabelColorSetting,
   handleMappingQualityCutoffChange,
   enableCompressedNodes,
   currentAPIMode,
@@ -132,6 +133,24 @@ function VisualizationOptions({
                     Fully transparent nodes
                   </Label>
                 </FormGroup>
+                <FormGroup check>
+                  <Label check>
+                    <Input
+                      type="checkbox"
+                      checked={visOptions.showNodeLabels}
+                      onChange={() => toggleFlag("showNodeLabels")}
+                    />
+                    Show node labels
+                  </Label>
+                </FormGroup>
+                {visOptions.showNodeLabels && (
+                  <TrackSettings
+                    fileType="nodeLabel"
+                    label="Node Label"
+                    trackColorSettings={visOptions.nodeLabelColorScheme}
+                    setTrackColorSetting={(k, v) => setNodeLabelColorSetting(k, v)}
+                  />
+                )}
               </FormGroup>
 
               <FormGroup>

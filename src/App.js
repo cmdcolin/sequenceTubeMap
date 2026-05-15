@@ -60,6 +60,8 @@ function App({ apiUrl = defaultApiUrl }) {
     removeRedundantNodes: true,
     compressedView: false,
     transparentNodes: false,
+    showNodeLabels: false,
+    nodeLabelColorScheme: { mainPalette: "plainColors" },
     showReads: true,
     showSoftClips: true,
     colorReadsByMappingQuality: false,
@@ -113,6 +115,13 @@ function App({ apiUrl = defaultApiUrl }) {
     setVisOptions((v) => ({ ...v, mappingQualityCutoff: value }));
   };
 
+  const setNodeLabelColorSetting = (key, value) => {
+    setVisOptions((v) => ({
+      ...v,
+      nodeLabelColorScheme: { ...v.nodeLabelColorScheme, [key]: value },
+    }));
+  };
+
   const setColorSetting = (key, index, value) => {
     setVisOptions((v) => {
       const newcolors = [...v.colorSchemes];
@@ -150,6 +159,7 @@ function App({ apiUrl = defaultApiUrl }) {
         toggleFlag={toggleVisOptionFlag}
         handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
         setColorSetting={setColorSetting}
+        setNodeLabelColorSetting={setNodeLabelColorSetting}
         currentAPIMode={getAPIMode(apiInterface)}
         setAPIMode={setAPIMode}
       />
