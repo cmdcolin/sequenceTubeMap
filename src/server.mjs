@@ -1962,157 +1962,71 @@ api.get("/getFilenames", (req, res) => {
   res.json(result);
 });
 
-api.post("/getPathNames", (req, res, next) => {
-  console.log("received request for pathNames");
-  let sentResponse = false;
-  const result = {
-    pathNames: [],
-  };
+// Spawn a vg process and collect stdout lines. Resolves when the process exits
+// successfully, rejects (VgExecutionError) on non-zero exit.
+function runVgLines(args, onLine) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(find_vg(), args);
+    child.stderr.on("data", (d) => console.log(`vg ${args[0]} stderr: ${d}`));
+    const reader = rl.createInterface({ input: child.stdout });
+    reader.on("line", onLine);
+    let code = null;
+    let readerDone = false;
+    const finish = () => {
+      if (code === null || !readerDone) return;
+      code !== 0 ? reject(new VgExecutionError(`vg ${args.join(" ")} failed`)) : resolve();
+    };
+    child.on("error", reject);
+    child.on("close", (c) => { code = c; finish(); });
+    reader.on("close", () => { readerDone = true; finish(); });
+  });
+}
 
-  // call 'vg paths' to get path name information
+api.post("/getPathNames", async (req, res, next) => {
+  console.log("received request for pathNames");
   const graphFile = req.body.graphFile;
 
   if (!isAllowedPath(graphFile)) {
-    // Spit back the provided user data in the error, not the generated and
-    // possibly absolute path full of cool facts about the server setup.
-    throw new BadRequestError(
-      "Path to Graph file not allowed: " + req.body.graphFile
-    );
+    throw new BadRequestError("Path to Graph file not allowed: " + req.body.graphFile);
   }
   if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
     throw new BadRequestError(
-      "Path to Graph file does not end in valid extension: " +
-        req.body.graphFile
+      "Path to Graph file does not end in valid extension: " + req.body.graphFile
     );
   }
 
   if (graphFile.endsWith('.pos.bed.gz')) {
+    let sentResponse = false;
     const tabixCall = spawn("tabix", ["-l", graphFile]);
-
-    let pathNames = "";
-    tabixCall.stdout.on("data", function (data) {
-      pathNames += data.toString();
+    let output = "";
+    tabixCall.stdout.on("data", (data) => { output += data.toString(); });
+    tabixCall.on("error", () => {
+      if (!sentResponse) { sentResponse = true; next(new VgExecutionError("tabix path names failed")); }
     });
-
-    tabixCall.on("error", function (err) {
-      console.log('Error executing "tabix -l": ' + err);
-      if (!sentResponse) {
-        sentResponse = true;
-        return next(new VgExecutionError("tabix path names failed"));
-      }
-      return;
-    });
-
     tabixCall.on("close", (code) => {
       if (code !== 0) {
-        // Execution failed
-        if (!sentResponse) {
-          sentResponse = true;
-          return next(new VgExecutionError("tabix path names failed"));
-        }
+        if (!sentResponse) { sentResponse = true; next(new VgExecutionError("tabix path names failed")); }
         return;
       }
-      result.pathNames = pathNames
-        .split("\n")
-        .filter(function (a) {
-          // Eliminate empty names or underscore-prefixed internal names (like _alt paths)
-          return a !== "" && !a.startsWith("_");
-        })
-        .sort();
-      console.log(result);
-      if (!sentResponse) {
-        sentResponse = true;
-        res.json(result);
-      }
+      const pathNames = output.split("\n").filter((a) => a !== "" && !a.startsWith("_")).sort();
+      console.log(`Found ${pathNames.length} paths`);
+      if (!sentResponse) { sentResponse = true; res.json({ pathNames }); }
     });
-  } else {
-    const vgViewChild = spawn(find_vg(), ["paths", "-L", "-x", graphFile]);
+    return;
+  }
 
-    vgViewChild.stderr.on("data", (data) => {
-      console.log(`err data: ${data}`);
-    });
-    
-    // We want to avoid dealing with a giant string of path names; it's possible
-    // there are more than fit in a Node string.
-    let pathNames = [];
-    const lineReader = rl.createInterface({
-      input: vgViewChild.stdout,
-    });
-
-    
-    lineReader.on("line", function (line) {
-      try {
-        pathNames.push(line);
-      } catch (e) {
-        if (!sentResponse) {
-          sentResponse = true;
-          return next(new InternalServerError("Internal error: " + e));
-        }
-      }
-    });
-    
-    vgViewChild.on("error", function (err) {
-      console.log('Error executing "vg view": ' + err);
-      if (!sentResponse) {
-        sentResponse = true;
-        return next(new VgExecutionError("vg view failed"));
-      }
-      return;
-    });
-
-    // It's not clear if there's a guaranteed order between the line reader
-    // close/last line and the child process close, so we wait for both.
-    let returnCode = null;
-    let lineStreamClosed = false;
-
-    let handleFinish = function() {
-      try {
-        if (returnCode === null || lineStreamClosed === false) {
-          // Not ready yet. Wait for the other event.
-          return;
-        }
-
-        if (returnCode !== 0) {
-          // Execution failed
-          if (!sentResponse) {
-            sentResponse = true;
-            return next(new VgExecutionError("vg view failed"));
-          }
-          return;
-        }
-        result.pathNames = pathNames
-          .filter(function (a) {
-            // Eliminate empty names or underscore-prefixed internal names (like _alt paths)
-            return a !== "" && !a.startsWith("_");
-          })
-          .sort();
-        console.log(`Found ${result.pathNames.length} paths`);
-        if (!sentResponse) {
-          sentResponse = true;
-          res.json(result);
-        }
-      } catch (e) {
-        if (!sentResponse) {
-          sentResponse = true;
-          return next(new InternalServerError("Internal error: " + e));
-        }
-      }
-    };
-
-
-    vgViewChild.on("close", (code) => {
-      returnCode = code;
-      handleFinish();
-    });
-
-    lineReader.on("close", () => {
-      lineStreamClosed = true;
-      handleFinish();
-    });
+  const lines = [];
+  try {
+    await runVgLines(["paths", "-L", "-x", graphFile], (line) => { lines.push(line); });
+    const pathNames = lines.filter((a) => a !== "" && !a.startsWith("_")).sort();
+    console.log(`Found ${pathNames.length} paths`);
+    res.json({ pathNames });
+  } catch (err) {
+    next(err);
   }
 });
 
-api.post("/getPathInfo", (req, res, next) => {
+api.post("/getPathInfo", async (req, res, next) => {
   console.log("received request for pathInfo");
   const graphFile = req.body.graphFile;
 
@@ -2123,42 +2037,39 @@ api.post("/getPathInfo", (req, res, next) => {
     throw new BadRequestError("Path to Graph file does not end in valid extension: " + req.body.graphFile);
   }
 
-  let sentResponse = false;
-  const sendError = (err) => {
-    if (!sentResponse) {
-      sentResponse = true;
-      next(err);
-    }
-  };
-
   if (graphFile.endsWith('.pos.bed.gz')) {
     // pgtabix mode: return names only, lengths not available
+    let sentResponse = false;
     const tabixCall = spawn("tabix", ["-l", graphFile]);
     let output = "";
     tabixCall.stdout.on("data", (data) => { output += data.toString(); });
-    tabixCall.on("error", () => sendError(new VgExecutionError("tabix path info failed")));
+    tabixCall.on("error", () => {
+      if (!sentResponse) { sentResponse = true; next(new VgExecutionError("tabix path info failed")); }
+    });
     tabixCall.on("close", (code) => {
-      if (code !== 0) return sendError(new VgExecutionError("tabix path info failed"));
-      const pathInfo = output
-        .split("\n")
+      if (code !== 0) {
+        if (!sentResponse) { sentResponse = true; next(new VgExecutionError("tabix path info failed")); }
+        return;
+      }
+      const pathInfo = output.split("\n")
         .filter((a) => a !== "" && !a.startsWith("_"))
         .sort()
         .map((name) => ({ name, length: null, cyclic: false }));
-      if (!sentResponse) {
-        sentResponse = true;
-        res.json({ pathInfo });
-      }
+      if (!sentResponse) { sentResponse = true; res.json({ pathInfo }); }
     });
     return;
   }
 
-  // VG mode: run vg paths -E for name+length and vg paths -E -C for cyclic-only paths
-  let lengthLines = [];
-  let cyclicNames = new Set();
-  let pendingProcesses = 2;
-
-  const tryFinish = () => {
-    if (pendingProcesses > 0 || sentResponse) return;
+  const lengthLines = [];
+  const cyclicNames = new Set();
+  try {
+    await Promise.all([
+      runVgLines(["paths", "-E", "-x", graphFile], (line) => { if (line) lengthLines.push(line); }),
+      // Non-zero exit is fine — graph may simply have no cyclic paths
+      runVgLines(["paths", "-E", "-C", "-x", graphFile], (line) => {
+        if (line && !line.startsWith("_")) cyclicNames.add(line.split("\t")[0]);
+      }).catch(() => {}),
+    ]);
     const pathInfo = lengthLines
       .filter((line) => line !== "" && !line.startsWith("_"))
       .map((line) => {
@@ -2166,49 +2077,10 @@ api.post("/getPathInfo", (req, res, next) => {
         return { name, length: parseInt(lengthStr, 10), cyclic: cyclicNames.has(name) };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-    sentResponse = true;
     res.json({ pathInfo });
-  };
-
-  // vg paths -E: all paths with name and length
-  const lengthsChild = spawn(find_vg(), ["paths", "-E", "-x", graphFile]);
-  lengthsChild.stderr.on("data", (data) => console.log(`vg paths -E stderr: ${data}`));
-
-  let lengthsCode = null;
-  let lengthsLinesDone = false;
-  const lengthsReader = rl.createInterface({ input: lengthsChild.stdout });
-  lengthsReader.on("line", (line) => { if (line) lengthLines.push(line); });
-
-  const handleLengthsDone = () => {
-    if (lengthsCode === null || !lengthsLinesDone) return;
-    if (lengthsCode !== 0) return sendError(new VgExecutionError("vg paths -E failed"));
-    pendingProcesses--;
-    tryFinish();
-  };
-  lengthsChild.on("error", () => sendError(new VgExecutionError("vg paths -E failed")));
-  lengthsChild.on("close", (code) => { lengthsCode = code; handleLengthsDone(); });
-  lengthsReader.on("close", () => { lengthsLinesDone = true; handleLengthsDone(); });
-
-  // vg paths -E -C: only cyclic paths (non-zero exit on acyclic graphs is OK)
-  const cyclicChild = spawn(find_vg(), ["paths", "-E", "-C", "-x", graphFile]);
-  cyclicChild.stderr.on("data", (data) => console.log(`vg paths -C stderr: ${data}`));
-
-  let cyclicCode = null;
-  let cyclicLinesDone = false;
-  const cyclicReader = rl.createInterface({ input: cyclicChild.stdout });
-  cyclicReader.on("line", (line) => {
-    if (line && !line.startsWith("_")) cyclicNames.add(line.split("\t")[0]);
-  });
-
-  const handleCyclicDone = () => {
-    if (cyclicCode === null || !cyclicLinesDone) return;
-    // Non-zero exit is fine — graph may simply have no cyclic paths
-    pendingProcesses--;
-    tryFinish();
-  };
-  cyclicChild.on("error", () => { pendingProcesses--; tryFinish(); });
-  cyclicChild.on("close", (code) => { cyclicCode = code; handleCyclicDone(); });
-  cyclicReader.on("close", () => { cyclicLinesDone = true; handleCyclicDone(); });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Given a string, return a filename-safe string that is a hash of that string.

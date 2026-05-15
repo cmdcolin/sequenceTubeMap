@@ -72,9 +72,6 @@ const CLEAR_STATE = {
   */
   regionInfo: {},
 
-  // Names of paths in the graph track. Always kept in sync with the first
-  // graph track. Emptied out if it is to change, to be re-populated.
-  pathNames: [],
   // Path info (name, length, cyclic) for the current graph track.
   pathInfo: [],
 
@@ -364,7 +361,6 @@ function HeaderForm({
   const [bedSelect, setBedSelect] = useState(EMPTY_STATE.bedSelect);
   const [desc, setDesc] = useState(EMPTY_STATE.desc);
   const [regionInfo, setRegionInfo] = useState(EMPTY_STATE.regionInfo);
-  const [pathNames, setPathNames] = useState(EMPTY_STATE.pathNames);
   const [pathInfo, setPathInfo] = useState(EMPTY_STATE.pathInfo);
   const [tracks, setTracks] = useState(EMPTY_STATE.tracks);
   const [bedFile, setBedFile] = useState(EMPTY_STATE.bedFile);
@@ -388,7 +384,7 @@ function HeaderForm({
   // These refs are updated every render so async functions can read latest values.
   const stateRef = useRef({});
   stateRef.current = {
-    bedSelect, desc, regionInfo, pathNames, pathInfo, tracks, bedFile, region, name,
+    bedSelect, desc, regionInfo, pathInfo, tracks, bedFile, region, name,
     dataType, fileSizeAlert, uploadInProgress, error, availableTracks,
     availableBeds, simplify, removeSequences, popupOpen,
   };
@@ -439,33 +435,9 @@ function HeaderForm({
     }
   }
 
-  async function getPathNames(graphFile, quiet) {
-    if (graphFile === null) {
-      return;
-    }
-    setError(null);
-    try {
-      const json = await APIInterface.getPathNames(graphFile, cancelSignalRef.current);
-      let newPathNames = json.pathNames;
-      if (!(newPathNames instanceof Array)) {
-        throw new Error("Server did not send back an array of path names");
-      }
-      const laterGraphTrack = firstGraphTrack(stateRef.current.tracks);
-      if (laterGraphTrack && laterGraphTrack.trackFile === graphFile) {
-        console.log("Apply path names");
-        setPathNames(newPathNames);
-      } else {
-        console.log("Discard stale path names for " + graphFile + " because we are now looking at " + laterGraphTrack);
-      }
-    } catch (err) {
-      if (!quiet) {
-        handleFetchError(err, `API getPathNames failed:`);
-      }
-    }
-  }
-
   async function getPathInfo(graphFile) {
     if (graphFile === null) return;
+    setError(null);
     try {
       const json = await APIInterface.getPathInfo(graphFile, cancelSignalRef.current);
       if (!Array.isArray(json.pathInfo)) {
@@ -511,10 +483,9 @@ function HeaderForm({
           let graphTrack = firstGraphTrack(currentTracks);
           if (graphTrack) {
             if (trackIsImplied(graphTrack, availableTrackSet)) {
-              console.log("Don't get path names for implied track:", graphTrack);
+              console.log("Don't get path info for implied track:", graphTrack);
             } else {
-              console.log("Get path names for track:", graphTrack);
-              getPathNames(graphTrack.trackFile);
+              console.log("Get path info for track:", graphTrack);
               getPathInfo(graphTrack.trackFile);
             }
           }
@@ -668,7 +639,6 @@ function HeaderForm({
         setTracks(trackObject);
         setAvailableTracks(trackListWithImplied(currentAvailableTracks, availableTrackSet, trackObject));
         if (!newGraphTrack || !laterGraphTrack || newGraphTrack.trackFile !== laterGraphTrack.trackFile) {
-          setPathNames([]);
           setPathInfo([]);
         }
       }
@@ -678,8 +648,7 @@ function HeaderForm({
       if (!newGraphTrack || !currentGraphTrack || newGraphTrack.trackFile !== currentGraphTrack.trackFile) {
         let availableTrackSet = makeAvailableTrackSet(stateRef.current.availableTracks);
         if (newGraphTrack && !trackIsImplied(newGraphTrack, availableTrackSet)) {
-          console.log("Get path names for chunk provided graph track:", newGraphTrack);
-          getPathNames(newGraphTrack.trackFile);
+          console.log("Get path info for chunk provided graph track:", newGraphTrack);
           getPathInfo(newGraphTrack.trackFile);
         }
       }
@@ -692,7 +661,6 @@ function HeaderForm({
 
     setTracks(newTracks);
     if (!newGraphTrack || !laterGraphTrack || newGraphTrack.trackFile !== laterGraphTrack.trackFile) {
-      setPathNames([]);
       setPathInfo([]);
     }
 
@@ -700,8 +668,7 @@ function HeaderForm({
     if (!newGraphTrack || !currentGraphTrack || newGraphTrack.trackFile !== currentGraphTrack.trackFile) {
       let availableTrackSet = makeAvailableTrackSet(stateRef.current.availableTracks);
       if (newGraphTrack && !trackIsImplied(newGraphTrack, availableTrackSet)) {
-        console.log("Get path names for newly selected graph track:", newGraphTrack);
-        getPathNames(newGraphTrack.trackFile);
+        console.log("Get path info for newly selected graph track:", newGraphTrack);
         getPathInfo(newGraphTrack.trackFile);
       }
     }
@@ -796,7 +763,6 @@ function HeaderForm({
       setBedSelect("none");
       setDesc("");
       setRegionInfo({});
-      setPathNames([]);
       setPathInfo([]);
       setTracks({});
       setBedFile("none");
@@ -820,15 +786,12 @@ function HeaderForm({
           }
           let graphTrack = firstGraphTrack(ds.tracks);
           if (graphTrack) {
-            console.log("Get path names for built-in track: ", graphTrack);
-            getPathNames(graphTrack.trackFile);
+            console.log("Get path info for built-in track: ", graphTrack);
             getPathInfo(graphTrack.trackFile);
           }
 
           const laterGraphTrack = firstGraphTrack(stateRef.current.tracks);
           if (!laterGraphTrack || !graphTrack || laterGraphTrack.trackFile !== graphTrack.trackFile) {
-            console.log("Discard old path names for", laterGraphTrack);
-            setPathNames([]);
             setPathInfo([]);
           }
 
@@ -978,7 +941,7 @@ function HeaderForm({
             )}
             {!examplesFlag && (
               <RegionInput
-                pathNames={pathNames}
+                pathNames={pathInfo.map((p) => p.name)}
                 regionInfo={regionInfo}
                 handleRegionChange={(coords) => handleRegionChange(coords)}
                 region={region}
