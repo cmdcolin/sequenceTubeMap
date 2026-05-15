@@ -1,5 +1,5 @@
 // Function to fetch a JSON response, and throw an error if the server returns
-// an error code, the response is not valid JSON, or the resposne contains an
+// an error code, the response is not valid JSON, or the response contains an
 // "error" field.
 // Takes the same arguments as fetch(), and returns a promise for the parsed
 // JSON root object.

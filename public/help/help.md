@@ -96,7 +96,7 @@ This array's query string representation would be: `object[0][a]=b&object[1][c]=
    }
    ```
 
-   The collection of tracks wil be encoded as query string parameters starting with tracks.
+   The collection of tracks will be encoded as query string parameters starting with tracks.
 
    * `trackFile`: the path (from the server working directory) or URL (any HTTP/HTTPS URL) to the track file. 
      * Examples:
@@ -105,7 +105,7 @@ This array's query string representation would be: `object[0][a]=b&object[1][c]=
    * `trackType`: the type of the track, which can be `graph`, `haplotype`, `read`, or `translation`.
       * Example: `tracks[0][trackType]=graph`.
    * `trackColorSettings` (optional): the color information for the track. It has subfields:
-      * `mainPalette` and `auxPalette` (optional): The "main" and "auxilliary" color palettes to use, respectively. The values for each palette can be a hex code starting with a `#`, or one of the premade palette names: `greys`, `ygreys`, `blues`, `reds`, `plainColors`, or `lightColors`.
+      * `mainPalette` and `auxPalette` (optional): The "main" and "auxiliary" color palettes to use, respectively. The values for each palette can be a hex code starting with a `#`, or one of the premade palette names: `greys`, `ygreys`, `blues`, `reds`, `plainColors`, or `lightColors`.
       * The palettes are used differently for different track types.
          * Graphs: the `mainPalette` colors the primary reference path while `auxPalette` is used for the other paths. 
          * Haplotypes: only the `mainPalette` is used. 

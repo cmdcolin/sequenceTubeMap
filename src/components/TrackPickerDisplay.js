@@ -18,7 +18,7 @@ export const TrackPickerDisplay = ({
 }) => {
   const [trackListChanges, setTrackListChanges] = useState({});
 
-  // gets the highest trackID bewteen pending changes and tracks + 1
+  // gets the highest trackID between pending changes and tracks + 1
   let nextTrackID =
     parseInt(
       Object.keys({ ...tracks, ...trackListChanges }).reduce((t1, t2) => {

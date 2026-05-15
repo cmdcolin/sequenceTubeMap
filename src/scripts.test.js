@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Tests for data imp[ort scripts, to make sure vg still supports them.
 
 import "./config-server.mjs";

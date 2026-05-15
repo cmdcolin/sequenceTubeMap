@@ -7,7 +7,7 @@ import { Container } from "reactstrap";
 
 // A react-color picker embedded within a button
 export const ColorPicker = ({
-  color, // hex color or named color pallete currently selected.
+  color, // hex color or named color palette currently selected.
   presetColors, // array of hex colors e.g ["#f44336", "#e91e63", "#9c27b0", "#673ab7"]
   onChange, // on change function expecting hex color as an argument
   testID = "color-picker-component",

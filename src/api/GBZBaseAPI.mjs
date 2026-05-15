@@ -214,7 +214,7 @@ class FileSystemSyncAccessHandlePolyfill {
     // Use the actual buffer we got with offset 0, or get the buffer and offset
     // out of the view
     let destinationBuffer = buffer.buffer ?? buffer;
-    let destinationOffest = buffer.byteOffset ?? 0;
+    let destinationOffset = buffer.byteOffset ?? 0;
   
     // Where should we start in the file
     let startByte = options?.at ?? 0;
@@ -234,7 +234,7 @@ class FileSystemSyncAccessHandlePolyfill {
     let partBuffer = this.reader.readAsArrayBuffer(partBlob);
 
     // Now blit from that buffer into the destination
-    let destinationArray = new Uint8Array(destinationBuffer, destinationOffest, length);
+    let destinationArray = new Uint8Array(destinationBuffer, destinationOffset, length);
     let sourceArray = new Uint8Array(partBuffer, 0, length);
     destinationArray.set(sourceArray);
 
@@ -333,21 +333,19 @@ export class GBZBaseAPI extends APIInterface {
     let fileDescriptors = [new OpenFile(stdin), new OpenFile(stdout), new OpenFile(stderr)];
     
     if (workingDirectory) {
-      let nameToWASIFile = {};
+      const nameToWASIFile = new Map();
       for (const [filename, blob] of Object.entries(workingDirectory)) {
         console.log(`Mount ${blob.size} byte blob:`, blob);
         if (typeof FileReaderSync !== "undefined") {
           // On a worker where we can do sync reads
-           nameToWASIFile[filename] = new SyncWorkerBlobFile(blob);
+          nameToWASIFile.set(filename, new SyncWorkerBlobFile(blob));
         } else {
           // In the main thread where we can't do sync reads
           console.warn("Sync blob read is not available. Reading " + blob.size + " byte blob into memory asynchronously to consult synchronously later!");
-          nameToWASIFile[filename] = new File(await blobToArrayBuffer(blob));
+          nameToWASIFile.set(filename, new File(await blobToArrayBuffer(blob)));
         }
-        console.log("Mount file:", nameToWASIFile[filename]);
+        console.log("Mount file:", nameToWASIFile.get(filename));
       }
-      // As shown in the browser_wasi_shim examples, if we provide a
-      // PreopenDirectory at FD 4 it is shown to the process.
       fileDescriptors.push(new PreopenDirectory(".", nameToWASIFile));
     }
 

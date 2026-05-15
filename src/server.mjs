@@ -22,7 +22,7 @@ import rl from "readline";
 import compression from "compression";
 import { server as WebSocketServer } from "websocket";
 import dotenv from "dotenv";
-import dirname from "es-dirname";
+import { fileURLToPath } from "url";
 import { readFileSync, writeFile } from "fs";
 import {
   parseRegion,
@@ -87,7 +87,6 @@ const SCRATCH_DATA_PATH = "tmp/";
 // This is where data downloaded from URLs is cached.
 // This directory will be recursively removed!
 const DOWNLOAD_DATA_PATH = config.tempDirPath;
-const SERVER_PORT = process.env.SERVER_PORT || config.serverPort || 3000;
 const SERVER_BIND_ADDRESS = config.serverBindAddress || undefined;
 
 // This holds a collection of all the absolute path root directories that the
@@ -123,7 +122,7 @@ const lockTypes = {
 
 // In memory storage of fetched file eTags
 // Used to check if the file has been updated and we need to fetch again
-// Stores urls mapped to the eTag from the most recently recieved request
+// Stores urls mapped to the eTag from the most recently received request
 const ETagMap = new Map();
 
 // Make sure that the scratch directory exists at startup, so multiple requests
@@ -205,12 +204,12 @@ function deleteExpiredFiles(directoryPath) {
   });
 }
 
-// takes in an async function, locks the direcotry for the duration of the function
+// takes in an async function, locks the directory for the duration of the function
 async function lockDirectory(directoryPath, lockType, func) {
   console.log("Acquiring", lockType, "for", directoryPath);
   // look into lockMap to see if there is a lock assigned to the directory
   let lock = lockMap.get(directoryPath);
-  // if there are no locks, create a new lock and store it in the lock directionary
+  // if there are no locks, create a new lock and store it in the lock dictionary
   if (!lock) {
     lock = new RWLock();
 
@@ -228,7 +227,7 @@ async function lockDirectory(directoryPath, lockType, func) {
   }
 }
 
-// expects an array of directory paths, attemping to acquire all directory locks
+// expects an array of directory paths, attempting to acquire all directory locks
 // all uses of this function requires the array of directoryPaths to be in the same order
 // e.g locking [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH] should always lock DOWNLOAD_DATA_PATH first to prevent deadlock
 async function lockDirectories(directoryPaths, lockType, func) {
@@ -253,7 +252,7 @@ async function lockDirectories(directoryPaths, lockType, func) {
 // deletes any files in the download directory past the set fileExpirationTime set in config
 cron.schedule("0 * * * *", async () => {
   console.log("cron scheduled check");
-  // attempt to acquire a write lock for each on the directory before attemping to delete files
+  // attempt to acquire a write lock for each on the directory before attempting to delete files
   for (const dir of [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH]) {
     try {
       await lockDirectory(dir, lockTypes.WRITE_LOCK, async function () {
@@ -865,7 +864,7 @@ async function getChunkedData(req, res, next) {
       // See if we need to ignore haplotypes in gbz graph file
 
       if (req.withGbwt) {
-        //either push gbz with graph and haplotype or push seperate graph and gbwt file
+        //either push gbz with graph and haplotype or push separate graph and gbwt file
         if (
           graphFile.endsWith(".gbz") &&
             gbwtFile.endsWith(".gbz") &&
@@ -937,7 +936,7 @@ async function getChunkedData(req, res, next) {
         vgChunkParams.push("-g");
       }
 
-      // to seach by node ID use "node" for the sequence name, e.g. 'node:1-10'
+      // to search by node ID use "node" for the sequence name, e.g. 'node:1-10'
       if (parsedRegion.contig === "node") {
         if (parsedRegion.distance !== undefined) {
           // Start and distance of node IDs, so send that idiomatically.
@@ -1368,7 +1367,7 @@ function bedChunkLocalPath(bed, chunk) {
   }
 }
 
-// Gets the chunk name from a region specifed in a bedfile
+// Gets the chunk name from a region specified in a bedfile
 // Returns an empty string if the region is not found within the bed file
 async function getChunkName(bed, parsedRegion) {
   let chunk = "";
@@ -1815,7 +1814,7 @@ function isAllowedPath(inputPath) {
     // Prohibit double delimiters (probably mostly from internal errors)
     return false;
   }
-  // Split on delimeters
+  // Split on delimiters
   let parts = inputPath.split(/[\/\\]/);
   for (let part of parts) {
     if (part === "..") {
@@ -2239,14 +2238,14 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
     if (fileName !== sanitize(fileName)) {
       // Make sure we don't do things like get out of the directory.
       throw new BadRequestError(
-        `Chunk index at ${chunkContentURL} cointains disallowed filename ${fileName}`
+        `Chunk index at ${chunkContentURL} contains disallowed filename ${fileName}`
       );
     }
 
     // We can interpret all the files in chunk_contents.txt relative to the file they are listed in.
     let chunkFileURL = new URL(fileName, chunkContentURL).toString();
 
-    // download only the tracks.json file if the inlcudeContent flag is false
+    // download only the tracks.json file if the includeContent flag is false
     if (includeContent || fileName == "tracks.json") {
       let chunkFilePath = path.resolve(chunkDir, fileName);
       await downloadFile(chunkFileURL, chunkFilePath);
@@ -2274,7 +2273,7 @@ async function getChunkTracks(bedFile, chunk) {
   let chunkPath = bedChunkLocalPath(bedFile, chunk);
   let track_json = path.resolve(chunkPath, "tracks.json");
   let tracks = null;
-  // Attempt to read tracks.json and covnert it into a tracks object
+  // Attempt to read tracks.json and convert it into a tracks object
   if (fs.existsSync(track_json)) {
     // Create string of tracks data
     const string_data = fs.readFileSync(track_json);
@@ -2327,7 +2326,7 @@ api.post("/getBedRegions", (req, res, next) => {
 });
 
 // Load up the given BED file by URL or path, and
-// return a data structure decribing all the pre-cached regions it defines.
+// return a data structure describing all the pre-cached regions it defines.
 // Validates file paths for user-accessibility. May throw.
 async function getBedRegions(bed) {
   let bed_info = {
@@ -2341,11 +2340,11 @@ async function getBedRegions(bed) {
   let bed_data;
   let lines;
   let isURL = false;
-  console.log("bed file recieved ", bed);
+  console.log("bed file received ", bed);
   if (isValidURL(bed)) {
     isURL = true;
-    const reponse = await fetchAndValidate(bed, config.maxFileSizeBytes);
-    bed_data = await reponse.text();
+    const response = await fetchAndValidate(bed, config.maxFileSizeBytes);
+    bed_data = await response.text();
   } else {
     // otherwise search for bed file in dataPath
     if (!bed.endsWith(".bed")) {
@@ -2521,13 +2520,15 @@ export function start() {
 
     // Start the server on the selected port and save the HTTP server instance
     // created by app.listen for the WebSocketServer
-    const server = app.listen(SERVER_PORT, SERVER_BIND_ADDRESS, () => {
+    const serverPort = process.env.SERVER_PORT || config.serverPort || 3000;
+    const server = app.listen(serverPort, SERVER_BIND_ADDRESS, () => {
       console.log("TubeMapServer listening on " + getServerURL(server));
       // Server is ready so add to state.
       state.server = server;
       // See if the other server components are up yet and, if so, resolve our promise.
       resolveIfReady();
     });
+    server.on('error', reject);
     // Create the WebSocketServer, for watching for updated files, using the HTTP server instance
     // Note that all websocket connections on any path end up here!
     const wss = new WebSocketServer({ httpServer: server });
@@ -2574,16 +2575,8 @@ export function start() {
   });
 }
 
-// Now we have to guess if we are the main module without being able to say or even poll for import.meta (or Jest explodes) or require.main (or Node explodes). Also when we are main, process.mainModule is empty because there's no CJS module to put there.
-
-if (process) {
-  // We assume we are named server.mjs
-  let ourFilename = dirname() + "/server.mjs";
-  let mainFilename = process.argv[1];
-  if (ourFilename === mainFilename) {
-    // If we are passed as the first argument we are probably being run.
-    start();
-  }
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  start();
 }
 
 process.on("SIGINT", function () {

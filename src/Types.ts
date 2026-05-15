@@ -73,7 +73,7 @@ enum ColorPalette{
 type ColorHex  = `#${string}`;
 
 
-// An object created by the React-Color library, contains infomation on the color selected
+// An object created by the React-Color library, contains information on the color selected
 type ReactColor = {
   hex: ColorHex ,
   //... has additional properties

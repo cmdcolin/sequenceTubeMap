@@ -28,7 +28,7 @@ export const TrackPicker = ({
         <FontAwesomeIcon icon={faList} /> Configure Tracks
       </Button>
       {
-        // Need to set width to null because the default fixed width is too small for the track lits items.
+        // Need to set width to null because the default fixed width is too small for the track list items.
       }
       <PopupDialog
         open={open}

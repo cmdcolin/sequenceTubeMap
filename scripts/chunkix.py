@@ -254,7 +254,7 @@ for hname in subhaps_path:
     for pp in pos:
         if prev_end != -1 and prev_end != pp:
             # end position of the previous chunk doesn't match current position
-            # we shouldn't stich and instead create another sub-path
+            # we shouldn't stitch and instead create another sub-path
             paths.append([])
             all_perfectly_stitched = False
         paths[-1] += subhaps_path[hname]['paths'][str(pp)]

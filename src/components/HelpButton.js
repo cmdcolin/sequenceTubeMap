@@ -47,7 +47,7 @@ export const HelpButton = ({
       // catch - error is link
       .catch((e) => {
         // If the network drops or if the front-end static server isn't
-        // avaialble (like in the end to end tests), put something instead of
+        // available (like in the end to end tests), put something instead of
         // having an unhandled rejection.
         setContent("Could not fetch help");
       });

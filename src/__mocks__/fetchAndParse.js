@@ -11,7 +11,7 @@ export const fetchAndParse = async (path) => {
     console.log("sending mock filenames");
     return mountedFileNames;
   } else if (path.match(/getChunkedData/)) {
-    console.log("sending mock chunckedData");
+    console.log("sending mock chunkedData");
     return chunkedData;
   }
 };

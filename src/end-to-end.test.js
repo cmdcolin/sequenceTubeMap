@@ -1,5 +1,8 @@
 // End to end tests that test the frontend against a backend over HTTP
 
+// Use port 0 so the OS assigns a free port, avoiding conflicts with dev server.
+process.env.SERVER_PORT = "0";
+
 // Normal import doesn't work here; something to do with the multiple
 // not-really-standard implementations of JS modules in play. So we import the
 // server's start function and put it in an object pretendign to be a module.

@@ -71,7 +71,7 @@ while IFS="" read -r INPUT_LINE || [[ -n "${INPUT_LINE}" ]] ; do
     # These are the 0-based, end-exclusive coordinates
     BEST_BED_START=""
     BEST_BED_END=""
-    # This is how many more bases are on one side fo the variant than are on the other
+    # This is how many more bases are on one side of the variant than are on the other
     BEST_UNEVENNESS=""
 
     CANDIDATES=("${INPUT_DATA_DIR}/${CONTIG}_"*".giraffe.gbz")

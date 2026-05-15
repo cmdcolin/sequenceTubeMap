@@ -71,7 +71,7 @@ export class ServerAPI extends APIInterface {
         subscription.disconnect();
       };
 
-      // Close the scoket if the user wants to cancel the subscription.
+      // Close the socket if the user wants to cancel the subscription.
       cancelSignal.addEventListener("abort", subscription.disconnect);
     };
 
