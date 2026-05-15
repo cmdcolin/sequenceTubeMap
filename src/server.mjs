@@ -573,7 +573,7 @@ async function getChunkedData(req, res, next) {
   } catch (e) {
     // Whatever went wrong in the parsing, it makes the request bad.
     throw new BadRequestError(
-      "Wrong query: " + e.message + " See ? button above."
+      "Wrong query: " + e.message + " See the Help (?) button above for the expected region format."
     );
   }
 

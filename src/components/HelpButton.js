@@ -55,7 +55,11 @@ export const HelpButton = ({
 
   return (
     <>
-      <Button aria-label="Help" onClick={() => setOpen(!open)}>
+      <Button
+        aria-label="Help"
+        title="Help — region format, controls, and feature reference"
+        onClick={() => setOpen(!open)}
+      >
         <FontAwesomeIcon icon={faQuestion} />
       </Button>
       <PopupDialog open={open} close={close}>
