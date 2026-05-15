@@ -160,7 +160,7 @@ const config = {
     alert(info);
   },
   readContextMenuCallback: function () {},
-  focusReadName: null,
+  focusReadNames: null,
 };
 
 // variables for storing info which can be directly translated into drawing instructions
@@ -416,11 +416,18 @@ export function setReadContextMenuCallback(newCallback) {
   config.readContextMenuCallback = newCallback;
 }
 
-// Restrict the displayed reads to a single read by name. Pass null to clear.
-export function setFocusReadName(value) {
-  const newValue = value === undefined ? null : value;
-  if (config.focusReadName !== newValue) {
-    config.focusReadName = newValue;
+// Restrict the displayed reads to the given set of read names. Pass null or
+// an empty array to clear the filter.
+export function setFocusReadNames(value) {
+  const newValue =
+    value === undefined || value === null || value.length === 0 ? null : value;
+  const changed =
+    (config.focusReadNames === null) !== (newValue === null) ||
+    (newValue !== null &&
+      (newValue.length !== config.focusReadNames.length ||
+        newValue.some((n, i) => n !== config.focusReadNames[i])));
+  if (changed) {
+    config.focusReadNames = newValue;
     if (svg !== undefined) {
       svg = d3.select(svgID);
       createTubeMap();
@@ -5244,6 +5251,7 @@ function filterReads(reads) {
     (read) =>
       !read.is_secondary &&
       read.mapping_quality >= config.mappingQualityCutoff &&
-      (config.focusReadName === null || read.name === config.focusReadName)
+      (config.focusReadNames === null ||
+        config.focusReadNames.includes(read.name))
   );
 }

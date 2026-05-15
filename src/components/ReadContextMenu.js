@@ -36,7 +36,43 @@ const ITEM_STYLE = {
   userSelect: "none",
 };
 
-const ReadContextMenu = ({ readName, x, y, onFilter, onClose }) => (
+const DISABLED_ITEM_STYLE = {
+  ...ITEM_STYLE,
+  color: "#aaa",
+  cursor: "default",
+};
+
+const MenuItem = ({ onClick, disabled, children }) => {
+  if (disabled) {
+    return <div style={DISABLED_ITEM_STYLE}>{children}</div>;
+  }
+  return (
+    <div
+      style={ITEM_STYLE}
+      onClick={() => onClick()}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "#eef")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      {children}
+    </div>
+  );
+};
+
+MenuItem.propTypes = {
+  onClick: PropTypes.func,
+  disabled: PropTypes.bool,
+  children: PropTypes.node.isRequired,
+};
+
+const ReadContextMenu = ({
+  readName,
+  x,
+  y,
+  alreadyInSet,
+  onFilter,
+  onAddToSet,
+  onClose,
+}) => (
   <>
     <div
       style={BACKDROP_STYLE}
@@ -48,14 +84,15 @@ const ReadContextMenu = ({ readName, x, y, onFilter, onClose }) => (
     />
     <div style={{ ...MENU_STYLE, left: x, top: y }}>
       <div style={HEADER_STYLE}>Read: {readName}</div>
-      <div
-        style={ITEM_STYLE}
-        onClick={() => onFilter(readName)}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "#eef")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-      >
+      <MenuItem onClick={() => onFilter(readName)}>
         Show only this read
-      </div>
+      </MenuItem>
+      <MenuItem
+        disabled={alreadyInSet}
+        onClick={() => onAddToSet(readName)}
+      >
+        {alreadyInSet ? "Already in filter set" : "Add to filter set"}
+      </MenuItem>
     </div>
   </>
 );
@@ -64,7 +101,9 @@ ReadContextMenu.propTypes = {
   readName: PropTypes.string.isRequired,
   x: PropTypes.number.isRequired,
   y: PropTypes.number.isRequired,
+  alreadyInSet: PropTypes.bool.isRequired,
   onFilter: PropTypes.func.isRequired,
+  onAddToSet: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
 };
 

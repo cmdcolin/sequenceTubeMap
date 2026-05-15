@@ -9,13 +9,69 @@ import { dataOriginTypes } from "../enums";
 import PopUpInfoDialog from "./PopUpInfoDialog";
 import ReadContextMenu from "./ReadContextMenu";
 
+const PENDING_PANEL_STYLE = {
+  padding: "8px 12px",
+  background: "#e7f3ff",
+  border: "1px solid #bcdcff",
+  borderRadius: "4px",
+  margin: "8px 0",
+  fontSize: "14px",
+};
+
+const PENDING_HEADER_STYLE = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  marginBottom: "6px",
+};
+
+const CHIP_LIST_STYLE = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "6px",
+};
+
+const CHIP_STYLE = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "4px",
+  background: "white",
+  border: "1px solid #bcdcff",
+  borderRadius: "12px",
+  padding: "2px 4px 2px 10px",
+  fontSize: "13px",
+};
+
+const CHIP_REMOVE_STYLE = {
+  background: "transparent",
+  border: "none",
+  cursor: "pointer",
+  fontSize: "16px",
+  lineHeight: "1",
+  padding: "0 4px",
+  color: "#666",
+};
+
+const ACTIVE_FILTER_STYLE = {
+  padding: "6px 12px",
+  background: "#fff3cd",
+  border: "1px solid #ffeeba",
+  borderRadius: "4px",
+  margin: "8px 0",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  fontSize: "14px",
+};
+
 class TubeMapContainer extends Component {
   state = {
     isLoading: true,
     error: null,
     infoDialogContent: undefined,
     readContextMenu: null,
-    focusReadName: null,
+    pendingReadSet: [],
+    focusReadNames: null,
   };
 
   componentDidMount() {
@@ -113,7 +169,29 @@ class TubeMapContainer extends Component {
     }
     // resets value of infoDialogContent upon close
     const closePopup = () => this.setState({ infoDialogContent: undefined });
-    const { readContextMenu, focusReadName } = this.state;
+    const { readContextMenu, pendingReadSet, focusReadNames } = this.state;
+    const isInPendingSet = (name) => pendingReadSet.includes(name);
+    const addToPendingSet = (name) => {
+      if (!isInPendingSet(name)) {
+        this.setState({
+          pendingReadSet: [...pendingReadSet, name],
+          readContextMenu: null,
+        });
+      } else {
+        this.setState({ readContextMenu: null });
+      }
+    };
+    const removeFromPendingSet = (name) => {
+      this.setState({
+        pendingReadSet: pendingReadSet.filter((n) => n !== name),
+      });
+    };
+    const applyPendingAsFilter = () => {
+      this.setState({
+        focusReadNames: [...pendingReadSet],
+        pendingReadSet: [],
+      });
+    };
 
     return (
       <div id="tubeMapContainer">
@@ -122,28 +200,64 @@ class TubeMapContainer extends Component {
           attributes={attributes}
           close={closePopup}
         />
-        {focusReadName ? (
-          <div
-            style={{
-              padding: "6px 12px",
-              background: "#fff3cd",
-              border: "1px solid #ffeeba",
-              borderRadius: "4px",
-              margin: "8px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              fontSize: "14px",
-            }}
-          >
+        {pendingReadSet.length > 0 ? (
+          <div style={PENDING_PANEL_STYLE}>
+            <div style={PENDING_HEADER_STYLE}>
+              <span>
+                Read set ({pendingReadSet.length}):
+              </span>
+              <button type="button" onClick={() => applyPendingAsFilter()}>
+                Filter to these {pendingReadSet.length} read
+                {pendingReadSet.length === 1 ? "" : "s"}
+              </button>
+              <button
+                type="button"
+                onClick={() => this.setState({ pendingReadSet: [] })}
+              >
+                Clear set
+              </button>
+            </div>
+            <div style={CHIP_LIST_STYLE}>
+              {pendingReadSet.map((name) => (
+                <span key={name} style={CHIP_STYLE}>
+                  {name}
+                  <button
+                    type="button"
+                    style={CHIP_REMOVE_STYLE}
+                    onClick={() => removeFromPendingSet(name)}
+                    aria-label={`Remove ${name}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {focusReadNames ? (
+          <div style={ACTIVE_FILTER_STYLE}>
             <span>
-              Showing only read: <strong>{focusReadName}</strong>
+              {focusReadNames.length === 1 ? (
+                <>
+                  Showing only read: <strong>{focusReadNames[0]}</strong>
+                </>
+              ) : (
+                <>
+                  Showing only <strong>{focusReadNames.length}</strong> reads:{" "}
+                  <span title={focusReadNames.join(", ")}>
+                    {focusReadNames.slice(0, 3).join(", ")}
+                    {focusReadNames.length > 3
+                      ? `, +${focusReadNames.length - 3} more`
+                      : ""}
+                  </span>
+                </>
+              )}
             </span>
             <button
               type="button"
-              onClick={() => this.setState({ focusReadName: null })}
+              onClick={() => this.setState({ focusReadNames: null })}
             >
-              Clear
+              Clear filter
             </button>
           </div>
         ) : null}
@@ -156,7 +270,7 @@ class TubeMapContainer extends Component {
             visOptions={{
               coloredNodes: this.state.coloredNodes,
               ...this.props.visOptions,
-              focusReadName: focusReadName,
+              focusReadNames: focusReadNames,
             }}
             nodeSequences={!this.props.viewTarget.removeSequences}
           />
@@ -166,12 +280,14 @@ class TubeMapContainer extends Component {
             readName={readContextMenu.readName}
             x={readContextMenu.x}
             y={readContextMenu.y}
+            alreadyInSet={isInPendingSet(readContextMenu.readName)}
             onFilter={(name) =>
               this.setState({
-                focusReadName: name,
+                focusReadNames: [name],
                 readContextMenu: null,
               })
             }
+            onAddToSet={(name) => addToPendingSet(name)}
             onClose={() => this.setState({ readContextMenu: null })}
           />
         ) : null}
