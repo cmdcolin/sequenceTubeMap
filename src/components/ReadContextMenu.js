@@ -18,7 +18,7 @@ const ReadContextMenu = ({
       onClick: () => onFilter(readName),
     },
     {
-      label: alreadyInSet ? "Already in filter set" : "Add to filter set",
+      label: alreadyInSet ? "Already in set" : "Add to set",
       disabled: alreadyInSet,
       onClick: () => onAddToSet(readName),
     },

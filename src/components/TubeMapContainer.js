@@ -202,27 +202,6 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
     addNamesToPendingSet(tubeMap.getReadNamesThroughNodes(pendingNodeSet, mode));
   };
 
-  const createGroup = (reads) => {
-    const n = groupCounter + 1;
-    const id = `g${n}`;
-    const newGroup = {
-      id,
-      name: `Group ${n}`,
-      color: GROUP_PALETTE_CYCLE[groupCounter % GROUP_PALETTE_CYCLE.length],
-      reads,
-    };
-    setReadGroups([...readGroups, newGroup]);
-    setActiveGroupId(id);
-    setGroupCounter(n);
-    return id;
-  };
-
-  const saveAsGroup = () => {
-    if (pendingReadSet.length === 0) return;
-    createGroup(pendingReadSet);
-    setPendingReadSet([]);
-  };
-
   const addReadsToGroup = (groupId, names) => {
     setReadGroups(
       readGroups.map((g) => {
@@ -236,14 +215,26 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
     );
   };
 
-  const addToActiveGroup = () => {
-    if (pendingReadSet.length === 0 || activeGroupId === null) return;
-    addReadsToGroup(activeGroupId, pendingReadSet);
+  const saveSetAsNewGroup = () => {
+    if (pendingReadSet.length === 0) return;
+    const n = groupCounter + 1;
+    const id = `g${n}`;
+    setReadGroups([
+      ...readGroups,
+      {
+        id,
+        name: `Group ${n}`,
+        color: GROUP_PALETTE_CYCLE[groupCounter % GROUP_PALETTE_CYCLE.length],
+        reads: pendingReadSet,
+      },
+    ]);
+    setActiveGroupId(id);
+    setGroupCounter(n);
     setPendingReadSet([]);
   };
 
-  const addToActiveGroupFromMenu = (names) => {
-    if (activeGroupId === null) return;
+  const addNamesToActiveGroup = (names) => {
+    if (activeGroupId === null || names.length === 0) return;
     addReadsToGroup(activeGroupId, names);
     setReadContextMenu(null);
     setNodeContextMenu(null);
@@ -270,12 +261,15 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
     },
     {
       label: "Save as group",
-      onClick: () => saveAsGroup(),
+      onClick: () => saveSetAsNewGroup(),
     },
     ...(activeGroup
       ? [{
           label: `Add to "${activeGroup.name}"`,
-          onClick: () => addToActiveGroup(),
+          onClick: () => {
+            addNamesToActiveGroup(pendingReadSet);
+            setPendingReadSet([]);
+          },
         }]
       : []),
     {
@@ -367,7 +361,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           }
           onFilter={(name) => { setFocusReadNames([name]); setReadContextMenu(null); }}
           onAddToSet={(name) => addNamesToPendingSet([name])}
-          onAddToActiveGroup={(name) => addToActiveGroupFromMenu([name])}
+          onAddToActiveGroup={(name) => addNamesToActiveGroup([name])}
           onClose={() => setReadContextMenu(null)}
         />
       ) : null}
@@ -380,7 +374,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           y={nodeContextMenu.y}
           activeGroup={activeGroup}
           onAddReadsToSet={(names) => addNamesToPendingSet(names)}
-          onAddReadsToActiveGroup={(names) => addToActiveGroupFromMenu(names)}
+          onAddReadsToActiveGroup={(names) => addNamesToActiveGroup(names)}
           onAddNodeToNodeSet={(name) => addNodeToNodeSet(name)}
           onClose={() => setNodeContextMenu(null)}
         />
