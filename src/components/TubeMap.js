@@ -26,6 +26,7 @@ function updateVisOptions(visOptions, nodeSequences) {
   }
   tubeMap.setMappingQualityCutoff(visOptions.mappingQualityCutoff);
   tubeMap.setFocusReadNames(visOptions.focusReadNames);
+  tubeMap.setReadGroups(visOptions.readGroups);
 }
 
 function TubeMap({ nodes, tracks, reads, region, visOptions, nodeSequences = true }) {

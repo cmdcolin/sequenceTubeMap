@@ -8,6 +8,9 @@ import PopUpInfoDialog from "./PopUpInfoDialog";
 import ReadContextMenu from "./ReadContextMenu";
 import NodeContextMenu from "./NodeContextMenu";
 import PendingPanel from "./PendingPanel";
+import ReadGroupsPanel from "./ReadGroupsPanel";
+
+const GROUP_PALETTE_CYCLE = ["reds", "blues", "ygreys", "greys", "lightColors", "plainColors"];
 
 function readsFromStringToArray(readsString) {
   return readsString.split("\n").filter((line) => line.length > 0).map((line) => JSON.parse(line));
@@ -22,6 +25,9 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
   const [pendingReadSet, setPendingReadSet] = useState([]);
   const [pendingNodeSet, setPendingNodeSet] = useState([]);
   const [focusReadNames, setFocusReadNames] = useState(null);
+  const [readGroups, setReadGroups] = useState([]);
+  const [activeGroupId, setActiveGroupId] = useState(null);
+  const [groupCounter, setGroupCounter] = useState(0);
   const [nodes, setNodes] = useState(undefined);
   const [tracks, setTracks] = useState(undefined);
   const [reads, setReads] = useState(undefined);
@@ -195,6 +201,88 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
     addNamesToPendingSet(tubeMap.getReadNamesThroughNodes(pendingNodeSet, mode));
   };
 
+  const createGroup = (reads) => {
+    const n = groupCounter + 1;
+    const id = `g${n}`;
+    const newGroup = {
+      id,
+      name: `Group ${n}`,
+      color: GROUP_PALETTE_CYCLE[groupCounter % GROUP_PALETTE_CYCLE.length],
+      reads,
+    };
+    setReadGroups([...readGroups, newGroup]);
+    setActiveGroupId(id);
+    setGroupCounter(n);
+    return id;
+  };
+
+  const saveAsGroup = () => {
+    if (pendingReadSet.length === 0) return;
+    createGroup(pendingReadSet);
+    setPendingReadSet([]);
+  };
+
+  const addReadsToGroup = (groupId, names) => {
+    setReadGroups(
+      readGroups.map((g) => {
+        if (g.id !== groupId) return g;
+        const merged = [...g.reads];
+        names.forEach((name) => {
+          if (!merged.includes(name)) merged.push(name);
+        });
+        return { ...g, reads: merged };
+      })
+    );
+  };
+
+  const addToActiveGroup = () => {
+    if (pendingReadSet.length === 0 || activeGroupId === null) return;
+    addReadsToGroup(activeGroupId, pendingReadSet);
+    setPendingReadSet([]);
+  };
+
+  const addToActiveGroupFromMenu = (names) => {
+    if (activeGroupId === null) return;
+    addReadsToGroup(activeGroupId, names);
+    setReadContextMenu(null);
+    setNodeContextMenu(null);
+  };
+
+  const renameGroup = (id, name) => {
+    setReadGroups(readGroups.map((g) => (g.id === id ? { ...g, name } : g)));
+  };
+
+  const recolorGroup = (id, color) => {
+    setReadGroups(readGroups.map((g) => (g.id === id ? { ...g, color } : g)));
+  };
+
+  const deleteGroup = (id) => {
+    setReadGroups(readGroups.filter((g) => g.id !== id));
+    if (activeGroupId === id) setActiveGroupId(null);
+  };
+
+  const activeGroup = readGroups.find((g) => g.id === activeGroupId);
+  const pendingReadActions = [
+    {
+      label: `Filter to these ${pendingReadSet.length} read${pendingReadSet.length === 1 ? "" : "s"}`,
+      onClick: () => { setFocusReadNames(pendingReadSet); setPendingReadSet([]); },
+    },
+    {
+      label: "Save as group",
+      onClick: () => saveAsGroup(),
+    },
+    ...(activeGroup
+      ? [{
+          label: `Add to "${activeGroup.name}"`,
+          onClick: () => addToActiveGroup(),
+        }]
+      : []),
+    {
+      label: "Clear set",
+      onClick: () => setPendingReadSet([]),
+    },
+  ];
+
   const isOpen = infoDialogContent !== undefined;
 
   return (
@@ -228,16 +316,17 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           title={`Read set (${pendingReadSet.length}):`}
           items={pendingReadSet}
           onRemove={(name) => setPendingReadSet(pendingReadSet.filter((n) => n !== name))}
-          actions={[
-            {
-              label: `Filter to these ${pendingReadSet.length} read${pendingReadSet.length === 1 ? "" : "s"}`,
-              onClick: () => { setFocusReadNames(pendingReadSet); setPendingReadSet([]); },
-            },
-            {
-              label: "Clear set",
-              onClick: () => setPendingReadSet([]),
-            },
-          ]}
+          actions={pendingReadActions}
+        />
+      ) : null}
+      {readGroups.length > 0 ? (
+        <ReadGroupsPanel
+          groups={readGroups}
+          activeGroupId={activeGroupId}
+          onSetActive={(id) => setActiveGroupId(id)}
+          onRename={(id, name) => renameGroup(id, name)}
+          onRecolor={(id, color) => recolorGroup(id, color)}
+          onDelete={(id) => deleteGroup(id)}
         />
       ) : null}
       {focusReadNames ? (
@@ -259,7 +348,7 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           tracks={tracks}
           reads={reads}
           region={region}
-          visOptions={{ coloredNodes, ...visOptions, focusReadNames }}
+          visOptions={{ coloredNodes, ...visOptions, focusReadNames, readGroups }}
           nodeSequences={!viewTarget.removeSequences}
         />
       </div>
@@ -269,8 +358,13 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           x={readContextMenu.x}
           y={readContextMenu.y}
           alreadyInSet={editingBase.includes(readContextMenu.readName)}
+          activeGroup={activeGroup}
+          alreadyInActiveGroup={
+            activeGroup ? activeGroup.reads.includes(readContextMenu.readName) : false
+          }
           onFilter={(name) => { setFocusReadNames([name]); setReadContextMenu(null); }}
           onAddToSet={(name) => addNamesToPendingSet([name])}
+          onAddToActiveGroup={(name) => addToActiveGroupFromMenu([name])}
           onClose={() => setReadContextMenu(null)}
         />
       ) : null}
@@ -281,7 +375,9 @@ function TubeMapContainer({ viewTarget, dataOrigin, visOptions, APIInterface }) 
           alreadyInNodeSet={pendingNodeSet.includes(nodeContextMenu.nodeName)}
           x={nodeContextMenu.x}
           y={nodeContextMenu.y}
+          activeGroup={activeGroup}
           onAddReadsToSet={(names) => addNamesToPendingSet(names)}
+          onAddReadsToActiveGroup={(names) => addToActiveGroupFromMenu(names)}
           onAddNodeToNodeSet={(name) => addNodeToNodeSet(name)}
           onClose={() => setNodeContextMenu(null)}
         />

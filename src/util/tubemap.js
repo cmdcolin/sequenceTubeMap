@@ -169,6 +169,10 @@ const config = {
   readContextMenuCallback: function () {},
   nodeContextMenuCallback: function () {},
   focusReadNames: null,
+  // Array of { color, reads: Set<string> }. Reads matching a group's set are
+  // drawn in that color, overriding the default strand/palette coloring. The
+  // last group in the array wins for reads belonging to multiple groups.
+  readGroups: [],
 };
 
 // variables for storing info which can be directly translated into drawing instructions
@@ -464,6 +468,31 @@ export function setFocusReadNames(value) {
   const newKey = newValue === null ? "" : newValue.join("\0");
   if (oldKey !== newKey) {
     config.focusReadNames = newValue;
+    if (svg !== undefined) {
+      svg = d3.select(svgID);
+      createTubeMap();
+    }
+  }
+}
+
+function readGroupsKey(groups) {
+  return groups.map((g) => `${g.color}${g.reads.join("\0")}`).join("");
+}
+
+// Set the named read groups for custom coloring. Accepts an array of
+// { color, reads: string[] }; last group wins on overlap. Pass [] or null to
+// clear all groups.
+export function setReadGroups(value) {
+  const incoming = value || [];
+  const oldKey = readGroupsKey(
+    config.readGroups.map((g) => ({ color: g.color, reads: Array.from(g.reads) }))
+  );
+  const newKey = readGroupsKey(incoming);
+  if (oldKey !== newKey) {
+    config.readGroups = incoming.map((g) => ({
+      color: g.color,
+      reads: new Set(g.reads),
+    }));
     if (svg !== undefined) {
       svg = d3.select(svgID);
       createTubeMap();
@@ -2716,6 +2745,15 @@ function generateTrackColor(track, highlight) {
   }
 
   if (track.hasOwnProperty("type") && track.type === "read") {
+    // Custom group coloring: last group wins on overlap. A group's color
+    // can be a single hex (#rrggbb) or a palette name; getColorSet handles
+    // both and we stagger across reads in the group via track.id.
+    for (let i = config.readGroups.length - 1; i >= 0; i--) {
+      if (config.readGroups[i].reads.has(track.name)) {
+        const groupColors = getColorSet(config.readGroups[i].color);
+        return groupColors[track.id % groupColors.length];
+      }
+    }
     if (config.colorSchemes[sourceID].colorReadsByMappingQuality) {
       trackColor = d3.interpolateRdYlGn(
         Math.min(60, track.mapping_quality) / 60
