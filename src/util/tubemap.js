@@ -19,7 +19,7 @@ d3.selection.prototype.styles = function(styles) {
 import "../config-client.js";
 import externalConfig from "../config-global.mjs";
 import { defaultTrackColors } from "../common.mjs";
-import deepEqual from "deep-equal";
+import isEqual from "react-fast-compare";
 
 const DEBUG = false;
 
@@ -373,7 +373,7 @@ export function setShowReadsFlag(value) {
 export function setColorSet(fileID, newColor) {
   const currColor = config.colorSchemes[fileID];
   // update if any coloring parameter is different
-  if (!currColor || !deepEqual(currColor, newColor)) {
+  if (!currColor || !isEqual(currColor, newColor)) {
     config.colorSchemes[fileID] = newColor;
     const tr = createTubeMap();
     if (!config.hideLegendFlag && tracks) drawLegend(tr);

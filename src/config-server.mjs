@@ -13,8 +13,7 @@ const configPath = configUrl.protocol === "file:"
 const config = JSON.parse(readFileSync(configPath));
 
 const GLOBAL_NAME = "__sequence_tube_map_config";
-/*global globalThis*/
-const GLOBAL_HOME = globalThis || window || global;
+const GLOBAL_HOME = globalThis;
 
 // Hide the config in the globals object when we run.
 GLOBAL_HOME[GLOBAL_NAME] = config;
