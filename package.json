@@ -68,14 +68,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "bufferutil",
-      "es5-ext",
-      "esbuild",
-      "utf-8-validate"
-    ]
-  },
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@babel/preset-react": "^7.28.5",
