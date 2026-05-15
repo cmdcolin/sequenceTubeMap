@@ -1,5 +1,4 @@
 import React from "react";
-import PropTypes from "prop-types";
 
 const BACKDROP_STYLE = {
   position: "fixed",
@@ -56,11 +55,7 @@ const MenuItem = ({ label, disabled, onClick }) =>
     </div>
   );
 
-MenuItem.propTypes = {
-  label: PropTypes.node.isRequired,
-  disabled: PropTypes.bool,
-  onClick: PropTypes.func,
-};
+
 
 const ContextMenu = ({ header, items, x, y, onClose }) => (
   <>
@@ -86,18 +81,5 @@ const ContextMenu = ({ header, items, x, y, onClose }) => (
   </>
 );
 
-ContextMenu.propTypes = {
-  header: PropTypes.node.isRequired,
-  items: PropTypes.arrayOf(
-    PropTypes.shape({
-      label: PropTypes.node.isRequired,
-      disabled: PropTypes.bool,
-      onClick: PropTypes.func,
-    })
-  ).isRequired,
-  x: PropTypes.number.isRequired,
-  y: PropTypes.number.isRequired,
-  onClose: PropTypes.func.isRequired,
-};
 
 export default ContextMenu;

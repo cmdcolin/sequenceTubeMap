@@ -62,7 +62,6 @@ afterEach(async () => {
 
 // Starting the server once per test run will speed up tests
 beforeAll(async () => {
-  // Start the server
   serverState = await server.start();
 });
 

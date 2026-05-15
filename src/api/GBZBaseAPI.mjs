@@ -6,6 +6,7 @@
 // during the Webpack build.
 /* eslint-env worker */
 
+import { createRequire } from "module";
 import "../config-client.js";
 import { APIInterface } from "./APIInterface.mjs";
 import { WASI, File, OpenFile, SyncOPFSFile, PreopenDirectory } from "@bjorn3/browser_wasi_shim";
@@ -26,41 +27,27 @@ import {
 // So we use this function to detect if we are on Jest and get the blob from
 // the filesystem then, and to otherwise get ti with fetch.
 
-// Resolve with the bytes or Response of the WASM query blob, on Jest or Webpack.
+// Resolve with the bytes or Response of the WASM query blob.
 async function getWasmBytes() {
   if (getWasmBytes.cached) {
     return getWasmBytes.cached;
   }
 
-  let blobBytes = null;
-
-  if (typeof window === "undefined" || !window["jest"]) {
-    // Not running on Jest, we should be able to dynamic import a binary asset
-    // by export name and get the bytes, and Webpack will handle it.
-    try {
-      let blobImport = await import("gbz-base/query.wasm");
-      return fetch(blobImport.default);
-    } catch (e) {
-      console.error("Could not dynamically import WASM blob.", e);
-      // Leave blobBytes unset to try a fallback method.
-    }
-  }
-
-  if (!blobBytes) {
-    // Either we're on Jest, or the dynamic import didn't work (maybe we're on
-    // plain Node?).
-    //
-    // Try to open the file from the filesystem.
-    //
-    // Don't actually try and ship the filesystem module in the browser though:
+  // In a browser+webpack build, dynamic import of .wasm assets works and
+  // webpack returns a URL we can fetch. In test/Node environments the import
+  // fails, so we fall back to reading from the filesystem.
+  try {
+    let blobImport = await import("gbz-base/query.wasm");
+    return fetch(blobImport.default);
+  } catch {
+    // Don't try to ship the filesystem module in the browser bundle.
     // see <https://webpack.js.org/api/module-methods/#webpackignore>
     let fs = await import(/* webpackIgnore: true */ "fs-extra");
-    blobBytes = await fs.readFile("node_modules/gbz-base/target/wasm32-wasi/release/query.wasm");
-  } 
-
-  console.log("Got blob bytes: ", blobBytes);
-  getWasmBytes.cached = blobBytes;
-  return blobBytes;
+    const wasmPath = createRequire(import.meta.url).resolve("gbz-base/query.wasm");
+    let blobBytes = await fs.readFile(wasmPath);
+    getWasmBytes.cached = blobBytes;
+    return blobBytes;
+  }
 }
 
 /**

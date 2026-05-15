@@ -2518,17 +2518,13 @@ export function start() {
       }
     }
 
-    // Start the server on the selected port and save the HTTP server instance
-    // created by app.listen for the WebSocketServer
     const serverPort = process.env.SERVER_PORT || config.serverPort || 3000;
     const server = app.listen(serverPort, SERVER_BIND_ADDRESS, () => {
       console.log("TubeMapServer listening on " + getServerURL(server));
-      // Server is ready so add to state.
       state.server = server;
-      // See if the other server components are up yet and, if so, resolve our promise.
       resolveIfReady();
     });
-    server.on('error', reject);
+    server.on('error', (err) => { console.error("TubeMapServer error:", err); reject(err); });
     // Create the WebSocketServer, for watching for updated files, using the HTTP server instance
     // Note that all websocket connections on any path end up here!
     const wss = new WebSocketServer({ httpServer: server });
@@ -2554,10 +2550,8 @@ export function start() {
       });
     });
 
-    // Web socket server is now ready
     state.wss = wss;
 
-    // Start a watch. We can stop it by closing the watcher.
     const watcher = fs.watch(MOUNTED_DATA_PATH, function (event, filename) {
       // There was a change in the file directory
       console.log("Directory has been changed");
@@ -2567,10 +2561,7 @@ export function start() {
       }
     });
 
-    // fs watcher is now ready
     state.watcher = watcher;
-
-    // See if the server itself is up yet and, if so, resolve our promise.
     resolveIfReady();
   });
 }

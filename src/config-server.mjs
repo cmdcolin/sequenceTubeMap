@@ -1,8 +1,5 @@
 // config-server.mjs: Must be run on the server before config-global.mjs will work.
 
-// This file needs to be valid for Node but also for Jest to load, so we still
-// can't just import the config with a filetype assert.
-
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { join, dirname } from "path";
@@ -16,7 +13,6 @@ const configPath = configUrl.protocol === "file:"
 const config = JSON.parse(readFileSync(configPath));
 
 const GLOBAL_NAME = "__sequence_tube_map_config";
-// Tell eslint that globalThis might exist.
 /*global globalThis*/
 const GLOBAL_HOME = globalThis || window || global;
 
