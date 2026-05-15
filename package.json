@@ -69,6 +69,9 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["bufferutil", "es5-ext", "esbuild", "utf-8-validate"]
+  },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.2",
     "esbuild": "^0.25.12",

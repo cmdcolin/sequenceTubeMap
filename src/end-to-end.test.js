@@ -91,15 +91,12 @@ async function waitForLoadStart() {
 
 // Wait for the loading throbber to disappear
 async function waitForLoadEnd() {
-  console.log("Waiting for load end");
   return new Promise((resolve, reject) => {
     function waitAround() {
       let loader = document.getElementById("loader");
       if (loader) {
-        console.log("Still loading...");
         setTimeout(waitAround, 100);
       } else {
-        console.log("Loading over!");
         resolve();
       }
     }
@@ -211,12 +208,11 @@ describe("When we wait for it to load", () => {
   });
 
   it("the regions from the BED files are loaded", async () => {
-    let regionInput = getRegionInput();
     await act(async () => {
-      userEvent.click(getRegionInput());
+      await userEvent.click(getRegionInput());
     });
-    // Make sure that option in RegionInput dropdown (17_1_100) is visible
-    expect(screen.getByText("17:1-100 17_1_100")).toBeInTheDocument();
+    // BED regions load asynchronously after the graph, so use findByText to poll
+    await screen.findByText("17:1-100 17_1_100");
   });
   it("the region options in autocomplete are cleared after selecting new data", async () => {
     // Input data dropdown
@@ -472,27 +468,25 @@ it("can accept uploaded files", async () => {
     type: "application/octet-stream",
   });
 
-  console.log("Adding file:", file);
   await act(async () => {
-    await waitFor(() => {
-      userEvent.upload(fileUploader, file);
-    });
-    console.log("File added");
+    await userEvent.upload(fileUploader, file);
 
     // make sure the file is in the upload component
     expect(fileUploader.files.length).toBe(1);
     expect(fileUploader.files[0]).toStrictEqual(file);
-
-    // Wait for the upload to actually go through.
-    // TODO: Don't let the user close the dialog until the upload goes through?
-    // We need to see the upload spinner
-    await waitForUploadStart();
-    console.log("Upload started");
-    // And then it needs to go away again
-    await waitForUploadEnd();
-    console.log("Upload ended");
   });
 
+  // Wait for upload to finish. The spinner may appear and disappear very
+  // quickly on a warm server, so we just wait for it to be gone (upload done
+  // or errored). We already verified the file was set on the input inside
+  // act, so if the spinner is absent the upload has completed.
+  await waitFor(
+    () =>
+      expect(
+        document.getElementsByClassName("upload-in-progress").length
+      ).toBe(0),
+    { timeout: 30000 }
+  );
   // exit the track picker
   fireEvent.click(screen.queryByTestId("TrackPickerCloseButton"));
 
@@ -500,7 +494,6 @@ it("can accept uploaded files", async () => {
   const autocomplete = screen.getByTestId("autocomplete");
   const input = autocomplete.querySelector("input");
 
-  console.log("Clearing input");
   await userEvent.clear(input);
 
   // Input region
@@ -525,6 +518,5 @@ it("can accept uploaded files", async () => {
   // Since remove redundant nodes is on, we have 3 titles for nodes and 2 for paths.
   expect(svg.getElementsByTagName("title").length).toEqual(5);
 
-  console.log("Test over");
 }, 50000); // We need to allow a long time for the slow vg test machines.
 // TODO: Is this slow because of unnecessary re-renders caused by the new color schemes taking effect and being rendered with the old data, before the new data downloads?

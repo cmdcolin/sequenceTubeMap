@@ -57,6 +57,11 @@ export default defineConfig({
     setupFiles: './src/setupTests.js',
     transformIgnorePatterns: [
       'node_modules/(?!(@streamparser/json|@bjorn3/browser_wasi_shim)/)'
-    ]
+    ],
+    environmentOptions: {
+      jsdom: {
+        url: 'http://localhost/'
+      }
+    }
   }
 })
