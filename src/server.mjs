@@ -2029,14 +2029,14 @@ api.get('/getFilenames', (req, res) => {
 
 // Spawn a vg process and collect stdout lines. Resolves when the process exits
 // successfully, rejects (VgExecutionError) on non-zero exit.
-function runVgLines(args, onLine) {
+function runProcessLines(cmd, args, onLine) {
   return new Promise((resolve, reject) => {
-    const child = spawn(find_vg(), args)
+    const child = spawn(cmd, args)
     let stderr = ''
     child.stderr.on('data', d => {
       const s = d.toString()
       stderr += s
-      console.log(`vg ${args[0]} stderr: ${s}`)
+      console.log(`${cmd} ${args[0]} stderr: ${s}`)
     })
     const reader = rl.createInterface({ input: child.stdout })
     reader.on('line', onLine)
@@ -2046,7 +2046,9 @@ function runVgLines(args, onLine) {
       if (code === null || !readerDone) return
       if (code !== 0) {
         const detail = stderr.trim() ? `: ${stderr.trim()}` : ''
-        reject(new VgExecutionError(`vg ${args.join(' ')} failed${detail}`))
+        reject(
+          new VgExecutionError(`${cmd} ${args.join(' ')} failed${detail}`),
+        )
       } else {
         resolve()
       }
@@ -2061,6 +2063,10 @@ function runVgLines(args, onLine) {
       finish()
     })
   })
+}
+
+function runVgLines(args, onLine) {
+  return runProcessLines(find_vg(), args, onLine)
 }
 
 api.post('/getPathNames', async (req, res, next) => {
@@ -2079,45 +2085,17 @@ api.post('/getPathNames', async (req, res, next) => {
     )
   }
 
-  if (graphFile.endsWith('.pos.bed.gz')) {
-    let sentResponse = false
-    const tabixCall = spawn('tabix', ['-l', graphFile])
-    let output = ''
-    tabixCall.stdout.on('data', data => {
-      output += data.toString()
-    })
-    tabixCall.on('error', () => {
-      if (!sentResponse) {
-        sentResponse = true
-        next(new VgExecutionError('tabix path names failed'))
-      }
-    })
-    tabixCall.on('close', code => {
-      if (code !== 0) {
-        if (!sentResponse) {
-          sentResponse = true
-          next(new VgExecutionError('tabix path names failed'))
-        }
-        return
-      }
-      const pathNames = output
-        .split('\n')
-        .filter(a => a !== '' && !a.startsWith('_'))
-        .sort()
-      console.log(`Found ${pathNames.length} paths`)
-      if (!sentResponse) {
-        sentResponse = true
-        res.json({ pathNames })
-      }
-    })
-    return
-  }
-
   const lines = []
   try {
-    await runVgLines(['paths', '-L', '-x', graphFile], line => {
-      lines.push(line)
-    })
+    if (graphFile.endsWith('.pos.bed.gz')) {
+      await runProcessLines('tabix', ['-l', graphFile], line => {
+        lines.push(line)
+      })
+    } else {
+      await runVgLines(['paths', '-L', '-x', graphFile], line => {
+        lines.push(line)
+      })
+    }
     const pathNames = lines.filter(a => a !== '' && !a.startsWith('_')).sort()
     console.log(`Found ${pathNames.length} paths`)
     res.json({ pathNames })
@@ -2142,47 +2120,26 @@ api.post('/getPathInfo', async (req, res, next) => {
     )
   }
 
-  if (graphFile.endsWith('.pos.bed.gz')) {
-    // pgtabix mode: return names only, lengths not available
-    let sentResponse = false
-    const tabixCall = spawn('tabix', ['-l', graphFile])
-    let output = ''
-    tabixCall.stdout.on('data', data => {
-      output += data.toString()
-    })
-    tabixCall.on('error', () => {
-      if (!sentResponse) {
-        sentResponse = true
-        next(new VgExecutionError('tabix path info failed'))
-      }
-    })
-    tabixCall.on('close', code => {
-      if (code !== 0) {
-        if (!sentResponse) {
-          sentResponse = true
-          next(new VgExecutionError('tabix path info failed'))
-        }
-        return
-      }
-      const pathInfo = output
-        .split('\n')
+  try {
+    if (graphFile.endsWith('.pos.bed.gz')) {
+      // pgtabix mode: names only, lengths/cyclicity not available
+      const names = []
+      await runProcessLines('tabix', ['-l', graphFile], line => {
+        names.push(line)
+      })
+      const pathInfo = names
         .filter(a => a !== '' && !a.startsWith('_'))
         .sort()
         .map(name => ({ name, length: null, cyclic: false }))
-      if (!sentResponse) {
-        sentResponse = true
-        res.json({ pathInfo })
-      }
-    })
-    return
-  }
+      res.json({ pathInfo })
+      return
+    }
 
-  const lengthLines = []
-  const cyclicNames = new Set()
-  try {
+    const lengthLines = []
+    const cyclicNames = new Set()
     await Promise.all([
       runVgLines(['paths', '-E', '-x', graphFile], line => {
-        if (line) lengthLines.push(line)
+        lengthLines.push(line)
       }),
       // vg paths -C outputs: name\tdirected-(a)cyclic\tundirected-(a)cyclic
       runVgLines(['paths', '-C', '-x', graphFile], line => {
@@ -2200,7 +2157,7 @@ api.post('/getPathInfo', async (req, res, next) => {
         const [name, lengthStr] = line.split('\t')
         return {
           name,
-          length: parseInt(lengthStr, 10),
+          length: Number(lengthStr),
           cyclic: cyclicNames.has(name),
         }
       })
