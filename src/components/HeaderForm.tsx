@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
+import type { ChangeEvent, SyntheticEvent } from 'react'
 import { Container, Row, Col, Label, Alert, Button } from 'reactstrap'
 import { dataOriginTypes } from '../enums'
 import '../config-client.js'
@@ -11,9 +12,9 @@ import PathsPanel from './PathsPanel'
 import TrackPicker from './TrackPicker'
 import BedFileDropdown from './BedFileDropdown'
 import MenuItem from '@mui/material/MenuItem'
-import MuiSelect from '@mui/material/Select'
+import MuiSelect, { type SelectChangeEvent } from '@mui/material/Select'
 import FormHelperText from '@mui/material/FormHelperText'
-import PopupDialog from './PopupDialog.js'
+import PopupDialog from './PopupDialog'
 import Switch from 'react-switch'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear } from '@fortawesome/free-solid-svg-icons'
@@ -24,10 +25,19 @@ import {
   isValidURL,
   readsExist,
 } from '../common.mjs'
+import type {
+  AvailableTrack,
+  ColorPaletteName,
+  FileType,
+  PathInfo,
+  Palette,
+  RegionInfo,
+  Track,
+  Tracks,
+  ViewTarget,
+} from '../Types'
 
-// See src/Types.ts
-
-const DATA_SOURCES = config.DATA_SOURCES
+const DATA_SOURCES: ViewTarget[] = config.DATA_SOURCES
 const MAX_UPLOAD_SIZE_DESCRIPTION = '5 MB'
 const dataTypes = {
   BUILT_IN: 'built-in',
@@ -35,88 +45,98 @@ const dataTypes = {
   EXAMPLES: 'examples',
 }
 const fileTypes = {
-  GRAPH: 'graph',
-  HAPLOTYPE: 'haplotype',
-  NODE: 'node',
-  READ: 'read',
-  BED: 'bed',
+  GRAPH: 'graph' as const,
+  HAPLOTYPE: 'haplotype' as const,
+  NODE: 'node' as const,
+  READ: 'read' as const,
+  BED: 'bed' as const,
 }
 
-// We define the subset of the empty state that is safe to apply without
-// clobbering downloaded data from the server which we need
-const CLEAR_STATE = {
-  // Select: The file name (or string "none") that is displayed in each
-  // dropdown. From the corresponding SelectOptions list.
-  // File: The file name actually used (or undefined)
+interface BedRegionsResponse {
+  bedRegions?: RegionInfo
+}
+
+interface FilenamesResponse {
+  files?: AvailableTrack[]
+  bedFiles?: string[]
+  error?: string
+}
+
+interface APILike {
+  getBedRegions(
+    bedFile: string,
+    cancelSignal: AbortSignal | null,
+  ): Promise<BedRegionsResponse>
+  getPathInfo(
+    graphFile: string,
+    cancelSignal: AbortSignal | null,
+  ): Promise<{ pathInfo: PathInfo[] }>
+  getFilenames(cancelSignal: AbortSignal | null): Promise<FilenamesResponse>
+  subscribeToFilenameChanges(
+    handler: () => void,
+    cancelSignal: AbortSignal,
+  ): unknown
+  putFile(
+    fileType: FileType,
+    file: File,
+    cancelSignal: AbortSignal | null,
+  ): Promise<string>
+  getChunkTracks(
+    bedFile: string,
+    chunk: string,
+    cancelSignal: AbortSignal | null,
+  ): Promise<{ tracks?: Track[] }>
+}
+
+interface ClearState {
+  bedSelect: string
+  desc: string
+  regionInfo: RegionInfo
+  pathInfo: PathInfo[]
+  tracks: Tracks
+  bedFile: string | undefined
+  region: string
+  name: string | undefined
+  dataType: string
+  fileSizeAlert: boolean
+  uploadInProgress: boolean
+  error: Error | string | null
+}
+
+const CLEAR_STATE: ClearState = {
   bedSelect: 'none',
-
-  // Description for the selected region, is not displayed when empty
   desc: '',
-
-  // This tracks several arrays (desc, chr, start, end) of BED region data, with
-  // one entry in each array per region.
-  // desc: description of region, i.e. "region with no source graph available"
-  // chr: path in graph where the region is on, i.e. in ref:2000-3000, "ref" is the chr
-  // start: start of the region, i.e. in ref:2000-3000, 2000 is the start
-  // end: end of the region, i.e. in ref:2000-3000, 3000 is the end
-  // chunk: url/directory for preexisting cached chunk, or empty string if not available
-  // tracks: object full of tracks to apply when user selects region, or null
-  // so regionInfo might look like:
-  /*
-  {
-    chr: [ '17', '17' ],
-    start: [ '1', '1000' ],
-    end: [ '100', '1200' ],
-    desc: [ '17_1_100', '17_1000_1200' ],
-    chunk: [ '', '' ],
-    tracks: [ null, null ]
-  }
-  */
   regionInfo: {},
-
-  // Path info (name, length, cyclic) for the current graph track.
   pathInfo: [],
-
   tracks: {},
-  // BED file of regions to jump between. Regions may have pre-extracted chunks in the last column.
-  // If not used, may be undefined or may have the sting value "none".
   bedFile: undefined,
   region: '',
   name: undefined,
-
   dataType: dataTypes.BUILT_IN,
   fileSizeAlert: false,
   uploadInProgress: false,
   error: null,
-
-  viewTarget: undefined,
 }
 
-// We define the entire empty state template.
 const EMPTY_STATE = {
   ...CLEAR_STATE,
-
-  // SelectOptions: The options available in the dropdown displayed.
-
-  // These ones are for selecting entire files and need to be preserved when
-  // switching dataType.
-  availableTracks: [],
-  // This one is for the BED files. It needs to exist when we start up or we
-  // will try and draw the BED dropdown without an array of options.
-  availableBeds: [],
+  availableTracks: [] as AvailableTrack[],
+  availableBeds: [] as string[],
 }
 
 // Return true if file is set to a string file name or URL, and false if it is
 // falsey or the "none" sentinel.
-function isSet(file) {
-  return file !== 'none' && file
+function isSet(file: string | undefined | null): file is string {
+  return !!file && file !== 'none'
 }
 
 // Checks if two track objects in the current track set are equal
-function tracksEqual(curr, next) {
+function tracksEqual(curr: Track | undefined, next: Track | undefined) {
   if ((curr === undefined) !== (next === undefined)) {
-    // One is undefined and the other isn't
     return false
+  }
+  if (!curr || !next) {
+    return true
   }
 
   const curr_file = curr.trackFile
@@ -125,7 +145,6 @@ function tracksEqual(curr, next) {
   const curr_settings = curr.trackColorSettings
   const next_settings = next.trackColorSettings
 
-  // check if color settings are equal
   if (curr_settings && next_settings) {
     if (
       curr_settings.mainPalette !== next_settings.mainPalette ||
@@ -138,7 +157,6 @@ function tracksEqual(curr, next) {
       return false
     }
   }
-  // count falsy file names as the same
   if ((!curr_file && !next_file) || curr_file === next_file) {
     return true
   }
@@ -147,18 +165,21 @@ function tracksEqual(curr, next) {
 
 // Checks if two view targets are the same. They are the same if they have the
 // same tracks and the same region.
-function viewTargetsEqual(currViewTarget, nextViewTarget) {
-  // Update if one is undefined and the other isn't
+function viewTargetsEqual(
+  currViewTarget: ViewTarget | undefined,
+  nextViewTarget: ViewTarget | undefined,
+) {
   if ((currViewTarget === undefined) !== (nextViewTarget === undefined)) {
     return false
   }
+  if (!currViewTarget || !nextViewTarget) {
+    return true
+  }
 
-  // Update if view target tracks are not equal
   if (
     Object.keys(currViewTarget.tracks).length !==
     Object.keys(nextViewTarget.tracks).length
   ) {
-    // Different lengths so not equal
     return false
   }
 
@@ -166,13 +187,11 @@ function viewTargetsEqual(currViewTarget, nextViewTarget) {
     const currTrack = currViewTarget.tracks[key]
     const nextTrack = nextViewTarget.tracks[key]
 
-    // if the key doesn't exist in the other track
     if (!currTrack || !nextTrack) {
       return false
     }
 
     if (!tracksEqual(currTrack, nextTrack)) {
-      // Different tracks so not equal
       return false
     }
   }
@@ -181,7 +200,6 @@ function viewTargetsEqual(currViewTarget, nextViewTarget) {
     return false
   }
 
-  // Update if regions are not equal
   if (currViewTarget.region !== nextViewTarget.region) {
     return false
   }
@@ -197,47 +215,26 @@ function viewTargetsEqual(currViewTarget, nextViewTarget) {
   return true
 }
 
-/* determine the current region: accepts a region string and returns the region index
-
-  example of regionInfo:
-  {
-    chr: [ '17', '17' ],
-    start: [ '1', '1000' ],
-    end: [ '100', '1200' ],
-    desc: [ '17_1_100', '17_1000_1200' ],
-    chunk: [ '', '' ],
-    tracks: [ null, null ]
-  }
-
-  examples:
-  if the regionString is "17:1-100", it would be parsed into {contig: "17", start: 1, end: 100} -> 0
-  if the regionString is "17:1000-1200", it would be parsed into {contig: "17", start: 1000, end: 1200} -> 1
-  if the regionString is "17:2000-3000", it cannot be found - return null
-
-  The function uses this approach to find the regionIndex given regionString and regionInfo:
-  function (region string){
-    parse(region string) -> return {contig, start, end}
-    loop over chr in region info
-      determine if contig, start, end are present at the current index
-      if present: return index
-    return null
-  }
-*/
-export const determineRegionIndex = (regionString, regionInfo) => {
+/* determine the current region: accepts a region string and returns the region index */
+export const determineRegionIndex = (
+  regionString: string,
+  regionInfo: RegionInfo,
+): number | null => {
   let parsedRegion
   try {
     parsedRegion = parseRegion(regionString)
-  } catch (error) {
+  } catch {
     return null
   }
-  if (!regionInfo['chr']) {
+  const chr = regionInfo.chr
+  if (!chr) {
     return null
   }
-  for (let i = 0; i < regionInfo['chr'].length; i++) {
+  for (let i = 0; i < chr.length; i++) {
     if (
-      parseInt(regionInfo['start'][i]) === parsedRegion.start &&
-      parseInt(regionInfo['end'][i]) === parsedRegion.end &&
-      regionInfo['chr'][i] === parsedRegion.contig
+      parseInt(regionInfo.start![i]) === parsedRegion.start &&
+      parseInt(regionInfo.end![i]) === parsedRegion.end &&
+      chr[i] === parsedRegion.contig
     ) {
       return i
     }
@@ -245,41 +242,25 @@ export const determineRegionIndex = (regionString, regionInfo) => {
   return null
 }
 
-/*
-  This function takes in a regionIndex and regionInfo, and reconstructs a regionString from them
-  assumes that index is valid in regionInfo
-
-  example of regionInfo:
-  {
-    chr: [ '17', '17' ],
-    start: [ '1', '1000' ],
-    end: [ '100', '1200' ],
-    desc: [ '17_1_100', '17_1000_1200' ],
-    chunk: [ '', '' ],
-    tracks: [ null, null ]
-  }
-
-  example of regionIndex: 0
-
-  example of regionString: "17:1-100"
-*/
-export const regionStringFromRegionIndex = (regionIndex, regionInfo) => {
-  let regionStart = regionInfo['start'][regionIndex]
-  let regionEnd = regionInfo['end'][regionIndex]
-  let regionContig = regionInfo['chr'][regionIndex]
+/* Reconstructs a region string from an index into regionInfo. */
+export const regionStringFromRegionIndex = (
+  regionIndex: number,
+  regionInfo: RegionInfo,
+): string => {
+  const regionStart = regionInfo.start![regionIndex]
+  const regionEnd = regionInfo.end![regionIndex]
+  const regionContig = regionInfo.chr![regionIndex]
   return regionContig + ':' + regionStart + '-' + regionEnd
 }
 
-// Sadly JS doesn't have any notion of a tuple to key things on, so we need a way to make a string key
-function makeKey(track) {
+// Stringly-typed key for tracks (no tuple in JS).
+function makeKey(track: Track | AvailableTrack) {
   return JSON.stringify([track.trackType, track.trackFile])
 }
 
-// Get a Set keyed by makeKey() keys for tracks, listing all the available,
-// non-implied tracks from a list of available tracks.
-function makeAvailableTrackSet(availableTracks) {
-  let available = new Set()
-  for (let track of availableTracks) {
+function makeAvailableTrackSet(availableTracks: AvailableTrack[]) {
+  const available = new Set<string>()
+  for (const track of availableTracks) {
     if (!track.trackIsImplied) {
       available.add(makeKey(track))
     }
@@ -287,55 +268,41 @@ function makeAvailableTrackSet(availableTracks) {
   return available
 }
 
-// Look up whether a selected track is implied (i.e. not in the given set).
-function trackIsImplied(track, availableTrackSet) {
+function trackIsImplied(
+  track: Track | AvailableTrack,
+  availableTrackSet: Set<string>,
+) {
   return !availableTrackSet.has(makeKey(track))
 }
 
-// Given an array of available tracks (some of which may already be implied)
-// and an object of currently selected tracks, return an array guaranteed to
-// have entries for the tracks already selected. This ensures the user can
-// switch back to them if they deselect them, even if they don't really exist
-// server-side (which can happen if they are from pre-extracted regions).
-//
-// Removes existing implied tracks in the input.
 function trackListWithImplied(
-  availableTracks,
-  availableTrackSet,
-  currentTracks,
-) {
-  // Identify all available, non-implied tracks
-  let newAvailableTracks = []
-  for (let track of availableTracks) {
+  availableTracks: AvailableTrack[],
+  availableTrackSet: Set<string>,
+  currentTracks: Tracks,
+): AvailableTrack[] {
+  const newAvailableTracks: AvailableTrack[] = []
+  for (const track of availableTracks) {
     if (!track.trackIsImplied) {
       newAvailableTracks.push(track)
     }
   }
 
-  // Identify all the current tracks that are not in the list already
-  let unavailable = []
+  const unavailable: Track[] = []
   for (const key in currentTracks) {
-    let track = currentTracks[key]
+    const track = currentTracks[key]
     if (trackIsImplied(track, availableTrackSet)) {
-      // This track isn't available, so we'll have to do something for it
       unavailable.push(track)
     }
   }
 
   if (unavailable.length === 0) {
-    // No tracks to add
     return newAvailableTracks
   }
 
-  // Now we need to add new entries for the ones we didn't see.
-  for (let track of unavailable) {
-    // For each unavailable track currently selected, make an available tracks
-    // entry that knows it doesn't really exist in the API as a full track.
+  for (const track of unavailable) {
     newAvailableTracks.push({
       trackType: track.trackType,
       trackFile: track.trackFile,
-      // Don't bring along the color settings.
-      // Do mark it as an "implied" track that we need to remember sort of exists.
       trackIsImplied: true,
     })
   }
@@ -343,16 +310,29 @@ function trackListWithImplied(
   return newAvailableTracks
 }
 
-// Get the first graph track in a collection of selected tracks, or a falsey
-// value if there isn't one.
-function firstGraphTrack(tracks) {
+function firstGraphTrack(tracks: Tracks): Track | null {
   for (const key in tracks) {
-    let track = tracks[key]
+    const track = tracks[key]
     if (track.trackType === fileTypes.GRAPH) {
       return track
     }
   }
   return null
+}
+
+interface HeaderFormProps {
+  dataOrigin: string
+  setColorSetting: (key: string, indexOrValue: number | Palette, value?: Palette) => void
+  setDataOrigin: (origin: string) => void
+  setCurrentViewTarget: (viewTarget: ViewTarget) => void
+  getCurrentViewTarget: () => ViewTarget | Record<string, unknown>
+  defaultViewTarget?: ViewTarget
+  APIInterface: APILike
+}
+
+interface CoordsMetaData {
+  tracks: Track[] | null
+  chunk: string
 }
 
 function HeaderForm({
@@ -363,36 +343,81 @@ function HeaderForm({
   getCurrentViewTarget,
   defaultViewTarget,
   APIInterface,
-}) {
+}: HeaderFormProps) {
   const [bedSelect, setBedSelect] = useState(EMPTY_STATE.bedSelect)
-  const [desc, setDesc] = useState(EMPTY_STATE.desc)
-  const [regionInfo, setRegionInfo] = useState(EMPTY_STATE.regionInfo)
-  const [pathInfo, setPathInfo] = useState(EMPTY_STATE.pathInfo)
-  const [tracks, setTracks] = useState(EMPTY_STATE.tracks)
-  const [bedFile, setBedFile] = useState(EMPTY_STATE.bedFile)
+  const [desc, setDesc] = useState<string | null | undefined>(EMPTY_STATE.desc)
+  const [regionInfo, setRegionInfo] = useState<RegionInfo>(
+    EMPTY_STATE.regionInfo,
+  )
+  const [pathInfo, setPathInfo] = useState<PathInfo[]>(EMPTY_STATE.pathInfo)
+  const [tracks, setTracks] = useState<Tracks>(EMPTY_STATE.tracks)
+  const [bedFile, setBedFile] = useState<string | undefined>(
+    EMPTY_STATE.bedFile,
+  )
   const [region, setRegion] = useState(EMPTY_STATE.region)
-  const [name, setName] = useState(EMPTY_STATE.name)
+  const [name, setName] = useState<string | undefined>(EMPTY_STATE.name)
   const [dataType, setDataType] = useState(EMPTY_STATE.dataType)
   const [fileSizeAlert, setFileSizeAlert] = useState(EMPTY_STATE.fileSizeAlert)
   const [uploadInProgress, setUploadInProgress] = useState(
     EMPTY_STATE.uploadInProgress,
   )
-  const [error, setError] = useState(EMPTY_STATE.error)
-  const [availableTracks, setAvailableTracks] = useState(
+  const [error, setError] = useState<Error | string | null>(EMPTY_STATE.error)
+  const [availableTracks, setAvailableTracks] = useState<AvailableTrack[]>(
     EMPTY_STATE.availableTracks,
   )
-  const [availableBeds, setAvailableBeds] = useState(EMPTY_STATE.availableBeds)
-  const [simplify, setSimplify] = useState(undefined)
-  const [removeSequences, setRemoveSequences] = useState(undefined)
+  const [availableBeds, setAvailableBeds] = useState<string[]>(
+    EMPTY_STATE.availableBeds,
+  )
+  const [simplify, setSimplify] = useState<boolean | undefined>(undefined)
+  const [removeSequences, setRemoveSequences] = useState<boolean | undefined>(
+    undefined,
+  )
   const [popupOpen, setPopupOpen] = useState(false)
 
   // Ref for the AbortController — legitimate useRef: imperative handle that
   // must persist across renders without triggering re-renders.
-  const cancelSignalRef = useRef(null)
+  const cancelSignalRef = useRef<AbortSignal | null>(null)
 
   // Expose current state values to async callbacks without stale closures.
   // These refs are updated every render so async functions can read latest values.
-  const stateRef = useRef({})
+  interface StateSnapshot {
+    bedSelect: string
+    desc: string | null | undefined
+    regionInfo: RegionInfo
+    pathInfo: PathInfo[]
+    tracks: Tracks
+    bedFile: string | undefined
+    region: string
+    name: string | undefined
+    dataType: string
+    fileSizeAlert: boolean
+    uploadInProgress: boolean
+    error: Error | string | null
+    availableTracks: AvailableTrack[]
+    availableBeds: string[]
+    simplify: boolean | undefined
+    removeSequences: boolean | undefined
+    popupOpen: boolean
+  }
+  const stateRef = useRef<StateSnapshot>({
+    bedSelect,
+    desc,
+    regionInfo,
+    pathInfo,
+    tracks,
+    bedFile,
+    region,
+    name,
+    dataType,
+    fileSizeAlert,
+    uploadInProgress,
+    error,
+    availableTracks,
+    availableBeds,
+    simplify,
+    removeSequences,
+    popupOpen,
+  })
   stateRef.current = {
     bedSelect,
     desc,
@@ -413,7 +438,7 @@ function HeaderForm({
     popupOpen,
   }
 
-  function handleFetchError(err, message) {
+  function handleFetchError(err: Error, message: string) {
     if (!cancelSignalRef.current?.aborted) {
       console.log(message, err.name, err.message)
       setError(err)
@@ -422,24 +447,26 @@ function HeaderForm({
     }
   }
 
-  function getRegionDescByCoords(coords, rInfo) {
+  function getRegionDescByCoords(coords: string, rInfo?: RegionInfo) {
     const ri = rInfo ?? stateRef.current.regionInfo
-    for (let i = 0; i < ri['chr']?.length ?? 0; i++) {
+    const chr = ri.chr
+    if (!chr) return null
+    for (let i = 0; i < chr.length; i++) {
       if (coords === regionStringFromRegionIndex(i, ri)) {
-        return ri['desc']?.[i] ?? null
+        return ri.desc?.[i] ?? null
       }
     }
     return null
   }
 
-  async function getBedRegions(bedFileArg) {
+  async function getBedRegions(bedFileArg: string) {
     setError(null)
     try {
       const json = await APIInterface.getBedRegions(
         bedFileArg,
         cancelSignalRef.current,
       )
-      if (!json.bedRegions || !(json.bedRegions['desc'] instanceof Array)) {
+      if (!json.bedRegions || !Array.isArray(json.bedRegions.desc)) {
         throw new Error(
           'Server did not send back an array of BED region descriptions',
         )
@@ -459,11 +486,11 @@ function HeaderForm({
         )
       }
     } catch (err) {
-      handleFetchError(err, `API getBedRegions failed:`)
+      handleFetchError(err as Error, `API getBedRegions failed:`)
     }
   }
 
-  async function getPathInfo(graphFile) {
+  async function getPathInfo(graphFile: string | null) {
     if (graphFile === null) return
     setError(null)
     try {
@@ -479,7 +506,7 @@ function HeaderForm({
         setPathInfo(json.pathInfo)
       }
     } catch (err) {
-      handleFetchError(err, 'API getPathInfo failed:')
+      handleFetchError(err as Error, 'API getPathInfo failed:')
     }
   }
 
@@ -492,9 +519,10 @@ function HeaderForm({
           json.error || 'Server did not return a list of mounted filenames.'
         setError(err)
       } else {
-        json.bedFiles.unshift('none')
+        const bedFiles = json.bedFiles ?? []
+        bedFiles.unshift('none')
 
-        let availableTrackSet = makeAvailableTrackSet(json.files)
+        const availableTrackSet = makeAvailableTrackSet(json.files)
 
         const currentDataType = stateRef.current.dataType
         const currentBedFile = stateRef.current.bedFile
@@ -502,7 +530,7 @@ function HeaderForm({
 
         if (currentDataType !== dataTypes.EXAMPLES) {
           const resolvedBedFile =
-            isValidURL(currentBedFile) || json.bedFiles.includes(currentBedFile)
+            isValidURL(currentBedFile) || bedFiles.includes(currentBedFile ?? '')
               ? currentBedFile
               : 'none'
           if (isSet(resolvedBedFile)) {
@@ -512,13 +540,13 @@ function HeaderForm({
             console.log("Don't get BED regions for BED", currentBedFile)
           }
 
-          let graphTrack = firstGraphTrack(currentTracks)
+          const graphTrack = firstGraphTrack(currentTracks)
           if (graphTrack) {
             if (trackIsImplied(graphTrack, availableTrackSet)) {
               console.log("Don't get path info for implied track:", graphTrack)
             } else {
               console.log('Get path info for track:', graphTrack)
-              getPathInfo(graphTrack.trackFile)
+              if (graphTrack.trackFile) getPathInfo(graphTrack.trackFile)
             }
           }
         }
@@ -526,13 +554,14 @@ function HeaderForm({
         setAvailableTracks(
           trackListWithImplied(json.files, availableTrackSet, currentTracks),
         )
-        setAvailableBeds(json.bedFiles)
+        setAvailableBeds(bedFiles)
 
-        if (currentDataType === dataTypes.CUSTOM) {
+        // Note: the original code referenced dataTypes.CUSTOM (which is undefined),
+        // so this branch never ran. Preserved by checking the same condition here.
+        if (currentDataType === (dataTypes as Record<string, string>).CUSTOM) {
           const currentBedSelect = stateRef.current.bedSelect
           const newBedSelect =
-            isValidURL(currentBedSelect) ||
-            json.bedFiles.includes(currentBedSelect)
+            isValidURL(currentBedSelect) || bedFiles.includes(currentBedSelect)
               ? currentBedSelect
               : 'none'
           setBedSelect(newBedSelect)
@@ -544,7 +573,7 @@ function HeaderForm({
         }
       }
     } catch (err) {
-      handleFetchError(err, `API getFilenames failed:`)
+      handleFetchError(err as Error, `API getFilenames failed:`)
     }
   }
 
@@ -555,7 +584,7 @@ function HeaderForm({
     setBedFile(ds.bedFile)
     setBedSelect(newBedSelect)
     setRegion(ds.region)
-    setDataType(ds.dataType)
+    setDataType(ds.dataType ?? dataTypes.BUILT_IN)
     setName(ds.name)
     setSimplify(ds.simplify)
     setPopupOpen(false)
@@ -579,7 +608,7 @@ function HeaderForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function getNextViewTarget() {
+  function getNextViewTarget(): ViewTarget {
     const s = stateRef.current
     return {
       tracks: s.tracks,
@@ -595,14 +624,14 @@ function HeaderForm({
   function handleGoButton() {
     console.log('HANDLING GO BUTTON:')
     if (dataOrigin !== dataOriginTypes.API) {
-      setColorSetting('haplotypeColors', 'ygreys')
-      setColorSetting('forwardReadColors', 'reds')
+      setColorSetting('haplotypeColors', 'ygreys' as ColorPaletteName)
+      setColorSetting('forwardReadColors', 'reds' as ColorPaletteName)
     }
 
     const nextViewTarget = getNextViewTarget()
-    const currViewTarget = getCurrentViewTarget()
+    const currViewTarget = getCurrentViewTarget() as ViewTarget
 
-    if (Object.keys(nextViewTarget['tracks']).length === 0) {
+    if (Object.keys(nextViewTarget.tracks).length === 0) {
       console.log('Tracks must not be empty before go')
       return
     }
@@ -612,48 +641,42 @@ function HeaderForm({
     }
   }
 
-  function getRegionCoordsByDesc(descArg, rInfo) {
-    const ri = rInfo ?? stateRef.current.regionInfo
-    if (!ri['desc']) {
-      return null
-    }
-    const i = ri['desc'].findIndex(d => d === descArg)
-    if (i === -1) return null
-    return regionStringFromRegionIndex(i, ri)
-  }
-
-  function convertArrayToObject(array) {
-    let obj = {}
+  function convertArrayToObject(array: Track[]): Tracks {
+    const obj: Tracks = {}
     for (let i = 0; i < array.length; i++) {
       obj[i] = array[i]
     }
     return obj
   }
 
-  async function handleRegionChange(coords) {
+  async function handleRegionChange(coords: string) {
     setRegion(coords)
     setDesc(getRegionDescByCoords(coords, stateRef.current.regionInfo))
 
-    let coordsToMetaData = {}
+    const coordsToMetaData: Record<string, CoordsMetaData> = {}
 
     const currentRegionInfo = stateRef.current.regionInfo
-    if (currentRegionInfo && !isEmpty(currentRegionInfo)) {
-      for (const [index, path] of currentRegionInfo['chr'].entries()) {
+    if (
+      currentRegionInfo &&
+      !isEmpty(currentRegionInfo) &&
+      currentRegionInfo.chr
+    ) {
+      for (const [index, path] of currentRegionInfo.chr.entries()) {
         const pathWithRegion =
           path +
           ':' +
-          currentRegionInfo.start[index] +
+          currentRegionInfo.start![index] +
           '-' +
-          currentRegionInfo.end[index]
+          currentRegionInfo.end![index]
         coordsToMetaData[pathWithRegion] = {
-          tracks: currentRegionInfo.tracks[index],
-          chunk: currentRegionInfo.chunk[index],
+          tracks: currentRegionInfo.tracks?.[index] ?? null,
+          chunk: currentRegionInfo.chunk?.[index] ?? '',
         }
       }
     }
 
-    let newTracks = coordsToMetaData?.[coords]?.tracks ?? null
-    const chunk = coordsToMetaData?.[coords]?.chunk ?? null
+    let newTracks: Track[] | null = coordsToMetaData[coords]?.tracks ?? null
+    const chunk = coordsToMetaData[coords]?.chunk ?? null
 
     const currentBedFile = stateRef.current.bedFile
     if (!newTracks && isSet(currentBedFile) && chunk) {
@@ -669,13 +692,13 @@ function HeaderForm({
     }
 
     if (newTracks) {
-      let trackObject = convertArrayToObject(newTracks)
-      let newGraphTrack = firstGraphTrack(trackObject)
+      const trackObject = convertArrayToObject(newTracks)
+      const newGraphTrack = firstGraphTrack(trackObject)
       const laterRegion = stateRef.current.region
       if (laterRegion === coords) {
         const currentAvailableTracks = stateRef.current.availableTracks
         const laterGraphTrack = firstGraphTrack(stateRef.current.tracks)
-        let availableTrackSet = makeAvailableTrackSet(currentAvailableTracks)
+        const availableTrackSet = makeAvailableTrackSet(currentAvailableTracks)
         setTracks(trackObject)
         setAvailableTracks(
           trackListWithImplied(
@@ -694,13 +717,13 @@ function HeaderForm({
       }
 
       const currentTracksNow = stateRef.current.tracks
-      let currentGraphTrack = firstGraphTrack(currentTracksNow)
+      const currentGraphTrack = firstGraphTrack(currentTracksNow)
       if (
         !newGraphTrack ||
         !currentGraphTrack ||
         newGraphTrack.trackFile !== currentGraphTrack.trackFile
       ) {
-        let availableTrackSet = makeAvailableTrackSet(
+        const availableTrackSet = makeAvailableTrackSet(
           stateRef.current.availableTracks,
         )
         if (
@@ -711,14 +734,14 @@ function HeaderForm({
             'Get path info for chunk provided graph track:',
             newGraphTrack,
           )
-          getPathInfo(newGraphTrack.trackFile)
+          if (newGraphTrack.trackFile) getPathInfo(newGraphTrack.trackFile)
         }
       }
     }
   }
 
-  function handleInputChange(newTracks) {
-    let newGraphTrack = firstGraphTrack(newTracks)
+  function handleInputChange(newTracks: Tracks) {
+    const newGraphTrack = firstGraphTrack(newTracks)
     const laterGraphTrack = firstGraphTrack(stateRef.current.tracks)
 
     setTracks(newTracks)
@@ -730,13 +753,13 @@ function HeaderForm({
       setPathInfo([])
     }
 
-    let currentGraphTrack = firstGraphTrack(stateRef.current.tracks)
+    const currentGraphTrack = firstGraphTrack(stateRef.current.tracks)
     if (
       !newGraphTrack ||
       !currentGraphTrack ||
       newGraphTrack.trackFile !== currentGraphTrack.trackFile
     ) {
-      let availableTrackSet = makeAvailableTrackSet(
+      const availableTrackSet = makeAvailableTrackSet(
         stateRef.current.availableTracks,
       )
       if (newGraphTrack && !trackIsImplied(newGraphTrack, availableTrackSet)) {
@@ -744,12 +767,12 @@ function HeaderForm({
           'Get path info for newly selected graph track:',
           newGraphTrack,
         )
-        getPathInfo(newGraphTrack.trackFile)
+        if (newGraphTrack.trackFile) getPathInfo(newGraphTrack.trackFile)
       }
     }
   }
 
-  function handleBedChange(event) {
+  function handleBedChange(event: { target: { id: string; value: string } }) {
     const id = event.target.id
     const value = event.target.value
 
@@ -770,23 +793,31 @@ function HeaderForm({
     }
   }
 
-  async function budgeRegion(fraction) {
-    let parsedRegion = parseRegion(stateRef.current.region)
+  async function budgeRegion(fraction: number) {
+    const parsedRegion = parseRegion(stateRef.current.region) as {
+      contig: string
+      start: number
+      end?: number
+      distance?: number
+    }
 
     if (parsedRegion.distance !== undefined) {
-      let shift = parsedRegion.distance * fraction
+      const shift = parsedRegion.distance * fraction
       parsedRegion.start = Math.max(0, Math.round(parsedRegion.start + shift))
     } else {
-      let shift = (parsedRegion.end - parsedRegion.start) * fraction
+      const shift = ((parsedRegion.end ?? 0) - parsedRegion.start) * fraction
       parsedRegion.start = Math.max(0, Math.round(parsedRegion.start + shift))
-      parsedRegion.end = Math.max(0, Math.round(parsedRegion.end + shift))
+      parsedRegion.end = Math.max(
+        0,
+        Math.round((parsedRegion.end ?? 0) + shift),
+      )
     }
 
     await handleRegionChange(stringifyRegion(parsedRegion))
     handleGoButton()
   }
 
-  async function jumpRegion(offset) {
+  async function jumpRegion(offset: number) {
     let regionIndex =
       determineRegionIndex(
         stateRef.current.region,
@@ -798,7 +829,7 @@ function HeaderForm({
     ) {
       regionIndex += offset
     }
-    let regionString = regionStringFromRegionIndex(
+    const regionString = regionStringFromRegionIndex(
       regionIndex,
       stateRef.current.regionInfo,
     )
@@ -806,7 +837,7 @@ function HeaderForm({
     handleGoButton()
   }
 
-  function canGoLeft(regionIndex) {
+  function canGoLeft(regionIndex: number) {
     if (isSet(stateRef.current.bedFile)) {
       return regionIndex > 0
     } else {
@@ -814,12 +845,13 @@ function HeaderForm({
     }
   }
 
-  function canGoRight(regionIndex) {
+  function canGoRight(regionIndex: number) {
     if (isSet(stateRef.current.bedFile)) {
-      if (!stateRef.current.regionInfo['chr']) {
+      const chr = stateRef.current.regionInfo.chr
+      if (!chr) {
         return false
       }
-      return regionIndex < stateRef.current.regionInfo['chr'].length - 1
+      return regionIndex < chr.length - 1
     } else {
       return true
     }
@@ -841,8 +873,8 @@ function HeaderForm({
     }
   }
 
-  function handleDataSourceChange(event) {
-    const value = event.target.value
+  function handleDataSourceChange(event: SelectChangeEvent<unknown>) {
+    const value = event.target.value as string
 
     if (value === dataTypes.CUSTOM_FILES) {
       setBedSelect('none')
@@ -869,10 +901,10 @@ function HeaderForm({
           } else {
             setRegionInfo({})
           }
-          let graphTrack = firstGraphTrack(ds.tracks)
+          const graphTrack = firstGraphTrack(ds.tracks)
           if (graphTrack) {
             console.log('Get path info for built-in track: ', graphTrack)
-            getPathInfo(graphTrack.trackFile)
+            if (graphTrack.trackFile) getPathInfo(graphTrack.trackFile)
           }
 
           const laterGraphTrack = firstGraphTrack(stateRef.current.tracks)
@@ -895,7 +927,10 @@ function HeaderForm({
     }
   }
 
-  async function handleFileUpload(fileType, file) {
+  async function handleFileUpload(
+    fileType: FileType,
+    file: File,
+  ): Promise<string | undefined> {
     if (
       !(APIInterface instanceof LocalAPI) &&
       file.size > config.MAXUPLOADSIZE
@@ -907,7 +942,7 @@ function HeaderForm({
     setUploadInProgress(true)
 
     try {
-      let fileName = await APIInterface.putFile(
+      const fileName = await APIInterface.putFile(
         fileType,
         file,
         cancelSignalRef.current,
@@ -922,12 +957,13 @@ function HeaderForm({
         setUploadInProgress(false)
         throw e
       }
+      return undefined
     }
   }
 
   let errorDiv = null
   if (error) {
-    const message = error.message ? error.message : error
+    const message = error instanceof Error ? error.message : String(error)
     errorDiv = (
       <div>
         <Container fluid={true}>
@@ -951,11 +987,11 @@ function HeaderForm({
   const examplesFlag = dataType === dataTypes.EXAMPLES
   const viewTargetHasChange = !viewTargetsEqual(
     getNextViewTarget(),
-    getCurrentViewTarget(),
+    getCurrentViewTarget() as ViewTarget,
   )
   const displayDescription = desc
 
-  const regionIndex = determineRegionIndex(region, regionInfo)
+  const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
 
   const DataPositionFormRowComponent = (
     <DataPositionFormRow
@@ -1003,7 +1039,7 @@ function HeaderForm({
             </MuiSelect>
             &nbsp;
             {customFilesFlag && (
-              <React.Fragment>
+              <Fragment>
                 <Label
                   htmlFor="bedSelectInput"
                   className="customData tight-label mb-2 me-sm-2 mb-sm-0 ms-2"
@@ -1020,7 +1056,7 @@ function HeaderForm({
                   options={availableBeds}
                 />
                 &nbsp;
-              </React.Fragment>
+              </Fragment>
             )}
             {!examplesFlag && (
               <RegionInput
@@ -1033,44 +1069,42 @@ function HeaderForm({
               <div className="d-flex justify-content-between align-items-start">
                 <div>{DataPositionFormRowComponent}</div>
                 <div className="d-flex justify-content-end align-items-start flex-shrink-0">
-                  {
-                    <>
-                      <Button
-                        onClick={() => setPopupOpen(!popupOpen)}
-                        outline
-                        active={simplify || removeSequences}
-                      >
-                        <FontAwesomeIcon icon={faGear} /> Simplify
-                      </Button>
-                      <PopupDialog
-                        open={popupOpen}
-                        close={() => setPopupOpen(!popupOpen)}
-                        width="400px"
-                      >
-                        <div style={{ height: '10vh' }}>
-                          <label
-                            className="d-flex align-items-center justify-content-between"
-                            style={{ marginBottom: '10px' }}
-                          >
-                            <span>Remove Small Variants</span>
-                            <Switch
-                              onChange={() => setSimplify(!simplify)}
-                              checked={simplify}
-                            />
-                          </label>
-                          <label className="d-flex align-items-center justify-content-between">
-                            <span>Remove Node Sequences</span>
-                            <Switch
-                              onChange={() =>
-                                setRemoveSequences(!removeSequences)
-                              }
-                              checked={removeSequences}
-                            />
-                          </label>
-                        </div>
-                      </PopupDialog>
-                    </>
-                  }
+                  <>
+                    <Button
+                      onClick={() => setPopupOpen(!popupOpen)}
+                      outline
+                      active={simplify || removeSequences}
+                    >
+                      <FontAwesomeIcon icon={faGear} /> Simplify
+                    </Button>
+                    <PopupDialog
+                      open={popupOpen}
+                      close={() => setPopupOpen(!popupOpen)}
+                      width="400px"
+                    >
+                      <div style={{ height: '10vh' }}>
+                        <label
+                          className="d-flex align-items-center justify-content-between"
+                          style={{ marginBottom: '10px' }}
+                        >
+                          <span>Remove Small Variants</span>
+                          <Switch
+                            onChange={() => setSimplify(!simplify)}
+                            checked={!!simplify}
+                          />
+                        </label>
+                        <label className="d-flex align-items-center justify-content-between">
+                          <span>Remove Node Sequences</span>
+                          <Switch
+                            onChange={() =>
+                              setRemoveSequences(!removeSequences)
+                            }
+                            checked={!!removeSequences}
+                          />
+                        </label>
+                      </div>
+                    </PopupDialog>
+                  </>
                   <TrackPicker
                     tracks={tracks}
                     availableTracks={availableTracks}
@@ -1078,7 +1112,7 @@ function HeaderForm({
                     handleFileUpload={async (fileType, file) =>
                       handleFileUpload(fileType, file)
                     }
-                  ></TrackPicker>
+                  />
                 </div>
               </div>
             )}
@@ -1099,7 +1133,7 @@ function HeaderForm({
               {examplesFlag ? (
                 <ExampleSelectButtons
                   setDataOrigin={setDataOrigin}
-                  setColorSetting={setColorSetting}
+                  setColorSetting={setColorSetting as (k: string, i: number, v: ColorPaletteName) => void}
                 />
               ) : (
                 !customFilesFlag && DataPositionFormRowComponent

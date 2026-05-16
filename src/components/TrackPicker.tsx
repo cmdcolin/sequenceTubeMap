@@ -1,20 +1,36 @@
-import React, { useState } from 'react'
-import TrackPickerDisplay from './TrackPickerDisplay.js'
+import { useState } from 'react'
+import TrackPickerDisplay from './TrackPickerDisplay'
 import { Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faList } from '@fortawesome/free-solid-svg-icons'
-import PopupDialog from './PopupDialog.js'
+import PopupDialog from './PopupDialog'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
+import type {
+  AvailableTrack,
+  ColorPaletteName,
+  FileType,
+  Tracks,
+} from '../Types'
+
+interface TrackPickerProps {
+  tracks?: Tracks
+  availableTracks: AvailableTrack[]
+  availableColors?: ColorPaletteName[]
+  onChange?: (newTracks: Tracks) => void
+  handleFileUpload: (
+    fileType: FileType,
+    file: File,
+  ) => Promise<string | undefined>
+}
 
 export const TrackPicker = ({
-  tracks = { 1: config.defaultTrackProps }, // expects a trackList, same as trackListDisplay
+  tracks = { 1: config.defaultTrackProps },
   availableTracks,
   availableColors,
   onChange = () => {},
   handleFileUpload,
-}) => {
-  // based off of https://react-popup.elazizi.com/controlled-popup/#using-open-prop
+}: TrackPickerProps) => {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
 
@@ -27,9 +43,7 @@ export const TrackPicker = ({
       >
         <FontAwesomeIcon icon={faList} /> Configure Tracks
       </Button>
-      {
-        // Need to set width to null because the default fixed width is too small for the track list items.
-      }
+      {/* width=null because the default fixed width is too small for the track list items */}
       <PopupDialog
         open={open}
         close={close}

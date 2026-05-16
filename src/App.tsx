@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import isEqual from 'react-fast-compare'
 
 import './App.css'
@@ -12,33 +12,38 @@ import './config-client.js'
 import { config } from './config-global.mjs'
 import ServerAPI from './api/ServerAPI.mjs'
 import { LocalAPI } from './api/LocalAPI.mjs'
+import type { ColorScheme, Palette, Tracks, ViewTarget, VisOptions } from './Types'
 
-const EXAMPLE_TRACKS = [
-  { files: [{ type: 'graph', name: 'fakeGraph' }] },
-  { files: [{ type: 'read', name: 'fakeReads' }] },
-]
+const EXAMPLE_TRACKS: Tracks = {
+  0: { trackType: 'graph', trackFile: 'fakeGraph' },
+  1: { trackType: 'read', trackFile: 'fakeReads' },
+}
 
-function getColorSchemesFromTracks(tracks) {
-  let schemes = []
+function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
+  const schemes: ColorScheme[] = []
   for (const key in tracks) {
-    if (schemes[key] === undefined) {
-      if (tracks[key].trackColorSettings !== undefined) {
-        schemes[key] = tracks[key].trackColorSettings
-      } else if (tracks[key].trackType === 'read') {
-        schemes[key] = { ...config.defaultReadColorPalette }
+    const idx = Number(key)
+    if (schemes[idx] === undefined) {
+      const t = tracks[key]
+      if (t.trackColorSettings !== undefined) {
+        schemes[idx] = t.trackColorSettings
+      } else if (t.trackType === 'read') {
+        schemes[idx] = { ...config.defaultReadColorPalette }
       } else {
-        schemes[key] = { ...config.defaultHaplotypeColorPalette }
+        schemes[idx] = { ...config.defaultHaplotypeColorPalette }
       }
     }
   }
   return schemes
 }
 
-function removeUndefined(obj) {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null))
+function removeUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v != null),
+  ) as Partial<T>
 }
 
-function getAPIMode(apiInterface) {
+function getAPIMode(apiInterface: unknown): 'local' | 'server' {
   if (apiInterface instanceof LocalAPI) {
     return 'local'
   } else if (apiInterface instanceof ServerAPI) {
@@ -50,15 +55,20 @@ function getAPIMode(apiInterface) {
 
 const defaultApiUrl =
   (config.BACKEND_URL || `${window.location.origin}`) + '/api/v0'
-const defaultViewTarget =
-  urlParamsToViewTarget(document.location) ?? config.DATA_SOURCES[0]
+const defaultViewTarget: ViewTarget =
+  (urlParamsToViewTarget(document.location) as unknown as ViewTarget) ??
+  config.DATA_SOURCES[0]
 
-function App({ apiUrl = defaultApiUrl }) {
+interface AppProps {
+  apiUrl?: string
+}
+
+function App({ apiUrl = defaultApiUrl }: AppProps) {
   console.log('App component starting up with API URL: ' + apiUrl)
 
-  const [dataOrigin, setDataOrigin] = useState(dataOriginTypes.API)
-  const [viewTarget, setViewTarget] = useState(defaultViewTarget)
-  const [visOptions, setVisOptions] = useState({
+  const [dataOrigin, setDataOrigin] = useState<string>(dataOriginTypes.API)
+  const [viewTarget, setViewTarget] = useState<ViewTarget>(defaultViewTarget)
+  const [visOptions, setVisOptions] = useState<VisOptions>({
     removeRedundantNodes: true,
     compressedView: false,
     transparentNodes: false,
@@ -71,16 +81,18 @@ function App({ apiUrl = defaultApiUrl }) {
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
     mappingQualityCutoff: 0,
   })
-  const [apiInterface, setApiInterface] = useState(() => new ServerAPI(apiUrl))
+  const [apiInterface, setApiInterface] = useState<LocalAPI | ServerAPI>(
+    () => new ServerAPI(apiUrl),
+  )
 
-  const setAPIMode = mode => {
+  const setAPIMode = (mode: string) => {
     if (mode === getAPIMode(apiInterface)) {
       return
     }
     if (mode === 'local') {
       setApiInterface(new LocalAPI())
       setDataOrigin(dataOriginTypes.API)
-      setViewTarget({ tracks: [] })
+      setViewTarget({ tracks: {}, region: '' })
       setVisOptions(v => ({ ...v, colorSchemes: [] }))
     } else if (mode === 'server') {
       setApiInterface(new ServerAPI(apiUrl))
@@ -95,8 +107,8 @@ function App({ apiUrl = defaultApiUrl }) {
     }
   }
 
-  const setCurrentViewTarget = newTarget => {
-    const newViewTarget = removeUndefined(newTarget)
+  const setCurrentViewTarget = (newTarget: ViewTarget) => {
+    const newViewTarget = removeUndefined(newTarget) as ViewTarget
     if (
       !isEqual(viewTarget, newViewTarget) ||
       dataOrigin !== dataOriginTypes.API
@@ -112,29 +124,40 @@ function App({ apiUrl = defaultApiUrl }) {
 
   const getCurrentViewTarget = () => removeUndefined(viewTarget)
 
-  const toggleVisOptionFlag = flagName => {
-    setVisOptions(v => ({ ...v, [flagName]: !v[flagName] }))
+  const toggleVisOptionFlag = (flagName: string) => {
+    setVisOptions(v => {
+      const key = flagName as keyof VisOptions
+      return { ...v, [key]: !v[key] }
+    })
   }
 
-  const handleMappingQualityCutoffChange = value => {
-    setVisOptions(v => ({ ...v, mappingQualityCutoff: value }))
+  const handleMappingQualityCutoffChange = (value: string | number) => {
+    setVisOptions(v => ({ ...v, mappingQualityCutoff: Number(value) }))
   }
 
-  const setNodeLabelColorSetting = (key, value) => {
+  const setNodeLabelColorSetting = (key: string, value: Palette) => {
     setVisOptions(v => ({
       ...v,
       nodeLabelColorScheme: { ...v.nodeLabelColorScheme, [key]: value },
     }))
   }
 
-  const setColorSetting = (key, index, value) => {
+  // Note: HeaderForm.handleGoButton calls this with only (key, value) — that
+  // path leaves `value` undefined here and the original JS would index
+  // colorSchemes by the palette name. Behavior preserved verbatim.
+  const setColorSetting = (
+    key: string,
+    indexOrValue: number | string | Palette,
+    value?: Palette,
+  ) => {
     setVisOptions(v => {
       const newcolors = [...v.colorSchemes]
-      if (newcolors[index] === undefined) {
-        newcolors[index] = { ...config.defaultReadColorPalette }
+      const idx = indexOrValue as unknown as number
+      if (newcolors[idx] === undefined) {
+        newcolors[idx] = { ...config.defaultReadColorPalette }
       }
-      newcolors[index] = { ...newcolors[index], [key]: value }
-      console.log('Set index ' + index + ' key ' + key + ' to ' + value)
+      newcolors[idx] = { ...newcolors[idx], [key]: value }
+      console.log('Set index ' + idx + ' key ' + key + ' to ' + value)
       console.log('New colors: ', newcolors)
       return { ...v, colorSchemes: newcolors }
     })
@@ -161,9 +184,7 @@ function App({ apiUrl = defaultApiUrl }) {
         enableCompressedNodes={viewTarget.removeSequences}
         visOptions={visOptions}
         tracks={
-          dataOrigin === dataOriginTypes.API
-            ? viewTarget.tracks
-            : EXAMPLE_TRACKS
+          dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
         }
         toggleFlag={toggleVisOptionFlag}
         handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}

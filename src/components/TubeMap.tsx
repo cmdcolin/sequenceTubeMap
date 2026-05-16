@@ -1,7 +1,15 @@
 import { useEffect } from 'react'
 import * as tubeMap from '../util/tubemap'
+import type { VisOptions } from '../Types'
 
-function updateVisOptions(visOptions, nodeSequences) {
+interface TubeMapInternalOptions extends VisOptions {
+  coloredNodes?: unknown
+  focusReadNames?: unknown
+  readGroups?: unknown
+  otherReadsColor?: unknown
+}
+
+function updateVisOptions(visOptions: TubeMapInternalOptions, nodeSequences: boolean) {
   if (nodeSequences) {
     visOptions.compressedView
       ? tubeMap.setNodeWidthOption('compressed')
@@ -17,9 +25,9 @@ function updateVisOptions(visOptions, nodeSequences) {
   tubeMap.setShowNodeLabels(visOptions.showNodeLabels)
   tubeMap.setNodeLabelColorScheme(visOptions.nodeLabelColorScheme)
 
-  for (let key of Object.keys(visOptions.colorSchemes)) {
+  for (const key of Object.keys(visOptions.colorSchemes)) {
     tubeMap.setColorSet(key, {
-      ...visOptions.colorSchemes[key],
+      ...visOptions.colorSchemes[Number(key)],
       colorReadsByMappingQuality: visOptions.colorReadsByMappingQuality,
       alphaReadsByMappingQuality: visOptions.alphaReadsByMappingQuality,
     })
@@ -30,6 +38,15 @@ function updateVisOptions(visOptions, nodeSequences) {
   tubeMap.setOtherReadsColor(visOptions.otherReadsColor)
 }
 
+interface TubeMapProps {
+  nodes: unknown
+  tracks: unknown
+  reads: unknown
+  region: unknown
+  visOptions: TubeMapInternalOptions
+  nodeSequences?: boolean
+}
+
 function TubeMap({
   nodes,
   tracks,
@@ -37,13 +54,13 @@ function TubeMap({
   region,
   visOptions,
   nodeSequences = true,
-}) {
+}: TubeMapProps) {
   useEffect(() => {
     updateVisOptions(visOptions, nodeSequences)
     tubeMap.create({ svgID: '#svg', nodes, tracks, reads, region, visOptions })
   }, [nodes, tracks, reads, region, visOptions, nodeSequences])
 
-  return <svg id="svg" alt="Rendered sequence tube map visualization" />
+  return <svg id="svg" aria-label="Rendered sequence tube map visualization" />
 }
 
 export default TubeMap

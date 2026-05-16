@@ -1,59 +1,64 @@
 import { Form, Row, Col } from 'reactstrap'
 import RadioRow from './RadioRow'
 import ColorPicker from './ColorPicker'
+import type {
+  ColorPaletteName,
+  ColorScheme,
+  FileType,
+  Palette,
+} from '../Types'
+
+interface TrackSettingsProps {
+  fileType?: FileType | 'nodeLabel'
+  // Partial because the node-label dialog only carries mainPalette.
+  trackColorSettings?: Partial<ColorScheme>
+  setTrackColorSetting: (key: string, value: Palette) => void
+  label?: string
+  availableColors?: ColorPaletteName[]
+  presetColors?: string[]
+}
+
+const DEFAULT_AVAILABLE_COLORS: ColorPaletteName[] = [
+  'greys',
+  'ygreys',
+  'blues',
+  'reds',
+  'plainColors',
+  'lightColors',
+]
+
+const DEFAULT_PRESET_COLORS = [
+  '#FF6900',
+  '#FCB900',
+  '#7BDCB5',
+  '#00D084',
+  '#8ED1FC',
+  '#0693E3',
+  '#ABB8C3',
+  '#EB144C',
+  '#F78DA7',
+  '#9900EF',
+]
+
+const DEFAULT_COLOR_SETTINGS: Partial<ColorScheme> = {
+  mainPalette: 'blues',
+  auxPalette: 'reds',
+  colorReadsByMappingQuality: false,
+  alphaReadsByMappingQuality: false,
+}
 
 /**
- * A component meant to contain settings related to an individual track
- *
- * fileType expects a string specifying the filetype, e.g "haplotype", "read"
- *
- * trackColorSettings expects an object in the form of
- * {mainPalette: string,
- *  auxPallate: string,
- *  colorReadsByMappingQuality: boolean,
- *  alphaReadsByMappingQuality: boolean}
- *
- * The setTrackColorSetting function expects to be passed a key value pair updating the trackColorSettings object
- *
- * availableColors expects an array of colors(string), must correspond to valid colors defined in RadioRow.js and tubemap.js
- *
- * presetColors expect an array of hex colors, this is used in the single colorPicker
- *
- * See demo and test file for examples of this component.
+ * A component meant to contain settings related to an individual track.
  */
-
 export const TrackSettings = ({
   fileType = 'haplotype',
-  trackColorSettings = {
-    mainPalette: 'blues',
-    auxPalette: 'reds',
-    colorReadsByMappingQuality: false,
-    alphaReadsByMappingQuality: false,
-  },
+  trackColorSettings = DEFAULT_COLOR_SETTINGS,
   setTrackColorSetting,
   label,
-  availableColors = [
-    'greys',
-    'ygreys',
-    'blues',
-    'reds',
-    'plainColors',
-    'lightColors',
-  ],
-  presetColors = [
-    '#FF6900',
-    '#FCB900',
-    '#7BDCB5',
-    '#00D084',
-    '#8ED1FC',
-    '#0693E3',
-    '#ABB8C3',
-    '#EB144C',
-    '#F78DA7',
-    '#9900EF',
-  ],
-}) => {
-  function colorRenderSwitch(fileType) {
+  availableColors = DEFAULT_AVAILABLE_COLORS,
+  presetColors = DEFAULT_PRESET_COLORS,
+}: TrackSettingsProps) => {
+  function colorRenderSwitch(fileType: FileType | 'nodeLabel') {
     switch (fileType) {
       case 'haplotype':
         return (

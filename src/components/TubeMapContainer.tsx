@@ -4,11 +4,12 @@ import { Container, Row, Alert } from 'reactstrap'
 import TubeMap from './TubeMap'
 import * as tubeMap from '../util/tubemap'
 import { dataOriginTypes } from '../enums'
-import PopUpInfoDialog from './PopUpInfoDialog'
+import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog'
 import ReadContextMenu from './ReadContextMenu'
 import NodeContextMenu from './NodeContextMenu'
 import PendingPanel from './PendingPanel'
-import ReadGroupsPanel from './ReadGroupsPanel'
+import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel'
+import type { ViewTarget, VisOptions } from '../Types'
 
 const GROUP_PALETTE_CYCLE = [
   'reds',
@@ -19,7 +20,41 @@ const GROUP_PALETTE_CYCLE = [
   'plainColors',
 ]
 
-function readsFromStringToArray(readsString) {
+interface ReadContextMenuState {
+  readName: string
+  x: number
+  y: number
+}
+
+interface NodeContextMenuState {
+  nodeName: string
+  readNames: string[]
+  x: number
+  y: number
+}
+
+// APIInterface contract; expanded as needed.
+interface APILike {
+  getChunkedData(
+    viewTarget: ViewTarget,
+    cancelSignal: AbortSignal,
+  ): Promise<{
+    graph?: unknown
+    gam?: unknown[]
+    nameMap?: Record<string, unknown>
+    region?: unknown
+    coloredNodes?: unknown
+  }>
+}
+
+interface TubeMapContainerProps {
+  viewTarget: ViewTarget
+  dataOrigin: string
+  visOptions: VisOptions
+  APIInterface: APILike
+}
+
+function readsFromStringToArray(readsString: string): unknown[] {
   return readsString
     .split('\n')
     .filter(line => line.length > 0)
@@ -31,24 +66,28 @@ function TubeMapContainer({
   dataOrigin,
   visOptions,
   APIInterface,
-}) {
+}: TubeMapContainerProps) {
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [infoDialogContent, setInfoDialogContent] = useState(undefined)
-  const [readContextMenu, setReadContextMenu] = useState(null)
-  const [nodeContextMenu, setNodeContextMenu] = useState(null)
-  const [pendingReadSet, setPendingReadSet] = useState([])
-  const [pendingNodeSet, setPendingNodeSet] = useState([])
-  const [focusReadNames, setFocusReadNames] = useState(null)
-  const [readGroups, setReadGroups] = useState([])
-  const [activeGroupId, setActiveGroupId] = useState(null)
+  const [error, setError] = useState<Error | string | null>(null)
+  const [infoDialogContent, setInfoDialogContent] = useState<
+    InfoAttribute[] | undefined
+  >(undefined)
+  const [readContextMenu, setReadContextMenu] =
+    useState<ReadContextMenuState | null>(null)
+  const [nodeContextMenu, setNodeContextMenu] =
+    useState<NodeContextMenuState | null>(null)
+  const [pendingReadSet, setPendingReadSet] = useState<string[]>([])
+  const [pendingNodeSet, setPendingNodeSet] = useState<string[]>([])
+  const [focusReadNames, setFocusReadNames] = useState<string[] | null>(null)
+  const [readGroups, setReadGroups] = useState<ReadGroup[]>([])
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [groupCounter, setGroupCounter] = useState(0)
   const [otherReadsColor, setOtherReadsColor] = useState('greys')
-  const [nodes, setNodes] = useState(undefined)
-  const [tracks, setTracks] = useState(undefined)
-  const [reads, setReads] = useState(undefined)
-  const [region, setRegion] = useState(undefined)
-  const [coloredNodes, setColoredNodes] = useState(undefined)
+  const [nodes, setNodes] = useState<unknown>(undefined)
+  const [tracks, setTracks] = useState<unknown>(undefined)
+  const [reads, setReads] = useState<unknown>(undefined)
+  const [region, setRegion] = useState<unknown>(undefined)
+  const [coloredNodes, setColoredNodes] = useState<unknown>(undefined)
 
   useEffect(() => {
     const abortController = new AbortController()
@@ -62,9 +101,9 @@ function TubeMapContainer({
           if (json.graph === undefined) {
             throw new Error('Fetching remote data returned error')
           }
-          let readTrackIDs = []
-          let graphTrackID = null
-          let haplotypeTrackID = null
+          const readTrackIDs: string[] = []
+          let graphTrackID: string | null = null
+          let haplotypeTrackID: string | null = null
           console.log('getting viewTarget ', viewTarget)
           for (const i in viewTarget.tracks) {
             const track = viewTarget.tracks[i]
@@ -84,9 +123,9 @@ function TubeMapContainer({
             graphTrackID,
             haplotypeTrackID,
           )
-          let readsArr = []
+          const readsArr: unknown[][] = []
           let totalReads = 0
-          for (const gam of json.gam) {
+          for (const gam of json.gam ?? []) {
             const newReads = tubeMap.vgExtractReads(
               newNodes,
               newTracks,
@@ -104,7 +143,7 @@ function TubeMapContainer({
           setColoredNodes(json.coloredNodes)
           setIsLoading(false)
         })
-        .catch(err => {
+        .catch((err: Error) => {
           if (!cancelSignal.aborted) {
             console.error('Fetching and parsing getChunkedData failed:', err)
             setError(err)
@@ -116,10 +155,10 @@ function TubeMapContainer({
     } else {
       setIsLoading(true)
       import('../util/demo-data').then(data => {
-        let newNodes = []
-        let newTracks = []
-        let newReads = []
-        let newRegion = []
+        let newNodes: unknown = []
+        let newTracks: unknown = []
+        let newReads: unknown = []
+        const newRegion: unknown = []
         let vg
         newNodes = data.inputNodes
         switch (dataOrigin) {
@@ -203,13 +242,19 @@ function TubeMapContainer({
   }, [dataOrigin, viewTarget, APIInterface])
 
   useEffect(() => {
-    tubeMap.setInfoCallback(text => setInfoDialogContent(text))
-    tubeMap.setReadContextMenuCallback(menu => setReadContextMenu(menu))
-    tubeMap.setNodeContextMenuCallback(menu => setNodeContextMenu(menu))
+    tubeMap.setInfoCallback((text: InfoAttribute[]) =>
+      setInfoDialogContent(text),
+    )
+    tubeMap.setReadContextMenuCallback((menu: ReadContextMenuState | null) =>
+      setReadContextMenu(menu),
+    )
+    tubeMap.setNodeContextMenuCallback((menu: NodeContextMenuState | null) =>
+      setNodeContextMenu(menu),
+    )
   }, [])
 
   if (error) {
-    const message = error.message ? error.message : error
+    const message = error instanceof Error ? error.message : String(error)
     return (
       <div id="tubeMapContainer">
         <Container>
@@ -243,7 +288,7 @@ function TubeMapContainer({
       ? focusReadNames
       : pendingReadSet
 
-  const addNamesToPendingSet = names => {
+  const addNamesToPendingSet = (names: string[]) => {
     const next = [...editingBase]
     names.forEach(name => {
       if (!next.includes(name)) next.push(name)
@@ -253,7 +298,7 @@ function TubeMapContainer({
     setNodeContextMenu(null)
   }
 
-  const addNodeToNodeSet = nodeName => {
+  const addNodeToNodeSet = (nodeName: string) => {
     setPendingNodeSet(
       pendingNodeSet.includes(nodeName)
         ? pendingNodeSet
@@ -262,11 +307,13 @@ function TubeMapContainer({
     setNodeContextMenu(null)
   }
 
-  const addReadsThroughNodeSet = mode => {
-    addNamesToPendingSet(tubeMap.getReadNamesThroughNodes(pendingNodeSet, mode))
+  const addReadsThroughNodeSet = (mode: string) => {
+    addNamesToPendingSet(
+      tubeMap.getReadNamesThroughNodes(pendingNodeSet, mode),
+    )
   }
 
-  const addReadsToGroup = (groupId, names) => {
+  const addReadsToGroup = (groupId: string, names: string[]) => {
     setReadGroups(
       readGroups.map(g => {
         if (g.id !== groupId) return g
@@ -297,27 +344,27 @@ function TubeMapContainer({
     setPendingReadSet([])
   }
 
-  const addNamesToActiveGroup = names => {
+  const addNamesToActiveGroup = (names: string[]) => {
     if (activeGroupId === null || names.length === 0) return
     addReadsToGroup(activeGroupId, names)
     setReadContextMenu(null)
     setNodeContextMenu(null)
   }
 
-  const renameGroup = (id, name) => {
+  const renameGroup = (id: string, name: string) => {
     setReadGroups(readGroups.map(g => (g.id === id ? { ...g, name } : g)))
   }
 
-  const recolorGroup = (id, color) => {
+  const recolorGroup = (id: string, color: string) => {
     setReadGroups(readGroups.map(g => (g.id === id ? { ...g, color } : g)))
   }
 
-  const deleteGroup = id => {
+  const deleteGroup = (id: string) => {
     setReadGroups(readGroups.filter(g => g.id !== id))
     if (activeGroupId === id) setActiveGroupId(null)
   }
 
-  const activeGroup = readGroups.find(g => g.id === activeGroupId)
+  const activeGroup = readGroups.find(g => g.id === activeGroupId) ?? null
   const pendingReadActions = [
     {
       label: `Filter to these ${pendingReadSet.length} read${pendingReadSet.length === 1 ? '' : 's'}`,

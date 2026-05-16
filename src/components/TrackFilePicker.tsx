@@ -1,9 +1,29 @@
+import { createRef } from 'react'
 import Autocomplete from '@mui/material/Autocomplete'
 import TextField from '@mui/material/TextField'
-import React from 'react'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { Input } from 'reactstrap'
+import type { AvailableTrack, FileType } from '../Types'
+
+interface TrackOption {
+  label: string
+  value: string | undefined
+}
+
+interface TrackFilePickerProps {
+  tracks: AvailableTrack[]
+  fileType?: FileType
+  value?: string
+  handleInputChange: (newValue: string | undefined) => void
+  pickerType?: 'mounted' | 'upload'
+  className?: string
+  testID?: string
+  handleFileUpload: (
+    fileType: FileType,
+    file: File,
+  ) => Promise<string | undefined>
+}
 
 /*
  * A selection dropdown component that select files.
@@ -13,60 +33,54 @@ import { Input } from 'reactstrap'
  *
  * See demo and test file for examples of this component.
  */
-
-//handleInputChange takes in a string trackType
 export const TrackFilePicker = ({
-  tracks, // array of available tracks
-  fileType = 'graph', // e.g read, gam, graph
-  value, // input file
+  tracks,
+  fileType = 'graph',
+  value,
   handleInputChange,
-  pickerType = 'mounted', // either "dropdown or upload" to determine which component we render
-  className = undefined,
+  pickerType = 'mounted',
+  className,
   testID = 'file-select-component',
   handleFileUpload,
-}) => {
-  let uploadFileInput = React.createRef()
-  let acceptedExtensions = config.fileTypeToExtensions[fileType]
+}: TrackFilePickerProps) => {
+  const uploadFileInput = createRef<HTMLInputElement>()
+  const acceptedExtensions = config.fileTypeToExtensions[fileType]
 
   async function uploadOnChange() {
-    // TODO: we have a ref here for a reason, but the ref's value can be null
-    // when the upload await finishes. So we capture it to a local.
+    // The ref's value can be null when the upload await finishes, so capture it.
     const uploadingInput = uploadFileInput.current
-    const file = uploadingInput.files[0]
+    if (!uploadingInput) return
+    const file = uploadingInput.files?.[0]
+    if (!file) return
 
     try {
       const completePath = await handleFileUpload(fileType, file)
       console.log('TrackFilePicker got an upload result:', completePath)
-      // This will be nothing if the upoload was canceled.
       handleInputChange(completePath)
     } catch (e) {
       console.error('TrackFilePicker could not upload: ', e)
       // TODO: Display error to user in a better way
-      alert(e.toString())
-      // Clear out the uploaded file to show it didn't work.
-      uploadingInput.value = null
+      alert(String(e))
+      uploadingInput.value = ''
     }
   }
 
-  function mountedOnChange(option) {
-    // update parent state
-    value = option.value
+  function mountedOnChange(option: TrackOption) {
     handleInputChange(option.value)
   }
 
-  function getFilename(fullPath) {
+  function getFilename(fullPath: string) {
     const segments = fullPath.split('/')
     return segments[segments.length - 1]
   }
 
   // Make the list of all options for the <Select>
-  let allOptions = []
+  const allOptions: TrackOption[] = []
   // And the currently selected one
-  let currentOption = null
+  let currentOption: TrackOption | null = null
   for (const track of tracks) {
-    if (track.trackType === fileType) {
-      // This track could get selected so make an object for the Select.
-      let trackOption = {
+    if (track.trackType === fileType && track.trackFile !== undefined) {
+      const trackOption: TrackOption = {
         label: getFilename(track.trackFile),
         value: track.trackFile,
       }
@@ -76,19 +90,15 @@ export const TrackFilePicker = ({
       }
       allOptions.push(trackOption)
       if (trackOption.value === value) {
-        // This one should be the selected one.
         currentOption = trackOption
       }
     }
   }
   if (currentOption === null) {
-    // We didn't find an option that matches what's currently selected.
     if (value === undefined) {
-      // Because we're in a special nothing-is-selected state. Make a placeholder to represent that.
+      // Special "nothing-is-selected" state. Make a placeholder.
       currentOption = { label: 'Select a file', value: undefined }
     } else {
-      // We're *supposed* to always be given one.
-      // Make an even more implied option.
       console.warn('Value ' + value + ' not found in available tracks:', tracks)
       currentOption = { label: '(!) ' + getFilename(value), value: value }
     }
@@ -98,9 +108,9 @@ export const TrackFilePicker = ({
     const placeholderActive = value === undefined
     return (
       <div data-testid={testID}>
-        <Autocomplete
+        <Autocomplete<TrackOption, false, true>
           options={allOptions}
-          value={placeholderActive ? null : currentOption}
+          value={currentOption}
           size="small"
           disableClearable
           isOptionEqualToValue={(o, v) => o.value === v.value}
@@ -135,7 +145,7 @@ export const TrackFilePicker = ({
           className="customDataUpload form-control-file"
           accept={acceptedExtensions}
           innerRef={uploadFileInput}
-          onChange={uploadOnChange}
+          onChange={() => uploadOnChange()}
         />
       </div>
     )

@@ -5,12 +5,18 @@ import App from './App'
 import package_json from '../package.json'
 
 let basename = ''
-if (package_json.homepage) {
-  const homepage_url = new URL(package_json.homepage)
+const homepage = (package_json as { homepage?: string }).homepage
+if (homepage) {
+  const homepage_url = new URL(homepage)
   basename = homepage_url.pathname
 }
 
-createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root')
+if (!rootElement) {
+  throw new Error('Root element not found')
+}
+
+createRoot(rootElement).render(
   <BrowserRouter basename={basename}>
     <Routes>
       <Route path="/">

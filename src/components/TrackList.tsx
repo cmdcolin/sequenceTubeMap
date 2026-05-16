@@ -1,21 +1,34 @@
 import { TrackListItem } from './TrackListItem'
+import type {
+  AvailableTrack,
+  ColorPaletteName,
+  FileType,
+  Track,
+  Tracks,
+} from '../Types'
+
+interface TrackListProps {
+  tracks: Tracks
+  availableTracks: AvailableTrack[]
+  availableColors?: ColorPaletteName[]
+  onChange: (newTracks: Tracks) => void
+  onDelete: (trackID: number) => void
+  handleFileUpload: (
+    fileType: FileType,
+    file: File,
+  ) => Promise<string | undefined>
+}
 
 export const TrackList = ({
-  // tracks expects an object mapping an trackID to trackProps, which includes
-  // * trackType: string
-  // * trackFile: file object / undefined
-  // * trackColorSettings: object(aka. colorScheme)
   tracks,
-  // availableTracks: array of tracks(see types.ts)
   availableTracks,
-  // availableColors: array of ColorPalettes
   availableColors,
-  onChange, // expects a new tracks object
+  onChange,
   onDelete,
   handleFileUpload,
-}) => {
-  function trackItemOnChange(trackID, trackProps) {
-    let newTracks = { ...tracks }
+}: TrackListProps) => {
+  function trackItemOnChange(trackID: number, trackProps: Track) {
+    const newTracks: Tracks = { ...tracks }
     newTracks[trackID] = trackProps
     if (JSON.stringify(newTracks) !== JSON.stringify(tracks)) {
       onChange(newTracks)
@@ -23,11 +36,9 @@ export const TrackList = ({
   }
 
   function renderTracks() {
-    let trackHTML = []
-
-    Object.keys(tracks).forEach((trackID, index) => {
+    return Object.keys(tracks).map(trackID => {
       const trackProps = tracks[trackID]
-      trackHTML.push(
+      return (
         <TrackListItem
           trackProps={trackProps}
           availableTracks={availableTracks}
@@ -37,11 +48,9 @@ export const TrackList = ({
           trackID={parseInt(trackID)}
           key={trackID}
           handleFileUpload={handleFileUpload}
-        />,
+        />
       )
     })
-
-    return trackHTML
   }
 
   return <div>{renderTracks()}</div>

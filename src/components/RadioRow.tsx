@@ -1,6 +1,6 @@
 import type { ReactNode, ChangeEvent } from 'react'
 import { Col, Label, Input, FormGroup } from 'reactstrap'
-import type { ColorPaletteName } from '../Types'
+import type { ColorPaletteName, Palette } from '../Types'
 
 // map of all possible colors [displayedName, value]
 const colorMap = new Map<string, ColorPaletteName>([
@@ -22,9 +22,9 @@ const defaultAvailableColors: ColorPaletteName[] = [
 ]
 
 interface RadioRowProps {
-  color?: ColorPaletteName | string
+  color?: Palette | string
   rowHeading: ReactNode
-  setColorSetting: (setting: string, value: ColorPaletteName | undefined) => void
+  setColorSetting: (setting: string, value: Palette) => void
   setting: string
   availableColors?: ColorPaletteName[]
 }
@@ -37,7 +37,10 @@ function RadioRow({
   availableColors = defaultAvailableColors,
 }: RadioRowProps) {
   const onChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setColorSetting(setting, colorMap.get(event.target.value))
+    const next = colorMap.get(event.target.value)
+    if (next !== undefined) {
+      setColorSetting(setting, next)
+    }
   }
 
   const currColorMap = new Map(

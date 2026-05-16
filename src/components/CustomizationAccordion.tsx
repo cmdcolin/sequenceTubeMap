@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   Container,
   Collapse,
@@ -11,6 +11,19 @@ import {
   FormGroup,
 } from 'reactstrap'
 import TrackSettings from './TrackSettings'
+import type { Palette, Tracks, VisOptions } from '../Types'
+
+interface VisualizationOptionsProps {
+  visOptions: VisOptions
+  toggleFlag: (flagName: string) => void
+  tracks: Tracks
+  setColorSetting: (key: string, index: number | string, value: Palette) => void
+  setNodeLabelColorSetting: (key: string, value: Palette) => void
+  handleMappingQualityCutoffChange: (value: string) => void
+  enableCompressedNodes?: boolean
+  currentAPIMode: string
+  setAPIMode: (mode: string) => void
+}
 
 function VisualizationOptions({
   visOptions,
@@ -22,7 +35,7 @@ function VisualizationOptions({
   enableCompressedNodes,
   currentAPIMode,
   setAPIMode,
-}) {
+}: VisualizationOptionsProps) {
   const [isOpenLegend, setIsOpenLegend] = useState(false)
   const [isOpenVisualizationOptions, setIsOpenVisualizationOptions] =
     useState(true)
@@ -35,8 +48,8 @@ function VisualizationOptions({
   ))
 
   let readTrackNumber = 1
-  let trackSettingsList = []
-  for (let key in tracks) {
+  const trackSettingsList: React.ReactNode[] = []
+  for (const key in tracks) {
     const track = tracks[key]
     console.log(track)
     if (!track.trackFile) {
@@ -49,13 +62,11 @@ function VisualizationOptions({
           key={key}
           label="Graph Paths"
           fileType={type}
-          trackColorSettings={visOptions.colorSchemes[key]}
+          trackColorSettings={visOptions.colorSchemes[Number(key)]}
           setTrackColorSetting={(k, v) => setColorSetting(k, key, v)}
         />,
       )
-    } else if (type === 'haplotype') {
-      // TODO: Do nothing for now. Haplotypes get assigned to the graph as their source track right now.
-    } else if (type === 'node') {
+    } else if (type === 'haplotype' || type === 'node') {
       // TODO: Do nothing for now. Haplotypes get assigned to the graph as their source track right now.
     } else if (type === 'read') {
       if (visOptions.showReads) {
@@ -64,7 +75,7 @@ function VisualizationOptions({
             key={key}
             label={'Read Track ' + readTrackNumber}
             fileType={type}
-            trackColorSettings={visOptions.colorSchemes[key]}
+            trackColorSettings={visOptions.colorSchemes[Number(key)]}
             setTrackColorSetting={(k, v) => setColorSetting(k, key, v)}
           />,
         )
@@ -183,7 +194,7 @@ function VisualizationOptions({
                   </Label>
                 </FormGroup>
                 {visOptions.showReads && (
-                  <React.Fragment>
+                  <Fragment>
                     <FormGroup check>
                       <Label check>
                         <Input
@@ -237,7 +248,7 @@ function VisualizationOptions({
                         {mappingQualityOptions}
                       </Input>
                     </Form>
-                  </React.Fragment>
+                  </Fragment>
                 )}
               </FormGroup>
             </CardBody>
