@@ -2032,16 +2032,24 @@ api.get('/getFilenames', (req, res) => {
 function runVgLines(args, onLine) {
   return new Promise((resolve, reject) => {
     const child = spawn(find_vg(), args)
-    child.stderr.on('data', d => console.log(`vg ${args[0]} stderr: ${d}`))
+    let stderr = ''
+    child.stderr.on('data', d => {
+      const s = d.toString()
+      stderr += s
+      console.log(`vg ${args[0]} stderr: ${s}`)
+    })
     const reader = rl.createInterface({ input: child.stdout })
     reader.on('line', onLine)
     let code = null
     let readerDone = false
     const finish = () => {
       if (code === null || !readerDone) return
-      code !== 0
-        ? reject(new VgExecutionError(`vg ${args.join(' ')} failed`))
-        : resolve()
+      if (code !== 0) {
+        const detail = stderr.trim() ? `: ${stderr.trim()}` : ''
+        reject(new VgExecutionError(`vg ${args.join(' ')} failed${detail}`))
+      } else {
+        resolve()
+      }
     }
     child.on('error', reject)
     child.on('close', c => {
@@ -2184,7 +2192,7 @@ api.post('/getPathInfo', async (req, res, next) => {
             cyclicNames.add(name)
           }
         }
-      }).catch(() => {}),
+      }),
     ])
     const pathInfo = lengthLines
       .filter(line => line !== '' && !line.startsWith('_'))
