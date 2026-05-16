@@ -48,7 +48,7 @@
     "which": "^6.0.1"
   },
   "scripts": {
-    "start": "concurrently -n frontend,backend -c red,green 'webpack serve' 'npm:serve'",
+    "start": "concurrently -n frontend,backend -c cyan,green 'webpack serve' 'npm:serve'",
     "build": "webpack --mode production",
     "test": "vitest run",
     "predeploy": "npm run build",
