@@ -64,6 +64,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@babel/preset-react": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
     "@eslint/js": "^10.0.1",
     "@types/d3": "^7.4.3",
     "@types/qs": "^6.15.1",

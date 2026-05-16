@@ -26,18 +26,21 @@ export default {
     clean: true,
   },
   resolve: {
-    extensions: ['.mjs', '.js', '.jsx', '.json'],
+    extensions: ['.tsx', '.ts', '.mjs', '.js', '.jsx', '.json'],
   },
   module: {
     rules: [
       {
-        test: /\.(js|mjs|jsx)$/,
+        test: /\.(ts|tsx|js|mjs|jsx)$/,
         include: path.resolve(__dirname, 'src'),
         use: {
           loader: 'babel-loader',
           options: {
             plugins: ['babel-plugin-react-compiler'],
-            presets: [['@babel/preset-react', { runtime: 'automatic' }]],
+            presets: [
+              ['@babel/preset-react', { runtime: 'automatic' }],
+              '@babel/preset-typescript',
+            ],
           },
         },
       },
@@ -53,7 +56,7 @@ export default {
       {
         exclude: [
           /^$/,
-          /\.(js|mjs|jsx)$/,
+          /\.(tsx|ts|js|mjs|jsx)$/,
           /\.html$/,
           /\.json$/,
           /\.wasm$/,
@@ -76,6 +79,7 @@ export default {
   devServer: {
     host: process.env.HOST || '127.0.0.1',
     port: parseInt(process.env.PORT || '3001'),
+    allowedHosts: 'all',
     hot: true,
     historyApiFallback: true,
     proxy: [
