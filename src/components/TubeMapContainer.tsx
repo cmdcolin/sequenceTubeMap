@@ -76,6 +76,10 @@ function TubeMapContainer({
 
     if (dataOrigin === dataOriginTypes.API) {
       if (Object.keys(viewTarget.tracks).length === 0) {
+        // No-tracks case: clear previously-fetched data. setState in effect is
+        // intentional here — these values are populated only by this effect's
+        // fetches, so the effect is also the right place to clear them.
+        /* eslint-disable react-hooks/set-state-in-effect */
         setNodes(undefined)
         setTracks(undefined)
         setReads(undefined)
@@ -83,6 +87,7 @@ function TubeMapContainer({
         setColoredNodes(undefined)
         setIsLoading(false)
         setError(null)
+        /* eslint-enable react-hooks/set-state-in-effect */
         return
       }
       setIsLoading(true)
@@ -127,15 +132,16 @@ function TubeMapContainer({
           setColoredNodes(json.coloredNodes)
           setIsLoading(false)
         })
-        .catch((err: Error) => {
+        .catch((err: unknown) => {
           if (!cancelSignal.aborted) {
             console.error('Fetching and parsing getChunkedData failed:', err)
-            setError(err)
+            setError(err instanceof Error ? err : String(err))
             setIsLoading(false)
           }
         })
     } else {
       setIsLoading(true)
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       import('../util/demo-data').then(data => {
         const result = computeExampleData(dataOrigin, data)
         setNodes(result.nodes)
@@ -146,18 +152,18 @@ function TubeMapContainer({
       })
     }
 
-    return () => abortController.abort()
+    return () => { abortController.abort(); }
   }, [dataOrigin, viewTarget, APIInterface])
 
   useEffect(() => {
     tubeMap.setInfoCallback((text: InfoAttribute[]) =>
-      setInfoDialogContent(text),
+      { setInfoDialogContent(text); },
     )
     tubeMap.setReadContextMenuCallback((menu: ReadContextMenuState | null) =>
-      setReadContextMenu(menu),
+      { setReadContextMenu(menu); },
     )
     tubeMap.setNodeContextMenuCallback((menu: NodeContextMenuState | null) =>
-      setNodeContextMenu(menu),
+      { setNodeContextMenu(menu); },
     )
   }, [])
 
@@ -277,7 +283,7 @@ function TubeMapContainer({
     {
       label: 'Save as group',
       hint: "Color these reads distinctly. Other reads stay visible but use the 'Other' color.",
-      onClick: () => saveSetAsNewGroup(),
+      onClick: () => { saveSetAsNewGroup(); },
     },
     ...(activeGroup
       ? [
@@ -294,7 +300,7 @@ function TubeMapContainer({
     {
       label: 'Clear set',
       hint: 'Discard the staged reads without filtering or grouping.',
-      onClick: () => setPendingReadSet([]),
+      onClick: () => { setPendingReadSet([]); },
     },
   ]
 
@@ -305,7 +311,7 @@ function TubeMapContainer({
       <PopUpInfoDialog
         open={isOpen}
         attributes={infoDialogContent}
-        close={() => setInfoDialogContent(undefined)}
+        close={() => { setInfoDialogContent(undefined); }}
       />
       {pendingNodeSet.length > 0 ? (
         <PendingPanel
@@ -314,22 +320,22 @@ function TubeMapContainer({
           titleHint="Nodes you've selected; use the actions below to stage reads that travel through them."
           items={pendingNodeSet}
           onRemove={nodeName =>
-            setPendingNodeSet(pendingNodeSet.filter(n => n !== nodeName))
+            { setPendingNodeSet(pendingNodeSet.filter(n => n !== nodeName)); }
           }
           actions={[
             {
               label: `Add reads through all ${pendingNodeSet.length} node${pendingNodeSet.length === 1 ? '' : 's'} (intersection)`,
               hint: 'Only reads whose path visits every node in this set.',
-              onClick: () => addReadsThroughNodeSet('all'),
+              onClick: () => { addReadsThroughNodeSet('all'); },
             },
             {
               label: 'Add reads through any (union)',
               hint: 'Any read whose path visits at least one node in this set.',
-              onClick: () => addReadsThroughNodeSet('any'),
+              onClick: () => { addReadsThroughNodeSet('any'); },
             },
             {
               label: 'Clear node set',
-              onClick: () => setPendingNodeSet([]),
+              onClick: () => { setPendingNodeSet([]); },
             },
           ]}
         />
@@ -341,7 +347,7 @@ function TubeMapContainer({
           titleHint="Reads staged for an action: filter to only these, save as a color group, or merge into the active group."
           items={pendingReadSet}
           onRemove={name =>
-            setPendingReadSet(pendingReadSet.filter(n => n !== name))
+            { setPendingReadSet(pendingReadSet.filter(n => n !== name)); }
           }
           actions={pendingReadActions}
         />
@@ -351,11 +357,11 @@ function TubeMapContainer({
           groups={readGroups}
           activeGroupId={activeGroupId}
           otherReadsColor={otherReadsColor}
-          onSetActive={id => setActiveGroupId(id)}
-          onRename={(id, name) => renameGroup(id, name)}
-          onRecolor={(id, color) => recolorGroup(id, color)}
-          onDelete={id => deleteGroup(id)}
-          onRecolorOther={color => setOtherReadsColor(color)}
+          onSetActive={id => { setActiveGroupId(id); }}
+          onRename={(id, name) => { renameGroup(id, name); }}
+          onRecolor={(id, color) => { recolorGroup(id, color); }}
+          onDelete={id => { deleteGroup(id); }}
+          onRecolorOther={color => { setOtherReadsColor(color); }}
         />
       ) : null}
       {focusReadNames ? (
@@ -366,7 +372,7 @@ function TubeMapContainer({
           actions={[
             {
               label: 'Clear filter',
-              onClick: () => setFocusReadNames(null),
+              onClick: () => { setFocusReadNames(null); },
             },
           ]}
         />
@@ -405,9 +411,9 @@ function TubeMapContainer({
             setFocusReadNames([name])
             setReadContextMenu(null)
           }}
-          onAddToSet={name => addNamesToPendingSet([name])}
-          onAddToActiveGroup={name => addNamesToActiveGroup([name])}
-          onClose={() => setReadContextMenu(null)}
+          onAddToSet={name => { addNamesToPendingSet([name]); }}
+          onAddToActiveGroup={name => { addNamesToActiveGroup([name]); }}
+          onClose={() => { setReadContextMenu(null); }}
         />
       ) : null}
       {nodeContextMenu ? (
@@ -418,10 +424,10 @@ function TubeMapContainer({
           x={nodeContextMenu.x}
           y={nodeContextMenu.y}
           activeGroup={activeGroup}
-          onAddReadsToSet={names => addNamesToPendingSet(names)}
-          onAddReadsToActiveGroup={names => addNamesToActiveGroup(names)}
-          onAddNodeToNodeSet={name => addNodeToNodeSet(name)}
-          onClose={() => setNodeContextMenu(null)}
+          onAddReadsToSet={names => { addNamesToPendingSet(names); }}
+          onAddReadsToActiveGroup={names => { addNamesToActiveGroup(names); }}
+          onAddNodeToNodeSet={name => { addNodeToNodeSet(name); }}
+          onClose={() => { setNodeContextMenu(null); }}
         />
       ) : null}
     </div>

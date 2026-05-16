@@ -1,6 +1,5 @@
 import { Fragment, useState, useEffect, useRef } from 'react'
 import { Container, Row, Col, Label, Alert, Button } from 'reactstrap'
-import { dataOriginTypes } from '../enums'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { LocalAPI } from '../api/LocalAPI'
@@ -73,7 +72,6 @@ interface CoordsMetaData {
 }
 
 function HeaderForm({
-  dataOrigin,
   setColorSetting,
   setDataOrigin,
   setCurrentViewTarget,
@@ -100,9 +98,9 @@ function HeaderForm({
   const [error, setError] = useState<Error | string | null>(null)
   const [availableTracks, setAvailableTracks] = useState<AvailableTrack[]>([])
   const [availableBeds, setAvailableBeds] = useState<string[]>([])
-  const [simplify, setSimplify] = useState(initialView.simplify)
+  const [simplify, setSimplify] = useState(initialView.simplify ?? false)
   const [removeSequences, setRemoveSequences] = useState(
-    initialView.removeSequences,
+    initialView.removeSequences ?? false,
   )
   const [popupOpen, setPopupOpen] = useState(false)
 
@@ -112,6 +110,8 @@ function HeaderForm({
 
   // Snapshot of state read after `await` in async fetch handlers to avoid
   // stale closures. Only fields actually consumed post-await are tracked.
+  // Assigned during render (not in useEffect) so the ref is in sync with the
+  // current render before any post-render code reads it.
   const stateRef = useRef({
     tracks,
     bedFile,
@@ -119,6 +119,7 @@ function HeaderForm({
     dataType,
     availableTracks,
   })
+  // eslint-disable-next-line react-hooks/refs
   stateRef.current = {
     tracks,
     bedFile,
@@ -168,7 +169,7 @@ function HeaderForm({
         throw new Error('Server did not send back an array of path info')
       }
       const laterGraphTrack = firstGraphTrack(stateRef.current.tracks)
-      if (laterGraphTrack && laterGraphTrack.trackFile === graphFile) {
+      if (laterGraphTrack?.trackFile === graphFile) {
         setPathInfo(json.pathInfo)
       }
     } catch (err) {
@@ -196,6 +197,7 @@ function HeaderForm({
           const bedAvailable =
             isValidURL(currentBedFile) || bedFiles.includes(currentBedFile ?? '')
           if (bedAvailable && isSet(currentBedFile)) {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             getBedRegions(currentBedFile)
           }
 
@@ -204,6 +206,7 @@ function HeaderForm({
             graphTrack?.trackFile &&
             !trackIsImplied(graphTrack, availableTrackSet)
           ) {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             getPathInfo(graphTrack.trackFile)
           }
         }
@@ -222,7 +225,9 @@ function HeaderForm({
     const controller = new AbortController()
     cancelSignalRef.current = controller.signal
 
+    /* eslint-disable @typescript-eslint/no-floating-promises, react-hooks/set-state-in-effect */
     getMountedFilenames()
+    /* eslint-enable @typescript-eslint/no-floating-promises, react-hooks/set-state-in-effect */
     APIInterface.subscribeToFilenameChanges(
       getMountedFilenames,
       controller.signal,
@@ -271,6 +276,7 @@ function HeaderForm({
     if (!sameGraph) {
       setPathInfo([])
       if (newGraph?.trackFile && !trackIsImplied(newGraph, availableTrackSet)) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         getPathInfo(newGraph.trackFile)
       }
     }
@@ -348,6 +354,7 @@ function HeaderForm({
       setRegionInfo({})
       setDesc(undefined)
       if (isSet(value)) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         getBedRegions(value)
       }
     }
@@ -392,17 +399,27 @@ function HeaderForm({
   }
 
   function handleGoRight() {
-    isSet(bedFile) ? jumpRegion(1) : budgeRegion(0.5)
+    if (isSet(bedFile)) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      jumpRegion(1)
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      budgeRegion(0.5)
+    }
   }
 
   function handleGoLeft() {
-    isSet(bedFile) ? jumpRegion(-1) : budgeRegion(-0.5)
+    if (isSet(bedFile)) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      jumpRegion(-1)
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      budgeRegion(-0.5)
+    }
   }
 
-  function handleDataSourceChange(event: SelectChangeEvent<string>) {
+  function handleDataSourceChange(event: SelectChangeEvent) {
     const value = event.target.value
-
-    setCurrentViewTarget({ tracks: {}, region: '' })
 
     if (value === dataTypes.CUSTOM_FILES) {
       setBedSelect('none')
@@ -423,6 +440,7 @@ function HeaderForm({
       const ds = DATA_SOURCES.find(d => d.name === value)
       if (ds) {
         if (isSet(ds.bedFile)) {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           getBedRegions(ds.bedFile)
         } else {
           setRegionInfo({})
@@ -434,6 +452,7 @@ function HeaderForm({
           setPathInfo([])
         }
         if (graphTrack?.trackFile) {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           getPathInfo(graphTrack.trackFile)
         }
 
@@ -468,6 +487,7 @@ function HeaderForm({
         cancelSignalRef.current,
       )
       if (fileType === 'graph') {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         getMountedFilenames()
       }
       setUploadInProgress(false)
@@ -513,9 +533,9 @@ function HeaderForm({
 
   const DataPositionFormRowComponent = (
     <DataPositionFormRow
-      handleGoLeft={() => handleGoLeft()}
-      handleGoRight={() => handleGoRight()}
-      handleGoButton={() => handleGoButton()}
+      handleGoLeft={() => { handleGoLeft(); }}
+      handleGoRight={() => { handleGoRight(); }}
+      handleGoButton={() => { handleGoButton(); }}
       uploadInProgress={uploadInProgress}
       getCurrentViewTarget={getCurrentViewTarget}
       viewTargetHasChange={viewTargetHasChange}
@@ -547,7 +567,7 @@ function HeaderForm({
               size="small"
               fullWidth
               value={dataSourceValue}
-              onChange={e => handleDataSourceChange(e)}
+              onChange={e => { handleDataSourceChange(e); }}
             >
               {dataSourceDropdownOptions.map(opt => (
                 <MenuItem key={opt.value} value={opt.value}>
@@ -570,7 +590,7 @@ function HeaderForm({
                   id="bedSelect"
                   inputId="bedSelectInput"
                   value={bedSelect}
-                  onChange={(e) => handleBedChange(e)}
+                  onChange={(e) => { handleBedChange(e); }}
                   options={availableBeds}
                 />
                 &nbsp;
@@ -589,7 +609,7 @@ function HeaderForm({
                 <div className="d-flex justify-content-end align-items-start flex-shrink-0">
                   <>
                     <Button
-                      onClick={() => setPopupOpen(!popupOpen)}
+                      onClick={() => { setPopupOpen(!popupOpen); }}
                       outline
                       active={simplify || removeSequences}
                     >
@@ -597,7 +617,7 @@ function HeaderForm({
                     </Button>
                     <PopupDialog
                       open={popupOpen}
-                      close={() => setPopupOpen(!popupOpen)}
+                      close={() => { setPopupOpen(!popupOpen); }}
                       width="400px"
                     >
                       <div style={{ height: '10vh' }}>
@@ -607,7 +627,7 @@ function HeaderForm({
                         >
                           <span>Remove Small Variants</span>
                           <Switch
-                            onChange={() => setSimplify(!simplify)}
+                            onChange={() => { setSimplify(!simplify); }}
                             checked={!!simplify}
                           />
                         </label>
@@ -615,7 +635,7 @@ function HeaderForm({
                           <span>Remove Node Sequences</span>
                           <Switch
                             onChange={() =>
-                              setRemoveSequences(!removeSequences)
+                              { setRemoveSequences(!removeSequences); }
                             }
                             checked={!!removeSequences}
                           />
@@ -626,7 +646,7 @@ function HeaderForm({
                   <TrackPicker
                     tracks={tracks}
                     availableTracks={availableTracks}
-                    onChange={newTracks => handleInputChange(newTracks)}
+                    onChange={newTracks => { handleInputChange(newTracks); }}
                     handleFileUpload={async (fileType, file) =>
                       handleFileUpload(fileType, file)
                     }

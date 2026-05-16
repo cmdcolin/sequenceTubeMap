@@ -23,7 +23,9 @@
     "forceConsistentCasingInFileNames": true,
 
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+
+    "types": ["vitest/globals"]
   },
   "include": ["src", "vite.config.mjs"],
   "exclude": ["node_modules", "build", "dist"]

@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   render,
   fireEvent,
@@ -11,27 +10,32 @@ import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.mjs'
 import { selectMuiOption } from '../testUtils'
+import type {
+  AvailableTrack,
+  ColorPaletteName,
+  Tracks,
+} from '../Types'
 
-function openAutocomplete(container) {
+function openAutocomplete(container: HTMLElement) {
   const input = within(container).getByRole('combobox')
   input.focus()
   fireEvent.keyDown(input, { key: 'ArrowDown' })
 }
 
 describe('TrackPicker', () => {
-  const tracks = {
+  const tracks: Tracks = {
     1: config.defaultTrackProps,
     2: config.defaultTrackProps,
     3: config.defaultTrackProps,
   }
-  const availableColors = [
+  const availableColors: ColorPaletteName[] = [
     'greys',
     'ygreys',
     'reds',
     'plainColors',
     'lightColors',
   ]
-  const availableTracks = [
+  const availableTracks: AvailableTrack[] = [
     { trackFile: 'fileA1.vg', trackType: 'graph' },
     { trackFile: 'fileA2.gbwt', trackType: 'haplotype' },
     { trackFile: 'fileB1.gbwt', trackType: 'haplotype' },
@@ -39,52 +43,46 @@ describe('TrackPicker', () => {
     { trackFile: 'fileC1.xg', trackType: 'graph' },
   ]
 
-  it('should render without errors', async () => {
+  it('should render without errors', () => {
     const fakeOnChange = vi.fn()
-    const { queryByTestId } = render(
+    const { getByTestId, queryByTestId } = render(
       <TrackPicker
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
         onChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    const trackPickerButton = queryByTestId('TrackPickerButton')
-
-    expect(trackPickerButton).toBeTruthy()
-
+    const trackPickerButton = getByTestId('TrackPickerButton')
     fireEvent.click(trackPickerButton)
 
     expect(queryByTestId('file-type-select-component1')).toBeTruthy()
-
     expect(queryByTestId('file-type-select-component2')).toBeTruthy()
-
     expect(queryByTestId('file-select-component1')).toBeTruthy()
-
     expect(queryByTestId('settings-button-component1')).toBeTruthy()
-
     expect(queryByTestId('delete-button-component1')).toBeTruthy()
-
     expect(queryByTestId('track-add-button-component')).toBeTruthy()
   })
 
-  it('should add track items when the add button is pressed', async () => {
+  it('should add track items when the add button is pressed', () => {
     const fakeOnChange = vi.fn()
-    const { queryByTestId } = render(
+    const { getByTestId, queryByTestId } = render(
       <TrackPicker
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
         onChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    fireEvent.click(queryByTestId('TrackPickerButton'))
+    fireEvent.click(getByTestId('TrackPickerButton'))
 
     expect(queryByTestId('file-type-select-component4')).toBeFalsy()
 
-    const addButtonComponent = queryByTestId('track-add-button-component')
+    const addButtonComponent = getByTestId('track-add-button-component')
     fireEvent.click(addButtonComponent)
 
     expect(queryByTestId('file-type-select-component4')).toBeTruthy()
@@ -100,57 +98,54 @@ describe('TrackPicker', () => {
 
   it('should call onChange when all files are selected', async () => {
     const fakeOnChange = vi.fn()
-    const { queryByTestId, getByText, rerender } = render(
+    const { getByTestId, rerender } = render(
       <TrackPicker
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
         onChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    fireEvent.click(queryByTestId('TrackPickerButton'))
+    fireEvent.click(getByTestId('TrackPickerButton'))
 
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
-    // select a file for all three track items
-
-    // first track item
-    openAutocomplete(queryByTestId('file-select-component1'))
+    openAutocomplete(getByTestId('file-select-component1'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileA1.vg' }))
 
-    // onChange should not be called
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
-    // second track item
-    await selectMuiOption(queryByTestId('file-type-select-component2'), 'haplotype')
+    await selectMuiOption(
+      getByTestId('file-type-select-component2'),
+      'haplotype',
+    )
 
-    openAutocomplete(queryByTestId('file-select-component2'))
+    openAutocomplete(getByTestId('file-select-component2'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
 
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
-    // third track item
-    openAutocomplete(queryByTestId('file-select-component3'))
+    openAutocomplete(getByTestId('file-select-component3'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileC1.xg' }))
 
-    let newTracks = JSON.parse(JSON.stringify(tracks))
+    const newTracks: Tracks = JSON.parse(JSON.stringify(tracks))
 
-    newTracks[1].trackFile = 'fileA1.vg'
-    newTracks[1].trackType = 'graph'
-    newTracks[1].trackColorSettings = defaultTrackColors('graph')
-    newTracks[2].trackFile = 'fileB1.gbwt'
-    newTracks[2].trackType = 'haplotype'
-    newTracks[2].trackColorSettings = defaultTrackColors('haplotype')
-    newTracks[3].trackFile = 'fileC1.xg'
-    newTracks[3].trackType = 'graph'
-    newTracks[3].trackColorSettings = defaultTrackColors('graph')
+    newTracks[1]!.trackFile = 'fileA1.vg'
+    newTracks[1]!.trackType = 'graph'
+    newTracks[1]!.trackColorSettings = defaultTrackColors('graph')
+    newTracks[2]!.trackFile = 'fileB1.gbwt'
+    newTracks[2]!.trackType = 'haplotype'
+    newTracks[2]!.trackColorSettings = defaultTrackColors('haplotype')
+    newTracks[3]!.trackFile = 'fileC1.xg'
+    newTracks[3]!.trackType = 'graph'
+    newTracks[3]!.trackColorSettings = defaultTrackColors('graph')
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
     expect(fakeOnChange).toHaveBeenCalledWith(newTracks)
 
-    // add a track item and select a file
-    const addButtonComponent = queryByTestId('track-add-button-component')
+    const addButtonComponent = getByTestId('track-add-button-component')
     fireEvent.click(addButtonComponent)
 
     newTracks[4] = config.defaultTrackProps
@@ -160,12 +155,13 @@ describe('TrackPicker', () => {
         availableTracks={availableTracks}
         availableColors={availableColors}
         onChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    await selectMuiOption(queryByTestId('file-type-select-component4'), 'read')
+    await selectMuiOption(getByTestId('file-type-select-component4'), 'read')
 
-    openAutocomplete(queryByTestId('file-select-component4'))
+    openAutocomplete(getByTestId('file-select-component4'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB2.gam' }))
 
     newTracks[4] = {
@@ -180,26 +176,23 @@ describe('TrackPicker', () => {
 
   it('should close when the exit button is pressed', async () => {
     const fakeOnChange = vi.fn()
-    const { queryByTestId, getByText, rerender } = render(
+    const { getByTestId, queryByTestId } = render(
       <TrackPicker
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
         onChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    // open popup
-    fireEvent.click(queryByTestId('TrackPickerButton'))
+    fireEvent.click(getByTestId('TrackPickerButton'))
 
     expect(queryByTestId('file-type-select-component1')).toBeTruthy()
-
     expect(queryByTestId('file-select-component1')).toBeTruthy()
-
     expect(queryByTestId('settings-button-component1')).toBeTruthy()
 
-    // close popup
-    fireEvent.click(queryByTestId('TrackPickerCloseButton'))
+    fireEvent.click(getByTestId('TrackPickerCloseButton'))
 
     await waitFor(() => {
       expect(queryByTestId('file-type-select-component1')).toBeFalsy()

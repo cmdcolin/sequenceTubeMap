@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   render,
   fireEvent,
@@ -8,14 +7,20 @@ import {
 } from '@testing-library/react'
 import { TrackList } from './TrackList'
 import { selectMuiOption } from '../testUtils'
+import type {
+  AvailableTrack,
+  ColorPaletteName,
+  Tracks,
+} from '../Types'
 
-function openAutocomplete(container) {
+function openAutocomplete(container: HTMLElement) {
   const input = within(container).getByRole('combobox')
   input.focus()
   fireEvent.keyDown(input, { key: 'ArrowDown' })
 }
+
 describe('TrackList', () => {
-  const tracks = {
+  const tracks: Tracks = {
     1: {
       trackFile: undefined,
       trackType: 'graph',
@@ -47,14 +52,14 @@ describe('TrackList', () => {
       },
     },
   }
-  const availableColors = [
+  const availableColors: ColorPaletteName[] = [
     'greys',
     'ygreys',
     'reds',
     'plainColors',
     'lightColors',
   ]
-  const availableTracks = [
+  const availableTracks: AvailableTrack[] = [
     { trackFile: 'fileA1.vg', trackType: 'graph' },
     { trackFile: 'fileA2.gbwt', trackType: 'haplotype' },
     { trackFile: 'fileB1.gbwt', trackType: 'haplotype' },
@@ -62,7 +67,12 @@ describe('TrackList', () => {
     { trackFile: 'fileC1.xg', trackType: 'graph' },
   ]
 
-  function rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete) {
+  function rerenderTrackList(
+    rerender: (ui: React.ReactElement) => void,
+    newTracks: Tracks,
+    fakeOnChange: (newTracks: Tracks) => void,
+    fakeOnDelete: (trackID: number) => void,
+  ) {
     rerender(
       <TrackList
         tracks={newTracks}
@@ -70,77 +80,74 @@ describe('TrackList', () => {
         availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
+        handleFileUpload={vi.fn()}
       />,
     )
   }
 
-  it('should render without errors', async () => {
+  it('should render without errors', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
-    const { queryByTestId } = render(
+    const { getByTestId } = render(
       <TrackList
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    expect(queryByTestId('file-type-select-component1')).toBeTruthy()
-
-    expect(queryByTestId('file-type-select-component2')).toBeTruthy()
-
-    expect(queryByTestId('file-select-component1')).toBeTruthy()
-
-    expect(queryByTestId('settings-button-component1')).toBeTruthy()
-
-    expect(queryByTestId('delete-button-component1')).toBeTruthy()
+    expect(getByTestId('file-type-select-component1')).toBeTruthy()
+    expect(getByTestId('file-type-select-component2')).toBeTruthy()
+    expect(getByTestId('file-select-component1')).toBeTruthy()
+    expect(getByTestId('settings-button-component1')).toBeTruthy()
+    expect(getByTestId('delete-button-component1')).toBeTruthy()
   })
 
   it('should call onChange when a track is changed', async () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
-    const { queryByTestId, getByText, rerender } = render(
+    const { getByTestId, getByText, rerender } = render(
       <TrackList
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    // select file type
-    await selectMuiOption(queryByTestId('file-type-select-component1'), 'haplotype')
+    await selectMuiOption(
+      getByTestId('file-type-select-component1'),
+      'haplotype',
+    )
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
-    let newTracks = JSON.parse(JSON.stringify(tracks))
-    newTracks[1].trackType = 'haplotype'
+    const newTracks: Tracks = JSON.parse(JSON.stringify(tracks))
+    newTracks[1]!.trackType = 'haplotype'
     rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete)
 
-    // change file name
-    openAutocomplete(queryByTestId('file-select-component1'))
+    openAutocomplete(getByTestId('file-select-component1'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
 
     expect(fakeOnChange).toHaveBeenCalledTimes(2)
-    newTracks[1].trackFile = 'fileB1.gbwt'
-    newTracks[1].trackType = 'haplotype'
+    newTracks[1]!.trackFile = 'fileB1.gbwt'
+    newTracks[1]!.trackType = 'haplotype'
     expect(fakeOnChange).toHaveBeenCalledWith(newTracks)
 
-    // rerender file select effect
     rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete)
 
-    // change color
-    const settingsButtonComponent = queryByTestId('settings-button-component1')
-    fireEvent.click(settingsButtonComponent)
+    fireEvent.click(getByTestId('settings-button-component1'))
     await waitFor(() => getByText('reds'))
     fireEvent.click(getByText('reds'))
     fireEvent.click(document)
 
     expect(fakeOnChange).toHaveBeenCalledTimes(3)
 
-    newTracks[1].trackColorSettings.mainPalette = 'reds'
+    newTracks[1]!.trackColorSettings!.mainPalette = 'reds'
     expect(fakeOnChange).toHaveBeenCalledWith(newTracks)
   })
 
@@ -148,13 +155,14 @@ describe('TrackList', () => {
     const fakeOnChange1 = vi.fn()
     const fakeOnChange2 = vi.fn()
     const fakeOnDelete = vi.fn()
-    const { queryByTestId, getByText, rerender } = render(
+    const { getByTestId, rerender } = render(
       <TrackList
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
         onChange={fakeOnChange1}
         onDelete={fakeOnDelete}
+        handleFileUpload={vi.fn()}
       />,
     )
 
@@ -162,7 +170,7 @@ describe('TrackList', () => {
 
     rerenderTrackList(rerender, tracks, fakeOnChange2, fakeOnDelete)
 
-    openAutocomplete(queryByTestId('file-select-component1'))
+    openAutocomplete(getByTestId('file-select-component1'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileA1.vg' }))
 
     expect(fakeOnChange1).toHaveBeenCalledTimes(0)

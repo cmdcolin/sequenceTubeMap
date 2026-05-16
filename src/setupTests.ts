@@ -2,22 +2,22 @@ import { TextEncoder, TextDecoder } from 'util'
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
-globalThis.TextEncoder = TextEncoder
-globalThis.TextDecoder = TextDecoder
+vi.stubGlobal('TextEncoder', TextEncoder)
+vi.stubGlobal('TextDecoder', TextDecoder)
 
 // jsdom's WebSocket and undici's native Event class are incompatible in
 // Node.js 22+, causing uncaught exceptions. Since WebSocket is only used for
 // file-change notifications (not needed in tests), we stub it out.
-globalThis.WebSocket = class MockWebSocket {
-  constructor() {}
+class MockWebSocket {
   close() {}
   send() {}
-  set onmessage(_v) {}
-  set onclose(_v) {}
-  set onerror(_v) {}
-  set onopen(_v) {}
+  set onmessage(_v: unknown) {}
+  set onclose(_v: unknown) {}
+  set onerror(_v: unknown) {}
+  set onopen(_v: unknown) {}
   addEventListener() {}
   removeEventListener() {}
 }
+vi.stubGlobal('WebSocket', MockWebSocket)
 
 vi.mock('./api/local/WorkerFactory')

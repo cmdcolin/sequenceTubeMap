@@ -227,9 +227,9 @@ interface ReadLike {
 
 interface NodeLike {
   sequenceLength: number
-  incomingReads: [number, number][]
+  incomingReads: number[][]
   internalReads: number[]
-  outgoingReads: [number, number][]
+  outgoingReads: number[][]
 }
 
 // Test to make sure that a node and a set of reads make sense together.
@@ -237,7 +237,7 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
   let nodeName: string | null = null
   // Set or check node name for the given visit of the given read
   function checkNodeName(read: ReadLike, visitIndex: number) {
-    const visit = read.sequenceNew[visitIndex]
+    const visit = read.sequenceNew[visitIndex]!
     if (nodeName) {
       if (nodeName !== visit.nodeName) {
         throw new Error(
@@ -248,24 +248,23 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
         )
       }
     } else {
-      // See if we can pick up a node name
       nodeName = visit.nodeName
     }
   }
-  for (const [readNum, visitIndex] of node.incomingReads) {
+  for (const pair of node.incomingReads) {
+    const readNum = pair[0]!
+    const visitIndex = pair[1]!
     if (readNum >= reads.length) {
       throw new Error('Incoming read ' + readNum + " doesn't exist")
     }
-    const read = reads[readNum]
+    const read = reads[readNum]!
     if (visitIndex >= read.sequenceNew.length) {
       throw new Error(
         'Incoming read ' + readNum + ' visit ' + visitIndex + " doesn't exist",
       )
     }
     if (visitIndex == 0) {
-      // This shouldn't happen a lot because it means the read started before the first node in the region.
       if (read.firstNodeOffset !== undefined && read.firstNodeOffset !== 0) {
-        // This shouldn't happen ever; we can't enter this first node anywhere but the start.
         throw new Error(
           'Read is entering a node first but has a nonzero first node offset!',
         )
@@ -273,7 +272,6 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
     }
     checkNodeName(read, visitIndex)
     if (visitIndex == read.sequenceNew.length - 1) {
-      // Read ends here
       if (read.finalNodeCoverLength > node.sequenceLength) {
         throw new Error('Final node cover length too long')
       }
@@ -283,8 +281,7 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
     if (readNum >= reads.length) {
       throw new Error('Internal read ' + readNum + " doesn't exist")
     }
-    const read = reads[readNum]
-    // Internal reads can only have one visit
+    const read = reads[readNum]!
     const visitIndex = 0
     if (read.sequenceNew.length !== 1) {
       throw new Error(
@@ -296,11 +293,13 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
     checkNodeName(read, visitIndex)
   }
 
-  for (const [readNum, visitIndex] of node.outgoingReads) {
+  for (const pair of node.outgoingReads) {
+    const readNum = pair[0]!
+    const visitIndex = pair[1]!
     if (readNum >= reads.length) {
       throw new Error('Outgoing read ' + readNum + " doesn't exist")
     }
-    const read = reads[readNum]
+    const read = reads[readNum]!
     if (visitIndex >= read.sequenceNew.length) {
       throw new Error(
         'Outgoing read ' + readNum + ' visit ' + visitIndex + " doesn't exist",
@@ -313,7 +312,7 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
     }
     checkNodeName(read, visitIndex)
     // Read starts here (visitIndex is always 0 — guarded above)
-    if (read.firstNodeOffset > node.sequenceLength) {
+    if (read.firstNodeOffset! > node.sequenceLength) {
       throw new Error('First node offset too long')
     }
   }
@@ -323,13 +322,13 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
 describe('coverage', () => {
   // TEST #1
   it('can handle zero-length node without reads', async () => {
-    const node = {
+    const node: NodeLike = {
       sequenceLength: 0,
       incomingReads: [],
       internalReads: [],
       outgoingReads: [],
     }
-    const reads = []
+    const reads: ReadLike[] = []
     checkNodeExample(node, reads)
     expect(coverage(node, reads)).toBe(0.0)
   })
@@ -882,7 +881,7 @@ describe('coverage', () => {
 describe('axisIntervals', () => {
   // TEST 1
   it('can handle an empty array', async () => {
-    const nodePixelCoordinates = []
+    const nodePixelCoordinates: number[][] = []
     const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([])
   })

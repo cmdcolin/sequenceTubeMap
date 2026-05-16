@@ -23,7 +23,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/setupTests.js',
+    setupFiles: './src/setupTests.ts',
     transformIgnorePatterns: [
       'node_modules/(?!(@streamparser/json|@bjorn3/browser_wasi_shim)/)',
     ],

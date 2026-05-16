@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   render,
   fireEvent,
@@ -8,45 +7,52 @@ import {
 } from '@testing-library/react'
 import { TrackListItem } from './TrackListItem'
 import { selectMuiOption } from '../testUtils'
+import type {
+  AvailableTrack,
+  ColorPaletteName,
+  ColorScheme,
+} from '../Types'
+
 describe('TrackListItem', () => {
   const trackFile = undefined
   const trackType = 'graph'
-  const availableColors = [
+  const availableColors: ColorPaletteName[] = [
     'greys',
     'ygreys',
     'reds',
     'plainColors',
     'lightColors',
   ]
-  const availableTracks = [
+  const availableTracks: AvailableTrack[] = [
     { trackFile: 'fileA1.vg', trackType: 'graph' },
     { trackFile: 'fileA2.gbwt', trackType: 'haplotype' },
     { trackFile: 'fileB1.gbwt', trackType: 'haplotype' },
     { trackFile: 'fileB2.gam', trackType: 'read' },
     { trackFile: 'fileC1.xg', trackType: 'graph' },
   ]
-  const trackColorSettings = {
+  const trackColorSettings: ColorScheme = {
     mainPalette: 'blues',
     auxPalette: 'reds',
     colorReadsByMappingQuality: false,
     alphaReadsByMappingQuality: false,
   }
 
-  it('should render without errors', async () => {
+  it('should render without errors', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
     const { getByText, getByRole } = render(
       <TrackListItem
         trackProps={{
-          trackFile: trackFile,
-          trackType: trackType,
-          trackColorSettings: trackColorSettings,
+          trackFile,
+          trackType,
+          trackColorSettings,
         }}
         availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
         trackID={1}
+        handleFileUpload={vi.fn()}
       />,
     )
 
@@ -59,46 +65,48 @@ describe('TrackListItem', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
 
-    const { getByText, queryByTestId, rerender } = render(
+    const { getByText, getByTestId, rerender } = render(
       <TrackListItem
         trackProps={{
-          trackFile: trackFile,
-          trackType: trackType,
-          trackColorSettings: trackColorSettings,
+          trackFile,
+          trackType,
+          trackColorSettings,
         }}
         availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
         trackID={1}
+        handleFileUpload={vi.fn()}
       />,
     )
 
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
-    // change track type
-    await selectMuiOption(queryByTestId('file-type-select-component1'), 'haplotype')
+    await selectMuiOption(
+      getByTestId('file-type-select-component1'),
+      'haplotype',
+    )
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
 
-    // simulate onchange rerendering component
     rerender(
       <TrackListItem
         trackProps={{
-          trackFile: trackFile,
+          trackFile,
           trackType: 'haplotype',
-          trackColorSettings: trackColorSettings,
+          trackColorSettings,
         }}
         availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
         trackID={1}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    // change file name
-    const fileSelectComponent = queryByTestId('file-select-component1')
+    const fileSelectComponent = getByTestId('file-select-component1')
     const fileInput = within(fileSelectComponent).getByRole('combobox')
     fileInput.focus()
     fireEvent.keyDown(fileInput, { key: 'ArrowDown' })
@@ -108,7 +116,7 @@ describe('TrackListItem', () => {
     expect(fakeOnChange).toHaveBeenCalledWith(1, {
       trackFile: 'fileB1.gbwt',
       trackType: 'haplotype',
-      trackColorSettings: trackColorSettings,
+      trackColorSettings,
     })
 
     rerender(
@@ -116,18 +124,18 @@ describe('TrackListItem', () => {
         trackProps={{
           trackFile: 'fileB1.gbwt',
           trackType: 'haplotype',
-          trackColorSettings: trackColorSettings,
+          trackColorSettings,
         }}
         availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
         trackID={1}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    // change color settings
-    fireEvent.click(queryByTestId('settings-button-component1'))
+    fireEvent.click(getByTestId('settings-button-component1'))
     await waitFor(() => getByText('reds'))
     fireEvent.click(getByText('reds'))
     fireEvent.click(document)
@@ -135,27 +143,28 @@ describe('TrackListItem', () => {
     expect(fakeOnChange).toHaveBeenCalledTimes(3)
   })
 
-  it('should call onDelete correctly', async () => {
+  it('should call onDelete correctly', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
-    const { queryByTestId } = render(
+    const { getByTestId } = render(
       <TrackListItem
         trackProps={{
-          trackFile: trackFile,
-          trackType: trackType,
-          trackColorSettings: trackColorSettings,
+          trackFile,
+          trackType,
+          trackColorSettings,
         }}
         availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
         trackID={1}
+        handleFileUpload={vi.fn()}
       />,
     )
 
     expect(fakeOnDelete).toHaveBeenCalledTimes(0)
 
-    fireEvent.click(queryByTestId('delete-button-component1'))
+    fireEvent.click(getByTestId('delete-button-component1'))
     expect(fakeOnDelete).toHaveBeenCalledTimes(1)
   })
 })

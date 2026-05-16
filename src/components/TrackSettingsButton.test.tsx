@@ -1,8 +1,6 @@
-import React from 'react'
-import { render, waitFor } from '@testing-library/react'
-import { TrackSettingsButton } from './TrackSettingsButton'
-import { screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { TrackSettingsButton } from './TrackSettingsButton'
 
 describe('TrackSettingsButton', () => {
   it('opens popup', async () => {
@@ -15,8 +13,8 @@ describe('TrackSettingsButton', () => {
           colorReadsByMappingQuality: false,
           alphaReadsByMappingQuality: false,
         }}
-        setTrackColorSetting={function (a, b) {}}
-      ></TrackSettingsButton>,
+        setTrackColorSetting={() => {}}
+      />,
     )
 
     await userEvent.click(screen.getByTestId('settings-button-component'))

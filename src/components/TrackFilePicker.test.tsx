@@ -1,17 +1,17 @@
-import React from 'react'
-import { render, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TrackFilePicker } from './TrackFilePicker'
+import type { AvailableTrack } from '../Types'
 
-function openAutocomplete(component) {
-  const input = within(component).getByRole('combobox')
+function openAutocomplete(component: HTMLElement) {
+  const input = within(component).getByRole<HTMLInputElement>('combobox')
   input.focus()
   fireEvent.keyDown(input, { key: 'ArrowDown' })
   return input
 }
 
 describe('TrackFilePicker', () => {
-  const testTracks = [
+  const testTracks: AvailableTrack[] = [
     { trackFile: 'fileA1.vg', trackType: 'graph' },
     { trackFile: 'fileA2.gbwt', trackType: 'haplotype' },
     { trackFile: 'fileB1.gbwt', trackType: 'haplotype' },
@@ -19,29 +19,31 @@ describe('TrackFilePicker', () => {
     { trackFile: 'fileC1.xg', trackType: 'graph' },
   ]
 
-  it('should render without errors', async () => {
+  it('should render without errors', () => {
     const fakeOnChange = vi.fn()
     const { getByPlaceholderText } = render(
       <TrackFilePicker
         tracks={testTracks}
-        fileType={'graph'}
-        pickerType={'mounted'}
+        fileType="graph"
+        pickerType="mounted"
         handleInputChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
     expect(getByPlaceholderText('Select a file')).toBeTruthy()
   })
 
-  it('should allow value to be controlled', async () => {
+  it('should allow value to be controlled', () => {
     const fakeOnChange = vi.fn()
     const { getByDisplayValue, rerender } = render(
       <TrackFilePicker
         tracks={testTracks}
-        fileType={'graph'}
-        pickerType={'mounted'}
-        value={'fileA1.vg'}
+        fileType="graph"
+        pickerType="mounted"
+        value="fileA1.vg"
         handleInputChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
@@ -50,10 +52,11 @@ describe('TrackFilePicker', () => {
     rerender(
       <TrackFilePicker
         tracks={testTracks}
-        fileType={'graph'}
-        pickerType={'mounted'}
-        value={'fileC1.xg'}
+        fileType="graph"
+        pickerType="mounted"
+        value="fileC1.xg"
         handleInputChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
@@ -62,16 +65,17 @@ describe('TrackFilePicker', () => {
 
   it('should call onChange when an option is selected', async () => {
     const fakeOnChange = vi.fn()
-    const { queryByTestId, findByRole } = render(
+    const { getByTestId, findByRole } = render(
       <TrackFilePicker
         tracks={testTracks}
-        fileType={'haplotype'}
-        pickerType={'mounted'}
+        fileType="haplotype"
+        pickerType="mounted"
         handleInputChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    const fileSelectComponent = queryByTestId('file-select-component')
+    const fileSelectComponent = getByTestId('file-select-component')
     const input = openAutocomplete(fileSelectComponent)
 
     fireEvent.click(await findByRole('option', { name: 'fileB1.gbwt' }))
@@ -89,16 +93,17 @@ describe('TrackFilePicker', () => {
 
   it('should call onChange when queried by input value', async () => {
     const fakeOnChange = vi.fn()
-    const { queryByTestId, findByRole } = render(
+    const { getByTestId, findByRole } = render(
       <TrackFilePicker
         tracks={testTracks}
-        fileType={'graph'}
-        pickerType={'mounted'}
+        fileType="graph"
+        pickerType="mounted"
         handleInputChange={fakeOnChange}
+        handleFileUpload={vi.fn()}
       />,
     )
 
-    const fileSelectComponent = queryByTestId('file-select-component')
+    const fileSelectComponent = getByTestId('file-select-component')
     const input = openAutocomplete(fileSelectComponent)
 
     fireEvent.change(input, { target: { value: 'fileC1' } })
@@ -108,15 +113,15 @@ describe('TrackFilePicker', () => {
     expect(fakeOnChange).toHaveBeenCalledWith('fileC1.xg')
   })
 
-  it('should call call handleFileUpload when a file is inputted', async () => {
+  it('should call handleFileUpload when a file is inputted', async () => {
     const fakeOnChange = vi.fn()
     const fakeHandleFileUpload = vi.fn()
 
-    const { queryByTestId } = render(
+    const { getByTestId } = render(
       <TrackFilePicker
         tracks={testTracks}
-        fileType={'graph'}
-        pickerType={'upload'}
+        fileType="graph"
+        pickerType="upload"
         handleInputChange={fakeOnChange}
         handleFileUpload={fakeHandleFileUpload}
       />,
@@ -126,12 +131,14 @@ describe('TrackFilePicker', () => {
       type: 'text/vg',
     })
 
-    const fileSelectComponent = queryByTestId('file-select-component')
+    const fileSelectComponent = getByTestId(
+      'file-select-component',
+    ) as HTMLInputElement
 
     await userEvent.upload(fileSelectComponent, fakeFile)
 
     expect(fakeHandleFileUpload).toHaveBeenCalledTimes(1)
-    expect(fileSelectComponent.files.length).toBe(1)
-    expect(fileSelectComponent.files[0]).toStrictEqual(fakeFile)
+    expect(fileSelectComponent.files!.length).toBe(1)
+    expect(fileSelectComponent.files![0]).toStrictEqual(fakeFile)
   })
 })

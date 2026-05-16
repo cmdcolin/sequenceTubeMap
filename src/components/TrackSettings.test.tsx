@@ -1,8 +1,9 @@
-import React from 'react'
 import { render, fireEvent } from '@testing-library/react'
 import { TrackSettings } from './TrackSettings'
+import type { ColorPaletteName, ColorScheme } from '../Types'
+
 describe('TrackSettings', () => {
-  const availableColors = [
+  const availableColors: ColorPaletteName[] = [
     'greys',
     'ygreys',
     'blues',
@@ -10,34 +11,32 @@ describe('TrackSettings', () => {
     'plainColors',
     'lightColors',
   ]
-  const trackColorSettings = {
+  const trackColorSettings: ColorScheme = {
     mainPalette: 'blues',
     auxPalette: 'reds',
     colorReadsByMappingQuality: false,
     alphaReadsByMappingQuality: false,
   }
 
-  it('should render without errors', async () => {
+  it('should render without errors', () => {
     const fakeOnChange = vi.fn()
     const { getByText } = render(
       <TrackSettings
-        fileType={'haplotype'}
+        fileType="haplotype"
         trackColorSettings={trackColorSettings}
         availableColors={availableColors}
         setTrackColorSetting={fakeOnChange}
       />,
     )
 
-    // maybe need to search by "Select a file"
-    const placeholder = await getByText('blues')
-    expect(placeholder).toBeTruthy()
+    expect(getByText('blues')).toBeTruthy()
   })
 
-  it('should call onChange when an option is selected', async () => {
+  it('should call onChange when an option is selected', () => {
     const fakeOnChange = vi.fn()
     const { getByLabelText } = render(
       <TrackSettings
-        fileType={'haplotype'}
+        fileType="haplotype"
         trackColorSettings={trackColorSettings}
         availableColors={availableColors}
         setTrackColorSetting={fakeOnChange}
@@ -57,18 +56,18 @@ describe('TrackSettings', () => {
     expect(fakeOnChange).toHaveBeenCalledWith('mainPalette', 'greys')
   })
 
-  it('should update the radio values when an option is selected', async () => {
+  it('should update the radio values when an option is selected', () => {
     const fakeOnChange = vi.fn()
     const { getByLabelText } = render(
       <TrackSettings
-        fileType={'haplotype'}
+        fileType="haplotype"
         trackColorSettings={trackColorSettings}
         availableColors={availableColors}
         setTrackColorSetting={fakeOnChange}
       />,
     )
 
-    const radio = getByLabelText('blues')
+    const radio = getByLabelText('blues') as HTMLInputElement
     fireEvent.change(radio, { target: { value: 'reds' } })
     expect(radio.value).toBe('reds')
   })
