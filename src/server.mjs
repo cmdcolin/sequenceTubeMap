@@ -2176,9 +2176,14 @@ api.post('/getPathInfo', async (req, res, next) => {
       runVgLines(['paths', '-E', '-x', graphFile], line => {
         if (line) lengthLines.push(line)
       }),
-      // Non-zero exit is fine — graph may simply have no cyclic paths
-      runVgLines(['paths', '-E', '-C', '-x', graphFile], line => {
-        if (line && !line.startsWith('_')) cyclicNames.add(line.split('\t')[0])
+      // vg paths -C outputs: name\tdirected-(a)cyclic\tundirected-(a)cyclic
+      runVgLines(['paths', '-C', '-x', graphFile], line => {
+        if (line && !line.startsWith('_')) {
+          const [name, directed, undirected] = line.split('\t')
+          if (directed === 'directed-cyclic' || undirected === 'undirected-cyclic') {
+            cyclicNames.add(name)
+          }
+        }
       }).catch(() => {}),
     ])
     const pathInfo = lengthLines
