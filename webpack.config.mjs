@@ -82,6 +82,9 @@ export default {
       { context: ['/api'], target: `http://localhost:${serverPort}`, ws: true },
     ],
     static: { directory: path.resolve(__dirname, 'public') },
+    devMiddleware: { stats: 'errors-warnings' },
+    client: { logging: 'warn' },
   },
   performance: false,
+  stats: 'errors-warnings',
 }
