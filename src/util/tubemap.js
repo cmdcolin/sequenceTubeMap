@@ -515,9 +515,6 @@ export function setMappingQualityCutoff(value) {
 
 // main
 function createTubeMap() {
-  const _t = (label) => { const t = performance.now(); return () => process.stderr.write(`[createTubeMap] ${label}: ${(performance.now()-t).toFixed(0)}ms\n`) }
-  let _done
-  process.stderr.write('Recreating tube map in ' + svgID + '\n')
   trackRectangles = []
   trackCurves = []
   trackCorners = []
@@ -537,8 +534,10 @@ function createTubeMap() {
   // changed before any graph has been rendered
   if (inputNodes.length === 0 || inputTracks.length === 0) return
 
-  _done = _t('straightenTrack'); straightenTrack(0); _done()
-  _done = _t('deepCopy'); nodes = deepCopy(inputNodes); tracks = deepCopy(inputTracks); reads = deepCopy(inputReads); _done()
+  straightenTrack(0)
+  nodes = deepCopy(inputNodes)
+  tracks = deepCopy(inputTracks)
+  reads = deepCopy(inputReads)
 
   reads = filterReads(reads)
 
@@ -557,13 +556,16 @@ function createTubeMap() {
   }
   if (tracks.length === 0) return
 
-  _done = _t('generateNodeMap+IndexSeqs'); nodeMap = generateNodeMap(nodes); generateTrackIndexSequences(tracks); if (reads && config.showReads) generateTrackIndexSequences(reads); generateNodeWidth(); _done()
+  nodeMap = generateNodeMap(nodes)
+  generateTrackIndexSequences(tracks)
+  if (reads && config.showReads) generateTrackIndexSequences(reads)
+  generateNodeWidth()
 
   if (config.mergeNodesFlag) {
-    _done = _t('merge: generateNodeSuccessors'); generateNodeSuccessors(); _done()
-    _done = _t('merge: generateNodeOrder'); generateNodeOrder(); _done()
+    generateNodeSuccessors()
+    generateNodeOrder()
     if (reads && config.showReads) reverseReversedReads()
-    _done = _t('mergeNodes'); mergeNodes(); _done()
+    mergeNodes()
     nodeMap = generateNodeMap(nodes)
     generateNodeWidth()
     generateTrackIndexSequences(tracks)
@@ -572,26 +574,28 @@ function createTubeMap() {
 
   numberOfNodes = nodes.length
   numberOfTracks = tracks.length
-  _done = _t('generateNodeSuccessors'); generateNodeSuccessors(); _done()
-  _done = _t('generateNodeDegree'); generateNodeDegree(); _done()
+  generateNodeSuccessors()
+  generateNodeDegree()
   if (DEBUG) console.log(`${numberOfNodes} nodes.`)
-  _done = _t('generateNodeOrder #1'); generateNodeOrder(); _done()
+  generateNodeOrder()
   maxOrder = getMaxOrder()
 
   // can cause problems when there is a reversed single track node
   // OTOH, can solve problems with complex inversion patterns
-  _done = _t('switchNodeOrientation'); switchNodeOrientation(); _done()
-  _done = _t('generateNodeOrder #2'); generateNodeOrder(nodes, tracks); _done()
+  switchNodeOrientation()
+  generateNodeOrder(nodes, tracks)
   maxOrder = getMaxOrder()
 
-  _done = _t('calculateTrackWidth+LaneAssignment'); calculateTrackWidth(tracks); generateLaneAssignment(); _done()
+  calculateTrackWidth(tracks)
+  generateLaneAssignment()
 
   if (config.showExonsFlag === true && bed !== null) addTrackFeatures()
 
   if (reads && config.showReads) {
-    _done = _t('generateReadOnlyNodeAttributes'); generateReadOnlyNodeAttributes(); _done()
-    _done = _t('reverseReversedReads+IndexSeqs'); reverseReversedReads(); generateTrackIndexSequences(reads); _done()
-    _done = _t('placeReads'); placeReads(); _done()
+    generateReadOnlyNodeAttributes()
+    reverseReversedReads()
+    generateTrackIndexSequences(reads)
+    placeReads()
     tracks = tracks.concat(reads)
     // we do not have any reads to display
   } else {
@@ -602,9 +606,9 @@ function createTubeMap() {
     })
   }
 
-  _done = _t('generateNodeXCoords'); generateNodeXCoords(); _done()
+  generateNodeXCoords()
 
-  _done = _t('generateSVGShapesFromPath'); generateSVGShapesFromPath(nodes, tracks); _done()
+  generateSVGShapesFromPath(nodes, tracks)
   if (DEBUG) {
     console.log('Tracks:')
     console.log(tracks)

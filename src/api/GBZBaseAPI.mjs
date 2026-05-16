@@ -6,7 +6,6 @@
 // during the Webpack build.
 /* eslint-env worker */
 
-import { createRequire } from 'module'
 import '../config-client.js'
 import {
   WASI,
@@ -46,8 +45,8 @@ async function getWasmBytes() {
     return fetch(blobImport.default)
   } catch {
     // Don't try to ship the filesystem module in the browser bundle.
-    // see <https://webpack.js.org/api/module-methods/#webpackignore>
-    let fs = await import(/* webpackIgnore: true */ 'fs-extra')
+    let fs = await import(/* @vite-ignore */ /* webpackIgnore: true */ 'fs-extra')
+    const { createRequire } = await import(/* @vite-ignore */ /* webpackIgnore: true */ 'module')
     const wasmPath = createRequire(import.meta.url).resolve(
       'gbz-base/query.wasm',
     )
