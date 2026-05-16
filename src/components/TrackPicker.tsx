@@ -32,21 +32,20 @@ export const TrackPicker = ({
   handleFileUpload,
 }: TrackPickerProps) => {
   const [open, setOpen] = useState(false)
-  const close = () => setOpen(false)
 
   return (
     <div>
       <Button
         aria-label="Track Picker"
         data-testid={'TrackPickerButton'}
-        onClick={() => setOpen(!open)}
+        onClick={() => { setOpen(!open); }}
       >
         <FontAwesomeIcon icon={faList} /> Configure Tracks
       </Button>
       {/* width=null because the default fixed width is too small for the track list items */}
       <PopupDialog
         open={open}
-        close={close}
+        close={() => { setOpen(false); }}
         closeOnDocumentClick={false}
         width={null}
         testID="TrackPicker"

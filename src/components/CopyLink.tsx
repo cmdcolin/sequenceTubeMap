@@ -48,15 +48,13 @@ export function CopyLink(props: CopyLinkProps) {
     }
   }
 
-  const close = () => setDialogLink(undefined)
-
   return (
     <>
-      <Button id="copyLinkButton" color="primary" onClick={() => handleCopyLink()}>
+      <Button id="copyLinkButton" color="primary" onClick={() => { handleCopyLink(); }}>
         <FontAwesomeIcon icon={faLink} size="lg" />
         {text}
       </Button>
-      <PopupDialog open={dialogLink != null} close={close}>
+      <PopupDialog open={dialogLink != null} close={() => { setDialogLink(undefined); }}>
         <h5>Link to Data</h5>
         <p>
           <a href={dialogLink} target="_blank" rel="noopener noreferrer">

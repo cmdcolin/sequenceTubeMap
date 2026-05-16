@@ -13,8 +13,6 @@ interface HelpButtonProps {
 export const HelpButton = ({ file }: HelpButtonProps) => {
   const fileURL = new URL(file, document.baseURI)
   const [open, setOpen] = useState(false)
-  const close = () => setOpen(false)
-
   const [content, setContent] = useState('')
 
   const Image = ({ alt, src, ...props }: ImgHTMLAttributes<HTMLImageElement>) => (
@@ -57,11 +55,11 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
       <Button
         aria-label="Help"
         title="Help — region format, controls, and feature reference"
-        onClick={() => setOpen(!open)}
+        onClick={() => { setOpen(!open); }}
       >
         <FontAwesomeIcon icon={faQuestion} />
       </Button>
-      <PopupDialog open={open} close={close}>
+      <PopupDialog open={open} close={() => { setOpen(false); }}>
         <div
           style={{ height: '90vh', overflowY: 'scroll', overflowX: 'hidden' }}
         >
