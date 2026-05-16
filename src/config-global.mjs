@@ -2,9 +2,7 @@
 // Import this instead of config.json! This is the One True Way to get the config!
 
 const GLOBAL_NAME = '__sequence_tube_map_config'
-// Tell eslint that globalThis might exist.
-/*global globalThis*/
-const GLOBAL_HOME = globalThis || window || global
+const GLOBAL_HOME = globalThis
 
 // Find the config in the globals.
 export const config = GLOBAL_HOME[GLOBAL_NAME]

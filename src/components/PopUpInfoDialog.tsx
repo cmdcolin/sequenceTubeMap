@@ -19,7 +19,7 @@ export const PopUpInfoDialog = ({
         <h5>Object Information</h5>
         <table>
           <tbody>
-            {(attributes || []).map(attribute => (
+            {(attributes ?? []).map(attribute => (
               <tr key={attribute[0]}>
                 <td style={{ fontWeight: 'bold', border: '1px solid black' }}>
                   {attribute[0]}

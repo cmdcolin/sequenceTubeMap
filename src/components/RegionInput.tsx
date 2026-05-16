@@ -30,7 +30,6 @@ export const RegionInput = ({
   const regionToDesc = new Map<string, string>()
 
   if (
-    regionInfo &&
     !isEmpty(regionInfo) &&
     regionInfo.chr &&
     regionInfo.start &&

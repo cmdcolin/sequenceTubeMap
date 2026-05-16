@@ -58,7 +58,7 @@ function getAPIMode(apiInterface: LocalAPI | ServerAPI): 'local' | 'server' {
 }
 
 const defaultApiUrl =
-  (config.BACKEND_URL || `${window.location.origin}`) + '/api/v0'
+  (config.BACKEND_URL || window.location.origin) + '/api/v0'
 const defaultViewTarget: ViewTarget =
   urlParamsToViewTarget(document.location) ?? config.DATA_SOURCES[0]
 
@@ -148,9 +148,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
   ) => {
     setVisOptions(v => {
       const newcolors = [...v.colorSchemes]
-      if (newcolors[index] === undefined) {
-        newcolors[index] = { ...config.defaultReadColorPalette }
-      }
+      newcolors[index] ??= { ...config.defaultReadColorPalette }
       newcolors[index] = { ...newcolors[index], [key]: value }
       return { ...v, colorSchemes: newcolors }
     })

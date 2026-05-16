@@ -41,7 +41,7 @@ export function BedFileDropdown({
       options={options}
       getOptionLabel={option => getFilename(option)}
       onChange={(_event, newValue) => {
-        onChange({ target: { id, value: newValue ?? '' } })
+        onChange({ target: { id, value: newValue } })
       }}
       onInputChange={(_event, newInput, reason) => {
         if (reason === 'input') {

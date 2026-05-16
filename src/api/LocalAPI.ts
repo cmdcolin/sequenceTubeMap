@@ -57,9 +57,10 @@ export class LocalAPI implements APIInterface {
 
   constructor() {
     this.worker = makeWorker()
-    this.workerAPI = Comlink.wrap<WorkerProxy>(this.worker) as WorkerProxy
+    this.workerAPI = Comlink.wrap<WorkerProxy>(this.worker)
 
     // Forward filename changes from worker to local EventTarget.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.workerAPI.subscribeToFilenameChanges(
       Comlink.proxy(() => {
         this.nameChangeEvents.dispatchEvent(new CustomEvent('change'))
@@ -73,6 +74,7 @@ export class LocalAPI implements APIInterface {
     }
     const cancelID = this.nextCancelID++
     signal.addEventListener('abort', () => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.workerAPI.cancel(cancelID)
     })
     return cancelID

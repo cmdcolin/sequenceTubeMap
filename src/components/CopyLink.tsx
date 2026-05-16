@@ -11,6 +11,7 @@ const CLICKED_TEXT = ' Copied link!'
 
 // uses Clipboard API to write text to clipboard
 export const writeToClipboard = (text: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   navigator.clipboard.writeText(text)
 }
 

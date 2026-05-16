@@ -11,9 +11,11 @@ interface TubeMapInternalOptions extends VisOptions {
 
 function updateVisOptions(visOptions: TubeMapInternalOptions, nodeSequences: boolean) {
   if (nodeSequences) {
-    visOptions.compressedView
-      ? tubeMap.setNodeWidthOption('compressed')
-      : tubeMap.setNodeWidthOption('normal')
+    if (visOptions.compressedView) {
+      tubeMap.setNodeWidthOption('compressed')
+    } else {
+      tubeMap.setNodeWidthOption('normal')
+    }
   } else {
     tubeMap.setNodeWidthOption('fixed')
   }

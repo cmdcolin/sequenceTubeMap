@@ -18,7 +18,7 @@ const colorMap = new Map<string, ColorPaletteName>([
 ])
 
 interface RadioRowProps {
-  color?: Palette | string
+  color?: Palette
   rowHeading: ReactNode
   setColorSetting: (setting: keyof ColorScheme, value: Palette) => void
   setting: keyof ColorScheme

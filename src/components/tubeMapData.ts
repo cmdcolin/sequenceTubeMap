@@ -80,7 +80,7 @@ export function computeExampleData(
     }
   }
   if (dataOrigin !== dataOriginTypes.NO_DATA) {
-    console.log('invalid example data origin type:', dataOrigin)
+    console.warn('invalid example data origin type:', dataOrigin)
   }
   return { nodes: data.inputNodes, tracks: [], reads: [] }
 }

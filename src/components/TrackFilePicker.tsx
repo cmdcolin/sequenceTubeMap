@@ -1,4 +1,4 @@
-import { createRef } from 'react'
+import { useRef } from 'react'
 import Autocomplete from '@mui/material/Autocomplete'
 import TextField from '@mui/material/TextField'
 import '../config-client.js'
@@ -43,7 +43,7 @@ export const TrackFilePicker = ({
   testID = 'file-select-component',
   handleFileUpload,
 }: TrackFilePickerProps) => {
-  const uploadFileInput = createRef<HTMLInputElement>()
+  const uploadFileInput = useRef<HTMLInputElement>(null)
   const acceptedExtensions = config.fileTypeToExtensions[fileType]
 
   async function uploadOnChange() {
@@ -112,9 +112,9 @@ export const TrackFilePicker = ({
           size="small"
           disableClearable
           isOptionEqualToValue={(o, v) => o.value === v.value}
-          getOptionLabel={o => o.label ?? ''}
+          getOptionLabel={o => o.label}
           onChange={(_event, newValue) => {
-            if (newValue) mountedOnChange(newValue)
+            mountedOnChange(newValue)
           }}
           className={className}
           sx={{ minWidth: 240 }}
@@ -127,7 +127,7 @@ export const TrackFilePicker = ({
         />
       </div>
     )
-  } else if (pickerType === 'upload') {
+  } else {
     return (
       <div
         style={{
@@ -147,8 +147,6 @@ export const TrackFilePicker = ({
         />
       </div>
     )
-  } else {
-    throw new Error('Invalid picker type')
   }
 }
 

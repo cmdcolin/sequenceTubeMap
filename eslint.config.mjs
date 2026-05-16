@@ -103,6 +103,28 @@ export default defineConfig(
     },
   },
   {
+    files: [
+      'src/server.mjs',
+      'src/vg.mjs',
+      'src/api/GBZBaseAPI.mjs',
+      'src/api/local/Worker.mjs',
+      'src/__mocks__/**',
+      'src/config-*.{js,mjs}',
+      'src/components/TubeMap.tsx',
+    ],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
+    files: ['src/api/GBZBaseAPI.mjs', 'src/api/local/Worker.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.worker,
+      },
+    },
+  },
+  {
     files: ['**/*.mjs', '**/*.js'],
     ...tseslint.configs.disableTypeChecked,
   },

@@ -128,7 +128,7 @@ export interface VisOptions {
 // A path entry returned by the API for a graph track.
 export interface PathInfo {
   name: string
-  length: number
+  length: number | null
   cyclic: boolean
 }
 

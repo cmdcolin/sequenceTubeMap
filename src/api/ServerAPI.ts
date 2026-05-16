@@ -117,9 +117,9 @@ export class ServerAPI implements APIInterface {
 
         if (xhr.readyState === 4) {
           const response = xhr.response as { path?: string; error?: string }
-          if (xhr.status === 200 && response?.path) {
+          if (xhr.status === 200 && response.path) {
             resolve(response.path)
-          } else if (response?.error) {
+          } else if (response.error) {
             reject(new Error(response.error))
           } else {
             reject(

@@ -16,13 +16,13 @@ export function makeWorker() {
   let userSide = new EventEmitter()
   userSide.addEventListener = userSide.on
 
-  workerSide.postMessage = (message, options) => {
+  workerSide.postMessage = (message, _options) => {
     setTimeout(() => {
       userSide.emit('message', { data: message })
     })
   }
 
-  userSide.postMessage = (message, options) => {
+  userSide.postMessage = (message, _options) => {
     setTimeout(() => {
       workerSide.emit('message', { data: message })
     })

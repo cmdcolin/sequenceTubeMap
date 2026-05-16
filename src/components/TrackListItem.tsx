@@ -12,7 +12,6 @@ import type {
   ColorPaletteName,
   ColorScheme,
   FileType,
-  Palette,
   Track,
 } from '../Types'
 
@@ -70,7 +69,7 @@ export const TrackListItem = ({
         <Col sm="2" className="tracklist-dropdown source">
           <TrackTypeDropdown
             value={pickerType}
-            onChange={(v) => setPickerType(v as PickerType)}
+            onChange={(v) => { setPickerType(v as PickerType); }}
             testID={`picker-type-select-component${trackID}`}
             options={config.pickerTypeOptions}
           />
@@ -82,7 +81,7 @@ export const TrackListItem = ({
             fileType={trackProps.trackType}
             value={trackProps.trackFile}
             pickerType={pickerType}
-            handleInputChange={(trackFile) => updateTrack({ trackFile })}
+            handleInputChange={(trackFile) => { updateTrack({ trackFile }); }}
             testID={`file-select-component${trackID}`}
             handleFileUpload={handleFileUpload}
           />
@@ -92,18 +91,18 @@ export const TrackListItem = ({
             fileType={trackProps.trackType}
             trackColorSettings={trackProps.trackColorSettings}
             setTrackColorSetting={(key, value) =>
-              updateTrack({
+              { updateTrack({
                 trackColorSettings: {
                   ...trackProps.trackColorSettings,
                   [key]: value,
                 } as ColorScheme,
-              })
+              }); }
             }
             availableColors={availableColors}
             testID={`settings-button-component${trackID}`}
           />
           <TrackDeleteButton
-            onClick={() => onDelete(trackID)}
+            onClick={() => { onDelete(trackID); }}
             testID={`delete-button-component${trackID}`}
           />
         </Col>

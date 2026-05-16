@@ -3,24 +3,20 @@ import { vi } from 'vitest'
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
 
-import React from 'react'
-import { render } from '@testing-library/react'
-import { HelpButton } from './HelpButton'
-import { screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { act } from 'react-dom/test-utils'
+import { HelpButton } from './HelpButton'
 
 describe('HelpButton', () => {
   it('opens popup with help instructions', async () => {
-    fetch.mockResponseOnce('Instructions')
-    const result = render(<HelpButton file="./help/help.md" />)
+    fetchMocker.mockResponseOnce('Instructions')
+    render(<HelpButton file="./help/help.md" />)
 
-    act(() => {
-      userEvent.click(screen.getByRole('button'))
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button'))
     })
 
     await waitFor(() => expect(screen.getByText('Instructions')).toBeTruthy())
-
     await waitFor(() => expect(screen.queryByText('#')).toBeFalsy())
   })
 })

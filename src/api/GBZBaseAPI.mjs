@@ -2,10 +2,6 @@
  * GBZBase-based API implementation. Designed to run in a worker efficiently.
  */
 
-// Use this magic comment to tell eslint we are allowed to use worker things
-// during the Webpack build.
-/* eslint-env worker */
-
 import '../config-client.js'
 import {
   WASI,
@@ -249,7 +245,7 @@ class FileSystemSyncAccessHandlePolyfill {
    *
    * Not implemented since we are read-only.
    */
-  truncate(to) {
+  truncate(_to) {
     throw new Error('Truncate not implemented; blobs are read only')
   }
 
@@ -262,7 +258,7 @@ class FileSystemSyncAccessHandlePolyfill {
    *
    * Not actually implemented since we are read-only.
    */
-  write(buffer, options) {
+  write(_buffer, _options) {
     throw new Error('Write not implemented; blobs are read only')
   }
 }
@@ -367,9 +363,9 @@ export class GBZBaseAPI {
     console.log('Running WASM with arguments:', argv)
     console.log('Running WASM with FDs:', fileDescriptors)
 
-    let returnCode = null
-    let stdOutText = null
-    let stdErrText = null
+    let returnCode
+    let stdOutText
+    let stdErrText
 
     try {
       // Make the WASI system call main
@@ -402,7 +398,7 @@ export class GBZBaseAPI {
   // Tube Map API implementation
   /////////
 
-  async getChunkedData(viewTarget, cancelSignal) {
+  async getChunkedData(viewTarget, _cancelSignal) {
     console.log('Got view target:', viewTarget)
 
     // Find the graph track
@@ -462,7 +458,7 @@ export class GBZBaseAPI {
     }
   }
 
-  async getFilenames(cancelSignal) {
+  async getFilenames(_cancelSignal) {
     // Set up an empty response.
     let response = {
       files: [],
@@ -484,11 +480,11 @@ export class GBZBaseAPI {
     return response
   }
 
-  subscribeToFilenameChanges(handler, cancelSignal) {
+  subscribeToFilenameChanges(_handler, _cancelSignal) {
     return {}
   }
 
-  async putFile(fileType, file, cancelSignal) {
+  async putFile(fileType, file, _cancelSignal) {
     // We track files just by array index.
     let fileName = this.files.length.toString()
     // Just hang on to the File object.
@@ -505,25 +501,25 @@ export class GBZBaseAPI {
     return fileName
   }
 
-  async getBedRegions(bedFile, cancelSignal) {
+  async getBedRegions(_bedFile, _cancelSignal) {
     return {
       bedRegions: [],
     }
   }
 
-  async getPathNames(graphFile, cancelSignal) {
+  async getPathNames(_graphFile, _cancelSignal) {
     return {
       pathNames: [],
     }
   }
 
-  async getPathInfo(graphFile, cancelSignal) {
+  async getPathInfo(_graphFile, _cancelSignal) {
     return {
       pathInfo: [],
     }
   }
 
-  async getChunkTracks(bedFile, chunk, cancelSignal) {
+  async getChunkTracks(_bedFile, _chunk, _cancelSignal) {
     return {
       tracks: [],
     }

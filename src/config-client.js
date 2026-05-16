@@ -3,9 +3,7 @@
 import config from './config.json'
 
 const GLOBAL_NAME = '__sequence_tube_map_config'
-// Tell eslint that globalThis might exist.
-/*global globalThis*/
-const GLOBAL_HOME = globalThis || window || global
+const GLOBAL_HOME = globalThis
 
 // Hide the config in the globals object when we run.
 GLOBAL_HOME[GLOBAL_NAME] = config

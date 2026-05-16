@@ -2,7 +2,7 @@
 
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
-import { join, dirname } from 'path'
+import { join } from 'path'
 
 // In a jsdom test environment, import.meta.url is http://, not file://.
 // Fall back to resolving config.json from the process working directory.
