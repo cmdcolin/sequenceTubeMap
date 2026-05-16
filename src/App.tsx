@@ -10,8 +10,8 @@ import Footer from './components/Footer'
 import { dataOriginTypes } from './enums'
 import './config-client.js'
 import { config } from './config-global.mjs'
-import ServerAPI from './api/ServerAPI.mjs'
-import { LocalAPI } from './api/LocalAPI.mjs'
+import ServerAPI from './api/ServerAPI'
+import { LocalAPI } from './api/LocalAPI'
 import type {
   ColorScheme,
   Palette,

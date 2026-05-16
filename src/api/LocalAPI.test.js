@@ -1,4 +1,4 @@
-import { LocalAPI } from './LocalAPI.mjs'
+import { LocalAPI } from './LocalAPI'
 
 import fs from 'fs-extra'
 

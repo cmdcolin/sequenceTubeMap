@@ -10,4 +10,7 @@ export const dataOriginTypes = {
   EXAMPLE_8: 'example 8',
   EXAMPLE_9: 'example 9',
   NO_DATA: 'no data',
-}
+} as const
+
+export type DataOriginType =
+  (typeof dataOriginTypes)[keyof typeof dataOriginTypes]

@@ -10,6 +10,7 @@ import NodeContextMenu from './NodeContextMenu'
 import PendingPanel from './PendingPanel'
 import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel'
 import { computeExampleData } from './tubeMapData'
+import type { APIInterface } from '../api/APIInterface'
 import type { ViewTarget, VisOptions } from '../Types'
 
 const GROUP_PALETTE_CYCLE = [
@@ -34,25 +35,11 @@ interface NodeContextMenuState {
   y: number
 }
 
-// APIInterface contract; expanded as needed.
-interface APILike {
-  getChunkedData(
-    viewTarget: ViewTarget,
-    cancelSignal: AbortSignal,
-  ): Promise<{
-    graph?: unknown
-    gam?: unknown[]
-    nameMap?: Record<string, unknown>
-    region?: unknown
-    coloredNodes?: unknown
-  }>
-}
-
 interface TubeMapContainerProps {
   viewTarget: ViewTarget
   dataOrigin: string
   visOptions: VisOptions
-  APIInterface: APILike
+  APIInterface: APIInterface
 }
 
 function TubeMapContainer({

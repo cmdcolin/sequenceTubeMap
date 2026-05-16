@@ -1,4 +1,4 @@
-import { parseRegion } from '../common.mjs'
+import { convertRegionToRangeRegion, parseRegion } from '../common.mjs'
 import type {
   AvailableTrack,
   RegionInfo,
@@ -112,9 +112,9 @@ export const determineRegionIndex = (
   regionString: string,
   regionInfo: RegionInfo,
 ): number | null => {
-  let parsedRegion
+  let parsed
   try {
-    parsedRegion = parseRegion(regionString)
+    parsed = convertRegionToRangeRegion(parseRegion(regionString))
   } catch {
     return null
   }
@@ -122,9 +122,9 @@ export const determineRegionIndex = (
   if (chr) {
     for (let i = 0; i < chr.length; i++) {
       if (
-        parseInt(regionInfo.start![i]) === parsedRegion.start &&
-        parseInt(regionInfo.end![i]) === parsedRegion.end &&
-        chr[i] === parsedRegion.contig
+        parseInt(regionInfo.start![i]) === parsed.start &&
+        parseInt(regionInfo.end![i]) === parsed.end &&
+        chr[i] === parsed.contig
       ) {
         return i
       }

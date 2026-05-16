@@ -8,7 +8,6 @@
 
 import { createRequire } from 'module'
 import '../config-client.js'
-import { APIInterface } from './APIInterface.mjs'
 import {
   WASI,
   File,
@@ -275,10 +274,8 @@ class FileSystemSyncAccessHandlePolyfill {
  * Can operate either in the main thread or in a worker, but handles file
  * uploads differently depending on where you put it.
  */
-export class GBZBaseAPI extends APIInterface {
+export class GBZBaseAPI {
   constructor() {
-    super()
-
     // We can take user uploads, in which case we need to hold on to them somewhere.
     // This holds all the file objects.
     this.files = []

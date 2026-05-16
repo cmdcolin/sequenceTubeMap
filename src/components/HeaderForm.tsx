@@ -3,7 +3,8 @@ import { Container, Row, Col, Label, Alert, Button } from 'reactstrap'
 import { dataOriginTypes } from '../enums'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import { LocalAPI } from '../api/LocalAPI.mjs'
+import { LocalAPI } from '../api/LocalAPI'
+import type { APIInterface } from '../api/APIInterface'
 import DataPositionFormRow from './DataPositionFormRow'
 import ExampleSelectButtons from './ExampleSelectButtons'
 import RegionInput from './RegionInput'
@@ -52,36 +53,6 @@ const dataTypes = {
   EXAMPLES: 'examples',
 }
 
-interface APILike {
-  getBedRegions(
-    bedFile: string,
-    cancelSignal: AbortSignal | null,
-  ): Promise<{ bedRegions?: RegionInfo }>
-  getPathInfo(
-    graphFile: string,
-    cancelSignal: AbortSignal | null,
-  ): Promise<{ pathInfo: PathInfo[] }>
-  getFilenames(cancelSignal: AbortSignal | null): Promise<{
-    files?: AvailableTrack[]
-    bedFiles?: string[]
-    error?: string
-  }>
-  subscribeToFilenameChanges(
-    handler: () => void,
-    cancelSignal: AbortSignal,
-  ): unknown
-  putFile(
-    fileType: FileType,
-    file: File,
-    cancelSignal: AbortSignal | null,
-  ): Promise<string>
-  getChunkTracks(
-    bedFile: string,
-    chunk: string,
-    cancelSignal: AbortSignal | null,
-  ): Promise<{ tracks?: Track[] }>
-}
-
 interface HeaderFormProps {
   dataOrigin: string
   setColorSetting: (
@@ -93,7 +64,7 @@ interface HeaderFormProps {
   setCurrentViewTarget: (viewTarget: ViewTarget) => void
   getCurrentViewTarget: () => ViewTarget
   defaultViewTarget?: ViewTarget
-  APIInterface: APILike
+  APIInterface: APIInterface
 }
 
 interface CoordsMetaData {
@@ -382,25 +353,19 @@ function HeaderForm({
     }
   }
 
-  interface ParsedRegion {
-    contig: string
-    start: number
-    end?: number
-    distance?: number
-  }
-
   async function budgeRegion(fraction: number) {
-    const parsed: ParsedRegion = parseRegion(region)
-    const span = parsed.distance ?? (parsed.end ?? 0) - parsed.start
+    const parsed = parseRegion(region)
+    const span =
+      'distance' in parsed ? parsed.distance : parsed.end - parsed.start
     const shift = span * fraction
     const nextStart = Math.max(0, Math.round(parsed.start + shift))
-    const shifted: ParsedRegion =
-      parsed.distance !== undefined
+    const shifted =
+      'distance' in parsed
         ? { ...parsed, start: nextStart }
         : {
             ...parsed,
             start: nextStart,
-            end: Math.max(0, Math.round((parsed.end ?? 0) + shift)),
+            end: Math.max(0, Math.round(parsed.end + shift)),
           }
     await handleRegionChange(stringifyRegion(shifted))
     handleGoButton()
@@ -542,8 +507,6 @@ function HeaderForm({
     getNextViewTarget(),
     getCurrentViewTarget(),
   )
-  const displayDescription = desc
-
   const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
 
   const DataPositionFormRowComponent = (
@@ -692,7 +655,7 @@ function HeaderForm({
                 !customFilesFlag && DataPositionFormRowComponent
               )}
             </Row>
-            {displayDescription ? (
+            {desc ? (
               <div style={{ marginTop: '10px' }}>
                 <FormHelperText> {'Region Description: '} </FormHelperText>
                 <FormHelperText style={{ fontWeight: 'bold' }}>
