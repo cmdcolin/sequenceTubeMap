@@ -77,8 +77,7 @@ describe('TrackListItem', () => {
 
     // change track type
     const fileTypeSelectComponent = queryByTestId('file-type-select-component1')
-    fireEvent.mouseDown(within(fileTypeSelectComponent).getByRole('combobox'))
-    fireEvent.click(await screen.findByRole('option', { name: 'haplotype' }))
+    fireEvent.change(within(fileTypeSelectComponent).getByRole('combobox'), { target: { value: 'haplotype' } })
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
 

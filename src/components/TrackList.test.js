@@ -8,8 +8,8 @@ import {
 } from '@testing-library/react'
 import { TrackList } from './TrackList'
 
-function openSelect(container) {
-  fireEvent.mouseDown(within(container).getByRole('combobox'))
+function selectOption(container, value) {
+  fireEvent.change(within(container).getByRole('combobox'), { target: { value } })
 }
 
 function openAutocomplete(container) {
@@ -115,8 +115,7 @@ describe('TrackList', () => {
     )
 
     // select file type
-    openSelect(queryByTestId('file-type-select-component1'))
-    fireEvent.click(await screen.findByRole('option', { name: 'haplotype' }))
+    selectOption(queryByTestId('file-type-select-component1'), 'haplotype')
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
     let newTracks = JSON.parse(JSON.stringify(tracks))

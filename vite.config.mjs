@@ -32,5 +32,6 @@ export default defineConfig({
         url: 'http://localhost/',
       },
     },
+    teardownTimeout: 10000,
   },
 })

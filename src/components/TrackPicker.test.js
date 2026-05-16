@@ -11,8 +11,8 @@ import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.mjs'
 
-function openSelect(container) {
-  fireEvent.mouseDown(within(container).getByRole('combobox'))
+function selectOption(container, value) {
+  fireEvent.change(within(container).getByRole('combobox'), { target: { value } })
 }
 
 function openAutocomplete(container) {
@@ -126,8 +126,7 @@ describe('TrackPicker', () => {
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
     // second track item
-    openSelect(queryByTestId('file-type-select-component2'))
-    fireEvent.click(await screen.findByRole('option', { name: 'haplotype' }))
+    selectOption(queryByTestId('file-type-select-component2'), 'haplotype')
 
     openAutocomplete(queryByTestId('file-select-component2'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
@@ -167,8 +166,7 @@ describe('TrackPicker', () => {
       />,
     )
 
-    openSelect(queryByTestId('file-type-select-component4'))
-    fireEvent.click(await screen.findByRole('option', { name: 'read' }))
+    selectOption(queryByTestId('file-type-select-component4'), 'read')
 
     openAutocomplete(queryByTestId('file-select-component4'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB2.gam' }))

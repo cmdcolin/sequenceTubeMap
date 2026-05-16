@@ -1,6 +1,3 @@
-import Select from '@mui/material/Select'
-import MenuItem from '@mui/material/MenuItem'
-
 interface TrackTypeDropdownProps {
   id?: string
   className?: string
@@ -20,19 +17,18 @@ export function TrackTypeDropdown({
 }: TrackTypeDropdownProps) {
   return (
     <div data-testid={testID}>
-      <Select
+      <select
         id={id}
-        className={className}
-        size="small"
+        className={`form-select form-select-sm${className ? ` ${className}` : ''}`}
         value={value}
-        onChange={e => onChange(e.target.value as string)}
+        onChange={e => onChange(e.target.value)}
       >
         {options.map(o => (
-          <MenuItem key={o} value={o}>
+          <option key={o} value={o}>
             {o}
-          </MenuItem>
+          </option>
         ))}
-      </Select>
+      </select>
     </div>
   )
 }

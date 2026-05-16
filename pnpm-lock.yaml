@@ -141,6 +141,12 @@ importers:
       '@babel/preset-react':
         specifier: ^7.28.5
         version: 7.28.5(@babel/core@7.29.0)
+      '@types/qs':
+        specifier: ^6.15.1
+        version: 6.15.1
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
       '@types/react-color':
         specifier: ^3.0.13
         version: 3.0.13(@types/react@19.2.14)

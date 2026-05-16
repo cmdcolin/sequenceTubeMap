@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useRef } from 'react'
+import React, { Fragment, useState, useEffect, useRef } from 'react'
 import { Container, Row, Col, Label, Alert, Button } from 'reactstrap'
 import { dataOriginTypes } from '../enums'
 import '../config-client.js'
@@ -11,8 +11,6 @@ import RegionInput from './RegionInput'
 import PathsPanel from './PathsPanel'
 import TrackPicker from './TrackPicker'
 import BedFileDropdown from './BedFileDropdown'
-import MenuItem from '@mui/material/MenuItem'
-import MuiSelect, { type SelectChangeEvent } from '@mui/material/Select'
 import FormHelperText from '@mui/material/FormHelperText'
 import PopupDialog from './PopupDialog'
 import Switch from 'react-switch'
@@ -399,7 +397,7 @@ function HeaderForm({
     isSet(bedFile) ? jumpRegion(-1) : budgeRegion(-0.5)
   }
 
-  function handleDataSourceChange(event: SelectChangeEvent<string>) {
+  function handleDataSourceChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const value = event.target.value
 
     if (value === dataTypes.CUSTOM_FILES) {
@@ -539,20 +537,19 @@ function HeaderForm({
             >
               Data:
             </Label>
-            <MuiSelect
+            <select
               id="dataSourceSelect"
               data-testid="dataSourceSelect"
-              size="small"
-              fullWidth
+              className="form-select form-select-sm"
               value={dataSourceValue}
               onChange={e => handleDataSourceChange(e)}
             >
               {dataSourceDropdownOptions.map(opt => (
-                <MenuItem key={opt.value} value={opt.value}>
+                <option key={opt.value} value={opt.value}>
                   {opt.label}
-                </MenuItem>
+                </option>
               ))}
-            </MuiSelect>
+            </select>
             &nbsp;
             {customFilesFlag && (
               <Fragment>

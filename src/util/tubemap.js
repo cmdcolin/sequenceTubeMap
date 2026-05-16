@@ -515,7 +515,9 @@ export function setMappingQualityCutoff(value) {
 
 // main
 function createTubeMap() {
-  console.log('Recreating tube map in', svgID)
+  const _t = (label) => { const t = performance.now(); return () => process.stderr.write(`[createTubeMap] ${label}: ${(performance.now()-t).toFixed(0)}ms\n`) }
+  let _done
+  process.stderr.write('Recreating tube map in ' + svgID + '\n')
   trackRectangles = []
   trackCurves = []
   trackCorners = []
@@ -535,10 +537,8 @@ function createTubeMap() {
   // changed before any graph has been rendered
   if (inputNodes.length === 0 || inputTracks.length === 0) return
 
-  straightenTrack(0)
-  nodes = deepCopy(inputNodes) // deep copy (can add stuff to copy and leave original unchanged)
-  tracks = deepCopy(inputTracks)
-  reads = deepCopy(inputReads)
+  _done = _t('straightenTrack'); straightenTrack(0); _done()
+  _done = _t('deepCopy'); nodes = deepCopy(inputNodes); tracks = deepCopy(inputTracks); reads = deepCopy(inputReads); _done()
 
   reads = filterReads(reads)
 
@@ -557,16 +557,13 @@ function createTubeMap() {
   }
   if (tracks.length === 0) return
 
-  nodeMap = generateNodeMap(nodes)
-  generateTrackIndexSequences(tracks)
-  if (reads && config.showReads) generateTrackIndexSequences(reads)
-  generateNodeWidth()
+  _done = _t('generateNodeMap+IndexSeqs'); nodeMap = generateNodeMap(nodes); generateTrackIndexSequences(tracks); if (reads && config.showReads) generateTrackIndexSequences(reads); generateNodeWidth(); _done()
 
   if (config.mergeNodesFlag) {
-    generateNodeSuccessors() // requires indexSequence
-    generateNodeOrder() // requires successors
+    _done = _t('merge: generateNodeSuccessors'); generateNodeSuccessors(); _done()
+    _done = _t('merge: generateNodeOrder'); generateNodeOrder(); _done()
     if (reads && config.showReads) reverseReversedReads()
-    mergeNodes()
+    _done = _t('mergeNodes'); mergeNodes(); _done()
     nodeMap = generateNodeMap(nodes)
     generateNodeWidth()
     generateTrackIndexSequences(tracks)
@@ -575,28 +572,26 @@ function createTubeMap() {
 
   numberOfNodes = nodes.length
   numberOfTracks = tracks.length
-  generateNodeSuccessors()
-  generateNodeDegree()
+  _done = _t('generateNodeSuccessors'); generateNodeSuccessors(); _done()
+  _done = _t('generateNodeDegree'); generateNodeDegree(); _done()
   if (DEBUG) console.log(`${numberOfNodes} nodes.`)
-  generateNodeOrder()
+  _done = _t('generateNodeOrder #1'); generateNodeOrder(); _done()
   maxOrder = getMaxOrder()
 
   // can cause problems when there is a reversed single track node
   // OTOH, can solve problems with complex inversion patterns
-  switchNodeOrientation()
-  generateNodeOrder(nodes, tracks)
+  _done = _t('switchNodeOrientation'); switchNodeOrientation(); _done()
+  _done = _t('generateNodeOrder #2'); generateNodeOrder(nodes, tracks); _done()
   maxOrder = getMaxOrder()
 
-  calculateTrackWidth(tracks)
-  generateLaneAssignment()
+  _done = _t('calculateTrackWidth+LaneAssignment'); calculateTrackWidth(tracks); generateLaneAssignment(); _done()
 
   if (config.showExonsFlag === true && bed !== null) addTrackFeatures()
 
   if (reads && config.showReads) {
-    generateReadOnlyNodeAttributes()
-    reverseReversedReads()
-    generateTrackIndexSequences(reads)
-    placeReads()
+    _done = _t('generateReadOnlyNodeAttributes'); generateReadOnlyNodeAttributes(); _done()
+    _done = _t('reverseReversedReads+IndexSeqs'); reverseReversedReads(); generateTrackIndexSequences(reads); _done()
+    _done = _t('placeReads'); placeReads(); _done()
     tracks = tracks.concat(reads)
     // we do not have any reads to display
   } else {
@@ -607,9 +602,9 @@ function createTubeMap() {
     })
   }
 
-  generateNodeXCoords()
+  _done = _t('generateNodeXCoords'); generateNodeXCoords(); _done()
 
-  generateSVGShapesFromPath(nodes, tracks)
+  _done = _t('generateSVGShapesFromPath'); generateSVGShapesFromPath(nodes, tracks); _done()
   if (DEBUG) {
     console.log('Tracks:')
     console.log(tracks)
@@ -760,8 +755,6 @@ function placeReads() {
 
   let allSources = Object.keys(readsBySource)
   allSources.sort((a, b) => Number(a) - Number(b))
-
-  console.log('All sources: ', allSources)
 
   // Space out read tracks if multiple exist
   let topMargin = allSources.length > 1 ? READ_WIDTH : 0
@@ -4691,7 +4684,10 @@ export function vgExtractTracks(vg, pathSourceTrackId, haplotypeSourceTrackID) {
     // Even non-haplotype paths will be assigned a "freq" field by vg. See
     // <https://github.com/vgteam/vg/blob/6b34cd50e851eb9a91be3a605e040c9be1d4b78e/src/haplotype_extracter.cpp#L52-L55>.
     // We want to copy those through so that non-haplotype paths have a normal width.
-    track.freq = path.freq
+    // Only set freq if path.freq is defined; otherwise calculateTrackWidth uses default width.
+    if (path.freq !== undefined) {
+      track.freq = path.freq
+    }
     // But haplotypes will have names starting with "thread_".
     if (path.name && path.name.startsWith('thread_')) {
       // This is a haplotype

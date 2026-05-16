@@ -2579,41 +2579,34 @@ export function start() {
       connections: undefined,
       // Shut down the server
       close: async () => {
-        // remove the temporary directory
+        console.log('[shutdown] removing temp dir')
         fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
 
-        // Shutdown the Websocket Server.
+        console.log(`[shutdown] shutting down WSS (${state.connections.size} open WS connections)`)
         state.wss.shutDown()
-        // Close the file watcher.
+        console.log('[shutdown] closing file watcher')
         state.watcher.close()
+        console.log(`[shutdown] dropping ${state.connections.size} WebSocket connection(s)`)
+        for (const connection of state.connections) {
+          connection.drop(1001)
+        }
 
+        console.log('[shutdown] closing HTTP server + force-closing all connections')
         await new Promise((resolve, reject) => {
-          function stopIfReady() {
-            if (state.connections.size === 0) {
-              // No more open connections!
-              resolve()
-            } else {
-              // Check back later
-              setTimeout(stopIfReady, 10)
-            }
-          }
-          stopIfReady()
-        })
-
-        // Wait for the HTTP server to close.
-        await new Promise((resolve, reject) => {
-          // close server
           state.server.close(err => {
             if (err) {
-              console.log('HTTP server has closed with error: ' + err.message)
+              console.log('[shutdown] HTTP server closed with error: ' + err.message)
             } else {
-              console.log('HTTP server has closed.')
+              console.log('[shutdown] HTTP server closed cleanly')
             }
             resolve()
           })
+          // Force-close all remaining TCP connections (keepalive + WebSocket sockets)
+          // so close() resolves promptly rather than waiting for clients to drain.
+          state.server.closeAllConnections()
         })
 
-        console.log('TubeMapServer stopped.')
+        console.log('[shutdown] TubeMapServer stopped.')
       },
       // Get the URL the server is listening on
       getUrl: () => {

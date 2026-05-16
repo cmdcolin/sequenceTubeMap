@@ -86,20 +86,14 @@ it('renders without crashing when sent bad fetch data from server', async () => 
 
 it('allows the data source to be changed', async () => {
   render(<App />)
-  const dataSelect = within(screen.getByTestId('dataSourceSelect')).getByRole(
-    'combobox',
-  )
-  expect(dataSelect.textContent).toEqual('snp1kg-BRCA1')
+  const dataSelect = screen.getByTestId('dataSourceSelect')
+  expect(dataSelect.value).toEqual('snp1kg-BRCA1')
 
-  fireEvent.mouseDown(dataSelect)
-  fireEvent.click(await screen.findByRole('option', { name: 'cactus' }))
-  expect(dataSelect.textContent).toEqual('cactus')
+  fireEvent.change(dataSelect, { target: { value: 'cactus' } })
+  expect(dataSelect.value).toEqual('cactus')
 
-  fireEvent.mouseDown(dataSelect)
-  fireEvent.click(
-    await screen.findByRole('option', { name: 'vg "small" example' }),
-  )
-  expect(dataSelect.textContent).toEqual('vg "small" example')
+  fireEvent.change(dataSelect, { target: { value: 'vg "small" example' } })
+  expect(dataSelect.value).toEqual('vg "small" example')
 })
 
 it('allows the start to be cleared', async () => {

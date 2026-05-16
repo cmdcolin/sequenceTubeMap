@@ -41,8 +41,10 @@ let fakeClipboard = undefined
 // This needs to be called by global and per-scope beforeEach
 async function setUp() {
   setCopyCallback(value => (fakeClipboard = value))
+  console.log('[setUp] calling render...')
   // Create the application.
   render(<App apiUrl={serverState.getApiUrl()} />)
+  console.log('[setUp] render returned')
 }
 
 // This needs to be called by global and per-scope afterEach
@@ -52,37 +54,46 @@ async function tearDown() {
   setCopyCallback(writeToClipboard)
 }
 
-beforeEach(async () => {
+beforeEach(async (ctx) => {
+  console.log(`\n[test:start] ${ctx.task.name}`)
   await setUp()
 })
 
-afterEach(async () => {
+afterEach(async (ctx) => {
+  console.log(`[test:end]   ${ctx.task.name} — ${ctx.task.result?.state ?? 'unknown'}`)
   await tearDown()
 })
 
 // Starting the server once per test run will speed up tests
 beforeAll(async () => {
+  console.log('[beforeAll] starting server...')
   serverState = await server.start()
+  console.log('[beforeAll] server ready at', serverState.getApiUrl())
 })
 
 afterAll(async () => {
+  console.log('[afterAll] closing server...')
   try {
     // Shut down the server
     await serverState.close()
     serverState = undefined
   } catch (e) {
-    console.error(e)
+    console.error('[afterAll] close() threw:', e)
   }
+  console.log('[afterAll] done')
 })
 
 // Wait for the loading throbber to appear
 async function waitForLoadStart() {
   return new Promise((resolve, reject) => {
+    let ticks = 0
     function waitAround() {
       let loader = document.getElementById('loader')
       if (!loader) {
+        if (++ticks % 20 === 0) console.log(`[waitForLoadStart] still waiting... (${ticks * 100}ms)`)
         setTimeout(waitAround, 100)
       } else {
+        console.log(`[waitForLoadStart] loader appeared after ${ticks * 100}ms`)
         resolve()
       }
     }
@@ -92,12 +103,17 @@ async function waitForLoadStart() {
 
 // Wait for the loading throbber to disappear
 async function waitForLoadEnd() {
+  console.log('[waitForLoadEnd] called')
   return new Promise((resolve, reject) => {
+    let ticks = 0
     function waitAround() {
+      console.log(`[waitForLoadEnd] tick ${ticks}`)
       let loader = document.getElementById('loader')
       if (loader) {
+        ticks++
         setTimeout(waitAround, 100)
       } else {
+        console.log(`[waitForLoadEnd] loader gone after ${ticks * 100}ms`)
         resolve()
       }
     }
@@ -187,6 +203,7 @@ describe('When we wait for it to load', () => {
     // Wait for the loader to go away the new way.
     // See https://jasmine.github.io/2.0/upgrading.html#section-9
     // Note that Jest imposes a 5000 ms timeout for being done.
+    console.log('[describe:beforeEach] about to call waitForLoadEnd')
     await waitForLoadEnd()
   })
 
@@ -218,7 +235,7 @@ describe('When we wait for it to load', () => {
   it('the region options in autocomplete are cleared after selecting new data', async () => {
     // Input data dropdown
     await userEvent.selectOptions(
-      screen.getByLabelText(/Data/i),
+      document.getElementById('dataSourceSelect'),
       'vg "small" example',
     )
     let regionInput = getRegionInput()
@@ -235,7 +252,7 @@ describe('When we wait for it to load', () => {
     await act(async () => {
       let dropdown = document.getElementById('dataSourceSelect')
       await userEvent.selectOptions(
-        screen.getByLabelText(/Data/i),
+        document.getElementById('dataSourceSelect'),
         'synthetic data examples',
       )
     })
@@ -260,7 +277,7 @@ describe('When we wait for it to load', () => {
 
     // Input data dropdown
     await userEvent.selectOptions(
-      screen.getByLabelText(/Data/i),
+      document.getElementById('dataSourceSelect'),
       'vg "small" example',
     )
     const autocomplete = screen.getByTestId('autocomplete')
@@ -298,7 +315,7 @@ describe('When we wait for it to load', () => {
 
     // Input data dropdown
     await userEvent.selectOptions(
-      screen.getByLabelText(/Data/i),
+      document.getElementById('dataSourceSelect'),
       'cactus multiple reads',
     )
     const autocomplete = screen.getByTestId('autocomplete')
@@ -340,7 +357,7 @@ it('produces correct link for view before & after go is pressed', async () => {
   await act(async () => {
     let dropdown = document.getElementById('dataSourceSelect')
     await userEvent.selectOptions(
-      screen.getByLabelText(/Data/i),
+      document.getElementById('dataSourceSelect'),
       'snp1kg-BRCA1',
     )
   })
@@ -356,7 +373,7 @@ it('produces correct link for view before & after go is pressed', async () => {
   // Set up dropdown
   await act(async () => {
     let dropdown = document.getElementById('dataSourceSelect')
-    await userEvent.selectOptions(screen.getByLabelText(/Data/i), 'cactus')
+    await userEvent.selectOptions(document.getElementById('dataSourceSelect'), 'cactus')
   })
   // Wait for server to load
   await waitForLoadEnd()
@@ -381,7 +398,7 @@ it('can retrieve the list of mounted graph files', async () => {
   // Swap over to the custom files mode
   await act(async () => {
     let dropdown = document.getElementById('dataSourceSelect')
-    await userEvent.selectOptions(screen.getByLabelText(/Data/i), 'custom')
+    await userEvent.selectOptions(document.getElementById('dataSourceSelect'), 'custom')
   })
 
   // Find the select box's input
@@ -422,7 +439,7 @@ it('can accept uploaded files', async () => {
   // Swap over to the custom files mode
   await act(async () => {
     let dropdown = document.getElementById('dataSourceSelect')
-    await userEvent.selectOptions(screen.getByLabelText(/Data/i), 'custom')
+    await userEvent.selectOptions(document.getElementById('dataSourceSelect'), 'custom')
   })
 
   // Find the select box's input
@@ -439,17 +456,12 @@ it('can accept uploaded files', async () => {
     fireEvent.click(screen.queryByTestId('track-add-button-component'))
   })
 
-  await waitFor(() => {
-    // wait for picker type dropdown
-    fireEvent.keyDown(
-      screen.queryByTestId('picker-type-select-component1').firstChild,
-      { key: 'ArrowDown' },
-    )
-  })
-
-  // select the upload option
-  await waitFor(() => screen.getByText('upload'))
-  fireEvent.click(screen.getByText('upload'))
+  // select the upload option from the picker type dropdown
+  await waitFor(() => screen.queryByTestId('picker-type-select-component1'))
+  await userEvent.selectOptions(
+    screen.queryByTestId('picker-type-select-component1').querySelector('select'),
+    'upload',
+  )
 
   await waitFor(() => screen.queryByTestId('file-select-component1'))
 
