@@ -1,6 +1,7 @@
 import React from 'react'
-import { render, fireEvent, screen, within } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { TrackTypeDropdown } from './TrackTypeDropdown'
+import { selectMuiOption } from '../testUtils'
 
 describe('TrackTypeDropdown', () => {
   it('calls the onChange callback handler', async () => {
@@ -8,10 +9,7 @@ describe('TrackTypeDropdown', () => {
     const { getByTestId } = render(
       <TrackTypeDropdown value="haplotype" onChange={onChange} />,
     )
-    const select = within(
-      getByTestId('file-type-select-component'),
-    ).getByRole('combobox')
-    fireEvent.change(select, { target: { value: 'graph' } })
+    await selectMuiOption(getByTestId('file-type-select-component'), 'graph')
 
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange).toHaveBeenLastCalledWith('graph')

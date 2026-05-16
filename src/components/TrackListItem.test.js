@@ -7,6 +7,7 @@ import {
   screen,
 } from '@testing-library/react'
 import { TrackListItem } from './TrackListItem'
+import { selectMuiOption } from '../testUtils'
 describe('TrackListItem', () => {
   const trackFile = undefined
   const trackType = 'graph'
@@ -76,8 +77,7 @@ describe('TrackListItem', () => {
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
     // change track type
-    const fileTypeSelectComponent = queryByTestId('file-type-select-component1')
-    fireEvent.change(within(fileTypeSelectComponent).getByRole('combobox'), { target: { value: 'haplotype' } })
+    await selectMuiOption(queryByTestId('file-type-select-component1'), 'haplotype')
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
 

@@ -24,6 +24,7 @@ import {
 import { setCopyCallback, writeToClipboard } from './components/CopyLink'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { selectMuiOption } from './testUtils'
 
 const getRegionInput = () => {
   // Helper function to select the Region input box
@@ -41,10 +42,8 @@ let fakeClipboard = undefined
 // This needs to be called by global and per-scope beforeEach
 async function setUp() {
   setCopyCallback(value => (fakeClipboard = value))
-  console.log('[setUp] calling render...')
   // Create the application.
   render(<App apiUrl={serverState.getApiUrl()} />)
-  console.log('[setUp] render returned')
 }
 
 // This needs to be called by global and per-scope afterEach
@@ -54,46 +53,37 @@ async function tearDown() {
   setCopyCallback(writeToClipboard)
 }
 
-beforeEach(async (ctx) => {
-  console.log(`\n[test:start] ${ctx.task.name}`)
+beforeEach(async () => {
   await setUp()
 })
 
-afterEach(async (ctx) => {
-  console.log(`[test:end]   ${ctx.task.name} — ${ctx.task.result?.state ?? 'unknown'}`)
+afterEach(async () => {
   await tearDown()
 })
 
 // Starting the server once per test run will speed up tests
 beforeAll(async () => {
-  console.log('[beforeAll] starting server...')
   serverState = await server.start()
-  console.log('[beforeAll] server ready at', serverState.getApiUrl())
 })
 
 afterAll(async () => {
-  console.log('[afterAll] closing server...')
   try {
     // Shut down the server
     await serverState.close()
     serverState = undefined
   } catch (e) {
-    console.error('[afterAll] close() threw:', e)
+    console.error(e)
   }
-  console.log('[afterAll] done')
 })
 
 // Wait for the loading throbber to appear
 async function waitForLoadStart() {
   return new Promise((resolve, reject) => {
-    let ticks = 0
     function waitAround() {
       let loader = document.getElementById('loader')
       if (!loader) {
-        if (++ticks % 20 === 0) console.log(`[waitForLoadStart] still waiting... (${ticks * 100}ms)`)
         setTimeout(waitAround, 100)
       } else {
-        console.log(`[waitForLoadStart] loader appeared after ${ticks * 100}ms`)
         resolve()
       }
     }
@@ -103,17 +93,12 @@ async function waitForLoadStart() {
 
 // Wait for the loading throbber to disappear
 async function waitForLoadEnd() {
-  console.log('[waitForLoadEnd] called')
   return new Promise((resolve, reject) => {
-    let ticks = 0
     function waitAround() {
-      console.log(`[waitForLoadEnd] tick ${ticks}`)
       let loader = document.getElementById('loader')
       if (loader) {
-        ticks++
         setTimeout(waitAround, 100)
       } else {
-        console.log(`[waitForLoadEnd] loader gone after ${ticks * 100}ms`)
         resolve()
       }
     }
@@ -166,36 +151,22 @@ function clickGoButton() {
   })
 }
 
-/// Return the option element in the given dropdown with the given displayed text.
-/// Accepts only exact full matches.
-/// Returns undefined if no option exists.
-/// Only works on real select elements and not fancy React controls.
-function findDropdownOption(dropdown, optionText) {
-  let wantedEntry = undefined
-  for (let item of dropdown.getElementsByTagName('option')) {
-    // Note that we don't have innerText in React's jsdom:
-    // https://github.com/jsdom/jsdom/issues/1245
-    if (item.textContent == optionText) {
-      // Scan for this particular option.
-      wantedEntry = item
-    }
-  }
-  return wantedEntry
-}
-
 it('initially renders as loading', () => {
   let loader = document.getElementById('loader')
   expect(loader).toBeTruthy()
 })
 
-it('populates the available example dropdown', () => {
-  // Make sure the dropdown exists in the div
-  let dropdown = document.getElementById('dataSourceSelect')
-  expect(dropdown).toBeTruthy()
-
-  // Make sure it has a particular example value
-  let wantedEntry = findDropdownOption(dropdown, 'snp1kg-BRCA1')
-  expect(wantedEntry).toBeTruthy()
+it('populates the available example dropdown', async () => {
+  const dataSelect = screen.getByTestId('dataSourceSelect')
+  // Default selected example should be present
+  expect(within(dataSelect).getByRole('combobox').textContent).toContain(
+    'snp1kg-BRCA1',
+  )
+  // Opening the menu reveals the option list
+  fireEvent.mouseDown(within(dataSelect).getByRole('combobox'))
+  expect(
+    await screen.findByRole('option', { name: 'cactus' }),
+  ).toBeInTheDocument()
 })
 
 describe('When we wait for it to load', () => {
@@ -203,7 +174,6 @@ describe('When we wait for it to load', () => {
     // Wait for the loader to go away the new way.
     // See https://jasmine.github.io/2.0/upgrading.html#section-9
     // Note that Jest imposes a 5000 ms timeout for being done.
-    console.log('[describe:beforeEach] about to call waitForLoadEnd')
     await waitForLoadEnd()
   })
 
@@ -234,8 +204,8 @@ describe('When we wait for it to load', () => {
   })
   it('the region options in autocomplete are cleared after selecting new data', async () => {
     // Input data dropdown
-    await userEvent.selectOptions(
-      document.getElementById('dataSourceSelect'),
+    await selectMuiOption(
+      screen.getByTestId('dataSourceSelect'),
       'vg "small" example',
     )
     let regionInput = getRegionInput()
@@ -250,16 +220,14 @@ describe('When we wait for it to load', () => {
   })
   it('draws an SVG for synthetic data example 1', async () => {
     await act(async () => {
-      let dropdown = document.getElementById('dataSourceSelect')
-      await userEvent.selectOptions(
-        document.getElementById('dataSourceSelect'),
+      await selectMuiOption(
+        screen.getByTestId('dataSourceSelect'),
         'synthetic data examples',
       )
     })
 
     await act(async () => {
       let example1 = document.getElementById('example1')
-      console.log('Clicking button for example 1')
       await userEvent.click(example1)
     })
 
@@ -273,11 +241,9 @@ describe('When we wait for it to load', () => {
   })
 
   it('draws the right SVG for vg "small"', async () => {
-    let dropdown = document.getElementById('dataSourceSelect')
-
     // Input data dropdown
-    await userEvent.selectOptions(
-      document.getElementById('dataSourceSelect'),
+    await selectMuiOption(
+      screen.getByTestId('dataSourceSelect'),
       'vg "small" example',
     )
     const autocomplete = screen.getByTestId('autocomplete')
@@ -311,11 +277,9 @@ describe('When we wait for it to load', () => {
   })
 
   it('draws the right SVG for cactus multiple reads', async () => {
-    let dropdown = document.getElementById('dataSourceSelect')
-
     // Input data dropdown
-    await userEvent.selectOptions(
-      document.getElementById('dataSourceSelect'),
+    await selectMuiOption(
+      screen.getByTestId('dataSourceSelect'),
       'cactus multiple reads',
     )
     const autocomplete = screen.getByTestId('autocomplete')
@@ -355,9 +319,8 @@ it('produces correct link for view before & after go is pressed', async () => {
     'http://localhost/?name=snp1kg-BRCA1&tracks[0][trackFile]=exampleData%2Finternal%2Fsnp1kg-BRCA1.vg.xg&tracks[0][trackType]=graph&tracks[0][trackColorSettings][mainPalette]=greys&tracks[0][trackColorSettings][auxPalette]=ygreys&tracks[1][trackFile]=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks[1][trackType]=read&region=17%3A1-100&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&dataType=built-in&simplify=false&removeSequences=false'
   // Set up dropdown
   await act(async () => {
-    let dropdown = document.getElementById('dataSourceSelect')
-    await userEvent.selectOptions(
-      document.getElementById('dataSourceSelect'),
+    await selectMuiOption(
+      screen.getByTestId('dataSourceSelect'),
       'snp1kg-BRCA1',
     )
   })
@@ -372,8 +335,7 @@ it('produces correct link for view before & after go is pressed', async () => {
 
   // Set up dropdown
   await act(async () => {
-    let dropdown = document.getElementById('dataSourceSelect')
-    await userEvent.selectOptions(document.getElementById('dataSourceSelect'), 'cactus')
+    await selectMuiOption(screen.getByTestId('dataSourceSelect'), 'cactus')
   })
   // Wait for server to load
   await waitForLoadEnd()
@@ -397,8 +359,7 @@ it('can retrieve the list of mounted graph files', async () => {
 
   // Swap over to the custom files mode
   await act(async () => {
-    let dropdown = document.getElementById('dataSourceSelect')
-    await userEvent.selectOptions(document.getElementById('dataSourceSelect'), 'custom')
+    await selectMuiOption(screen.getByTestId('dataSourceSelect'), 'custom')
   })
 
   // Find the select box's input
@@ -438,8 +399,7 @@ it('can accept uploaded files', async () => {
 
   // Swap over to the custom files mode
   await act(async () => {
-    let dropdown = document.getElementById('dataSourceSelect')
-    await userEvent.selectOptions(document.getElementById('dataSourceSelect'), 'custom')
+    await selectMuiOption(screen.getByTestId('dataSourceSelect'), 'custom')
   })
 
   // Find the select box's input
@@ -458,8 +418,8 @@ it('can accept uploaded files', async () => {
 
   // select the upload option from the picker type dropdown
   await waitFor(() => screen.queryByTestId('picker-type-select-component1'))
-  await userEvent.selectOptions(
-    screen.queryByTestId('picker-type-select-component1').querySelector('select'),
+  await selectMuiOption(
+    screen.queryByTestId('picker-type-select-component1'),
     'upload',
   )
 

@@ -1,3 +1,6 @@
+import Select from '@mui/material/Select'
+import MenuItem from '@mui/material/MenuItem'
+
 interface PickerTypeDropdownProps {
   value?: string
   handleInputChange: (value: string) => void
@@ -13,16 +16,17 @@ export const PickerTypeDropdown = ({
 }: PickerTypeDropdownProps) => {
   return (
     <div data-testid={testID}>
-      <select
+      <Select
+        size="small"
         value={value}
         onChange={e => handleInputChange(e.target.value)}
       >
         {pickerOptions.map(option => (
-          <option key={option} value={option}>
+          <MenuItem key={option} value={option}>
             {option}
-          </option>
+          </MenuItem>
         ))}
-      </select>
+      </Select>
     </div>
   )
 }

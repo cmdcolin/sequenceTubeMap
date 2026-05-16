@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { selectMuiOption, muiSelectValue } from './testUtils'
 
 import { fetchAndParse } from './fetchAndParse'
 
@@ -87,13 +88,13 @@ it('renders without crashing when sent bad fetch data from server', async () => 
 it('allows the data source to be changed', async () => {
   render(<App />)
   const dataSelect = screen.getByTestId('dataSourceSelect')
-  expect(dataSelect.value).toEqual('snp1kg-BRCA1')
+  expect(muiSelectValue(dataSelect)).toEqual('snp1kg-BRCA1')
 
-  fireEvent.change(dataSelect, { target: { value: 'cactus' } })
-  expect(dataSelect.value).toEqual('cactus')
+  await selectMuiOption(dataSelect, 'cactus')
+  expect(muiSelectValue(dataSelect)).toEqual('cactus')
 
-  fireEvent.change(dataSelect, { target: { value: 'vg "small" example' } })
-  expect(dataSelect.value).toEqual('vg "small" example')
+  await selectMuiOption(dataSelect, 'vg "small" example')
+  expect(muiSelectValue(dataSelect)).toEqual('vg "small" example')
 })
 
 it('allows the start to be cleared', async () => {

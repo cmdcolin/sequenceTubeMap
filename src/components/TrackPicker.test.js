@@ -10,10 +10,7 @@ import { TrackPicker } from './TrackPicker'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.mjs'
-
-function selectOption(container, value) {
-  fireEvent.change(within(container).getByRole('combobox'), { target: { value } })
-}
+import { selectMuiOption } from '../testUtils'
 
 function openAutocomplete(container) {
   const input = within(container).getByRole('combobox')
@@ -126,7 +123,7 @@ describe('TrackPicker', () => {
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
     // second track item
-    selectOption(queryByTestId('file-type-select-component2'), 'haplotype')
+    await selectMuiOption(queryByTestId('file-type-select-component2'), 'haplotype')
 
     openAutocomplete(queryByTestId('file-select-component2'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
@@ -166,7 +163,7 @@ describe('TrackPicker', () => {
       />,
     )
 
-    selectOption(queryByTestId('file-type-select-component4'), 'read')
+    await selectMuiOption(queryByTestId('file-type-select-component4'), 'read')
 
     openAutocomplete(queryByTestId('file-select-component4'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB2.gam' }))

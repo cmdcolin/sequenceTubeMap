@@ -7,10 +7,7 @@ import {
   screen,
 } from '@testing-library/react'
 import { TrackList } from './TrackList'
-
-function selectOption(container, value) {
-  fireEvent.change(within(container).getByRole('combobox'), { target: { value } })
-}
+import { selectMuiOption } from '../testUtils'
 
 function openAutocomplete(container) {
   const input = within(container).getByRole('combobox')
@@ -115,7 +112,7 @@ describe('TrackList', () => {
     )
 
     // select file type
-    selectOption(queryByTestId('file-type-select-component1'), 'haplotype')
+    await selectMuiOption(queryByTestId('file-type-select-component1'), 'haplotype')
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
     let newTracks = JSON.parse(JSON.stringify(tracks))

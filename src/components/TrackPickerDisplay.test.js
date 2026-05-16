@@ -3,10 +3,7 @@ import { render, fireEvent, screen, within } from '@testing-library/react'
 import { TrackPickerDisplay } from './TrackPickerDisplay'
 import config from './../config.json'
 import { defaultTrackColors } from '../common.mjs'
-
-function selectOption(container, value) {
-  fireEvent.change(within(container).getByRole('combobox'), { target: { value } })
-}
+import { selectMuiOption } from '../testUtils'
 
 function openAutocomplete(container) {
   const input = within(container).getByRole('combobox')
@@ -111,7 +108,7 @@ describe('TrackPickerDisplay', () => {
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
     // second track item
-    selectOption(queryByTestId('file-type-select-component2'), 'haplotype')
+    await selectMuiOption(queryByTestId('file-type-select-component2'), 'haplotype')
 
     openAutocomplete(queryByTestId('file-select-component2'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
@@ -151,7 +148,7 @@ describe('TrackPickerDisplay', () => {
       />,
     )
 
-    selectOption(queryByTestId('file-type-select-component4'), 'read')
+    await selectMuiOption(queryByTestId('file-type-select-component4'), 'read')
 
     openAutocomplete(queryByTestId('file-select-component4'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB2.gam' }))
