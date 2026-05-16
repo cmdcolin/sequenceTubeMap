@@ -215,12 +215,29 @@ describe('cigar_string', () => {
   })
 })
 
+interface NodeVisit {
+  nodeName: string
+}
+
+interface ReadLike {
+  sequenceNew: NodeVisit[]
+  firstNodeOffset?: number
+  finalNodeCoverLength: number
+}
+
+interface NodeLike {
+  sequenceLength: number
+  incomingReads: [number, number][]
+  internalReads: number[]
+  outgoingReads: [number, number][]
+}
+
 // Test to make sure that a node and a set of reads make sense together.
-function checkNodeExample(node, reads) {
-  let nodeName = null
+function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
+  let nodeName: string | null = null
   // Set or check node name for the given visit of the given read
-  function checkNodeName(read, visitIndex) {
-    let visit = read.sequenceNew[visitIndex]
+  function checkNodeName(read: ReadLike, visitIndex: number) {
+    const visit = read.sequenceNew[visitIndex]
     if (nodeName) {
       if (nodeName !== visit.nodeName) {
         throw new Error(
@@ -235,11 +252,11 @@ function checkNodeExample(node, reads) {
       nodeName = visit.nodeName
     }
   }
-  for (let [readNum, visitIndex] of node.incomingReads) {
+  for (const [readNum, visitIndex] of node.incomingReads) {
     if (readNum >= reads.length) {
       throw new Error('Incoming read ' + readNum + " doesn't exist")
     }
-    let read = reads[readNum]
+    const read = reads[readNum]
     if (visitIndex >= read.sequenceNew.length) {
       throw new Error(
         'Incoming read ' + readNum + ' visit ' + visitIndex + " doesn't exist",
@@ -262,13 +279,13 @@ function checkNodeExample(node, reads) {
       }
     }
   }
-  for (let readNum of node.internalReads) {
+  for (const readNum of node.internalReads) {
     if (readNum >= reads.length) {
       throw new Error('Internal read ' + readNum + " doesn't exist")
     }
-    let read = reads[readNum]
+    const read = reads[readNum]
     // Internal reads can only have one visit
-    let visitIndex = 0
+    const visitIndex = 0
     if (read.sequenceNew.length !== 1) {
       throw new Error(
         'Internal reads can only visit one node, but read' +
@@ -279,11 +296,11 @@ function checkNodeExample(node, reads) {
     checkNodeName(read, visitIndex)
   }
 
-  for (let [readNum, visitIndex] of node.outgoingReads) {
+  for (const [readNum, visitIndex] of node.outgoingReads) {
     if (readNum >= reads.length) {
       throw new Error('Outgoing read ' + readNum + " doesn't exist")
     }
-    let read = reads[readNum]
+    const read = reads[readNum]
     if (visitIndex >= read.sequenceNew.length) {
       throw new Error(
         'Outgoing read ' + readNum + ' visit ' + visitIndex + " doesn't exist",
@@ -295,11 +312,9 @@ function checkNodeExample(node, reads) {
       )
     }
     checkNodeName(read, visitIndex)
-    if (visitIndex === 0) {
-      // Read starts here
-      if (read.firstNodeOffset > node.sequenceLength) {
-        throw new Error('First node offset too long')
-      }
+    // Read starts here (visitIndex is always 0 — guarded above)
+    if (read.firstNodeOffset > node.sequenceLength) {
+      throw new Error('First node offset too long')
     }
   }
 }
@@ -315,7 +330,7 @@ describe('coverage', () => {
       outgoingReads: [],
     }
     const reads = []
-    expect(checkNodeExample(node, reads)).toBe(undefined)
+    checkNodeExample(node, reads)
     expect(coverage(node, reads)).toBe(0.0)
   })
   // TEST #2
@@ -367,7 +382,7 @@ describe('coverage', () => {
         finalNodeCoverLength: 1,
       },
     ]
-    expect(checkNodeExample(node, reads)).toBe(undefined)
+    checkNodeExample(node, reads)
     expect(coverage(node, reads)).toBe(1.0)
   })
   // TEST #3
@@ -458,7 +473,7 @@ describe('coverage', () => {
         finalNodeCoverLength: 6,
       },
     ]
-    expect(checkNodeExample(node, reads)).toBe(undefined)
+    checkNodeExample(node, reads)
     expect(coverage(node, reads)).toBe(2.17)
   })
   // TEST #4
@@ -624,7 +639,7 @@ describe('coverage', () => {
         finalNodeCoverLength: 29,
       },
     ]
-    expect(checkNodeExample(node, reads)).toBe(undefined)
+    checkNodeExample(node, reads)
     expect(coverage(node, reads)).toBe(6.57)
   })
   // TEST #5
@@ -715,7 +730,7 @@ describe('coverage', () => {
         finalNodeCoverLength: 6,
       },
     ]
-    //expect(checkNodeExample(node, reads)).toBe(undefined);
+    //checkNodeExample(node, reads);
     //console.log("coverage(node, reads) for test 5:", coverage(node, reads))
     expect(coverage(node, reads)).toBe(1.83)
   })
@@ -867,36 +882,36 @@ describe('coverage', () => {
 describe('axisIntervals', () => {
   // TEST 1
   it('can handle an empty array', async () => {
-    let nodePixelCoordinates = []
-    let threshold = 1
+    const nodePixelCoordinates = []
+    const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([])
   })
   // TEST 2
   it('can handle an array of one interval', async () => {
-    let nodePixelCoordinates = [[0, 1]]
-    let threshold = 1
+    const nodePixelCoordinates = [[0, 1]]
+    const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 1],
     ])
   })
   // TEST 3
   it('can handle an array of two interval where the difference between the intervals is less than the threshold', async () => {
-    let nodePixelCoordinates = [
+    const nodePixelCoordinates = [
       [0, 1],
       [1, 2],
     ]
-    let threshold = 2
+    const threshold = 2
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 2],
     ])
   })
   // TEST 4
   it('can handle an array of two interval where the difference between the intervals is greater than the threshold', async () => {
-    let nodePixelCoordinates = [
+    const nodePixelCoordinates = [
       [0, 1],
       [3, 4],
     ]
-    let threshold = 1
+    const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 1],
       [3, 4],
@@ -904,18 +919,18 @@ describe('axisIntervals', () => {
   })
   // TEST 5
   it('can handle an array of two interval where the difference between the intervals is equal to the threshold', async () => {
-    let nodePixelCoordinates = [
+    const nodePixelCoordinates = [
       [0, 1],
       [2, 3],
     ]
-    let threshold = 1
+    const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 3],
     ])
   })
   // TEST 6
   it('can handle an array of repeating intervals', async () => {
-    let nodePixelCoordinates = [
+    const nodePixelCoordinates = [
       [0, 1],
       [2, 3],
       [2, 3],
@@ -924,14 +939,14 @@ describe('axisIntervals', () => {
       [2, 3],
       [4, 5],
     ]
-    let threshold = 1
+    const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 5],
     ])
   })
   // TEST 7
   it('can handle an array of repeating intervals that are more spaced out', async () => {
-    let nodePixelCoordinates = [
+    const nodePixelCoordinates = [
       [0, 1],
       [3, 4],
       [3, 4],
@@ -939,7 +954,7 @@ describe('axisIntervals', () => {
       [3, 4],
       [6, 7],
     ]
-    let threshold = 1
+    const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 1],
       [3, 4],
@@ -948,27 +963,27 @@ describe('axisIntervals', () => {
   })
   // TEST 8
   it('can handle an array of out of order intervals', async () => {
-    let nodePixelCoordinates = [
+    const nodePixelCoordinates = [
       [2, 3],
       [0, 1],
       [5, 6],
       [2, 4],
     ]
-    let threshold = 1
+    const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 6],
     ])
   })
   // TEST 9
   it('can handle an array of larger, more spaced out intervals, with a larger threshold', async () => {
-    let nodePixelCoordinates = [
+    const nodePixelCoordinates = [
       [0, 10],
       [12, 15],
       [0, 10],
       [18, 29],
       [53, 117],
     ]
-    let threshold = 20
+    const threshold = 20
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 29],
       [53, 117],
