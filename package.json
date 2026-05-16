@@ -54,7 +54,8 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
     "serve": "node ./src/server.mjs",
-    "format": "prettier --write \"**/*.+(mjs|js|css)\""
+    "format": "prettier --write \"**/*.+(mjs|js|css)\"",
+    "lint": "eslint --cache"
   },
   "engines": {
     "node": ">=18.0.0"

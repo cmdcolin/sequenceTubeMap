@@ -402,6 +402,8 @@ function HeaderForm({
   function handleDataSourceChange(event: SelectChangeEvent<string>) {
     const value = event.target.value
 
+    setCurrentViewTarget({ tracks: {}, region: '' })
+
     if (value === dataTypes.CUSTOM_FILES) {
       setBedSelect('none')
       setDesc('')

@@ -75,6 +75,16 @@ function TubeMapContainer({
     const cancelSignal = abortController.signal
 
     if (dataOrigin === dataOriginTypes.API) {
+      if (Object.keys(viewTarget.tracks).length === 0) {
+        setNodes(undefined)
+        setTracks(undefined)
+        setReads(undefined)
+        setRegion(undefined)
+        setColoredNodes(undefined)
+        setIsLoading(false)
+        setError(null)
+        return
+      }
       setIsLoading(true)
       setError(null)
       APIInterface.getChunkedData(viewTarget, cancelSignal)
@@ -362,20 +372,22 @@ function TubeMapContainer({
         />
       ) : null}
       <div id="tubeMapSVG">
-        <TubeMap
-          nodes={nodes}
-          tracks={tracks}
-          reads={reads}
-          region={region}
-          visOptions={{
-            coloredNodes,
-            ...visOptions,
-            focusReadNames,
-            readGroups,
-            otherReadsColor,
-          }}
-          nodeSequences={!viewTarget.removeSequences}
-        />
+        {nodes !== undefined && tracks !== undefined ? (
+          <TubeMap
+            nodes={nodes}
+            tracks={tracks}
+            reads={reads}
+            region={region}
+            visOptions={{
+              coloredNodes,
+              ...visOptions,
+              focusReadNames,
+              readGroups,
+              otherReadsColor,
+            }}
+            nodeSequences={!viewTarget.removeSequences}
+          />
+        ) : null}
       </div>
       {readContextMenu ? (
         <ReadContextMenu
