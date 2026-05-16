@@ -91,7 +91,11 @@ export default defineConfig(
   {
     files: ['**/*.test.{js,jsx,ts,tsx}', 'src/setupTests.js'],
     languageOptions: {
-      globals: { vi: 'readonly', global: 'readonly' },
+      globals: {
+        ...globals.jest,
+        vi: 'readonly',
+        global: 'readonly',
+      },
     },
     rules: {
       'no-console': 'off',
