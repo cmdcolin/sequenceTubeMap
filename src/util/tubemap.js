@@ -400,7 +400,7 @@ export function setNodeWidthOption(value) {
 }
 
 export function setColoredNodes(value) {
-  config.coloredNodes = value
+  config.coloredNodes = Array.isArray(value) ? value : []
 }
 
 export function setShowNodeLabels(value) {
@@ -1487,6 +1487,14 @@ function alignSVG() {
   // And find its parent holding element.
   let parentElement = svgElement.parentNode
 
+  // d3-zoom stores the current transform on the SVG node as __zoom. It is
+  // undefined until the first time we attach a zoom behaviour. By capturing it
+  // before re-attaching, we can distinguish a first-time draw (needs the
+  // centred initial transform) from a re-draw (should preserve the user's
+  // pan/zoom across a re-create that was triggered by, e.g., a visOptions
+  // change or a spurious parent re-render).
+  const previousTransform = svgElement.__zoom
+
   function zoomed(event) {
     // Apply the panning/zooming transform
     const transform = event.transform
@@ -1549,18 +1557,19 @@ function alignSVG() {
     resizeObserver.observe(parentElement)
   }
 
-  // translate to correct position on initial draw
+  // On the first draw, centre the view. On subsequent draws (e.g. visOptions
+  // changes, or any parent re-render that gives us a new prop reference)
+  // preserve the user's existing pan/zoom — recreating the tube map should
+  // not silently reset the viewport.
   const containerWidth = parentElement.clientWidth
   const xOffset =
     maxXCoordinate + 10 < containerWidth
       ? (containerWidth - maxXCoordinate - 10) / 2
       : 0
-  d3.select(document)
-    .select(svgID)
-    .call(
-      zoom.transform,
-      d3.zoomIdentity.translate(xOffset, RAIL_SPACE - minYCoordinate),
-    )
+  const initialTransform =
+    previousTransform ??
+    d3.zoomIdentity.translate(xOffset, RAIL_SPACE - minYCoordinate)
+  d3.select(document).select(svgID).call(zoom.transform, initialTransform)
 }
 
 export function zoomBy(zoomFactor) {
