@@ -12,7 +12,7 @@ const isProduction = process.env.NODE_ENV === 'production'
 export default {
   mode: isProduction ? 'production' : 'development',
   devtool: isProduction ? 'source-map' : 'cheap-module-source-map',
-  entry: './src/index.js',
+  entry: './src/index.tsx',
   output: {
     path: path.resolve(__dirname, 'build'),
     publicPath: '/',
