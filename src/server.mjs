@@ -28,7 +28,6 @@ import compression from 'compression'
 import { server as WebSocketServer } from 'websocket'
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
-import { readFileSync, writeFile } from 'fs'
 import {
   parseRegion,
   convertRegionToRangeRegion,
@@ -42,7 +41,7 @@ import { finished } from 'stream/promises'
 import sanitize from 'sanitize-filename'
 import { createHash } from 'node:crypto'
 import cron from 'node-cron'
-import { RWLock, combine } from 'readers-writer-lock'
+import { RWLock } from 'readers-writer-lock'
 
 if (process.env.NODE_ENV !== 'production') {
   // Load any .env file config
@@ -146,7 +145,7 @@ if (typeof setImmediate === 'undefined') {
   // a jsdom JS environment.
   // TODO: Resesign the frontend components so that network access and server
   // responses can be easily faked.
-  const timers = require('timers')
+  const timers = await import('timers')
   window.setImmediate = timers.setImmediate
   window.clearImmediate = timers.clearImmediate
 }
@@ -1499,7 +1498,7 @@ function processAnnotationFile(req, res, next) {
     })
 
     if (
-      !req.hasOwnProperty('annotationFile') ||
+      !Object.prototype.hasOwnProperty.call(req, 'annotationFile') ||
       typeof req.annotationFile === 'undefined'
     ) {
       throw new VgExecutionError('annotation file not created')
@@ -1540,6 +1539,7 @@ function processAnnotationFile(req, res, next) {
 }
 
 function processGamFile(req, res, next, gamFile, gamFileNumber) {
+  let sentResponse = false
   try {
     if (!isAllowedPath(gamFile)) {
       // This is probably under SCRATCH_DATA_PATH
@@ -1832,7 +1832,7 @@ function processNodeColorsFile(req, res, next) {
 // Cleanup function shared between success and error code paths.
 // May throw.
 // TODO: Use as a middleware?
-function cleanUpChunkIfOwned(req, res) {
+function cleanUpChunkIfOwned(req, _res) {
   if (req.rmChunk && req.chunkDir !== undefined) {
     // Don't clean up individual files in the directory manually; it's too
     // fiddly, and we could have gotten here because we generated those paths
@@ -1878,7 +1878,7 @@ function isAllowedPath(inputPath) {
     return false
   }
   // Split on delimiters
-  let parts = inputPath.split(/[\/\\]/)
+  let parts = inputPath.split(/[/\\]/)
   for (let part of parts) {
     if (part === '..') {
       // One of the path components is a .., so disallow it.
@@ -2425,10 +2425,8 @@ async function getBedRegions(bed) {
   }
   let bed_data
   let lines
-  let isURL = false
   console.log('bed file received ', bed)
   if (isValidURL(bed)) {
-    isURL = true
     const response = await fetchAndValidate(bed, config.maxFileSizeBytes)
     bed_data = await response.text()
   } else {
@@ -2482,10 +2480,9 @@ async function getBedRegions(bed) {
   }
 
   // check for a tracks.json file to prefill tracks configuration
-  for (let i = 0; i < bed_info['chunk'].length; i++) {
+  for (const chunk of bed_info['chunk']) {
     let tracks = null
 
-    let chunk = bed_info['chunk'][i]
     if (chunk !== '') {
       // There is a premade chunk for this BED region.
 
@@ -2562,7 +2559,7 @@ export function start() {
         }
 
         console.log('[shutdown] closing HTTP server + force-closing all connections')
-        await new Promise((resolve, reject) => {
+        await new Promise(resolve => {
           state.server.close(err => {
             if (err) {
               console.log('[shutdown] HTTP server closed with error: ' + err.message)
@@ -2625,7 +2622,7 @@ export function start() {
       const connection = request.accept(null, request.origin)
       // We save the connection so that we can notify them when there is a change in the file system
       state.connections.add(connection)
-      connection.on('close', function (reasonCode, description) {
+      connection.on('close', function (_reasonCode, _description) {
         // When the websocket connection closes, we delete it from our set of open connections
         state.connections.delete(connection)
         console.log(
@@ -2636,7 +2633,7 @@ export function start() {
 
     state.wss = wss
 
-    const watcher = fs.watch(MOUNTED_DATA_PATH, function (event, filename) {
+    const watcher = fs.watch(MOUNTED_DATA_PATH, function (_event, _filename) {
       // There was a change in the file directory
       console.log('Directory has been changed')
       for (let conn of state.connections) {
