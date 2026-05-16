@@ -4,30 +4,22 @@ import TrackSettings from './TrackSettings'
 import { Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear } from '@fortawesome/free-solid-svg-icons'
-import type {
-  ColorPaletteName,
-  ColorScheme,
-  FileType,
-  Palette,
+import {
+  DEFAULT_AVAILABLE_COLORS,
+  type ColorPaletteName,
+  type ColorScheme,
+  type FileType,
+  type Palette,
 } from '../Types'
 
 interface TrackSettingsButtonProps {
   fileType?: FileType | 'nodeLabel'
   trackColorSettings?: Partial<ColorScheme>
-  setTrackColorSetting: (key: string, value: Palette) => void
+  setTrackColorSetting: (key: keyof ColorScheme, value: Palette) => void
   label?: string
   availableColors?: ColorPaletteName[]
   testID?: string
 }
-
-const DEFAULT_AVAILABLE_COLORS: ColorPaletteName[] = [
-  'greys',
-  'ygreys',
-  'blues',
-  'reds',
-  'plainColors',
-  'lightColors',
-]
 
 export const TrackSettingsButton = ({
   fileType,

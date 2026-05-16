@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Row, Col } from 'reactstrap'
 import { TrackList } from './TrackList'
 import { TrackAddButton } from './TrackAddButton'
@@ -12,8 +12,9 @@ import type {
   Tracks,
 } from '../Types'
 
-// -1 marks a pending deletion in the change set.
-type TrackChange = Track | -1
+// Sentinel for deletions in the pending change set.
+const DELETED = Symbol('deleted')
+type TrackChange = Track | typeof DELETED
 type TrackChanges = Record<string, TrackChange>
 
 interface TrackPickerDisplayProps {
@@ -27,6 +28,21 @@ interface TrackPickerDisplayProps {
   ) => Promise<string | undefined>
 }
 
+function applyChanges(base: Tracks, changes: TrackChanges): Tracks {
+  const next: Tracks = { ...base }
+  for (const [id, change] of Object.entries(changes)) {
+    if (change === DELETED) {
+      delete next[id]
+    } else {
+      next[id] = change
+    }
+  }
+  return next
+}
+
+const allFilesSet = (tracks: Tracks) =>
+  Object.values(tracks).every(t => t.trackFile !== undefined)
+
 export const TrackPickerDisplay = ({
   tracks,
   availableTracks,
@@ -34,83 +50,43 @@ export const TrackPickerDisplay = ({
   onChange = () => {},
   handleFileUpload,
 }: TrackPickerDisplayProps) => {
-  const [trackListChanges, setTrackListChanges] = useState<TrackChanges>({})
+  // Pending edits layered on top of the parent's tracks. We only flush to
+  // the parent once every entry has a file selected, so users can stage a
+  // half-configured row without dirtying upstream state.
+  const [pending, setPending] = useState<TrackChanges>({})
 
-  // gets the highest trackID between pending changes and tracks + 1
+  const applied = applyChanges(tracks, pending)
   const nextTrackID =
-    Object.keys({ ...tracks, ...trackListChanges })
+    Object.keys(applied)
       .map(k => parseInt(k))
-      .reduce((a, b) => (a > b ? a : b), 0) + 1
+      .reduce((a, b) => Math.max(a, b), 0) + 1
 
-  // returns an updated track change set combining the 2 inputs, with trackChanges taking priority.
-  // Output keeps the TrackChanges type (may include -1 deletions); convert to Tracks via applyToBase.
-  const mergeChanges = (
-    base: TrackChanges,
-    trackChanges: TrackChanges,
-  ): TrackChanges => ({ ...base, ...trackChanges })
-
-  const applyToBase = (base: Tracks, trackChanges: TrackChanges): Tracks => {
-    const newTrackList: Tracks = { ...base }
-    for (const trackID of Object.keys(trackChanges)) {
-      const change = trackChanges[trackID]
-      if (change === -1) {
-        delete newTrackList[trackID]
-      } else {
-        newTrackList[trackID] = change
-      }
+  const stage = (extra: TrackChanges) => {
+    const merged = { ...pending, ...extra }
+    const next = applyChanges(tracks, merged)
+    if (allFilesSet(next) && JSON.stringify(next) !== JSON.stringify(tracks)) {
+      onChange(next)
+      setPending({})
+    } else {
+      setPending(merged)
     }
-    return newTrackList
   }
 
   const addTrackItem = () => {
-    setTrackListChanges({
-      ...trackListChanges,
-      [nextTrackID.toString()]: { ...config.defaultTrackProps } as Track,
-    })
+    stage({ [nextTrackID]: { ...config.defaultTrackProps } })
   }
 
-  const trackListOnChange = (newTracks: Tracks) => {
-    setTrackListChanges(mergeChanges(trackListChanges, newTracks))
-  }
-
-  const onDelete = (trackID: number) => {
-    setTrackListChanges({ ...trackListChanges, [trackID]: -1 })
-  }
-
-  useEffect(() => {
-    const newTrackList = applyToBase(tracks, trackListChanges)
-
-    // track list is valid to commit if all fileNames have been selected
-    let validTrackList = true
-    for (const trackID of Object.keys(newTrackList)) {
-      if (newTrackList[trackID].trackFile === undefined) {
-        validTrackList = false
-      }
-    }
-
-    // call onChange if the track list is valid and changes have been made
-    if (
-      validTrackList &&
-      JSON.stringify(newTrackList) !== JSON.stringify(tracks)
-    ) {
-      console.log('calling Track Picker Display onChange with ', newTrackList)
-      onChange(newTrackList)
-      setTrackListChanges({})
-    }
-  }, [trackListChanges, onChange, tracks])
-
-  const appliedTracks = applyToBase(tracks, trackListChanges)
-  const isEmpty = Object.keys(appliedTracks).length === 0
+  const isEmpty = Object.keys(applied).length === 0
 
   return (
     <Col style={{ minWidth: '500px' }}>
       <Row>
         <TrackList
-          tracks={appliedTracks}
+          tracks={applied}
           availableTracks={availableTracks}
           availableColors={availableColors}
-          onChange={trackListOnChange}
-          onDelete={onDelete}
+          onChange={(newTracks) => stage(newTracks)}
+          onDelete={(trackID) => stage({ [trackID]: DELETED })}
           handleFileUpload={handleFileUpload}
         />
       </Row>

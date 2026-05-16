@@ -20,7 +20,7 @@ export const ColorPicker = ({
   onChange,
   testID = 'color-picker-component',
 }: ColorPickerProps) => {
-  const [nextColor, setNextColor] = useState<ColorHex | undefined>(undefined)
+  const [nextColor, setNextColor] = useState<ColorHex>()
   const [open, setOpen] = useState(false)
 
   const popover: CSSProperties = {

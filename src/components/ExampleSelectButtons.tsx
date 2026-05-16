@@ -1,13 +1,13 @@
 import { Form, Button } from 'reactstrap'
 import { dataOriginTypes } from '../enums'
-import type { ColorPaletteName } from '../Types'
+import type { ColorPaletteName, ColorScheme, Palette } from '../Types'
 
 interface ExampleSelectButtonsProps {
   setDataOrigin: (origin: string) => void
   setColorSetting: (
-    key: string,
+    key: keyof ColorScheme,
     index: number,
-    value: ColorPaletteName,
+    value: Palette,
   ) => void
 }
 

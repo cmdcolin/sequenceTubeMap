@@ -1,31 +1,23 @@
 import { Form, Row, Col } from 'reactstrap'
 import RadioRow from './RadioRow'
 import ColorPicker from './ColorPicker'
-import type {
-  ColorPaletteName,
-  ColorScheme,
-  FileType,
-  Palette,
+import {
+  DEFAULT_AVAILABLE_COLORS,
+  type ColorPaletteName,
+  type ColorScheme,
+  type FileType,
+  type Palette,
 } from '../Types'
 
 interface TrackSettingsProps {
   fileType?: FileType | 'nodeLabel'
   // Partial because the node-label dialog only carries mainPalette.
   trackColorSettings?: Partial<ColorScheme>
-  setTrackColorSetting: (key: string, value: Palette) => void
+  setTrackColorSetting: (key: keyof ColorScheme, value: Palette) => void
   label?: string
   availableColors?: ColorPaletteName[]
   presetColors?: string[]
 }
-
-const DEFAULT_AVAILABLE_COLORS: ColorPaletteName[] = [
-  'greys',
-  'ygreys',
-  'blues',
-  'reds',
-  'plainColors',
-  'lightColors',
-]
 
 const DEFAULT_PRESET_COLORS = [
   '#FF6900',

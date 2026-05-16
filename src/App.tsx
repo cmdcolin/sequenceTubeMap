@@ -12,7 +12,13 @@ import './config-client.js'
 import { config } from './config-global.mjs'
 import ServerAPI from './api/ServerAPI.mjs'
 import { LocalAPI } from './api/LocalAPI.mjs'
-import type { ColorScheme, Palette, Tracks, ViewTarget, VisOptions } from './Types'
+import type {
+  ColorScheme,
+  Palette,
+  Tracks,
+  ViewTarget,
+  VisOptions,
+} from './Types'
 
 const EXAMPLE_TRACKS: Tracks = {
   0: { trackType: 'graph', trackFile: 'fakeGraph' },
@@ -37,35 +43,30 @@ function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
   return schemes
 }
 
-function removeUndefined<T extends object>(obj: T): Partial<T> {
+function removeUndefined<T extends object>(obj: T): T {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v != null),
-  ) as Partial<T>
+  ) as T
 }
 
-function getAPIMode(apiInterface: unknown): 'local' | 'server' {
+function getAPIMode(apiInterface: LocalAPI | ServerAPI): 'local' | 'server' {
   if (apiInterface instanceof LocalAPI) {
     return 'local'
-  } else if (apiInterface instanceof ServerAPI) {
-    return 'server'
   } else {
-    throw new Error('Unnamed API implementation: ' + apiInterface)
+    return 'server'
   }
 }
 
 const defaultApiUrl =
   (config.BACKEND_URL || `${window.location.origin}`) + '/api/v0'
 const defaultViewTarget: ViewTarget =
-  (urlParamsToViewTarget(document.location) as unknown as ViewTarget) ??
-  config.DATA_SOURCES[0]
+  urlParamsToViewTarget(document.location) ?? config.DATA_SOURCES[0]
 
 interface AppProps {
   apiUrl?: string
 }
 
 function App({ apiUrl = defaultApiUrl }: AppProps) {
-  console.log('App component starting up with API URL: ' + apiUrl)
-
   const [dataOrigin, setDataOrigin] = useState<string>(dataOriginTypes.API)
   const [viewTarget, setViewTarget] = useState<ViewTarget>(defaultViewTarget)
   const [visOptions, setVisOptions] = useState<VisOptions>({
@@ -108,14 +109,12 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
   }
 
   const setCurrentViewTarget = (newTarget: ViewTarget) => {
-    const newViewTarget = removeUndefined(newTarget) as ViewTarget
+    const newViewTarget = removeUndefined(newTarget)
     if (
       !isEqual(viewTarget, newViewTarget) ||
       dataOrigin !== dataOriginTypes.API
     ) {
-      console.log('Adopting view target: ', newViewTarget)
       const newColorSchemes = getColorSchemesFromTracks(newViewTarget.tracks)
-      console.log('Adopting color schemes: ', newColorSchemes)
       setViewTarget(newViewTarget)
       setDataOrigin(dataOriginTypes.API)
       setVisOptions(v => ({ ...v, colorSchemes: newColorSchemes }))
@@ -142,23 +141,17 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     }))
   }
 
-  // Note: HeaderForm.handleGoButton calls this with only (key, value) — that
-  // path leaves `value` undefined here and the original JS would index
-  // colorSchemes by the palette name. Behavior preserved verbatim.
   const setColorSetting = (
-    key: string,
-    indexOrValue: number | string | Palette,
-    value?: Palette,
+    key: keyof ColorScheme,
+    index: number,
+    value: Palette,
   ) => {
     setVisOptions(v => {
       const newcolors = [...v.colorSchemes]
-      const idx = indexOrValue as unknown as number
-      if (newcolors[idx] === undefined) {
-        newcolors[idx] = { ...config.defaultReadColorPalette }
+      if (newcolors[index] === undefined) {
+        newcolors[index] = { ...config.defaultReadColorPalette }
       }
-      newcolors[idx] = { ...newcolors[idx], [key]: value }
-      console.log('Set index ' + idx + ' key ' + key + ' to ' + value)
-      console.log('New colors: ', newcolors)
+      newcolors[index] = { ...newcolors[index], [key]: value }
       return { ...v, colorSchemes: newcolors }
     })
   }

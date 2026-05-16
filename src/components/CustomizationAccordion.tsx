@@ -11,13 +11,17 @@ import {
   FormGroup,
 } from 'reactstrap'
 import TrackSettings from './TrackSettings'
-import type { Palette, Tracks, VisOptions } from '../Types'
+import type { ColorScheme, Palette, Tracks, VisOptions } from '../Types'
 
 interface VisualizationOptionsProps {
   visOptions: VisOptions
   toggleFlag: (flagName: string) => void
   tracks: Tracks
-  setColorSetting: (key: string, index: number | string, value: Palette) => void
+  setColorSetting: (
+    key: keyof ColorScheme,
+    index: number,
+    value: Palette,
+  ) => void
   setNodeLabelColorSetting: (key: string, value: Palette) => void
   handleMappingQualityCutoffChange: (value: string) => void
   enableCompressedNodes?: boolean
@@ -51,10 +55,10 @@ function VisualizationOptions({
   const trackSettingsList: React.ReactNode[] = []
   for (const key in tracks) {
     const track = tracks[key]
-    console.log(track)
     if (!track.trackFile) {
       continue
     }
+    const idx = Number(key)
     const type = track.trackType
     if (type === 'graph') {
       trackSettingsList.push(
@@ -62,12 +66,14 @@ function VisualizationOptions({
           key={key}
           label="Graph Paths"
           fileType={type}
-          trackColorSettings={visOptions.colorSchemes[Number(key)]}
-          setTrackColorSetting={(k, v) => setColorSetting(k, key, v)}
+          trackColorSettings={visOptions.colorSchemes[idx]}
+          setTrackColorSetting={(k, v) =>
+            setColorSetting(k as keyof ColorScheme, idx, v)
+          }
         />,
       )
     } else if (type === 'haplotype' || type === 'node') {
-      // TODO: Do nothing for now. Haplotypes get assigned to the graph as their source track right now.
+      // Haplotypes get assigned to the graph as their source track for now.
     } else if (type === 'read') {
       if (visOptions.showReads) {
         trackSettingsList.push(
@@ -75,8 +81,10 @@ function VisualizationOptions({
             key={key}
             label={'Read Track ' + readTrackNumber}
             fileType={type}
-            trackColorSettings={visOptions.colorSchemes[Number(key)]}
-            setTrackColorSetting={(k, v) => setColorSetting(k, key, v)}
+            trackColorSettings={visOptions.colorSchemes[idx]}
+            setTrackColorSetting={(k, v) =>
+              setColorSetting(k as keyof ColorScheme, idx, v)
+            }
           />,
         )
         readTrackNumber++

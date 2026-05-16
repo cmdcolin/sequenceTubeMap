@@ -22,27 +22,22 @@ export const setCopyCallback = (callback: (text: string) => void) =>
   (copyCallback = callback)
 
 interface CopyLinkProps {
-  getCurrentViewTarget: () => ViewTarget | Record<string, unknown>
+  getCurrentViewTarget: () => ViewTarget
 }
 
 export function CopyLink(props: CopyLinkProps) {
   // Button to copy a link with viewTarget to the data selected
   const [text, setText] = useState(UNCLICKED_TEXT)
-  const [dialogLink, setDialogLink] = useState<string | undefined>(undefined)
+  const [dialogLink, setDialogLink] = useState<string>()
 
   const handleCopyLink = () => {
-    // Turn viewTarget into a URL query string
-    const viewTarget = props.getCurrentViewTarget()
-    // Don't stringify objects for readability
-    // https://github.com/ljharb/qs#stringifying
-    const params = qs.stringify(viewTarget, { encodeValuesOnly: true })
-    console.log('params ', params)
-
-    // Make a new URL based off the current one
+    // qs encodeValuesOnly=true keeps keys readable (see https://github.com/ljharb/qs#stringifying)
+    const params = qs.stringify(props.getCurrentViewTarget(), {
+      encodeValuesOnly: true,
+    })
     const url = new URL(window.location.toString())
     url.search = '?' + params
     url.hash = ''
-    console.log(url)
 
     try {
       copyCallback(url.toString())
@@ -50,7 +45,6 @@ export function CopyLink(props: CopyLinkProps) {
     } catch {
       setText(UNCLICKED_TEXT)
       setDialogLink(url.toString())
-      console.log('copy error')
     }
   }
 
@@ -77,31 +71,19 @@ export function CopyLink(props: CopyLinkProps) {
   )
 }
 
+// Parse a ViewTarget from the URL's query params. Returns null if no query.
+// qs can't tell true/false from "true"/"false", so boolean flags are coerced.
 export const urlParamsToViewTarget = (
   url: string | Location,
-): Record<string, unknown> | null => {
-  // @param {string} url - url containing search params
-  //  normally should be document.location
-  // Take any saved parameters in the query part of the URL
-  // and turn to object to populate in HeaderForm state and viewTarget
-  // Returns: Object (viewTarget) - see App.js
+): ViewTarget | null => {
   const parsed = new URL(url.toString())
-  let result: Record<string, unknown> | null = null
-  if (parsed.search) {
-    result = qs.parse(parsed.search.substr(1)) as Record<string, unknown>
+  if (!parsed.search) {
+    return null
   }
-
-  // Ensures that the flag fields are booleans, as the qs module can't tell
-  // the difference between false and "false"
-  if (result != null) {
-    for (const flag_name of ['simplify', 'removeSequences']) {
-      if (result[flag_name] === 'true') {
-        result[flag_name] = true
-      } else if (result[flag_name] === 'false') {
-        result[flag_name] = false
-      }
-    }
+  const result = qs.parse(parsed.search.slice(1)) as Record<string, unknown>
+  for (const flag of ['simplify', 'removeSequences']) {
+    if (result[flag] === 'true') result[flag] = true
+    else if (result[flag] === 'false') result[flag] = false
   }
-
-  return result
+  return result as unknown as ViewTarget
 }

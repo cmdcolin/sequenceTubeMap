@@ -77,6 +77,15 @@ export type ColorPaletteName =
   | 'plainColors'
   | 'lightColors'
 
+export const DEFAULT_AVAILABLE_COLORS: ColorPaletteName[] = [
+  'greys',
+  'ygreys',
+  'blues',
+  'reds',
+  'plainColors',
+  'lightColors',
+]
+
 // Hex describing a color.
 export type ColorHex = `#${string}`
 

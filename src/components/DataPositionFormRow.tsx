@@ -19,7 +19,7 @@ interface DataPositionFormRowProps {
   handleGoLeft: () => void
   handleGoRight: () => void
   uploadInProgress: boolean
-  getCurrentViewTarget: () => ViewTarget | Record<string, unknown>
+  getCurrentViewTarget: () => ViewTarget
   viewTargetHasChange: boolean
   canGoLeft: boolean
   canGoRight: boolean

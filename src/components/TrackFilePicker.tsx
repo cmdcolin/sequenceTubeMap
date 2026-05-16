@@ -54,9 +54,7 @@ export const TrackFilePicker = ({
     if (!file) return
 
     try {
-      const completePath = await handleFileUpload(fileType, file)
-      console.log('TrackFilePicker got an upload result:', completePath)
-      handleInputChange(completePath)
+      handleInputChange(await handleFileUpload(fileType, file))
     } catch (e) {
       console.error('TrackFilePicker could not upload: ', e)
       // TODO: Display error to user in a better way

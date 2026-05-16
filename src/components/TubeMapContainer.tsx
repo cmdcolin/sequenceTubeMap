@@ -9,6 +9,7 @@ import ReadContextMenu from './ReadContextMenu'
 import NodeContextMenu from './NodeContextMenu'
 import PendingPanel from './PendingPanel'
 import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel'
+import { computeExampleData } from './tubeMapData'
 import type { ViewTarget, VisOptions } from '../Types'
 
 const GROUP_PALETTE_CYCLE = [
@@ -54,13 +55,6 @@ interface TubeMapContainerProps {
   APIInterface: APILike
 }
 
-function readsFromStringToArray(readsString: string): unknown[] {
-  return readsString
-    .split('\n')
-    .filter(line => line.length > 0)
-    .map(line => JSON.parse(line))
-}
-
 function TubeMapContainer({
   viewTarget,
   dataOrigin,
@@ -104,19 +98,12 @@ function TubeMapContainer({
           const readTrackIDs: string[] = []
           let graphTrackID: string | null = null
           let haplotypeTrackID: string | null = null
-          console.log('getting viewTarget ', viewTarget)
           for (const i in viewTarget.tracks) {
-            const track = viewTarget.tracks[i]
-            if (track.trackType === 'read') readTrackIDs.push(i)
-            if (track.trackType === 'graph') graphTrackID = i
-            if (track.trackType === 'haplotype') haplotypeTrackID = i
+            const trackType = viewTarget.tracks[i].trackType
+            if (trackType === 'read') readTrackIDs.push(i)
+            else if (trackType === 'graph') graphTrackID = i
+            else if (trackType === 'haplotype') haplotypeTrackID = i
           }
-          console.log(
-            'Graph track: ' +
-              graphTrackID +
-              ' Haplotype track: ' +
-              haplotypeTrackID,
-          )
           const newNodes = tubeMap.vgExtractNodes(json.graph, json.nameMap)
           const newTracks = tubeMap.vgExtractTracks(
             json.graph,
@@ -148,92 +135,16 @@ function TubeMapContainer({
             console.error('Fetching and parsing getChunkedData failed:', err)
             setError(err)
             setIsLoading(false)
-          } else {
-            console.log('fetch canceled by unmount', err.message)
           }
         })
     } else {
       setIsLoading(true)
       import('../util/demo-data').then(data => {
-        let newNodes: unknown = []
-        let newTracks: unknown = []
-        let newReads: unknown = []
-        const newRegion: unknown = []
-        let vg
-        newNodes = data.inputNodes
-        switch (dataOrigin) {
-          case dataOriginTypes.EXAMPLE_1:
-            newTracks = data.inputTracks1
-            break
-          case dataOriginTypes.EXAMPLE_2:
-            newTracks = data.inputTracks2
-            break
-          case dataOriginTypes.EXAMPLE_3:
-            newTracks = data.inputTracks3
-            break
-          case dataOriginTypes.EXAMPLE_4:
-            newTracks = data.inputTracks4
-            break
-          case dataOriginTypes.EXAMPLE_5:
-            newTracks = data.inputTracks5
-            break
-          case dataOriginTypes.EXAMPLE_6:
-            vg = JSON.parse(data.k3138)
-            newNodes = tubeMap.vgExtractNodes(vg)
-            newTracks = tubeMap.vgExtractTracks(vg, 0, 0)
-            newReads = tubeMap.vgExtractReads(
-              newNodes,
-              newTracks,
-              readsFromStringToArray(data.demoReads),
-              0,
-              1,
-            )
-            break
-          case dataOriginTypes.EXAMPLE_7:
-            vg = data.reverseAlignmentGraph
-            newNodes = tubeMap.vgExtractNodes(vg)
-            newTracks = tubeMap.vgExtractTracks(vg, 0, 0)
-            newReads = tubeMap.vgExtractReads(
-              newNodes,
-              newTracks,
-              data.mixedAlignmentReads,
-              0,
-              1,
-            )
-            break
-          case dataOriginTypes.EXAMPLE_8:
-            vg = data.cycleGraph
-            newNodes = tubeMap.vgExtractNodes(vg)
-            newTracks = tubeMap.vgExtractTracks(vg, 0, 0)
-            newReads = tubeMap.vgExtractReads(
-              newNodes,
-              newTracks,
-              data.cycleReads,
-              0,
-              1,
-            )
-            break
-          case dataOriginTypes.EXAMPLE_9:
-            vg = data.cycle2Graph
-            newNodes = tubeMap.vgExtractNodes(vg)
-            newTracks = tubeMap.vgExtractTracks(vg, 0, 0)
-            newReads = tubeMap.vgExtractReads(
-              newNodes,
-              newTracks,
-              data.cycle2Reads,
-              0,
-              1,
-            )
-            break
-          case dataOriginTypes.NO_DATA:
-            break
-          default:
-            console.log('invalid example data origin type:', dataOrigin)
-        }
-        setNodes(newNodes)
-        setTracks(newTracks)
-        setReads(newReads)
-        setRegion(newRegion)
+        const result = computeExampleData(dataOrigin, data)
+        setNodes(result.nodes)
+        setTracks(result.tracks)
+        setReads(result.reads)
+        setRegion([])
         setIsLoading(false)
       })
     }
@@ -288,22 +199,19 @@ function TubeMapContainer({
       ? focusReadNames
       : pendingReadSet
 
+  const mergeUnique = (a: string[], b: string[]) => [
+    ...a,
+    ...b.filter(x => !a.includes(x)),
+  ]
+
   const addNamesToPendingSet = (names: string[]) => {
-    const next = [...editingBase]
-    names.forEach(name => {
-      if (!next.includes(name)) next.push(name)
-    })
-    setPendingReadSet(next)
+    setPendingReadSet(mergeUnique(editingBase, names))
     setReadContextMenu(null)
     setNodeContextMenu(null)
   }
 
   const addNodeToNodeSet = (nodeName: string) => {
-    setPendingNodeSet(
-      pendingNodeSet.includes(nodeName)
-        ? pendingNodeSet
-        : [...pendingNodeSet, nodeName],
-    )
+    setPendingNodeSet(mergeUnique(pendingNodeSet, [nodeName]))
     setNodeContextMenu(null)
   }
 
@@ -315,14 +223,9 @@ function TubeMapContainer({
 
   const addReadsToGroup = (groupId: string, names: string[]) => {
     setReadGroups(
-      readGroups.map(g => {
-        if (g.id !== groupId) return g
-        const merged = [...g.reads]
-        names.forEach(name => {
-          if (!merged.includes(name)) merged.push(name)
-        })
-        return { ...g, reads: merged }
-      }),
+      readGroups.map(g =>
+        g.id === groupId ? { ...g, reads: mergeUnique(g.reads, names) } : g,
+      ),
     )
   }
 
