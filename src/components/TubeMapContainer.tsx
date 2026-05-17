@@ -3,6 +3,13 @@ import { Container, Row, Alert } from 'reactstrap'
 
 import TubeMap from './TubeMap'
 import * as tubeMap from '../util/tubemap'
+import type {
+  InputNode,
+  InputRegion,
+  InputTrack,
+  VgJson,
+  VgRead,
+} from '../util/tubemap'
 import { dataOriginTypes } from '../enums'
 import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog'
 import ReadContextMenu from './ReadContextMenu'
@@ -20,7 +27,15 @@ const GROUP_PALETTE_CYCLE = [
   'greys',
   'lightColors',
   'plainColors',
-]
+] as const
+
+function paletteForIndex(idx: number): string {
+  const palette = GROUP_PALETTE_CYCLE[idx % GROUP_PALETTE_CYCLE.length]
+  if (palette === undefined) {
+    throw new Error('GROUP_PALETTE_CYCLE indexing failed')
+  }
+  return palette
+}
 
 interface ReadContextMenuState {
   readName: string
@@ -64,11 +79,13 @@ function TubeMapContainer({
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [groupCounter, setGroupCounter] = useState(0)
   const [otherReadsColor, setOtherReadsColor] = useState('greys')
-  const [nodes, setNodes] = useState<unknown>(undefined)
-  const [tracks, setTracks] = useState<unknown>(undefined)
-  const [reads, setReads] = useState<unknown>(undefined)
-  const [region, setRegion] = useState<unknown>(undefined)
-  const [coloredNodes, setColoredNodes] = useState<unknown>(undefined)
+  const [nodes, setNodes] = useState<InputNode[] | undefined>(undefined)
+  const [tracks, setTracks] = useState<InputTrack[] | undefined>(undefined)
+  const [reads, setReads] = useState<InputTrack[] | undefined>(undefined)
+  const [region, setRegion] = useState<InputRegion | undefined>(undefined)
+  const [coloredNodes, setColoredNodes] = useState<string[] | undefined>(
+    undefined,
+  )
 
   useEffect(() => {
     const abortController = new AbortController()
@@ -97,14 +114,15 @@ function TubeMapContainer({
           if (json.graph === undefined) {
             throw new Error('Fetching remote data returned error')
           }
-          const readTrackIDs: string[] = []
-          let graphTrackID: string | null = null
-          let haplotypeTrackID: string | null = null
+          const readTrackIDs: number[] = []
+          let graphTrackID = 0
+          let haplotypeTrackID = 0
           for (const i in viewTarget.tracks) {
-            const trackType = viewTarget.tracks[i].trackType
-            if (trackType === 'read') readTrackIDs.push(i)
-            else if (trackType === 'graph') graphTrackID = i
-            else if (trackType === 'haplotype') haplotypeTrackID = i
+            const track = viewTarget.tracks[i]
+            const trackType = track?.trackType
+            if (trackType === 'read') readTrackIDs.push(Number(i))
+            else if (trackType === 'graph') graphTrackID = Number(i)
+            else if (trackType === 'haplotype') haplotypeTrackID = Number(i)
           }
           const newNodes = tubeMap.vgExtractNodes(json.graph, json.nameMap)
           const newTracks = tubeMap.vgExtractTracks(
@@ -112,15 +130,16 @@ function TubeMapContainer({
             graphTrackID,
             haplotypeTrackID,
           )
-          const readsArr: unknown[][] = []
+          const readsArr: InputTrack[][] = []
           let totalReads = 0
           for (const gam of json.gam ?? []) {
+            const readSourceTrackID = readTrackIDs[readsArr.length] ?? 0
             const newReads = tubeMap.vgExtractReads(
               newNodes,
               newTracks,
               gam,
               totalReads,
-              readTrackIDs[readsArr.length],
+              readSourceTrackID,
             )
             readsArr.push(newReads)
             totalReads += newReads.length
@@ -218,7 +237,7 @@ function TubeMapContainer({
     setNodeContextMenu(null)
   }
 
-  const addReadsThroughNodeSet = (mode: string) => {
+  const addReadsThroughNodeSet = (mode: 'all' | 'any') => {
     addNamesToPendingSet(
       tubeMap.getReadNamesThroughNodes(pendingNodeSet, mode),
     )
@@ -241,7 +260,7 @@ function TubeMapContainer({
       {
         id,
         name: `Group ${n}`,
-        color: GROUP_PALETTE_CYCLE[groupCounter % GROUP_PALETTE_CYCLE.length],
+        color: paletteForIndex(groupCounter),
         reads: pendingReadSet,
       },
     ])

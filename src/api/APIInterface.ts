@@ -7,14 +7,15 @@ import type {
   Track,
   ViewTarget,
 } from '../Types'
+import type { InputRegion, VgJson, VgRead } from '../util/tubemap'
 
 // Shape returned by getChunkedData. Tube map rendering consumes these.
 export interface ChunkedDataResponse {
-  graph?: unknown
-  gam?: unknown[]
-  nameMap?: Record<string, unknown>
-  region?: unknown
-  coloredNodes?: unknown
+  graph?: VgJson
+  gam?: VgRead[][]
+  nameMap?: Record<string, string>
+  region?: InputRegion
+  coloredNodes?: string[]
 }
 
 // Opaque handle returned by subscribeToFilenameChanges; the caller just holds

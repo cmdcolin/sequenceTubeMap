@@ -1,3 +1,8 @@
+// @ts-nocheck — first-phase TS conversion. Public exported types below are
+// authoritative for consumers; the internal body still uses the original
+// permissive shape and needs to be tightened section-by-section (handling
+// dynamic field accretion, noUncheckedIndexedAccess, and d3 selection types).
+// See PR description for the staged plan.
 /* eslint no-param-reassign: "off" */
 /* eslint no-lonely-if: "off" */
 /* eslint no-prototype-builtins: "off" */
@@ -9,19 +14,321 @@
 /* eslint no-unused-vars: "off" */
 /* eslint no-return-assign: "off" */
 import * as d3 from 'd3'
-// d3-selection-multi is incompatible with d3 v7 — polyfill .attrs() and .styles() inline
-d3.selection.prototype.attrs = function (attrs) {
-  return Object.entries(attrs).reduce((sel, [k, v]) => sel.attr(k, v), this)
-}
-d3.selection.prototype.styles = function (styles) {
-  return Object.entries(styles).reduce((sel, [k, v]) => sel.style(k, v), this)
-}
 import '../config-client.js'
-import externalConfig from '../config-global.mjs'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import _externalConfig from '../config-global.mjs'
 import { defaultTrackColors } from '../common.mjs'
 import isEqual from 'react-fast-compare'
 
+// d3-selection-multi is incompatible with d3 v7 — polyfill .attrs() and .styles() inline.
+declare module 'd3-selection' {
+  interface Selection<
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    GElement extends d3.BaseType,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    Datum,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    PElement extends d3.BaseType,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    PDatum,
+  > {
+    attrs(attrs: Record<string, string | number>): this
+    styles(styles: Record<string, string | number>): this
+  }
+}
+;(d3.selection.prototype as { attrs: unknown }).attrs = function (
+  this: d3.Selection<d3.BaseType, unknown, d3.BaseType, unknown>,
+  attrs: Record<string, string | number>,
+) {
+  return Object.entries(attrs).reduce((sel, [k, v]) => sel.attr(k, v), this)
+}
+;(d3.selection.prototype as { styles: unknown }).styles = function (
+  this: d3.Selection<d3.BaseType, unknown, d3.BaseType, unknown>,
+  styles: Record<string, string | number>,
+) {
+  return Object.entries(styles).reduce((sel, [k, v]) => sel.style(k, v), this)
+}
+
 const DEBUG = false
+
+// ---------------------------------------------------------------------------
+// Core domain types
+// ---------------------------------------------------------------------------
+
+type MismatchType = 'insertion' | 'deletion' | 'substitution'
+
+export interface Mismatch {
+  type: MismatchType
+  pos: number
+  seq?: string
+  length?: number
+}
+
+export interface ReadSequenceEntry {
+  nodeName: string
+  mismatches: Mismatch[]
+}
+
+export type TrackType = 'haplotype' | 'read'
+
+export interface TrackRectangle {
+  xStart: number
+  yStart: number
+  xEnd: number
+  yEnd: number
+  color: string
+  alpha?: number
+  id: number
+  name?: string
+  type?: TrackType
+}
+
+export interface TrackCurve {
+  xStart: number
+  yStart: number
+  xEnd: number
+  yEnd: number
+  width: number
+  color: string
+  alpha?: number
+  laneChange: number
+  id: number
+  name?: string
+  type?: TrackType
+  nodeStart: number | null | undefined
+  nodeEnd: number | null | undefined
+  path?: string
+}
+
+export interface TrackCorner {
+  path: string
+  color: string
+  id: number
+  type?: TrackType
+}
+
+export interface TrackFeature {
+  start?: number
+  end?: number
+  type?: string
+  name?: string
+  continue?: boolean
+}
+
+export interface Segment {
+  order: number
+  lane: number | null
+  isForward: boolean
+  node: number | null
+  y?: number
+  features?: TrackFeature[]
+  betweenCycleReverseTraversal?: boolean
+}
+
+export interface BedRecord {
+  track: string
+  start: number
+  end: number
+  type: string
+  name: string
+}
+
+// Loose input shape: just the basics produced by vgExtractTracks /
+// vgExtractReads. Layout passes accrete indexSequence / path / width.
+export interface InputTrack {
+  id: number
+  name?: string
+  sequence: string[]
+  type?: TrackType
+  freq?: number
+  hidden?: boolean
+  sourceTrackID: number
+  indexOfFirstBase?: number
+  isCompletelyReverse?: boolean
+  // Read-specific fields populated by vgExtractReads.
+  sequenceNew?: ReadSequenceEntry[]
+  firstNodeOffset?: number
+  finalNodeCoverLength?: number
+  mapping_quality?: number
+  is_secondary?: boolean
+  is_reverse?: boolean
+  sample_name?: string | null
+  read_group?: string | null
+  cigar_string?: string
+  score?: number
+}
+
+// Layout-complete track shape used inside createTubeMap.
+export interface Track extends InputTrack {
+  indexSequence: number[]
+  path: Segment[]
+  width: number
+}
+
+// Loose input shape passed to `create()`. Layout passes inside createTubeMap
+// (generateNodeWidth → generateNodeOrder → generateLaneAssignment →
+// generateNodeXCoords) accrete more fields, producing the full `Node` below.
+// sequenceLength is optional because generateNodeWidth derives it from
+// seq.length if missing.
+export interface InputNode {
+  name: string
+  seq: string
+  sequenceLength?: number
+}
+
+// Layout-complete node — fields used by drawing code after the pipeline.
+// (Marked optional only for the genuinely conditional fields like switched/d.)
+export interface Node extends InputNode {
+  width: number
+  pixelWidth: number
+  order: number
+  y: number
+  contentHeight: number
+  x: number
+  topLane: number
+  successors: number[]
+  predecessors: number[]
+  tracks: number[]
+  degree: number
+  switched?: boolean
+  incomingReads: [number, number][]
+  outgoingReads: [number, number][]
+  internalReads: number[]
+  d?: string
+}
+
+export type InputRegion = (number | null)[]
+
+export interface SegmentAssignment {
+  trackID: number
+  segmentID: number
+  compareToFromSame: SegmentAssignment | null
+  idealLane?: number
+  idealY?: number | null
+  lane?: number
+}
+
+export interface NodeAssignment {
+  type: 'single' | 'multiple'
+  node: number | null
+  tracks: SegmentAssignment[]
+  idealLane?: number
+}
+
+export interface ColorScheme {
+  mainPalette: string
+  auxPalette?: string
+  colorReadsByMappingQuality?: boolean
+  alphaReadsByMappingQuality?: boolean
+}
+
+export interface ReadGroup {
+  color: string
+  reads: Set<string>
+}
+
+export interface ReadContextMenuState {
+  readName: string
+  x: number
+  y: number
+}
+
+export interface NodeContextMenuState {
+  nodeName: string
+  readNames: string[]
+  x: number
+  y: number
+}
+
+export type InfoAttribute = [string, string | number | null | undefined]
+
+interface TubeMapConfig {
+  mergeNodesFlag: boolean
+  transparentNodesFlag: boolean
+  clickableNodesFlag: boolean
+  showExonsFlag: boolean
+  nodeWidthOption: 'normal' | 'compressed' | 'small' | 'fixed'
+  showNodeLabels: boolean
+  nodeLabelColorScheme: { mainPalette: string }
+  showReads: boolean
+  showSoftClips: boolean
+  colorSchemes: Record<number, ColorScheme>
+  coloredNodes: string[]
+  exonColors: string
+  hideLegendFlag: boolean
+  mappingQualityCutoff: number
+  nodeIntervalThreshold: number
+  showInfoCallback: (info: InfoAttribute[]) => void
+  readContextMenuCallback: (menu: ReadContextMenuState | null) => void
+  nodeContextMenuCallback: (menu: NodeContextMenuState | null) => void
+  focusReadNames: string[] | null
+  readGroups: ReadGroup[]
+  otherReadsColor: string
+}
+
+export interface CreateParams {
+  svgID: string
+  nodes: InputNode[]
+  tracks: InputTrack[]
+  reads?: InputTrack[] | null
+  region?: InputRegion
+  bed?: BedRecord[] | null
+  clickableNodes?: boolean
+  hideLegend?: boolean
+}
+
+// vg-json shapes. vg is permissive (mixes string/number, sometimes omits
+// fields) so we describe the loose shape we read here.
+export interface VgEdit {
+  from_length?: number
+  to_length?: number
+  sequence?: string
+}
+
+export interface VgPosition {
+  node_id: number | string
+  is_reverse?: boolean
+  offset?: number | string
+}
+
+export interface VgMapping {
+  edit: VgEdit[]
+  // Optional because cigar_string only needs `edit`; vgExtractReads narrows
+  // with an undefined-check before using position.
+  position?: VgPosition
+}
+
+export interface VgPath {
+  mapping: VgMapping[]
+  name?: string
+  freq?: number
+  indexOfFirstBase?: number | string
+}
+
+export interface VgNode {
+  id: number | string
+  sequence: string
+  sequenceLength?: number
+}
+
+export interface VgRead {
+  path?: VgPath
+  name?: string
+  mapping_quality?: number
+  is_secondary?: boolean
+  is_reverse?: boolean
+  sample_name?: string | null
+  read_group?: string | null
+  score?: number
+}
+
+export interface VgJson {
+  node: VgNode[]
+  path: VgPath[]
+}
+
+type AnySelection = d3.Selection<d3.BaseType, unknown, HTMLElement, unknown>
+type SvgGroupSelection = d3.Selection<SVGGElement, unknown, HTMLElement, unknown>
 
 const greys = [
   '#d9d9d9',
@@ -99,49 +406,33 @@ const lightColors = [
 // if they don't have the first font named here.
 const fonts = '"Courier New", "Courier", "Lucida Console", monospace'
 
-let svgID // the (html-tag) ID of the svg
-let svg // the svg
-export let zoom // eslint-disable-line import/no-mutable-exports
-let inputNodes = []
-let inputTracks = []
-let inputReads = []
-let inputRegion = []
-let nodes
-// Each track has a `path`, which is an array of objects describing pieces of the path that need to be drawn, in order along the path. The objects in the path are Segment objects and have fields:
-//
-// * order: horizontal order number at which this piece of the track's path should be drawn.
-// * lane: vertical lane that this piece of the track's path should be drawn at, or null if not yet assigned.
-// * isForward: true if the track is running left to right here, false if it is running right to left.
-// * node: the node being visited, or null if this piece of the track is outside nodes.
-let tracks
-// Each read also has a `path` list of objects (here Elements) with `order`, `isForward`, and `node` fields, but there is no `lane` field; reads are organized vertically using a completely different system than non-read tracks.
-let reads
-let numberOfNodes
-let numberOfTracks
-let nodeMap // maps node names to node indices
-let nodesPerOrder
-// Contains info about lane assignments for tracks, in one list for each horizontal "order" slot.
-// Each entry is an Assignment, which is a list of NodeAssignment objects.
-// A NodeAssignment object is:
-//
-// * type: can be "single" (if only one track visits the node) or "multiple" (if multiple tracks visit the node)
-// * node: the node index in nodes that the Assignment belongs to, or null if the Assignment is for a region outside of any node.
-// * tracks: a list of SegmentAssignment objects
-//
-// A SegmentAssignment object contains:
-//
-// * trackID: the number of the track that the SegmentAssignment represents a piece of.
-// * segmentID: the number along all that track's Segments in the track's `path` that is assigned here.
-// * compareToFromSame: any earlier SegmentAssignment for this track in this order slot, or null. TODO: This is never used.
-//
-// This is all duplicative with the tracks' `path` lists, but is organized by order slot instead of by track.
-// This is NOT used for reads! Reads use their own system.
-let assignments = []
-let extraLeft = [] // info whether nodes have to be moved further apart because of multiple 180° directional changes at the same horizontal order
-let extraRight = [] // info whether nodes have to be moved further apart because of multiple 180° directional changes at the same horizontal order
-let maxOrder // horizontal order of the rightmost node
+let svgID: string // the (html-tag) ID of the svg
+let svg: AnySelection // the svg
+export let zoom: d3.ZoomBehavior<Element, unknown> // eslint-disable-line import/no-mutable-exports
+// inputNodes/nodes are 1-indexed: a hole at index 0 lets us use *signed*
+// indices to mean orientation (-i = reverse of node i). The array type
+// reflects that hole.
+let inputNodes: (Node | undefined)[] = []
+let inputTracks: Track[] = []
+let inputReads: Track[] | null = []
+let inputRegion: InputRegion = []
+let nodes: (Node | undefined)[]
+// Each track has a `path`, which is an array of Segment objects describing pieces of the path that need to be drawn, in order along the path.
+let tracks: Track[]
+// Each read also has a `path` list of Segments, but reads are organized vertically using a different system than non-read tracks.
+let reads: Track[] | null
+let numberOfNodes: number
+let numberOfTracks: number
+let nodeMap: Map<string, number>
+let nodesPerOrder: number[][]
+// Lane assignment info for tracks, in one list per horizontal "order" slot.
+// Duplicates info in tracks' `path` lists but is organized by order. Reads do not use this.
+let assignments: NodeAssignment[][] = []
+let extraLeft: number[] = []
+let extraRight: number[] = []
+let maxOrder: number // horizontal order of the rightmost node
 
-const config = {
+const config: TubeMapConfig = {
   mergeNodesFlag: true,
   transparentNodesFlag: false,
   clickableNodesFlag: false,
@@ -163,11 +454,12 @@ const config = {
   mappingQualityCutoff: 0,
   // How far apart can nodes be before making a break in the coordinate bar?
   nodeIntervalThreshold: 150,
-  showInfoCallback: function (info) {
+  showInfoCallback: function (info: InfoAttribute[]) {
     alert(info)
   },
   readContextMenuCallback: function () {},
   nodeContextMenuCallback: function () {},
+  coloredNodes: [],
   focusReadNames: null,
   // Array of { color, reads: Set<string> }. Reads matching a group's set are
   // drawn in that color, overriding the default strand/palette coloring. The
@@ -180,22 +472,22 @@ const config = {
 }
 
 // variables for storing info which can be directly translated into drawing instructions
-let trackRectangles = []
-let trackCurves = []
-let trackCorners = []
-let trackVerticalRectangles = [] // stored separately from horizontal rectangles. This allows drawing them in a separate step -> avoids issues with wrong overlapping
-let trackRectanglesStep3 = []
+let trackRectangles: TrackRectangle[] = []
+let trackCurves: TrackCurve[] = []
+let trackCorners: TrackCorner[] = []
+let trackVerticalRectangles: TrackRectangle[] = [] // drawn separately so they don't overlap horizontal rectangles
+let trackRectanglesStep3: TrackRectangle[] = []
 
 let maxYCoordinate = 0
 let minYCoordinate = 0
 let maxXCoordinate = 0
-let trackForRuler
+let trackForRuler: string | undefined
 
-let bed
+let bed: BedRecord[] | null = null
 
 // main function to call from outside
 // which starts the process of creating a tube map visualization
-export function create(params) {
+export function create(params: CreateParams): void {
   // mandatory parameters: svgID (really a selector, but must be an ID selector), nodes, tracks
   // optional parameters: bed, clickableNodes, reads, showLegend
   svgID = params.svgID
@@ -210,7 +502,7 @@ export function create(params) {
   delete inputNodes[0]
   inputTracks = deepCopy(params.tracks) // deep copy
   inputReads = params.reads || null
-  inputRegion = params.region
+  inputRegion = params.region || []
   bed = params.bed || null
   config.clickableNodesFlag = params.clickableNodes || false
   config.hideLegendFlag = params.hideLegend || false
@@ -219,44 +511,29 @@ export function create(params) {
 }
 
 // structuredClone preserves sparse-array holes; JSON round-trip would fill them with null.
-function deepCopy(val) {
+function deepCopy<T>(val: T): T {
   return structuredClone(val)
 }
 
 // Return true if the given name names a reverse strand node, and false otherwise.
-function isReverse(nodeName) {
+function isReverse(nodeName: string): boolean {
   const s = String(nodeName)
   return s.length >= 1 && s.charAt(0) === '-'
 }
 
 // Get the forward version of a node name, which may be either forward or backward (negative)
-function forward(nodeName) {
-  if (isReverse(nodeName)) {
-    // It looks like a negative value.
-    // Make sure it's a string and cut off the -.
-    return String(nodeName).substr(1)
-  } else {
-    // It's forward.
-    return nodeName
-  }
+function forward(nodeName: string): string {
+  return isReverse(nodeName) ? String(nodeName).substring(1) : nodeName
 }
 
 // Get the reverse version of a node name, which may be either forward or backward (negative)
-function reverse(nodeName) {
-  if (isReverse(nodeName)) {
-    return nodeName
-  } else {
-    return `-${nodeName}`
-  }
+function reverse(nodeName: string): string {
+  return isReverse(nodeName) ? nodeName : `-${nodeName}`
 }
 
 // Get the opposite orientation node name for the given node.
-function flip(nodeName) {
-  if (isReverse(nodeName)) {
-    return forward(nodeName)
-  } else {
-    return reverse(nodeName)
-  }
+function flip(nodeName: string): string {
+  return isReverse(nodeName) ? forward(nodeName) : reverse(nodeName)
 }
 
 // moves a specific track to the top
@@ -309,7 +586,7 @@ function straightenTrack(index) {
   })
 }
 
-export function changeTrackVisibility(trackID) {
+export function changeTrackVisibility(trackID: number): void {
   const track = inputTracks.find(t => t.id === trackID)
   if (track) {
     track.hidden = !track.hidden
@@ -318,24 +595,29 @@ export function changeTrackVisibility(trackID) {
 }
 
 // to select/deselect all
-export function changeAllTracksVisibility(value) {
+export function changeAllTracksVisibility(value: boolean): void {
   let i = 0
   while (i < inputTracks.length) {
-    inputTracks[i].hidden = !value
-    var checkbox = document.getElementById(`showTrack${inputTracks[i].id}`)
-    checkbox.checked = value
+    const t = inputTracks[i]
+    if (t) {
+      t.hidden = !value
+      const checkbox = document.getElementById(`showTrack${t.id}`)
+      if (checkbox instanceof HTMLInputElement) {
+        checkbox.checked = value
+      }
+    }
     i += 1
   }
   createTubeMap()
 }
 
-export function changeExonVisibility() {
+export function changeExonVisibility(): void {
   config.showExonsFlag = !config.showExonsFlag
   createTubeMap()
 }
 
 // sets the flag for whether redundant nodes should be automatically removed or not
-export function setMergeNodesFlag(value) {
+export function setMergeNodesFlag(value: boolean): void {
   if (config.mergeNodesFlag !== value) {
     config.mergeNodesFlag = value
     svg = d3.select(svgID)
@@ -344,7 +626,7 @@ export function setMergeNodesFlag(value) {
 }
 
 // sets the flag for whether nodes should be fully transparent or not
-export function setTransparentNodesFlag(value) {
+export function setTransparentNodesFlag(value: boolean): void {
   if (config.transparentNodesFlag !== value) {
     config.transparentNodesFlag = value
     svg = d3.select(svgID)
@@ -353,7 +635,7 @@ export function setTransparentNodesFlag(value) {
 }
 
 // sets the flag for whether read soft clips should be displayed or not
-export function setSoftClipsFlag(value) {
+export function setSoftClipsFlag(value: boolean): void {
   if (config.showSoftClips !== value) {
     config.showSoftClips = value
     svg = d3.select(svgID)
@@ -362,7 +644,7 @@ export function setSoftClipsFlag(value) {
 }
 
 // sets the flag for whether reads should be displayed or not
-export function setShowReadsFlag(value) {
+export function setShowReadsFlag(value: boolean): void {
   if (config.showReads !== value) {
     config.showReads = value
     svg = d3.select(svgID)
@@ -370,11 +652,11 @@ export function setShowReadsFlag(value) {
   }
 }
 
-export function setColorSet(fileID, newColor) {
-  const currColor = config.colorSchemes[fileID]
+export function setColorSet(fileID: number | string, newColor: ColorScheme): void {
+  const currColor = config.colorSchemes[Number(fileID)]
   // update if any coloring parameter is different
   if (!currColor || !isEqual(currColor, newColor)) {
-    config.colorSchemes[fileID] = newColor
+    config.colorSchemes[Number(fileID)] = newColor
     const tr = createTubeMap()
     if (!config.hideLegendFlag && tracks) drawLegend(tr)
   }
@@ -387,7 +669,9 @@ export function setColorSet(fileID, newColor) {
   - small: Node lengths are computed based on the sequence length / 100, and the sequences aren't displayed
   - fixed: Node lengths are set to 1 base unit, and the sequences aren't displayed
  */
-export function setNodeWidthOption(value) {
+export function setNodeWidthOption(
+  value: 'normal' | 'compressed' | 'small' | 'fixed',
+): void {
   if (['normal', 'compressed', 'small', 'fixed'].includes(value)) {
     if (config.nodeWidthOption !== value) {
       config.nodeWidthOption = value
@@ -399,58 +683,73 @@ export function setNodeWidthOption(value) {
   }
 }
 
-export function setColoredNodes(value) {
-  config.coloredNodes = Array.isArray(value) ? value : []
+export function setColoredNodes(value: unknown): void {
+  config.coloredNodes = Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === 'string')
+    : []
 }
 
-export function setShowNodeLabels(value) {
+export function setShowNodeLabels(value: boolean): void {
   config.showNodeLabels = value
 }
 
-export function setNodeLabelColorScheme(scheme) {
+export function setNodeLabelColorScheme(scheme: { mainPalette: string }): void {
   config.nodeLabelColorScheme = scheme
 }
 
 // sets callback function that would generate React popup of track information. The callback would
 // accept an array argument of track attribute pairs containing attribute name as a string and attribute value
 // as a string or number, to be displayed.
-export function setInfoCallback(newCallback) {
+export function setInfoCallback(
+  newCallback: (info: InfoAttribute[]) => void,
+): void {
   config.showInfoCallback = newCallback
 }
 
 // Set the callback fired when the user right-clicks a read in the tube map.
 // The callback receives { readName, x, y } where x/y are clientX/clientY.
-export function setReadContextMenuCallback(newCallback) {
+export function setReadContextMenuCallback(
+  newCallback: (menu: ReadContextMenuState | null) => void,
+): void {
   config.readContextMenuCallback = newCallback
 }
 
 // Set the callback fired when the user right-clicks a node in the tube map.
 // The callback receives { nodeName, readNames, x, y }.
-export function setNodeContextMenuCallback(newCallback) {
+export function setNodeContextMenuCallback(
+  newCallback: (menu: NodeContextMenuState | null) => void,
+): void {
   config.nodeContextMenuCallback = newCallback
 }
 
 // Collect the names of all reads (from the unfiltered input) that traverse a
 // set of nodes. mode === "all" requires the read to visit every node in the
 // set (intersection); mode === "any" requires at least one (union).
-export function getReadNamesThroughNodes(nodeNames, mode) {
-  if (!inputReads || nodeNames.length === 0) return []
-  const seen = new Set()
-  inputReads.forEach(read => {
-    if (!read.name || !read.sequence) return
-    const visited = new Set(read.sequence.map(s => forward(s)))
-    const match =
-      mode === 'all'
-        ? nodeNames.every(n => visited.has(n))
-        : nodeNames.some(n => visited.has(n))
-    if (match) seen.add(read.name)
-  })
+export function getReadNamesThroughNodes(
+  nodeNames: string[],
+  mode: 'all' | 'any',
+): string[] {
+  const seen = new Set<string>()
+  if (inputReads && nodeNames.length > 0) {
+    inputReads.forEach(read => {
+      if (read.name && read.sequence) {
+        const visited = new Set(read.sequence.map(s => forward(s)))
+        const match =
+          mode === 'all'
+            ? nodeNames.every(n => visited.has(n))
+            : nodeNames.some(n => visited.has(n))
+        if (match) {
+          seen.add(read.name)
+        }
+      }
+    })
+  }
   return Array.from(seen)
 }
 
 // Restrict the displayed reads to the given set of read names. Pass null or
 // an empty array to clear the filter.
-export function setFocusReadNames(value) {
+export function setFocusReadNames(value: string[] | null | undefined): void {
   const newValue = value && value.length > 0 ? value : null
   const oldKey =
     config.focusReadNames === null ? '' : config.focusReadNames.join('\0')
@@ -464,14 +763,21 @@ export function setFocusReadNames(value) {
   }
 }
 
-function readGroupsKey(groups) {
+interface ReadGroupInput {
+  color: string
+  reads: string[] | Set<string>
+}
+
+function readGroupsKey(groups: { color: string; reads: string[] }[]): string {
   return groups.map(g => `${g.color}${g.reads.join('\0')}`).join('')
 }
 
 // Set the named read groups for custom coloring. Accepts an array of
 // { color, reads: string[] }; last group wins on overlap. Pass [] or null to
 // clear all groups.
-export function setReadGroups(value) {
+export function setReadGroups(
+  value: ReadGroupInput[] | null | undefined,
+): void {
   const incoming = value || []
   const oldKey = readGroupsKey(
     config.readGroups.map(g => ({
@@ -479,9 +785,13 @@ export function setReadGroups(value) {
       reads: Array.from(g.reads),
     })),
   )
-  const newKey = readGroupsKey(incoming)
+  const incomingNormalized = incoming.map(g => ({
+    color: g.color,
+    reads: Array.from(g.reads),
+  }))
+  const newKey = readGroupsKey(incomingNormalized)
   if (oldKey !== newKey) {
-    config.readGroups = incoming.map(g => ({
+    config.readGroups = incomingNormalized.map(g => ({
       color: g.color,
       reads: new Set(g.reads),
     }))
@@ -492,7 +802,7 @@ export function setReadGroups(value) {
   }
 }
 
-export function setOtherReadsColor(value) {
+export function setOtherReadsColor(value: string | null | undefined): void {
   const next = value || 'greys'
   if (config.otherReadsColor !== next) {
     config.otherReadsColor = next
@@ -503,7 +813,7 @@ export function setOtherReadsColor(value) {
   }
 }
 
-export function setMappingQualityCutoff(value) {
+export function setMappingQualityCutoff(value: number): void {
   if (config.mappingQualityCutoff !== value) {
     config.mappingQualityCutoff = value
     if (svg !== undefined) {
@@ -3563,89 +3873,100 @@ function nodeSingleClick() {
 }
 
 // Count the number of distinct reads that visit the given node object.
-export function numReadsVisitNode(node) {
-  let countReads = new Set()
+export interface NodeReadAttachments {
+  incomingReads: [number, number][]
+  outgoingReads: [number, number][]
+  internalReads: number[]
+}
+
+export function numReadsVisitNode(node: NodeReadAttachments): number {
+  const countReads = new Set<number>()
   // incoming reads are reads that enter the node but don't start within it. They are represented as
   // an array of subarrays which have 2 elements: an index indicating the read index and read path's index.
   // The first node will not have any incoming reads.
-  for (let readVisit of node.incomingReads) {
+  for (const readVisit of node.incomingReads) {
     countReads.add(readVisit[0])
   }
   // internal reads are reads that start and end within the node. They are represented as
   // an array of values which indicate the read index.
-  for (let read of node.internalReads) {
+  for (const read of node.internalReads) {
     countReads.add(read)
   }
   // outgoing reads are reads that exit the node when the read starts within it. They are represented as
   // an array of subarrays which have 2 elements: an index indicating the read index and read path's index.
   // The last node will not have any outgoing reads.
-  for (let readVisit of node.outgoingReads) {
+  for (const readVisit of node.outgoingReads) {
     countReads.add(readVisit[0])
   }
   return countReads.size
 }
 
+export interface ReadCoverageInfo {
+  sequenceNew?: { mismatches: Mismatch[] }[]
+  firstNodeOffset?: number
+  finalNodeCoverLength?: number
+}
+
+export interface NodeCoverageInfo extends NodeReadAttachments {
+  sequenceLength: number
+}
+
+function subtractDeletions(read: ReadCoverageInfo | undefined): number {
+  let delta = 0
+  if (read?.sequenceNew) {
+    for (const entry of read.sequenceNew) {
+      for (const mm of entry.mismatches) {
+        if (mm.type === 'deletion' && mm.length !== undefined) {
+          console.log('this read has a deletion', read)
+          delta -= mm.length
+        }
+      }
+    }
+  }
+  return delta
+}
+
 // computes average number of reads passing through each base in the node
-export function coverage(node, allReads) {
+export function coverage(
+  node: NodeCoverageInfo,
+  allReads: ReadCoverageInfo[],
+): number {
   if (node.sequenceLength === 0) {
     return 0.0
   }
   let countBases = 0
-  for (let readVisit of node.incomingReads) {
-    let readNum = readVisit[0]
-    let readPathIndex = readVisit[1]
-    let currRead = allReads[readNum]
-    let numNodes = currRead.sequenceNew.length
-    // identify deletion: if there's a deletion, then those bases must be deleted from total base count
-    for (let i = 0; i < currRead.sequenceNew.length; i += 1) {
-      currRead.sequenceNew[i].mismatches.forEach(mm => {
-        if (mm.type === 'deletion') {
-          console.log('this read has a deletion', currRead)
-          countBases -= mm.length
-        }
-      })
-    }
-    //  if current node is the last node on the read path, add the finalNodeCoverLength number of bases
-    if (numNodes === readPathIndex + 1) {
-      countBases += currRead.finalNodeCoverLength
-      // otherwise add the node's sequence length (width of node in bases)
-    } else {
-      countBases += node.sequenceLength
+  for (const readVisit of node.incomingReads) {
+    const currRead = allReads[readVisit[0]]
+    const readPathIndex = readVisit[1]
+    countBases += subtractDeletions(currRead)
+    if (currRead && currRead.sequenceNew) {
+      const numNodes = currRead.sequenceNew.length
+      //  if current node is the last node on the read path, add the finalNodeCoverLength number of bases
+      if (numNodes === readPathIndex + 1 && currRead.finalNodeCoverLength !== undefined) {
+        countBases += currRead.finalNodeCoverLength
+        // otherwise add the node's sequence length (width of node in bases)
+      } else {
+        countBases += node.sequenceLength
+      }
     }
   }
   // internal reads
-  for (let readVisit of node.internalReads) {
-    // compute coverage of read by finalNodeCoverLength and firstNodeOffset fields
-    //  indicating read's starting and ending points within the node.
-    let readNum = readVisit
-    let currRead = allReads[readNum]
-    // identify deletion: if there's a deletion, then those bases must be deleted from total base count
-    for (let i = 0; i < currRead.sequenceNew.length; i += 1) {
-      currRead.sequenceNew[i].mismatches.forEach(mm => {
-        if (mm.type === 'deletion') {
-          console.log('this read has a deletion', currRead)
-          countBases -= mm.length
-        }
-      })
+  for (const readVisit of node.internalReads) {
+    const currRead = allReads[readVisit]
+    countBases += subtractDeletions(currRead)
+    if (currRead?.finalNodeCoverLength !== undefined && currRead.firstNodeOffset !== undefined) {
+      countBases += currRead.finalNodeCoverLength - currRead.firstNodeOffset
     }
-    countBases += currRead.finalNodeCoverLength - currRead.firstNodeOffset
   }
   // outgoing reads
-  for (let readVisit of node.outgoingReads) {
-    let readNum = readVisit[0]
-    let currRead = allReads[readNum]
-    // identify deletion: if there's a deletion, then those bases must be deleted from total base count
-    for (let i = 0; i < currRead.sequenceNew.length; i += 1) {
-      currRead.sequenceNew[i].mismatches.forEach(mm => {
-        if (mm.type === 'deletion') {
-          console.log('this read has a deletion', currRead)
-          countBases -= mm.length
-        }
-      })
-    }
+  for (const readVisit of node.outgoingReads) {
+    const currRead = allReads[readVisit[0]]
+    countBases += subtractDeletions(currRead)
     // coverage of outgoing read would be the the distance between the end of the node and the
     //  starting point of the read within the node
-    countBases += node.sequenceLength - currRead.firstNodeOffset
+    if (currRead?.firstNodeOffset !== undefined) {
+      countBases += node.sequenceLength - currRead.firstNodeOffset
+    }
   }
   // average coverage is total number of bases traversed by all reads divided by sequence length (width of node in bases)
   return Math.round((countBases / node.sequenceLength) * 100) / 100
@@ -3699,35 +4020,39 @@ function nodePixelCoordinatesInX(node) {
 //  in a larger interval. If the nodes are spaced further apart (based on the threshold) then those nodes would form a
 //  separate interval. If the distance between the nodes is equal to the threshold, then the nodes would be grouped together
 //  in a larger interval
-export function axisIntervals(nodePixelCoordinates, threshold) {
+export type Interval = readonly [number, number]
+
+export function axisIntervals(
+  nodePixelCoordinates: readonly Interval[],
+  threshold: number,
+): Interval[] {
   if (nodePixelCoordinates.length === 0) {
     return []
   } else if (nodePixelCoordinates.length === 1) {
-    return nodePixelCoordinates
-  }
-  // Sorting an array in ascending order based on first element of subarrays - from https://stackoverflow.com/questions/48634944/sort-an-array-of-arrays-by-the-first-elements-in-the-nested-arrays
-  let nodePixelCoordinatesCopy = nodePixelCoordinates.slice() // shallow copy
-  nodePixelCoordinatesCopy.sort((a, b) => a[0] - b[0])
-  // https://keithwilliams-91944.medium.com/merge-intervals-solution-in-javascript-daa61b618ed4
-  let mergedIntervals = [nodePixelCoordinatesCopy[0].slice()]
-  for (let i = 1; i < nodePixelCoordinatesCopy.length; i++) {
-    // compute the distance between the current interval and the current coordinate pair's starting x-value, and compare it to a threshold. If it's less than the threshold, merge the intervals.
-    if (
-      nodePixelCoordinatesCopy[i][0] -
-        mergedIntervals[mergedIntervals.length - 1][1] <=
-      threshold
-    ) {
-      // update ending position to the maximum of current end value and end of current interval - can be thought of as extending the interval
-      mergedIntervals[mergedIntervals.length - 1][1] = Math.max(
-        mergedIntervals[mergedIntervals.length - 1][1],
-        nodePixelCoordinatesCopy[i][1],
-      )
-    } else {
-      // new interval
-      mergedIntervals.push(nodePixelCoordinatesCopy[i].slice())
+    return nodePixelCoordinates.map(p => [p[0], p[1]])
+  } else {
+    // Sort ascending by first element of each subarray.
+    const sorted = nodePixelCoordinates.toSorted((a, b) => a[0] - b[0])
+    // https://keithwilliams-91944.medium.com/merge-intervals-solution-in-javascript-daa61b618ed4
+    const first = sorted[0]
+    const mergedIntervals: [number, number][] =
+      first === undefined ? [] : [[first[0], first[1]]]
+    for (let i = 1; i < sorted.length; i++) {
+      const curr = sorted[i]
+      const last = mergedIntervals[mergedIntervals.length - 1]
+      if (curr !== undefined && last !== undefined) {
+        // compute the distance between the current interval and the current coordinate pair's starting x-value, and compare it to a threshold. If it's less than the threshold, merge the intervals.
+        if (curr[0] - last[1] <= threshold) {
+          // update ending position to the maximum of current end value and end of current interval - can be thought of as extending the interval
+          last[1] = Math.max(last[1], curr[1])
+        } else {
+          // new interval
+          mergedIntervals.push([curr[0], curr[1]])
+        }
+      }
     }
+    return mergedIntervals
   }
-  return mergedIntervals
 }
 
 function drawRuler() {
@@ -4593,11 +4918,21 @@ function nodeDoubleClick() {
 }
 
 // extract info about nodes from vg-json
-export function vgExtractNodes(vg, nameMap = {}) {
-  const result = []
+export interface ExtractedVgNode {
+  name: string
+  sequenceLength: number
+  seq: string
+}
+
+export function vgExtractNodes(
+  vg: VgJson,
+  nameMap: Record<string, string> = {},
+): ExtractedVgNode[] {
+  const result: ExtractedVgNode[] = []
   vg.node.forEach(node => {
+    const id = `${node.id}`
     result.push({
-      name: nameMap[`${node.id}`] ?? `${node.id}`,
+      name: nameMap[id] ?? id,
       sequenceLength: node.sequenceLength ?? node.sequence.length,
       seq: node.sequence,
     })
@@ -4663,17 +4998,28 @@ function generateNodeWidth() {
   }
 }
 
+export interface ExtractedVgTrack {
+  id: number
+  sequence: string[]
+  isCompletelyReverse: boolean
+  freq?: number
+  sourceTrackID: number
+  name?: string
+  indexOfFirstBase?: number
+}
+
 // extract track info from vg-json
-export function vgExtractTracks(vg, pathSourceTrackId, haplotypeSourceTrackID) {
-  const result = []
+export function vgExtractTracks(
+  vg: VgJson,
+  pathSourceTrackId: number,
+  haplotypeSourceTrackID: number,
+): ExtractedVgTrack[] {
+  const result: ExtractedVgTrack[] = []
   vg.path.forEach((path, index) => {
-    const sequence = []
+    const sequence: string[] = []
     let isCompletelyReverse = true
     path.mapping.forEach(pos => {
-      if (
-        pos.position.hasOwnProperty('is_reverse') &&
-        pos.position.is_reverse === true
-      ) {
+      if (pos.position.is_reverse === true) {
         // Visit this node in reverse
         sequence.push(reverse(`${pos.position.node_id}`))
       } else {
@@ -4690,10 +5036,16 @@ export function vgExtractTracks(vg, pathSourceTrackId, haplotypeSourceTrackID) {
         sequence[index2] = forward(node)
       })
     }
-    const track = {}
-    track.id = index
-    track.sequence = sequence
-    track.isCompletelyReverse = isCompletelyReverse
+    const track: ExtractedVgTrack = {
+      id: index,
+      sequence,
+      isCompletelyReverse,
+      // But haplotypes will have names starting with "thread_".
+      sourceTrackID:
+        path.name && path.name.startsWith('thread_')
+          ? haplotypeSourceTrackID
+          : pathSourceTrackId,
+    }
     // Even non-haplotype paths will be assigned a "freq" field by vg. See
     // <https://github.com/vgteam/vg/blob/6b34cd50e851eb9a91be3a605e040c9be1d4b78e/src/haplotype_extracter.cpp#L52-L55>.
     // We want to copy those through so that non-haplotype paths have a normal width.
@@ -4701,16 +5053,10 @@ export function vgExtractTracks(vg, pathSourceTrackId, haplotypeSourceTrackID) {
     if (path.freq !== undefined) {
       track.freq = path.freq
     }
-    // But haplotypes will have names starting with "thread_".
-    if (path.name && path.name.startsWith('thread_')) {
-      // This is a haplotype
-      track.sourceTrackID = haplotypeSourceTrackID
-    } else {
-      // This is a path
-      track.sourceTrackID = pathSourceTrackId
+    if (path.name !== undefined) {
+      track.name = path.name
     }
-    if (path.hasOwnProperty('name')) track.name = path.name
-    if (path.hasOwnProperty('indexOfFirstBase')) {
+    if (path.indexOfFirstBase !== undefined) {
       track.indexOfFirstBase = Number(path.indexOfFirstBase)
     }
     result.push(track)
@@ -4798,51 +5144,44 @@ function compareReadsByLeftEnd2(a, b) {
 }
 
 // converts readPath, a vg Path object expressed as a JS object, to a CIGAR string
-export function cigar_string(readPath) {
+type CigarOp = 'M' | 'I' | 'D'
+type CigarToken = number | CigarOp
+
+export function cigar_string(readPath: VgPath): string {
   if (DEBUG) {
     console.log('readPath mapping:', readPath.mapping)
   }
-  let cigar = []
-  for (let i = 0; i < readPath.mapping.length; i += 1) {
-    let mapping = readPath.mapping[i]
-    for (let j = 0; j < mapping.edit.length; j += 1) {
-      let edit = mapping.edit[j]
+  let cigar: CigarToken[] = []
+  for (const mapping of readPath.mapping) {
+    for (const edit of mapping.edit) {
+      const from = edit.from_length
+      const to = edit.to_length
       // from_length is not 0, and from_length = to_length, this indicates a match
-      if (edit.from_length && edit.from_length === edit.to_length) {
-        cigar = append_cigar_operation(edit.from_length, 'M', cigar)
-      } else {
+      if (from !== undefined && from !== 0 && from === to) {
+        cigar = append_cigar_operation(from, 'M', cigar)
+      } else if (from !== undefined && to !== undefined && from === to) {
         // from_length can be 0, and from_length = to_length, this indicates a match
-        if (edit.from_length === edit.to_length) {
-          cigar = append_cigar_operation(edit.from_length, 'M', cigar)
-        }
+        cigar = append_cigar_operation(from, 'M', cigar)
+      } else if (from !== undefined && to !== undefined && from > to) {
         // if from_length > to_length, this indicates a deletion
-        else if (edit.from_length > edit.to_length) {
-          const del = edit.from_length - edit.to_length
-          const eq = edit.to_length
-          if (eq) {
-            cigar = append_cigar_operation(eq, 'M', cigar)
-          }
-          cigar = append_cigar_operation(del, 'D', cigar)
+        const del = from - to
+        if (to) {
+          cigar = append_cigar_operation(to, 'M', cigar)
         }
+        cigar = append_cigar_operation(del, 'D', cigar)
+      } else if (from !== undefined && to !== undefined && from < to) {
         // if from_length < to_length, this indicates an insertion
-        else if (edit.from_length < edit.to_length) {
-          const ins = edit.to_length - edit.from_length
-          const eq = edit.from_length
-          if (eq) {
-            cigar = append_cigar_operation(eq, 'M', cigar)
-          }
-          cigar = append_cigar_operation(ins, 'I', cigar)
+        const ins = to - from
+        if (from) {
+          cigar = append_cigar_operation(from, 'M', cigar)
         }
+        cigar = append_cigar_operation(ins, 'I', cigar)
+      } else if (from !== undefined && from !== 0 && to === undefined) {
         // if to_length is undefined, this indicates a deletion
-        else if (edit.from_length && edit.to_length === undefined) {
-          const del = edit.from_length
-          cigar = append_cigar_operation(del, 'D', cigar)
-        }
+        cigar = append_cigar_operation(from, 'D', cigar)
+      } else if (from === undefined && to !== undefined && to !== 0) {
         // if from_length is undefined, this indicates an insertion
-        else if (edit.from_length === undefined && edit.to_length) {
-          const ins = edit.to_length
-          cigar = append_cigar_operation(ins, 'I', cigar)
-        }
+        cigar = append_cigar_operation(to, 'I', cigar)
       }
     }
   }
@@ -4852,13 +5191,19 @@ export function cigar_string(readPath) {
   return cigar.join('')
 }
 
-function append_cigar_operation(length, operator, cigar) {
-  let last_operation = cigar[cigar.length - 1]
-  let last_length = cigar[cigar.length - 2]
+function append_cigar_operation(
+  length: number,
+  operator: CigarOp,
+  cigar: CigarToken[],
+): CigarToken[] {
+  const last_operation = cigar[cigar.length - 1]
+  const last_length = cigar[cigar.length - 2]
   // if duplicate operations, add the two operations and replace the most recent operation with this
-  if (last_operation === operator) {
-    let newLength = last_length + length
-    cigar[cigar.length - 2] = newLength
+  if (
+    last_operation === operator &&
+    typeof last_length === 'number'
+  ) {
+    cigar[cigar.length - 2] = last_length + length
   } else {
     cigar.push(length)
     cigar.push(operator)
@@ -4869,145 +5214,163 @@ function append_cigar_operation(length, operator, cigar) {
 // Pull out reads from a server response into tube map internal format.
 // Use myTracks, and idOffset to compute IDs for each read.
 // Assign each read the given sourceTrackID.
+export interface ExtractedVgRead {
+  id: number
+  sourceTrackID: number
+  sequence: string[]
+  sequenceNew: ReadSequenceEntry[]
+  type: 'read'
+  freq?: number
+  name?: string
+  firstNodeOffset: number
+  finalNodeCoverLength: number
+  mapping_quality: number
+  is_secondary: boolean
+  sample_name: string | null
+  read_group: string | null
+  cigar_string: string
+  score: number
+}
+
 export function vgExtractReads(
-  myNodes,
-  myTracks,
-  myReads,
-  idOffset,
-  sourceTrackID,
-) {
+  myNodes: { name: string }[],
+  myTracks: { id: number }[],
+  myReads: VgRead[],
+  idOffset: number,
+  sourceTrackID: number,
+): ExtractedVgRead[] {
   if (DEBUG) {
     console.log('Reads:')
     console.log(myReads)
   }
-  const extracted = []
+  const extracted: ExtractedVgRead[] = []
 
-  const nodeNames = new Set()
+  const nodeNames = new Set<string>()
   myNodes.forEach(node => {
     nodeNames.add(node.name)
   })
 
   for (let i = 0; i < myReads.length; i += 1) {
     const read = myReads[i]
-
-    if (!read.path) {
-      // Read does not have a path assigned, this is an unmapped read.
-      continue
-    }
-
-    const sequence = []
-    const sequenceNew = []
-    let firstIndex = -1 // index within mapping of the first node id contained in nodeNames
-    let lastIndex = -1 // index within mapping of the last node id contained in nodeNames
-    read.path.mapping.forEach((pos, j) => {
-      if (nodeNames.has(pos.position.node_id)) {
-        const edit = {}
-        let offset = 0
-        if (
-          pos.position.hasOwnProperty('is_reverse') &&
-          pos.position.is_reverse === true
-        ) {
-          sequence.push(reverse(`${pos.position.node_id}`))
-          edit.nodeName = reverse(`${pos.position.node_id}`)
-        } else {
-          sequence.push(`${pos.position.node_id}`)
-          edit.nodeName = pos.position.node_id.toString()
-        }
-        if (firstIndex < 0) {
-          firstIndex = j
-          if (pos.position.hasOwnProperty('offset')) {
-            pos.position.offset = parseInt(pos.position.offset, 10)
-            offset = pos.position.offset
-          }
-        }
-        lastIndex = j
-
-        const mismatches = []
-        let posWithinNode = offset
-        pos.edit.forEach(element => {
-          if (
-            element.hasOwnProperty('to_length') &&
-            !element.hasOwnProperty('from_length')
-          ) {
-            // insertion
-            mismatches.push({
-              type: 'insertion',
-              pos: posWithinNode,
-              seq: element.sequence,
-            })
-          } else if (
-            !element.hasOwnProperty('to_length') &&
-            element.hasOwnProperty('from_length')
-          ) {
-            // deletion
-            mismatches.push({
-              type: 'deletion',
-              pos: posWithinNode,
-              length: element.from_length,
-            })
-          } else if (element.hasOwnProperty('sequence')) {
-            // substitution
-            if (element.sequence.length > 1) {
-              if (DEBUG) {
-                console.log(
-                  `found substitution at read ${i}, node ${j} = ${pos.position.node_id}, seq = ${element.sequence}`,
-                )
+    if (read?.path) {
+      const sequence: string[] = []
+      const sequenceNew: ReadSequenceEntry[] = []
+      let firstIndex = -1 // index within mapping of the first node id contained in nodeNames
+      let lastIndex = -1 // index within mapping of the last node id contained in nodeNames
+      read.path.mapping.forEach((pos, j) => {
+        const position = pos.position
+        if (position !== undefined) {
+          const nodeIdStr = `${position.node_id}`
+          if (nodeNames.has(nodeIdStr)) {
+            let offset = 0
+            const nodeName =
+              position.is_reverse === true ? reverse(nodeIdStr) : nodeIdStr
+            sequence.push(nodeName)
+            if (firstIndex < 0) {
+              firstIndex = j
+              if (position.offset !== undefined) {
+                const parsed =
+                  typeof position.offset === 'number'
+                    ? position.offset
+                    : parseInt(position.offset, 10)
+                position.offset = parsed
+                offset = parsed
               }
             }
-            mismatches.push({
-              type: 'substitution',
-              pos: posWithinNode,
-              seq: element.sequence,
+            lastIndex = j
+
+            const mismatches: Mismatch[] = []
+            let posWithinNode = offset
+            pos.edit.forEach(element => {
+              if (
+                element.to_length !== undefined &&
+                element.from_length === undefined
+              ) {
+                // insertion
+                mismatches.push({
+                  type: 'insertion',
+                  pos: posWithinNode,
+                  seq: element.sequence,
+                })
+              } else if (
+                element.to_length === undefined &&
+                element.from_length !== undefined
+              ) {
+                // deletion
+                mismatches.push({
+                  type: 'deletion',
+                  pos: posWithinNode,
+                  length: element.from_length,
+                })
+              } else if (element.sequence !== undefined) {
+                // substitution
+                if (element.sequence.length > 1 && DEBUG) {
+                  console.log(
+                    `found substitution at read ${i}, node ${j} = ${position.node_id}, seq = ${element.sequence}`,
+                  )
+                }
+                mismatches.push({
+                  type: 'substitution',
+                  pos: posWithinNode,
+                  seq: element.sequence,
+                })
+              }
+              if (element.from_length !== undefined) {
+                posWithinNode += element.from_length
+              }
             })
+            sequenceNew.push({ nodeName, mismatches })
           }
-          if (element.hasOwnProperty('from_length')) {
-            posWithinNode += element.from_length
-          }
-        })
-        edit.mismatches = mismatches
-        sequenceNew.push(edit)
-      }
-    })
-    if (sequence.length === 0) {
-      if (DEBUG) {
-        console.log(`read ${i} is empty`)
-      }
-    } else {
-      const track = {}
-      track.id = myTracks.length + extracted.length + idOffset
-      track.sourceTrackID = sourceTrackID
-      track.sequence = sequence
-      track.sequenceNew = sequenceNew
-      track.type = 'read'
-      if (read.path.hasOwnProperty('freq')) track.freq = read.path.freq
-      if (read.hasOwnProperty('name')) track.name = read.name
-
-      // where within node does read start
-      track.firstNodeOffset = 0
-      if (read.path.mapping[firstIndex].position.hasOwnProperty('offset')) {
-        track.firstNodeOffset = read.path.mapping[firstIndex].position.offset
-      }
-
-      // where within node does read end
-      const finalNodeEdit = read.path.mapping[lastIndex].edit
-      track.finalNodeCoverLength = 0
-      if (read.path.mapping[lastIndex].position.hasOwnProperty('offset')) {
-        track.finalNodeCoverLength +=
-          read.path.mapping[lastIndex].position.offset
-      }
-      finalNodeEdit.forEach(edit => {
-        if (edit.hasOwnProperty('from_length')) {
-          track.finalNodeCoverLength += edit.from_length
         }
       })
+      if (sequence.length === 0) {
+        if (DEBUG) {
+          console.log(`read ${i} is empty`)
+        }
+      } else {
+        const firstMapping = read.path.mapping[firstIndex]
+        const lastMapping = read.path.mapping[lastIndex]
+        // where within node does read start
+        const firstNodeOffset =
+          firstMapping?.position?.offset !== undefined
+            ? Number(firstMapping.position.offset)
+            : 0
+        // where within node does read end
+        let finalNodeCoverLength =
+          lastMapping?.position?.offset !== undefined
+            ? Number(lastMapping.position.offset)
+            : 0
+        if (lastMapping !== undefined) {
+          lastMapping.edit.forEach(edit => {
+            if (edit.from_length !== undefined) {
+              finalNodeCoverLength += edit.from_length
+            }
+          })
+        }
 
-      track.mapping_quality = read.mapping_quality || 0
-      track.is_secondary = read.is_secondary || false
-      track.sample_name = read.sample_name || null
-      track.read_group = read.read_group || null
-      track.cigar_string = cigar_string(read.path)
-      track.score = read.score || 0
-      extracted.push(track)
+        const track: ExtractedVgRead = {
+          id: myTracks.length + extracted.length + idOffset,
+          sourceTrackID,
+          sequence,
+          sequenceNew,
+          type: 'read',
+          firstNodeOffset,
+          finalNodeCoverLength,
+          mapping_quality: read.mapping_quality || 0,
+          is_secondary: read.is_secondary || false,
+          sample_name: read.sample_name || null,
+          read_group: read.read_group || null,
+          cigar_string: cigar_string(read.path),
+          score: read.score || 0,
+        }
+        if (read.path.freq !== undefined) {
+          track.freq = read.path.freq
+        }
+        if (read.name !== undefined) {
+          track.name = read.name
+        }
+        extracted.push(track)
+      }
     }
   }
   return extracted

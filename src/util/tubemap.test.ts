@@ -1,4 +1,9 @@
-import { cigar_string, coverage, axisIntervals } from './tubemap'
+import {
+  cigar_string,
+  coverage,
+  axisIntervals,
+  type Mismatch,
+} from './tubemap'
 
 // cigar string test
 describe('cigar_string', () => {
@@ -217,19 +222,25 @@ describe('cigar_string', () => {
 
 interface NodeVisit {
   nodeName: string
+  mismatches: Mismatch[]
 }
 
 interface ReadLike {
+  id?: number
+  type?: string
   sequenceNew: NodeVisit[]
+  sequence?: string[]
+  sourceTrackID?: string | number
   firstNodeOffset?: number
   finalNodeCoverLength: number
 }
 
 interface NodeLike {
+  name?: string
   sequenceLength: number
-  incomingReads: number[][]
+  incomingReads: [number, number][]
   internalReads: number[]
-  outgoingReads: number[][]
+  outgoingReads: [number, number][]
 }
 
 // Test to make sure that a node and a set of reads make sense together.
@@ -334,13 +345,13 @@ describe('coverage', () => {
   })
   // TEST #2
   it('can handle node of length 1 with 1 incoming read', async () => {
-    const node = {
+    const node: NodeLike = {
       sequenceLength: 1,
       incomingReads: [[1, 1]],
       internalReads: [],
       outgoingReads: [],
     }
-    const reads = [
+    const reads: ReadLike[] = [
       {
         id: 1,
         type: 'read',
@@ -386,8 +397,8 @@ describe('coverage', () => {
   })
   // TEST #3
   it('can handle node of length of 6 with 2 outgoing reads and 2 internal reads', async () => {
-    const node = {
-      nodename: '3',
+    const node: NodeLike = {
+      name: '3',
       sequenceLength: 6,
       incomingReads: [],
       internalReads: [0, 1],
@@ -396,7 +407,7 @@ describe('coverage', () => {
         [3, 0],
       ],
     }
-    const reads = [
+    const reads: ReadLike[] = [
       {
         id: 1,
         sequenceNew: [
@@ -477,8 +488,8 @@ describe('coverage', () => {
   })
   // TEST #4
   it('can handle node of length of 30 with 2 incoming reads, 4 internal reads, and 3 outgoing reads', async () => {
-    const node = {
-      nodename: '4',
+    const node: NodeLike = {
+      name: '4',
       sequenceLength: 30,
       incomingReads: [
         [0, 1],
@@ -491,7 +502,7 @@ describe('coverage', () => {
         [8, 0],
       ],
     }
-    const reads = [
+    const reads: ReadLike[] = [
       {
         id: 1,
         sequenceNew: [
@@ -643,8 +654,8 @@ describe('coverage', () => {
   })
   // TEST #5
   it('it can handle nodes with deletions in 1 read', async () => {
-    const node = {
-      nodename: '3',
+    const node: NodeLike = {
+      name: '3',
       sequenceLength: 6,
       incomingReads: [],
       internalReads: [0, 1],
@@ -653,7 +664,7 @@ describe('coverage', () => {
         [3, 0],
       ],
     }
-    const reads = [
+    const reads: ReadLike[] = [
       {
         id: 1,
         sequenceNew: [
@@ -735,8 +746,8 @@ describe('coverage', () => {
   })
   // TEST #6
   it('it can handle larger node with deletions in all reads', async () => {
-    const node = {
-      nodename: '3',
+    const node: NodeLike = {
+      name: '3',
       sequenceLength: 24,
       incomingReads: [[0, 1]],
       internalReads: [1, 2],
@@ -745,7 +756,7 @@ describe('coverage', () => {
         [4, 0],
       ],
     }
-    const reads = [
+    const reads: ReadLike[] = [
       {
         id: 1,
         sequenceNew: [
@@ -881,13 +892,13 @@ describe('coverage', () => {
 describe('axisIntervals', () => {
   // TEST 1
   it('can handle an empty array', async () => {
-    const nodePixelCoordinates: number[][] = []
+    const nodePixelCoordinates: [number, number][] = []
     const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([])
   })
   // TEST 2
   it('can handle an array of one interval', async () => {
-    const nodePixelCoordinates = [[0, 1]]
+    const nodePixelCoordinates: [number, number][] = [[0, 1]]
     const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
       [0, 1],
@@ -895,7 +906,7 @@ describe('axisIntervals', () => {
   })
   // TEST 3
   it('can handle an array of two interval where the difference between the intervals is less than the threshold', async () => {
-    const nodePixelCoordinates = [
+    const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [1, 2],
     ]
@@ -906,7 +917,7 @@ describe('axisIntervals', () => {
   })
   // TEST 4
   it('can handle an array of two interval where the difference between the intervals is greater than the threshold', async () => {
-    const nodePixelCoordinates = [
+    const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [3, 4],
     ]
@@ -918,7 +929,7 @@ describe('axisIntervals', () => {
   })
   // TEST 5
   it('can handle an array of two interval where the difference between the intervals is equal to the threshold', async () => {
-    const nodePixelCoordinates = [
+    const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [2, 3],
     ]
@@ -929,7 +940,7 @@ describe('axisIntervals', () => {
   })
   // TEST 6
   it('can handle an array of repeating intervals', async () => {
-    const nodePixelCoordinates = [
+    const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [2, 3],
       [2, 3],
@@ -945,7 +956,7 @@ describe('axisIntervals', () => {
   })
   // TEST 7
   it('can handle an array of repeating intervals that are more spaced out', async () => {
-    const nodePixelCoordinates = [
+    const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [3, 4],
       [3, 4],
@@ -962,7 +973,7 @@ describe('axisIntervals', () => {
   })
   // TEST 8
   it('can handle an array of out of order intervals', async () => {
-    const nodePixelCoordinates = [
+    const nodePixelCoordinates: [number, number][] = [
       [2, 3],
       [0, 1],
       [5, 6],
@@ -975,7 +986,7 @@ describe('axisIntervals', () => {
   })
   // TEST 9
   it('can handle an array of larger, more spaced out intervals, with a larger threshold', async () => {
-    const nodePixelCoordinates = [
+    const nodePixelCoordinates: [number, number][] = [
       [0, 10],
       [12, 15],
       [0, 10],
