@@ -78,5 +78,8 @@ describe('when a file is uploaded', () => {
 
     expect(view.graph).toBeTruthy()
     expect(view.graph?.node).toBeTruthy()
+    // region must match the server's [start, end] number-array shape, not a
+    // string; tubemap.ts indexes [0]/[1] as numbers to draw region ticks.
+    expect(view.region).toEqual([1, 10])
   })
 })

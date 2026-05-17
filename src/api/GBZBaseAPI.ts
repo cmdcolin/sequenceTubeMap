@@ -12,11 +12,7 @@ import {
   type Inode,
 } from '@bjorn3/browser_wasi_shim'
 
-import {
-  parseRegion,
-  convertRegionToRangeRegion,
-  stringifyRegion,
-} from '../common.mjs'
+import { parseRegion, convertRegionToRangeRegion } from '../common.mjs'
 
 import { getCompiledWasm } from '#wasm-loader'
 import { makeWasiFile } from './wasm/blobWasiFile.ts'
@@ -35,7 +31,6 @@ import type {
   Track,
   ViewTarget,
 } from '../Types.ts'
-import type { InputRegion } from '../util/tubemap.ts'
 
 // Set GBZBASE_DEBUG=1 / localStorage.gbzBaseDebug = '1' to re-enable the
 // chatty per-call logging that was unconditional in the original .mjs.
@@ -221,11 +216,9 @@ export class GBZBaseAPI implements APIInterface {
     return {
       graph: result,
       gam: [],
-      // TODO: ChunkedDataResponse.region is typed as InputRegion (array) but
-      // the existing wire format here is a "contig:start-end" string. The
-      // server API and consumer (TubeMapContainer) have the same mismatch;
-      // fixing it properly means changing the shared protocol.
-      region: stringifyRegion(region) as unknown as InputRegion,
+      // Match the server's [start, end] shape; the tubemap ruler indexes [0]
+      // and [1] as numbers to position the region-highlight ticks.
+      region: [region.start, region.end],
       coloredNodes: [],
     }
   }
