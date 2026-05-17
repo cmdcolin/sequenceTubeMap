@@ -11,7 +11,7 @@ interface TrackListProps {
   tracks: Tracks
   availableTracks: AvailableTrack[]
   availableColors?: ColorPaletteName[]
-  onChange: (newTracks: Tracks) => void
+  onChange: (trackID: number, newTrack: Track) => void
   onDelete: (trackID: number) => void
   handleFileUpload: (
     fileType: FileType,
@@ -27,33 +27,22 @@ export const TrackList = ({
   onDelete,
   handleFileUpload,
 }: TrackListProps) => {
-  function trackItemOnChange(trackID: number, trackProps: Track) {
-    const newTracks: Tracks = { ...tracks }
-    newTracks[trackID] = trackProps
-    if (JSON.stringify(newTracks) !== JSON.stringify(tracks)) {
-      onChange(newTracks)
-    }
-  }
-
-  function renderTracks() {
-    return Object.keys(tracks).map(trackID => {
-      const trackProps = tracks[trackID]!
-      return (
+  return (
+    <div>
+      {tracks.map((trackProps, idx) => (
         <TrackListItem
           trackProps={trackProps}
           availableTracks={availableTracks}
           availableColors={availableColors}
-          onChange={trackItemOnChange}
+          onChange={onChange}
           onDelete={onDelete}
-          trackID={parseInt(trackID)}
-          key={trackID}
+          trackID={idx}
+          key={idx}
           handleFileUpload={handleFileUpload}
         />
-      )
-    })
-  }
-
-  return <div>{renderTracks()}</div>
+      ))}
+    </div>
+  )
 }
 
 export default TrackList

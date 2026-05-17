@@ -164,15 +164,7 @@ export class GBZBaseAPI implements APIInterface {
   ): Promise<ChunkedDataResponse> {
     debugLog('Got view target:', viewTarget)
 
-    let graphTrack: Track | null = null
-    // TODO: We need to handle object tracks; move to array tracks only!
-    for (const trackKey in viewTarget.tracks) {
-      const track = viewTarget.tracks[trackKey]
-      if (track?.trackType === 'graph') {
-        graphTrack = track
-        break
-      }
-    }
+    const graphTrack = viewTarget.tracks.find(t => t.trackType === 'graph') ?? null
     if (!graphTrack?.trackFile) {
       throw new Error('No graph track selected')
     }

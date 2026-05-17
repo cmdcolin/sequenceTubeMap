@@ -6,6 +6,7 @@ import {
   type ColorPaletteName,
   type ColorScheme,
   type FileType,
+  type PaletteField,
   type Palette,
 } from '../Types.ts'
 
@@ -13,7 +14,7 @@ interface TrackSettingsProps {
   fileType?: FileType | 'nodeLabel'
   // Partial because the node-label dialog only carries mainPalette.
   trackColorSettings?: Partial<ColorScheme>
-  setTrackColorSetting: (key: keyof ColorScheme, value: Palette) => void
+  setTrackColorSetting: (key: PaletteField, value: Palette) => void
   label?: string
   availableColors?: ColorPaletteName[]
   presetColors?: string[]

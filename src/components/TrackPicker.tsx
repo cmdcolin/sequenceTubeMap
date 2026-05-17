@@ -25,7 +25,7 @@ interface TrackPickerProps {
 }
 
 export const TrackPicker = ({
-  tracks = { 1: config.defaultTrackProps },
+  tracks = [config.defaultTrackProps],
   availableTracks,
   availableColors,
   onChange = () => {},

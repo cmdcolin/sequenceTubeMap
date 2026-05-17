@@ -11,14 +11,14 @@ import {
   FormGroup,
 } from 'reactstrap'
 import TrackSettings from './TrackSettings.tsx'
-import type { ColorScheme, Palette, Tracks, VisOptions } from '../Types.ts'
+import type { Palette, PaletteField, Tracks, VisOptions } from '../Types.ts'
 
 interface VisualizationOptionsProps {
   visOptions: VisOptions
   toggleFlag: (flagName: string) => void
   tracks: Tracks
   setColorSetting: (
-    key: keyof ColorScheme,
+    key: PaletteField,
     index: number,
     value: Palette,
   ) => void
@@ -53,17 +53,13 @@ function VisualizationOptions({
 
   let readTrackNumber = 1
   const trackSettingsList: React.ReactNode[] = []
-  for (const key in tracks) {
-    const track = tracks[key]!
-    if (!track.trackFile) {
-      continue
-    }
-    const idx = Number(key)
+  tracks.forEach((track, idx) => {
+    if (!track.trackFile) return
     const type = track.trackType
     if (type === 'graph') {
       trackSettingsList.push(
         <TrackSettings
-          key={key}
+          key={idx}
           label="Graph Paths"
           fileType={type}
           trackColorSettings={visOptions.colorSchemes[idx]}
@@ -78,7 +74,7 @@ function VisualizationOptions({
       if (visOptions.showReads) {
         trackSettingsList.push(
           <TrackSettings
-            key={key}
+            key={idx}
             label={'Read Track ' + readTrackNumber}
             fileType={type}
             trackColorSettings={visOptions.colorSchemes[idx]}
@@ -92,7 +88,7 @@ function VisualizationOptions({
     } else {
       throw new Error('Unknown track type ' + type)
     }
-  }
+  })
 
   return (
     <Container>

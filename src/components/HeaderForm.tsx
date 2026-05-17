@@ -28,12 +28,12 @@ import {
   regionStringFromRegionIndex,
   trackIsImplied,
   trackListWithImplied,
-  tracksFromArray,
   viewTargetsEqual,
 } from './headerFormUtils.ts'
 import type {
   ColorScheme,
   FileType,
+  PaletteField,
   PathInfo,
   Palette,
   RegionInfo,
@@ -55,7 +55,7 @@ const dataTypes = {
 interface HeaderFormProps {
   dataOrigin: string
   setColorSetting: (
-    key: keyof ColorScheme,
+    key: PaletteField,
     index: number,
     value: Palette,
   ) => void
@@ -192,7 +192,7 @@ function HeaderForm({
     const currViewTarget = getCurrentViewTarget()
 
     if (
-      Object.keys(nextViewTarget.tracks).length > 0 &&
+      nextViewTarget.tracks.length > 0 &&
       !viewTargetsEqual(currViewTarget, nextViewTarget)
     ) {
       setCurrentViewTarget(nextViewTarget)
@@ -240,7 +240,7 @@ function HeaderForm({
     }
 
     if (newTracks) {
-      setTracks(tracksFromArray(newTracks))
+      setTracks(newTracks)
       // pathInfo SWR key derives from the graph track, so it re-fetches on its
       // own when the new tracks contain a different graph.
     }
@@ -320,7 +320,7 @@ function HeaderForm({
 
     if (value === dataTypes.CUSTOM_FILES) {
       setBedSelect('none')
-      setTracks({})
+      setTracks([])
       setBedFile('none')
       setRegion('')
       setName(undefined)

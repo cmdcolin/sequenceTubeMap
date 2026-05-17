@@ -59,7 +59,7 @@ describe('when a file is uploaded', () => {
   it('can be asked for a view', async () => {
     const viewTarget: ViewTarget = {
       dataType: 'mounted files',
-      tracks: { 1: { trackFile: uploadName!, trackType: 'graph' } },
+      tracks: [{ trackFile: uploadName!, trackType: 'graph' }],
       region: 'x:1-10',
     }
     const controller = new AbortController()

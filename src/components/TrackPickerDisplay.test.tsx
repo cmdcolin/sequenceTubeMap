@@ -17,11 +17,11 @@ function openAutocomplete(container: HTMLElement) {
 }
 
 describe('TrackPickerDisplay', () => {
-  const tracks: Tracks = {
-    1: config.defaultTrackProps,
-    2: config.defaultTrackProps,
-    3: config.defaultTrackProps,
-  }
+  const tracks: Tracks = [
+    config.defaultTrackProps,
+    config.defaultTrackProps,
+    config.defaultTrackProps,
+  ]
   const availableColors: ColorPaletteName[] = [
     'greys',
     'ygreys',
@@ -49,11 +49,11 @@ describe('TrackPickerDisplay', () => {
       />,
     )
 
+    expect(queryByTestId('file-type-select-component0')).toBeTruthy()
     expect(queryByTestId('file-type-select-component1')).toBeTruthy()
-    expect(queryByTestId('file-type-select-component2')).toBeTruthy()
-    expect(queryByTestId('file-select-component1')).toBeTruthy()
-    expect(queryByTestId('settings-button-component1')).toBeTruthy()
-    expect(queryByTestId('delete-button-component1')).toBeTruthy()
+    expect(queryByTestId('file-select-component0')).toBeTruthy()
+    expect(queryByTestId('settings-button-component0')).toBeTruthy()
+    expect(queryByTestId('delete-button-component0')).toBeTruthy()
     expect(queryByTestId('track-add-button-component')).toBeTruthy()
   })
 
@@ -69,20 +69,20 @@ describe('TrackPickerDisplay', () => {
       />,
     )
 
-    expect(queryByTestId('file-type-select-component4')).toBeFalsy()
+    expect(queryByTestId('file-type-select-component3')).toBeFalsy()
 
     const addButtonComponent = getByTestId('track-add-button-component')
+    fireEvent.click(addButtonComponent)
+
+    expect(queryByTestId('file-type-select-component3')).toBeTruthy()
+    expect(queryByTestId('file-select-component3')).toBeTruthy()
+    expect(queryByTestId('settings-button-component3')).toBeTruthy()
+
     fireEvent.click(addButtonComponent)
 
     expect(queryByTestId('file-type-select-component4')).toBeTruthy()
     expect(queryByTestId('file-select-component4')).toBeTruthy()
     expect(queryByTestId('settings-button-component4')).toBeTruthy()
-
-    fireEvent.click(addButtonComponent)
-
-    expect(queryByTestId('file-type-select-component5')).toBeTruthy()
-    expect(queryByTestId('file-select-component5')).toBeTruthy()
-    expect(queryByTestId('settings-button-component5')).toBeTruthy()
   })
 
   it('should call onChange when all files are selected', async () => {
@@ -99,42 +99,42 @@ describe('TrackPickerDisplay', () => {
 
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
-    openAutocomplete(getByTestId('file-select-component1'))
+    openAutocomplete(getByTestId('file-select-component0'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileA1.vg' }))
 
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
     await selectMuiOption(
-      getByTestId('file-type-select-component2'),
+      getByTestId('file-type-select-component1'),
       'haplotype',
     )
 
-    openAutocomplete(getByTestId('file-select-component2'))
+    openAutocomplete(getByTestId('file-select-component1'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
 
     expect(fakeOnChange).toHaveBeenCalledTimes(0)
 
-    openAutocomplete(getByTestId('file-select-component3'))
+    openAutocomplete(getByTestId('file-select-component2'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileC1.xg' }))
 
     const newTracks: Tracks = JSON.parse(JSON.stringify(tracks))
 
-    newTracks[1]!.trackFile = 'fileA1.vg'
-    newTracks[1]!.trackType = 'graph'
-    newTracks[1]!.trackColorSettings = defaultTrackColors('graph')
-    newTracks[2]!.trackFile = 'fileB1.gbwt'
-    newTracks[2]!.trackType = 'haplotype'
-    newTracks[2]!.trackColorSettings = defaultTrackColors('haplotype')
-    newTracks[3]!.trackFile = 'fileC1.xg'
-    newTracks[3]!.trackType = 'graph'
-    newTracks[3]!.trackColorSettings = defaultTrackColors('graph')
+    newTracks[0]!.trackFile = 'fileA1.vg'
+    newTracks[0]!.trackType = 'graph'
+    newTracks[0]!.trackColorSettings = defaultTrackColors('graph')
+    newTracks[1]!.trackFile = 'fileB1.gbwt'
+    newTracks[1]!.trackType = 'haplotype'
+    newTracks[1]!.trackColorSettings = defaultTrackColors('haplotype')
+    newTracks[2]!.trackFile = 'fileC1.xg'
+    newTracks[2]!.trackType = 'graph'
+    newTracks[2]!.trackColorSettings = defaultTrackColors('graph')
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
 
     const addButtonComponent = getByTestId('track-add-button-component')
     fireEvent.click(addButtonComponent)
 
-    newTracks[4] = config.defaultTrackProps
+    newTracks[3] = config.defaultTrackProps
     rerender(
       <TrackPickerDisplay
         tracks={newTracks}
@@ -145,12 +145,12 @@ describe('TrackPickerDisplay', () => {
       />,
     )
 
-    await selectMuiOption(getByTestId('file-type-select-component4'), 'read')
+    await selectMuiOption(getByTestId('file-type-select-component3'), 'read')
 
-    openAutocomplete(getByTestId('file-select-component4'))
+    openAutocomplete(getByTestId('file-select-component3'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB2.gam' }))
 
-    newTracks[4] = {
+    newTracks[3] = {
       trackFile: 'fileB2.gam',
       trackType: 'read',
       trackColorSettings: {
@@ -177,12 +177,14 @@ describe('TrackPickerDisplay', () => {
       />,
     )
 
+    // After deleting index 0, remaining tracks shift: original [0,1,2] -> [1,2] -> rendered as [0,1]
+    fireEvent.click(getByTestId('delete-button-component0'))
+    expect(queryByTestId('file-type-select-component2')).toBeFalsy()
+    expect(queryByTestId('file-select-component2')).toBeFalsy()
+
+    // After deleting index 1 (the last remaining), only one track left
     fireEvent.click(getByTestId('delete-button-component1'))
     expect(queryByTestId('file-type-select-component1')).toBeFalsy()
     expect(queryByTestId('file-select-component1')).toBeFalsy()
-
-    fireEvent.click(getByTestId('delete-button-component3'))
-    expect(queryByTestId('file-type-select-component3')).toBeFalsy()
-    expect(queryByTestId('file-select-component3')).toBeFalsy()
   })
 })

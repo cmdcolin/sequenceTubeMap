@@ -29,19 +29,24 @@ interface TrackPickerDisplayProps {
 }
 
 function applyChanges(base: Tracks, changes: TrackChanges): Tracks {
-  const next: Tracks = { ...base }
-  for (const [id, change] of Object.entries(changes)) {
-    if (change === DELETED) {
-      delete next[id]
-    } else {
-      next[id] = change
-    }
+  const result: Tracks = base
+    .map((track, i) => {
+      const change = changes[i]
+      if (change === undefined) return track
+      if (change === DELETED) return undefined
+      return change
+    })
+    .filter((t): t is Track => t !== undefined)
+  for (let i = base.length; ; i++) {
+    const change = changes[i]
+    if (change === undefined) break
+    if (change !== DELETED) result.push(change)
   }
-  return next
+  return result
 }
 
 const allFilesSet = (tracks: Tracks) =>
-  Object.values(tracks).every(t => t.trackFile !== undefined)
+  tracks.every(t => t.trackFile !== undefined)
 
 export const TrackPickerDisplay = ({
   tracks,
@@ -56,10 +61,7 @@ export const TrackPickerDisplay = ({
   const [pending, setPending] = useState<TrackChanges>({})
 
   const applied = applyChanges(tracks, pending)
-  const nextTrackID =
-    Object.keys(applied)
-      .map(k => parseInt(k))
-      .reduce((a, b) => Math.max(a, b), 0) + 1
+  const nextTrackID = applied.length
 
   const stage = (extra: TrackChanges) => {
     const merged = { ...pending, ...extra }
@@ -76,7 +78,7 @@ export const TrackPickerDisplay = ({
     stage({ [nextTrackID]: { ...config.defaultTrackProps } })
   }
 
-  const isEmpty = Object.keys(applied).length === 0
+  const isEmpty = applied.length === 0
 
   return (
     <Col style={{ minWidth: '500px' }}>
@@ -85,7 +87,7 @@ export const TrackPickerDisplay = ({
           tracks={applied}
           availableTracks={availableTracks}
           availableColors={availableColors}
-          onChange={(newTracks) => { stage(newTracks); }}
+          onChange={(trackID, newTrack) => { stage({ [trackID]: newTrack }); }}
           onDelete={(trackID) => { stage({ [trackID]: DELETED }); }}
           handleFileUpload={handleFileUpload}
         />

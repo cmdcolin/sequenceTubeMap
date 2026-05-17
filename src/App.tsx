@@ -15,32 +15,27 @@ import { LocalAPI } from './api/LocalAPI.ts'
 import type {
   ColorScheme,
   Palette,
+  PaletteField,
   Tracks,
   ViewTarget,
   VisOptions,
 } from './Types.ts'
 
-const EXAMPLE_TRACKS: Tracks = {
-  0: { trackType: 'graph', trackFile: 'fakeGraph' },
-  1: { trackType: 'read', trackFile: 'fakeReads' },
-}
+const EXAMPLE_TRACKS: Tracks = [
+  { trackType: 'graph', trackFile: 'fakeGraph' },
+  { trackType: 'read', trackFile: 'fakeReads' },
+]
 
 function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
-  const schemes: ColorScheme[] = []
-  for (const key in tracks) {
-    const idx = Number(key)
-    if (schemes[idx] === undefined) {
-      const t = tracks[key]!
-      if (t.trackColorSettings !== undefined) {
-        schemes[idx] = t.trackColorSettings
-      } else if (t.trackType === 'read') {
-        schemes[idx] = { ...config.defaultReadColorPalette }
-      } else {
-        schemes[idx] = { ...config.defaultHaplotypeColorPalette }
-      }
+  return tracks.map(t => {
+    if (t.trackColorSettings !== undefined) {
+      return t.trackColorSettings
+    } else if (t.trackType === 'read') {
+      return { ...config.defaultReadColorPalette }
+    } else {
+      return { ...config.defaultHaplotypeColorPalette }
     }
-  }
-  return schemes
+  })
 }
 
 function removeUndefined<T extends object>(obj: T): T {
@@ -93,7 +88,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     if (mode === 'local') {
       setApiInterface(new LocalAPI())
       setDataOrigin(dataOriginTypes.API)
-      setViewTarget({ tracks: {}, region: '' })
+      setViewTarget({ tracks: [], region: '' })
       setVisOptions(v => ({ ...v, colorSchemes: [] }))
     } else if (mode === 'server') {
       setApiInterface(new ServerAPI(apiUrl))
@@ -142,7 +137,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
   }
 
   const setColorSetting = (
-    key: keyof ColorScheme,
+    key: PaletteField,
     index: number,
     value: Palette,
   ) => {

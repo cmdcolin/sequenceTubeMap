@@ -385,7 +385,7 @@ it('can retrieve the list of mounted graph files', async () => {
   await waitFor(() => {
     // try to select a graph file
     fireEvent.keyDown(
-      screen.queryByTestId('file-select-component1').firstChild,
+      screen.queryByTestId('file-select-component0').firstChild,
       { key: 'ArrowDown' },
     )
   })
@@ -417,15 +417,15 @@ it('can accept uploaded files', async () => {
   })
 
   // select the upload option from the picker type dropdown
-  await waitFor(() => screen.queryByTestId('picker-type-select-component1'))
+  await waitFor(() => screen.queryByTestId('picker-type-select-component0'))
   await selectMuiOption(
-    screen.queryByTestId('picker-type-select-component1'),
+    screen.queryByTestId('picker-type-select-component0'),
     'upload',
   )
 
-  await waitFor(() => screen.queryByTestId('file-select-component1'))
+  await waitFor(() => screen.queryByTestId('file-select-component0'))
 
-  const fileUploader = screen.queryByTestId('file-select-component1')
+  const fileUploader = screen.queryByTestId('file-select-component0')
 
   // We need to make sure we make a jsdom File (which is a jsdom Blob), and not
   // a Node Blob, for our test file. Otherwise it doesn't work with jsdom's

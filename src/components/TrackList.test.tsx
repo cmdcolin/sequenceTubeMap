@@ -20,8 +20,8 @@ function openAutocomplete(container: HTMLElement) {
 }
 
 describe('TrackList', () => {
-  const tracks: Tracks = {
-    1: {
+  const tracks: Tracks = [
+    {
       trackFile: undefined,
       trackType: 'graph',
       trackColorSettings: {
@@ -31,7 +31,7 @@ describe('TrackList', () => {
         alphaReadsByMappingQuality: false,
       },
     },
-    2: {
+    {
       trackFile: undefined,
       trackType: 'graph',
       trackColorSettings: {
@@ -41,7 +41,7 @@ describe('TrackList', () => {
         alphaReadsByMappingQuality: false,
       },
     },
-    3: {
+    {
       trackFile: undefined,
       trackType: 'graph',
       trackColorSettings: {
@@ -51,7 +51,7 @@ describe('TrackList', () => {
         alphaReadsByMappingQuality: false,
       },
     },
-  }
+  ]
   const availableColors: ColorPaletteName[] = [
     'greys',
     'ygreys',
@@ -70,7 +70,7 @@ describe('TrackList', () => {
   function rerenderTrackList(
     rerender: (ui: React.ReactElement) => void,
     newTracks: Tracks,
-    fakeOnChange: (newTracks: Tracks) => void,
+    fakeOnChange: (trackID: number, newTrack: import('../Types.ts').Track) => void,
     fakeOnDelete: (trackID: number) => void,
   ) {
     rerender(
@@ -99,11 +99,11 @@ describe('TrackList', () => {
       />,
     )
 
+    expect(getByTestId('file-type-select-component0')).toBeTruthy()
     expect(getByTestId('file-type-select-component1')).toBeTruthy()
-    expect(getByTestId('file-type-select-component2')).toBeTruthy()
-    expect(getByTestId('file-select-component1')).toBeTruthy()
-    expect(getByTestId('settings-button-component1')).toBeTruthy()
-    expect(getByTestId('delete-button-component1')).toBeTruthy()
+    expect(getByTestId('file-select-component0')).toBeTruthy()
+    expect(getByTestId('settings-button-component0')).toBeTruthy()
+    expect(getByTestId('delete-button-component0')).toBeTruthy()
   })
 
   it('should call onChange when a track is changed', async () => {
@@ -121,34 +121,34 @@ describe('TrackList', () => {
     )
 
     await selectMuiOption(
-      getByTestId('file-type-select-component1'),
+      getByTestId('file-type-select-component0'),
       'haplotype',
     )
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
+    // onChange is now (trackID, newTrack), so we check the call args
+    expect(fakeOnChange).toHaveBeenCalledWith(0, expect.objectContaining({ trackType: 'haplotype' }))
+
     const newTracks: Tracks = JSON.parse(JSON.stringify(tracks))
-    newTracks[1]!.trackType = 'haplotype'
+    newTracks[0]!.trackType = 'haplotype'
     rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete)
 
-    openAutocomplete(getByTestId('file-select-component1'))
+    openAutocomplete(getByTestId('file-select-component0'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
 
     expect(fakeOnChange).toHaveBeenCalledTimes(2)
-    newTracks[1]!.trackFile = 'fileB1.gbwt'
-    newTracks[1]!.trackType = 'haplotype'
-    expect(fakeOnChange).toHaveBeenCalledWith(newTracks)
+    expect(fakeOnChange).toHaveBeenCalledWith(0, expect.objectContaining({ trackFile: 'fileB1.gbwt', trackType: 'haplotype' }))
 
+    newTracks[0]!.trackFile = 'fileB1.gbwt'
     rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete)
 
-    fireEvent.click(getByTestId('settings-button-component1'))
+    fireEvent.click(getByTestId('settings-button-component0'))
     await waitFor(() => getByText('reds'))
     fireEvent.click(getByText('reds'))
     fireEvent.click(document)
 
     expect(fakeOnChange).toHaveBeenCalledTimes(3)
-
-    newTracks[1]!.trackColorSettings!.mainPalette = 'reds'
-    expect(fakeOnChange).toHaveBeenCalledWith(newTracks)
+    expect(fakeOnChange).toHaveBeenCalledWith(0, expect.objectContaining({ trackColorSettings: expect.objectContaining({ mainPalette: 'reds' }) }))
   })
 
   it('should use a new event handler when passed', async () => {
@@ -170,7 +170,7 @@ describe('TrackList', () => {
 
     rerenderTrackList(rerender, tracks, fakeOnChange2, fakeOnDelete)
 
-    openAutocomplete(getByTestId('file-select-component1'))
+    openAutocomplete(getByTestId('file-select-component0'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileA1.vg' }))
 
     expect(fakeOnChange1).toHaveBeenCalledTimes(0)

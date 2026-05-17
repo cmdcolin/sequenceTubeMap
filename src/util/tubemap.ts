@@ -179,6 +179,11 @@ export interface Node extends InputNode {
   d?: string
 }
 
+// Node after generateNodeOrder() has run — order is guaranteed to be set.
+export interface LayoutNode extends Node {
+  order: number
+}
+
 export type InputRegion = (number | null)[]
 
 export interface SegmentAssignment {
@@ -398,7 +403,7 @@ let inputNodes: (InputNode | undefined)[] = []
 let inputTracks: InputTrack[] = []
 let inputReads: InputTrack[] = []
 let inputRegion: InputRegion = []
-let nodes: Node[] = []
+let nodes: LayoutNode[] = []
 // Each track has a `path`, which is an array of Segment objects describing pieces of the path that need to be drawn, in order along the path.
 let tracks: Track[] = []
 // Each read also has a `path` list of Segments, but reads are organized vertically using a different system than non-read tracks.
@@ -832,7 +837,7 @@ function createTubeMap(): void {
   straightenTrack(0)
   // Boundary promotion: layout passes below populate the Node/Track fields
   // (width, order, x/y, path, indexSequence, etc.) before any reader runs.
-  nodes = deepCopy(inputNodes) as Node[]
+  nodes = deepCopy(inputNodes) as LayoutNode[]
   tracks = deepCopy(inputTracks) as Track[]
   reads = deepCopy(inputReads) as Track[]
 
@@ -966,7 +971,7 @@ function generateReadOnlyNodeAttributes(): void {
 
   const orderY = new Map<number, number>()
   nodes.forEach(node => {
-    if (node && node.order !== undefined && node.y !== undefined) {
+    if (node.y !== undefined) {
       setMapToMax(orderY, node.order, node.y + node.contentHeight)
     }
   })
@@ -981,7 +986,7 @@ function generateReadOnlyNodeAttributes(): void {
   })
 
   nodes.forEach((node, i) => {
-    if (node && node.order !== undefined && node.y === undefined) {
+    if (node.order >= 0 && node.y === undefined) {
       node.y = (orderY.get(node.order) ?? 0) + 25
       node.contentHeight = 0
       nodesPerOrder[node.order]!.push(i)
@@ -1123,9 +1128,6 @@ function placeReads(): void {
           // A segment can be between a cycle if it there are nodes on both sides
           nextVisitToNode &&
             previousVisitToNode &&
-            // Make sure the visitToNode objects are what we expect
-            previousVisitToNode.order !== undefined &&
-            nextVisitToNode.order !== undefined &&
             nextVisitToNode.isForward !== undefined &&
             previousVisitToNode.isForward !== undefined &&
             // A segment is between a cycle if the next node it visits is behind the previous node it visited
@@ -1167,7 +1169,7 @@ function placeReads(): void {
 // nodes above it, and no reads in any nodes below it, are already placed.
 // Makes the given node bigger if needed and moves other nodes down if needed.
 // If topMargin is set, applies that amount of spacing down from whatever is above the reads.
-function placeReadSet(readIDs: number[], node: Node, topMargin: number): void {
+function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): void {
   // Parse arguments
   if (!topMargin) {
     topMargin = 0
@@ -1324,7 +1326,7 @@ function compareNoNodeReads(
     const prevNodeA = nodes[a.previousNode]
     const prevNodeB = nodes[b.previousNode]
     if (prevNodeA && prevNodeB && prevNodeA.order !== prevNodeB.order) {
-      return prevNodeA.order! - prevNodeB.order!
+      return prevNodeA.order - prevNodeB.order
     }
   }
   // We want to sort in reverse order when the segment is along the reverse-going part of a cycle.
@@ -1505,7 +1507,7 @@ function calculateBottomY(): number[] {
   }
 
   nodes.forEach(node => {
-    if (node && node.order !== undefined && node.y !== undefined) {
+    if (node.y !== undefined) {
       bottomY[node.order] = Math.max(
         bottomY[node.order]!,
         node.y + node.contentHeight + 20,
@@ -1540,7 +1542,7 @@ function generateBasicPathsForReads(): void {
 
     read.path = []
     read.path.push({
-      order: currentNode.order!,
+      order: currentNode.order,
       isForward: currentNodeIsForward,
       node: currentNodeIndex,
     })
@@ -1553,68 +1555,68 @@ function generateBasicPathsForReads(): void {
       currentNodeIsForward = isPositive(read.indexSequence[i]!)
       currentNode = nodes[currentNodeIndex]!
 
-      if (currentNode.order! > previousNode.order!) {
+      if (currentNode.order > previousNode.order) {
         if (!previousNodeIsForward) {
           // backward to forward at previous node
           read.path.push({
-            order: previousNode.order!,
+            order: previousNode.order,
             isForward: true,
             node: null,
           })
         }
-        for (let j = previousNode.order! + 1; j < currentNode.order!; j += 1) {
+        for (let j = previousNode.order + 1; j < currentNode.order; j += 1) {
           // forward without nodes
           read.path.push({ order: j, isForward: true, node: null })
         }
         if (!currentNodeIsForward) {
           // forward to backward at current node
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: true,
             node: null,
           })
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: false,
             node: currentNodeIndex,
           })
         } else {
           // current Node forward
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: true,
             node: currentNodeIndex,
           })
         }
-      } else if (currentNode.order! < previousNode.order!) {
+      } else if (currentNode.order < previousNode.order) {
         if (previousNodeIsForward) {
           // turnaround from fw to bw at previous node
           read.path.push({
-            order: previousNode.order!,
+            order: previousNode.order,
             isForward: false,
             node: null,
           })
         }
-        for (let j = previousNode.order! - 1; j > currentNode.order!; j -= 1) {
+        for (let j = previousNode.order - 1; j > currentNode.order; j -= 1) {
           // bachward without nodes
           read.path.push({ order: j, isForward: false, node: null })
         }
         if (currentNodeIsForward) {
           // backward to forward at current node
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: false,
             node: null,
           })
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: true,
             node: currentNodeIndex,
           })
         } else {
           // backward at current node
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: false,
             node: currentNodeIndex,
           })
@@ -1622,18 +1624,18 @@ function generateBasicPathsForReads(): void {
       } else {
         if (currentNodeIsForward !== previousNodeIsForward) {
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: currentNodeIsForward,
             node: currentNodeIndex,
           })
         } else {
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: !currentNodeIsForward,
             node: null,
           })
           read.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             isForward: currentNodeIsForward,
             node: currentNodeIndex,
           })
@@ -1754,8 +1756,8 @@ function generateTrackIndexSequences(tracksOrReads: Track[]): void {
 }
 
 // remove nodes with no tracks moving through them to avoid d3.js errors
-function removeUnusedNodes(allNodes: Node[]): Node[] {
-  const dNodes: Node[] = []
+function removeUnusedNodes(allNodes: LayoutNode[]): LayoutNode[] {
+  const dNodes: LayoutNode[] = []
   for (const n of allNodes) {
     if (n && n.x !== undefined) {
       dNodes.push(n)
@@ -2068,7 +2070,7 @@ function generateNodeOrder(): void {
 
   nodeOrders = new Array(nodes.length) // reset scratch; undefined = unassigned
   // Clear stale orders from previous runs so downstream guards work correctly.
-  nodes.forEach(node => { if (node) node.order = undefined })
+  ;(nodes as Node[]).forEach(node => { if (node) node.order = undefined })
 
   generateNodeOrderOfSingleTrack(tracks[0]!.indexSequence)
 
@@ -2182,10 +2184,16 @@ function generateNodeOrder(): void {
 
   if (minOrder < 0) increaseOrderForAllNodes(-minOrder)
 
-  // Copy computed orders back onto node objects so downstream code sees node.order.
+  // Assign -1 to nodes unreachable from any track so all nodes have a defined order.
+  // -1 acts as a sentinel: downstream code uses `order >= 0` to skip these nodes.
+  nodeOrders.forEach((order, i) => {
+    if (order === undefined) nodeOrders[i] = -1
+  })
+
+  // Copy computed orders back onto node objects.
   nodeOrders.forEach((order, i) => {
     const node = nodes[i]
-    if (node !== undefined && order !== undefined) node.order = order
+    if (node !== undefined) node.order = order!
   })
 }
 
@@ -2322,9 +2330,9 @@ function switchNodeOrientationForPaths(paths: Track[], pivotPath: Track | null):
   const toSwitch = new Map<string, number>()
   const pivotNames = pivotPath ? new Set(pivotPath.sequence) : null
   let nodeName: string
-  let prevNode: Node | undefined
-  let nextNode: Node | undefined
-  let currentNode: Node
+  let prevNode: LayoutNode | undefined
+  let nextNode: LayoutNode | undefined
+  let currentNode: LayoutNode
 
   for (let i = 0; i < paths.length; i += 1) {
     for (let j = 0; j < paths[i]!.sequence.length; j += 1) {
@@ -2340,9 +2348,9 @@ function switchNodeOrientationForPaths(paths: Track[], pivotPath: Track | null):
           nextNode = nodes[nodeMap.get(forward(paths[i]!.sequence[j + 1]!))!]!
         }
         if (
-          (j === 0 || prevNode!.order! < currentNode.order!) &&
+          (j === 0 || prevNode!.order < currentNode.order) &&
           (j === paths[i]!.sequence.length - 1 ||
-            currentNode.order! < nextNode!.order!)
+            currentNode.order < nextNode!.order)
         ) {
           // Node is visited in increasing order along the path
           if (!toSwitch.has(nodeName)) toSwitch.set(nodeName, 0)
@@ -2355,9 +2363,9 @@ function switchNodeOrientationForPaths(paths: Track[], pivotPath: Track | null):
           }
         }
         if (
-          (j === 0 || prevNode!.order! > currentNode.order!) &&
+          (j === 0 || prevNode!.order > currentNode.order) &&
           (j === paths[i]!.sequence.length - 1 ||
-            currentNode.order! > nextNode!.order!)
+            currentNode.order > nextNode!.order)
         ) {
           // Node is visited in *decreasing* order along the path, so is already backward
           if (!toSwitch.has(nodeName)) toSwitch.set(nodeName, 0)
@@ -2406,10 +2414,10 @@ function generateNodeXCoords(): void {
   const extra = calculateExtraSpace()
 
   sortedNodes.forEach(node => {
-    if (node.order! >= 0) {
-      if (node.order! > currentOrder) {
-        currentOrder = node.order!
-        currentX = nextX + 10 * extra[node.order!]!
+    if (node.order >= 0) {
+      if (node.order > currentOrder) {
+        currentOrder = node.order
+        currentX = nextX + 10 * extra[node.order]!
       }
       node.x = currentX
       nextX = Math.max(nextX, currentX + 40 + node.pixelWidth)
@@ -2475,8 +2483,8 @@ function generateLaneAssignment(): void {
   let segmentNumber: number
   let currentNodeIndex: number
   let currentNodeIsForward: boolean
-  let currentNode: Node
-  let previousNode: Node
+  let currentNode: LayoutNode
+  let previousNode: LayoutNode
   let previousNodeIsForward: boolean
   // For each horizontal order slot, for each track number, holds the
   // SegmentAssignment object for the visit of that track to that order slot.
@@ -2509,13 +2517,13 @@ function generateLaneAssignment(): void {
 
     track.path = []
     track.path.push({
-      order: currentNode.order!,
+      order: currentNode.order,
       lane: null,
       isForward: currentNodeIsForward,
       node: currentNodeIndex,
     })
     addToAssignment(
-      currentNode.order!,
+      currentNode.order,
       currentNodeIndex,
       trackNo,
       0,
@@ -2531,17 +2539,17 @@ function generateLaneAssignment(): void {
       currentNodeIsForward = isPositive(track.indexSequence[i]!)
       currentNode = nodes[currentNodeIndex]!
 
-      if (currentNode.order! > previousNode.order!) {
+      if (currentNode.order > previousNode.order) {
         if (!previousNodeIsForward) {
           // backward to forward at previous node
           track.path.push({
-            order: previousNode.order!,
+            order: previousNode.order,
             lane: null,
             isForward: true,
             node: null,
           })
           addToAssignment(
-            previousNode.order!,
+            previousNode.order,
             null,
             trackNo,
             segmentNumber,
@@ -2549,7 +2557,7 @@ function generateLaneAssignment(): void {
           )
           segmentNumber += 1
         }
-        for (let j = previousNode.order! + 1; j < currentNode.order!; j += 1) {
+        for (let j = previousNode.order + 1; j < currentNode.order; j += 1) {
           // forward without nodes
           track.path.push({
             order: j,
@@ -2569,13 +2577,13 @@ function generateLaneAssignment(): void {
         if (!currentNodeIsForward) {
           // forward to backward at current node
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: true,
             node: null,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             null,
             trackNo,
             segmentNumber,
@@ -2583,13 +2591,13 @@ function generateLaneAssignment(): void {
           )
           segmentNumber += 1
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: false,
             node: currentNodeIndex,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             currentNodeIndex,
             trackNo,
             segmentNumber,
@@ -2599,13 +2607,13 @@ function generateLaneAssignment(): void {
         } else {
           // current Node forward
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: true,
             node: currentNodeIndex,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             currentNodeIndex,
             trackNo,
             segmentNumber,
@@ -2613,17 +2621,17 @@ function generateLaneAssignment(): void {
           )
           segmentNumber += 1
         }
-      } else if (currentNode.order! < previousNode.order!) {
+      } else if (currentNode.order < previousNode.order) {
         if (previousNodeIsForward) {
           // turnaround from fw to bw at previous node
           track.path.push({
-            order: previousNode.order!,
+            order: previousNode.order,
             lane: null,
             isForward: false,
             node: null,
           })
           addToAssignment(
-            previousNode.order!,
+            previousNode.order,
             null,
             trackNo,
             segmentNumber,
@@ -2631,7 +2639,7 @@ function generateLaneAssignment(): void {
           )
           segmentNumber += 1
         }
-        for (let j = previousNode.order! - 1; j > currentNode.order!; j -= 1) {
+        for (let j = previousNode.order - 1; j > currentNode.order; j -= 1) {
           // bachward without nodes
           track.path.push({
             order: j,
@@ -2651,13 +2659,13 @@ function generateLaneAssignment(): void {
         if (currentNodeIsForward) {
           // backward to forward at current node
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: false,
             node: null,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             null,
             trackNo,
             segmentNumber,
@@ -2665,13 +2673,13 @@ function generateLaneAssignment(): void {
           )
           segmentNumber += 1
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: true,
             node: currentNodeIndex,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             currentNodeIndex,
             trackNo,
             segmentNumber,
@@ -2681,13 +2689,13 @@ function generateLaneAssignment(): void {
         } else {
           // backward at current node
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: false,
             node: currentNodeIndex,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             currentNodeIndex,
             trackNo,
             segmentNumber,
@@ -2698,13 +2706,13 @@ function generateLaneAssignment(): void {
       } else {
         if (currentNodeIsForward !== previousNodeIsForward) {
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: currentNodeIsForward,
             node: currentNodeIndex,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             currentNodeIndex,
             trackNo,
             segmentNumber,
@@ -2713,13 +2721,13 @@ function generateLaneAssignment(): void {
           segmentNumber += 1
         } else {
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: !currentNodeIsForward,
             node: null,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             null,
             trackNo,
             segmentNumber,
@@ -2727,13 +2735,13 @@ function generateLaneAssignment(): void {
           )
           segmentNumber += 1
           track.path.push({
-            order: currentNode.order!,
+            order: currentNode.order,
             lane: null,
             isForward: currentNodeIsForward,
             node: currentNodeIndex,
           })
           addToAssignment(
-            currentNode.order!,
+            currentNode.order,
             currentNodeIndex,
             trackNo,
             segmentNumber,
@@ -2915,8 +2923,8 @@ function adjustVertically(assignment: NodeAssignment[], potentialAdjustmentValue
 }
 
 // Budge down all nodes and out-of-node tracks below this node by this amount
-function adjustVertically3(node: Node, adjustBy: number): void {
-  if (node.order === undefined) return
+function adjustVertically3(node: LayoutNode, adjustBy: number): void {
+  if (node.order < 0 || assignments[node.order] === undefined) return
   assignments[node.order]!.forEach(assignmentNode => {
     if (assignmentNode.node !== null) {
       const aNode = nodes[assignmentNode.node]!
@@ -3244,7 +3252,7 @@ function generateSVGShapesFromPath(): void {
   const orderStartX: number[] = []
   const orderEndX: number[] = []
   nodes.forEach(node => {
-    if (node.order !== undefined) {
+    if (node.x !== undefined) {
       orderStartX[node.order] = node.x
       if (orderEndX[node.order] === undefined) {
         orderEndX[node.order] = node.x + node.pixelWidth
@@ -5176,13 +5184,13 @@ function compareReadsByLeftEnd(a: Track, b: Track): number {
 function compareReadsByLeftEnd2(a: Track, b: Track): number {
   // compare by order of first node
   if (
-    nodes[Math.abs(a.indexSequence[0]!)]!.order! <
-    nodes[Math.abs(b.indexSequence[0]!)]!.order!
+    nodes[Math.abs(a.indexSequence[0]!)]!.order <
+    nodes[Math.abs(b.indexSequence[0]!)]!.order
   ) {
     return -1
   } else if (
-    nodes[Math.abs(a.indexSequence[0]!)]!.order! >
-    nodes[Math.abs(b.indexSequence[0]!)]!.order!
+    nodes[Math.abs(a.indexSequence[0]!)]!.order >
+    nodes[Math.abs(b.indexSequence[0]!)]!.order
   ) {
     return 1
   }
@@ -5193,13 +5201,13 @@ function compareReadsByLeftEnd2(a: Track, b: Track): number {
 
   // compare by order of last node
   if (
-    nodes[Math.abs(a.indexSequence[a.indexSequence.length - 1]!)]!.order! <
-    nodes[Math.abs(b.indexSequence[b.indexSequence.length - 1]!)]!.order!
+    nodes[Math.abs(a.indexSequence[a.indexSequence.length - 1]!)]!.order <
+    nodes[Math.abs(b.indexSequence[b.indexSequence.length - 1]!)]!.order
   ) {
     return -1
   } else if (
-    nodes[Math.abs(a.indexSequence[a.indexSequence.length - 1]!)]!.order! >
-    nodes[Math.abs(b.indexSequence[b.indexSequence.length - 1]!)]!.order!
+    nodes[Math.abs(a.indexSequence[a.indexSequence.length - 1]!)]!.order >
+    nodes[Math.abs(b.indexSequence[b.indexSequence.length - 1]!)]!.order
   ) {
     return 1
   }

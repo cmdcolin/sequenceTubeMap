@@ -3,7 +3,7 @@ import { Col, Label, Input, FormGroup } from 'reactstrap'
 import {
   DEFAULT_AVAILABLE_COLORS,
   type ColorPaletteName,
-  type ColorScheme,
+  type PaletteField,
   type Palette,
 } from '../Types.ts'
 
@@ -20,8 +20,8 @@ const colorMap = new Map<string, ColorPaletteName>([
 interface RadioRowProps {
   color?: Palette
   rowHeading: ReactNode
-  setColorSetting: (setting: keyof ColorScheme, value: Palette) => void
-  setting: keyof ColorScheme
+  setColorSetting: (setting: PaletteField, value: Palette) => void
+  setting: PaletteField
   availableColors?: ColorPaletteName[]
 }
 

@@ -30,9 +30,8 @@ export interface Track extends BaseTrack {
   trackColorSettings?: ColorScheme
 }
 
-// A collection of selected tracks to render a view with, keyed by an integer
-// track ID stored as a string.
-export type Tracks = Record<string, Track>
+// A collection of selected tracks to render a view with.
+export type Tracks = Track[]
 
 // Describes something the Tube Map can look at: a region and the files it
 // is in. Extracted from defaults (config), HeaderForm input, or URL params.
@@ -105,6 +104,11 @@ export interface ColorScheme {
   colorReadsByMappingQuality: boolean
   alphaReadsByMappingQuality: boolean
 }
+
+// Keys of ColorScheme whose values are Palette (not boolean).
+export type PaletteField = {
+  [K in keyof ColorScheme]: ColorScheme[K] extends Palette ? K : never
+}[keyof ColorScheme]
 
 // Stores the assigned color schemes of all tracks. Index `i` corresponds to
 // the track at key `i` in [[Tracks]].

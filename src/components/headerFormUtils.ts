@@ -41,7 +41,7 @@ export function trackListWithImplied(
   currentTracks: Tracks,
 ): AvailableTrack[] {
   const real = availableTracks.filter(t => !t.trackIsImplied)
-  const implied: AvailableTrack[] = Object.values(currentTracks)
+  const implied: AvailableTrack[] = currentTracks
     .filter(t => trackIsImplied(t, availableTrackSet))
     .map(t => ({
       trackType: t.trackType,
@@ -52,18 +52,9 @@ export function trackListWithImplied(
 }
 
 export function firstGraphTrack(tracks: Tracks): Track | null {
-  for (const key in tracks) {
-    const track = tracks[key]!
-    if (track.trackType === 'graph') {
-      return track
-    }
-  }
-  return null
+  return tracks.find(t => t.trackType === 'graph') ?? null
 }
 
-export function tracksFromArray(array: Track[]): Tracks {
-  return Object.fromEntries(array.map((t, i) => [i, t]))
-}
 
 // Checks if two track objects are equivalent for the purpose of viewTarget
 // equality (same file, same color settings).
@@ -96,9 +87,9 @@ export function viewTargetsEqual(
 ) {
   if ((a === undefined) !== (b === undefined)) return false
   if (!a || !b) return true
-  if (Object.keys(a.tracks).length !== Object.keys(b.tracks).length) return false
-  for (const key in a.tracks) {
-    if (!tracksEqual(a.tracks[key], b.tracks[key])) return false
+  if (a.tracks.length !== b.tracks.length) return false
+  for (let i = 0; i < a.tracks.length; i++) {
+    if (!tracksEqual(a.tracks[i], b.tracks[i])) return false
   }
   return (
     a.bedFile === b.bedFile &&

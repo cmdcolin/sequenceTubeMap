@@ -90,7 +90,7 @@ function TubeMapContainer({
     const cancelSignal = abortController.signal
 
     if (dataOrigin === dataOriginTypes.API) {
-      if (Object.keys(viewTarget.tracks).length === 0) {
+      if (viewTarget.tracks.length === 0) {
         // No-tracks case: clear previously-fetched data. setState in effect is
         // intentional here — these values are populated only by this effect's
         // fetches, so the effect is also the right place to clear them.
@@ -115,13 +115,11 @@ function TubeMapContainer({
           const readTrackIDs: number[] = []
           let graphTrackID = 0
           let haplotypeTrackID = 0
-          for (const i in viewTarget.tracks) {
-            const track = viewTarget.tracks[i]
-            const trackType = track?.trackType
-            if (trackType === 'read') readTrackIDs.push(Number(i))
-            else if (trackType === 'graph') graphTrackID = Number(i)
-            else if (trackType === 'haplotype') haplotypeTrackID = Number(i)
-          }
+          viewTarget.tracks.forEach((track, i) => {
+            if (track.trackType === 'read') readTrackIDs.push(i)
+            else if (track.trackType === 'graph') graphTrackID = i
+            else if (track.trackType === 'haplotype') haplotypeTrackID = i
+          })
           const newNodes = tubeMap.vgExtractNodes(json.graph, json.nameMap)
           const newTracks = tubeMap.vgExtractTracks(
             json.graph,
