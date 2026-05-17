@@ -85,13 +85,22 @@ function trackLabel(file: string | undefined, type: string): string {
 }
 
 // Labels for the two palette slots, which mean different things per track type.
-// `main` covers the primary direction/role; `aux` is the secondary slot, only
-// used by track types that distinguish two roles.
-function paletteRoles(type: FileType): { main: string; aux?: string } {
+// `main` covers the primary direction/role; `aux` is the secondary slot.
+// For graph tracks the aux palette only renders when the graph actually
+// contains non-reference paths (i.e. a haplotype track is loaded too), so we
+// suppress that row otherwise to avoid showing colors the user won't see.
+function paletteRoles(
+  type: FileType,
+  hasHaplotype: boolean,
+): { main: string; aux?: string } {
   if (type === 'read') {
     return { main: 'Forward reads', aux: 'Reverse reads' }
   } else if (type === 'graph') {
-    return { main: 'Reference path', aux: 'Non-reference paths' }
+    if (hasHaplotype) {
+      return { main: 'Reference path', aux: 'Non-reference paths' }
+    } else {
+      return { main: 'Reference path' }
+    }
   } else if (type === 'haplotype') {
     return { main: 'Haplotypes' }
   } else {
@@ -109,6 +118,7 @@ function Legend({ tracks, colorSchemes, title = 'Color legend' }: LegendProps) {
   if (tracks.length === 0) {
     return null
   }
+  const hasHaplotype = tracks.some(t => t.trackType === 'haplotype')
   return (
     <div
       style={{
@@ -124,7 +134,7 @@ function Legend({ tracks, colorSchemes, title = 'Color legend' }: LegendProps) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {tracks.map((t, i) => {
           const scheme = colorSchemes[i]
-          const roles = paletteRoles(t.trackType)
+          const roles = paletteRoles(t.trackType, hasHaplotype)
           return (
             <div key={`${i}-${t.trackFile ?? ''}`}>
               <div style={{ fontWeight: 600, marginBottom: 2 }}>
