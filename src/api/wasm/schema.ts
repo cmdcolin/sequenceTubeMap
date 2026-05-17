@@ -38,6 +38,21 @@ export type ConvertedGraph = VgJson & {
   })[]
 }
 
+/**
+ * Replace each node's `sequence` with `sequenceLength` in place — the same
+ * shape the server emits when `removeSequences` is requested. Tube map can
+ * then size nodes correctly without shipping the full bp content over the
+ * Comlink boundary.
+ */
+export function removeNodeSequencesInPlace(graph: ConvertedGraph): void {
+  for (const node of graph.node) {
+    node.sequenceLength = node.sequence.length
+    // @ts-expect-error -- mirroring the server, which produces nodes with no
+    // `sequence` field when sequences are removed.
+    delete node.sequence
+  }
+}
+
 export function convertSchema(inGraph: GbzGraph): ConvertedGraph {
   const nodeLength = new Map<number | string, number>()
   for (const node of inGraph.nodes) {

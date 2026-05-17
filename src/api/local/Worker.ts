@@ -1,3 +1,4 @@
+/// <reference lib="webworker" />
 /**
  * Web Worker entry point for the local API implementation.
  *
@@ -7,7 +8,8 @@
  * EventEmitters instead.
  */
 
-import type * as Comlink from 'comlink'
 import { setUpWorker } from './WorkerImplementation.ts'
 
-setUpWorker(self as unknown as Comlink.Endpoint)
+declare const self: DedicatedWorkerGlobalScope
+
+setUpWorker(self)

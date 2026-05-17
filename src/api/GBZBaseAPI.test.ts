@@ -82,4 +82,22 @@ describe('when a file is uploaded', () => {
     // string; tubemap.ts indexes [0]/[1] as numbers to draw region ticks.
     expect(view.region).toEqual([1, 10])
   })
+
+  it('honors removeSequences by replacing node.sequence with sequenceLength', async () => {
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: { 1: { trackFile: uploadName!, trackType: 'graph' } },
+      region: 'x:1-10',
+      removeSequences: true,
+    }
+    const controller = new AbortController()
+    const view = await api.getChunkedData(viewTarget, controller.signal)
+
+    const nodes = view.graph?.node ?? []
+    expect(nodes.length).toBeGreaterThan(0)
+    for (const node of nodes) {
+      expect(node.sequence).toBeUndefined()
+      expect(typeof node.sequenceLength).toBe('number')
+    }
+  })
 })

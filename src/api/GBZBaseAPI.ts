@@ -16,7 +16,7 @@ import { parseRegion, convertRegionToRangeRegion } from '../common.mjs'
 
 import { getCompiledWasm } from '#wasm-loader'
 import { makeWasiFile } from './wasm/blobWasiFile.ts'
-import { convertSchema } from './wasm/schema.ts'
+import { convertSchema, removeNodeSequencesInPlace } from './wasm/schema.ts'
 
 import type {
   APIInterface,
@@ -212,6 +212,9 @@ export class GBZBaseAPI implements APIInterface {
     )
 
     const result = convertSchema(JSON.parse(stdout))
+    if (viewTarget.removeSequences) {
+      removeNodeSequencesInPlace(result)
+    }
 
     return {
       graph: result,
