@@ -2,7 +2,7 @@ import { render, fireEvent, screen, within } from '@testing-library/react'
 import { TrackPickerDisplay } from './TrackPickerDisplay.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import { defaultTrackColors } from '../common.mjs'
+import { defaultTrackColors } from '../common.ts'
 import { selectMuiOption } from '../testUtils.ts'
 import type {
   AvailableTrack,

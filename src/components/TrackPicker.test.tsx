@@ -8,7 +8,7 @@ import {
 import { TrackPicker } from './TrackPicker.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import { defaultTrackColors } from '../common.mjs'
+import { defaultTrackColors } from '../common.ts'
 import { selectMuiOption } from '../testUtils.ts'
 import type {
   AvailableTrack,

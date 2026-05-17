@@ -4,7 +4,7 @@ import { TrackTypeDropdown } from './TrackTypeDropdown.tsx'
 import { TrackDeleteButton } from './TrackDeleteButton.tsx'
 import { TrackSettingsButton } from './TrackSettingsButton.tsx'
 import { useState } from 'react'
-import { defaultTrackColors } from '../common.mjs'
+import { defaultTrackColors } from '../common.ts'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type {

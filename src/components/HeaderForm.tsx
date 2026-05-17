@@ -18,7 +18,7 @@ import PopupDialog from './PopupDialog.tsx'
 import Switch from 'react-switch'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear } from '@fortawesome/free-solid-svg-icons'
-import { parseRegion, stringifyRegion, isEmpty, readsExist } from '../common.mjs'
+import { parseRegion, stringifyRegion, isEmpty, readsExist } from '../common.ts'
 import {
   determineRegionIndex,
   firstGraphTrack,

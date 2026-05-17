@@ -4,7 +4,7 @@ import FormHelperText from '@mui/material/FormHelperText'
 import Tooltip from '@mui/material/Tooltip'
 import '../config-client.js'
 import '../config-global.mjs'
-import { isEmpty } from '../common.mjs'
+import { isEmpty } from '../common.ts'
 import type { RegionInfo } from '../Types.ts'
 
 interface RegionOption {

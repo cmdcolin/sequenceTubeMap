@@ -35,7 +35,7 @@ import {
   stringifyRegion,
   isValidURL,
   readsExist,
-} from './common.mjs'
+} from './common.ts'
 import { Readable } from 'stream'
 import { finished } from 'stream/promises'
 import sanitize from 'sanitize-filename'

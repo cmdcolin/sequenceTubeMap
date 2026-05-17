@@ -17,7 +17,7 @@ import * as d3 from 'd3'
 import '../config-client.js'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import _externalConfig from '../config-global.mjs'
-import { defaultTrackColors } from '../common.mjs'
+import { defaultTrackColors } from '../common.ts'
 import isEqual from 'react-fast-compare'
 
 // Replacement for d3-selection-multi (incompatible with d3 v7). Use via

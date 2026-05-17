@@ -1,4 +1,4 @@
-import { convertRegionToRangeRegion, parseRegion } from '../common.mjs'
+import { convertRegionToRangeRegion, parseRegion } from '../common.ts'
 import type {
   AvailableTrack,
   RegionInfo,

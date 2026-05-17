@@ -12,7 +12,7 @@ import {
   type Inode,
 } from '@bjorn3/browser_wasi_shim'
 
-import { parseRegion, convertRegionToRangeRegion } from '../common.mjs'
+import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
 
 import { getCompiledWasm } from '#wasm-loader'
 import { makeWasiFile } from './wasm/blobWasiFile.ts'
