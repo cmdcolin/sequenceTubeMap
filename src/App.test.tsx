@@ -2,10 +2,21 @@
 
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { SWRConfig } from 'swr'
 import App from './App'
 import { selectMuiOption, muiSelectValue } from './testUtils'
 import type { fetchAndParse as FetchAndParse } from './fetchAndParse'
 import type * as FetchAndParseModule from './fetchAndParse'
+
+// SWR caches by key across renders; without a fresh provider per test, an
+// errored fetch in one test leaks into the next and the new mock is never
+// consulted. Each renderApp() call gets an isolated cache.
+const renderApp = () =>
+  render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <App />
+    </SWRConfig>,
+  )
 
 type FetchAndParseFn = typeof FetchAndParse
 type FetchAndParseArgs = Parameters<FetchAndParseFn>
@@ -58,7 +69,7 @@ const getRegionInput = () =>
   screen.getByRole<HTMLInputElement>('combobox', { name: /Region/i })
 
 it('renders without crashing', () => {
-  render(<App />)
+  renderApp()
   expect(screen.getByAltText(/Logo/i)).toBeInTheDocument()
 })
 
@@ -66,7 +77,7 @@ it('renders with error when api call to server throws', async () => {
   setFetchAndParseMock(() => {
     throw new Error('Mock Server Error')
   })
-  render(<App />)
+  renderApp()
   await waitFor(() => {
     expect(screen.getAllByText(/Mock Server Error/i)[0]).toBeInTheDocument()
   })
@@ -74,7 +85,7 @@ it('renders with error when api call to server throws', async () => {
 
 it('renders without crashing when sent bad fetch data from server', async () => {
   setFetchAndParseMock(async () => ({}))
-  render(<App />)
+  renderApp()
 
   await waitFor(() => {
     expect(screen.getAllByText(/Server did not/i)[0]).toBeInTheDocument()
@@ -85,7 +96,7 @@ it('renders without crashing when sent bad fetch data from server', async () => 
 })
 
 it('allows the data source to be changed', async () => {
-  render(<App />)
+  renderApp()
   const dataSelect = screen.getByTestId('dataSourceSelect')
   expect(muiSelectValue(dataSelect)).toEqual('snp1kg-BRCA1')
 
@@ -97,14 +108,14 @@ it('allows the data source to be changed', async () => {
 })
 
 it('allows the start to be cleared', async () => {
-  render(<App />)
+  renderApp()
   expect(getRegionInput().value).toEqual('17:1-100')
   await userEvent.clear(getRegionInput())
   expect(getRegionInput().value).toEqual('')
 })
 
 it('allows the start to be changed', async () => {
-  render(<App />)
+  renderApp()
   expect(getRegionInput().value).toEqual('17:1-100')
   // TODO: {selectall} fake keystroke is glitchy and sometimes gets dropped or
   // eats the next keystroke. So we clear the field first.
