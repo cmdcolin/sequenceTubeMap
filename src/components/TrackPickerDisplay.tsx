@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Row, Col } from 'reactstrap'
-import { TrackList } from './TrackList'
-import { TrackAddButton } from './TrackAddButton'
+import { TrackList } from './TrackList.tsx'
+import { TrackAddButton } from './TrackAddButton.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type {
@@ -10,7 +10,7 @@ import type {
   FileType,
   Track,
   Tracks,
-} from '../Types'
+} from '../Types.ts'
 
 // Sentinel for deletions in the pending change set.
 const DELETED = Symbol('deleted')
@@ -85,8 +85,8 @@ export const TrackPickerDisplay = ({
           tracks={applied}
           availableTracks={availableTracks}
           availableColors={availableColors}
-          onChange={(newTracks) => stage(newTracks)}
-          onDelete={(trackID) => stage({ [trackID]: DELETED })}
+          onChange={(newTracks) => { stage(newTracks); }}
+          onDelete={(trackID) => { stage({ [trackID]: DELETED }); }}
           handleFileUpload={handleFileUpload}
         />
       </Row>

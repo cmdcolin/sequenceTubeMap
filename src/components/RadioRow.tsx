@@ -5,7 +5,7 @@ import {
   type ColorPaletteName,
   type ColorScheme,
   type Palette,
-} from '../Types'
+} from '../Types.ts'
 
 // map of all possible colors [displayedName, value]
 const colorMap = new Map<string, ColorPaletteName>([

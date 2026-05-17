@@ -135,7 +135,7 @@ const ReadGroupsPanel = ({
               type="radio"
               name="active-read-group"
               checked={isActive}
-              onChange={() => onSetActive(group.id)}
+              onChange={() => { onSetActive(group.id); }}
               aria-label={`Set ${group.name} as active group`}
               title="Active group receives new selections"
             />
@@ -143,7 +143,7 @@ const ReadGroupsPanel = ({
               size="small"
               value={solid ? '__solid__' : group.color}
               onChange={e => {
-                const v = e.target.value as string
+                const v = e.target.value
                 onRecolor(group.id, v === '__solid__' ? '#ff7f00' : v)
               }}
               aria-label={`Palette for ${group.name}`}
@@ -162,7 +162,7 @@ const ReadGroupsPanel = ({
                 type="color"
                 value={group.color}
                 style={SWATCH_STYLE}
-                onChange={e => onRecolor(group.id, e.target.value)}
+                onChange={e => { onRecolor(group.id, e.target.value); }}
                 aria-label={`Solid color for ${group.name}`}
               />
             ) : null}
@@ -173,7 +173,7 @@ const ReadGroupsPanel = ({
                 ...NAME_INPUT_STYLE,
                 borderColor: isActive ? '#888' : 'transparent',
               }}
-              onChange={e => onRename(group.id, e.target.value)}
+              onChange={e => { onRename(group.id, e.target.value); }}
               aria-label={`Name for ${group.name}`}
             />
             <span style={COUNT_STYLE}>
@@ -182,7 +182,7 @@ const ReadGroupsPanel = ({
             <button
               type="button"
               style={DELETE_STYLE}
-              onClick={() => onDelete(group.id)}
+              onClick={() => { onDelete(group.id); }}
               aria-label={`Delete group ${group.name}`}
               title="Delete group"
             >
@@ -216,7 +216,7 @@ const ReadGroupsPanel = ({
             type="color"
             value={otherReadsColor}
             style={SWATCH_STYLE}
-            onChange={e => onRecolorOther(e.target.value)}
+            onChange={e => { onRecolorOther(e.target.value); }}
             aria-label="Solid color for other reads"
           />
         ) : null}

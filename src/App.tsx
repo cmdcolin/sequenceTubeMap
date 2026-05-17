@@ -2,23 +2,23 @@ import { useState } from 'react'
 import isEqual from 'react-fast-compare'
 
 import './App.css'
-import HeaderForm from './components/HeaderForm'
-import TubeMapContainer from './components/TubeMapContainer'
-import { urlParamsToViewTarget } from './components/CopyLink'
-import CustomizationAccordion from './components/CustomizationAccordion'
-import Footer from './components/Footer'
-import { dataOriginTypes } from './enums'
+import HeaderForm from './components/HeaderForm.tsx'
+import TubeMapContainer from './components/TubeMapContainer.tsx'
+import { urlParamsToViewTarget } from './components/CopyLink.tsx'
+import CustomizationAccordion from './components/CustomizationAccordion.tsx'
+import Footer from './components/Footer.tsx'
+import { dataOriginTypes } from './enums.ts'
 import './config-client.js'
 import { config } from './config-global.mjs'
-import ServerAPI from './api/ServerAPI'
-import { LocalAPI } from './api/LocalAPI'
+import ServerAPI from './api/ServerAPI.ts'
+import { LocalAPI } from './api/LocalAPI.ts'
 import type {
   ColorScheme,
   Palette,
   Tracks,
   ViewTarget,
   VisOptions,
-} from './Types'
+} from './Types.ts'
 
 const EXAMPLE_TRACKS: Tracks = {
   0: { trackType: 'graph', trackFile: 'fakeGraph' },
@@ -30,7 +30,7 @@ function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
   for (const key in tracks) {
     const idx = Number(key)
     if (schemes[idx] === undefined) {
-      const t = tracks[key]
+      const t = tracks[key]!
       if (t.trackColorSettings !== undefined) {
         schemes[idx] = t.trackColorSettings
       } else if (t.trackType === 'read') {
@@ -149,7 +149,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     setVisOptions(v => {
       const newcolors = [...v.colorSchemes]
       newcolors[index] ??= { ...config.defaultReadColorPalette }
-      newcolors[index] = { ...newcolors[index], [key]: value }
+      newcolors[index] = { ...newcolors[index]!, [key]: value }
       return { ...v, colorSchemes: newcolors }
     })
   }

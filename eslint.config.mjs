@@ -1,5 +1,6 @@
 import eslint from '@eslint/js'
 import { defineConfig } from 'eslint/config'
+import eslintPluginImport from 'eslint-plugin-import'
 import eslintPluginReact from 'eslint-plugin-react'
 import reactCompiler from 'eslint-plugin-react-compiler'
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
@@ -39,6 +40,16 @@ export default defineConfig(
     plugins: { 'react-compiler': reactCompiler },
     rules: { 'react-compiler/react-compiler': 'error' },
   },
+  {
+    plugins: { import: eslintPluginImport },
+    rules: {
+      'import/extensions': [
+        'error',
+        'ignorePackages',
+        { ignore: ['^#'], checkTypeImports: true },
+      ],
+    },
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   ...tseslint.configs.stylisticTypeChecked,
@@ -52,6 +63,7 @@ export default defineConfig(
     rules: {
       'no-empty': 'off',
       'no-console': ['error', { allow: ['error', 'warn'] }],
+      'prefer-const': 'error',
 
       'react/no-unescaped-entities': 'off',
       'react/react-in-jsx-scope': 'off',
@@ -107,7 +119,6 @@ export default defineConfig(
     files: [
       'src/server.mjs',
       'src/vg.mjs',
-      'src/api/GBZBaseAPI.mjs',
       'src/api/local/Worker.mjs',
       'src/__mocks__/**',
       'src/config-*.{js,mjs}',
@@ -118,7 +129,7 @@ export default defineConfig(
     },
   },
   {
-    files: ['src/api/GBZBaseAPI.mjs', 'src/api/local/Worker.mjs'],
+    files: ['src/api/local/Worker.mjs', 'src/api/wasm/blobWasiFile.ts'],
     languageOptions: {
       globals: {
         ...globals.worker,

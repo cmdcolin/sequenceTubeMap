@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { TrackDeleteButton } from './TrackDeleteButton'
+import { TrackDeleteButton } from './TrackDeleteButton.tsx'
 
 describe('TrackDeleteButton', () => {
   it('calls onClick', async () => {

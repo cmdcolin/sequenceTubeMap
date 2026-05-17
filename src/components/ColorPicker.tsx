@@ -4,7 +4,7 @@ import { SketchPicker } from 'react-color'
 import { Button, Container } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPalette } from '@fortawesome/free-solid-svg-icons'
-import type { ColorHex, Palette } from '../Types'
+import type { ColorHex, Palette } from '../Types.ts'
 
 interface ColorPickerProps {
   color?: Palette
@@ -44,7 +44,7 @@ export const ColorPicker = ({
       }
     } else {
       setOpen(true)
-      if (color && color.startsWith('#')) {
+      if (color?.startsWith('#')) {
         setNextColor(color as ColorHex)
       } else {
         setNextColor(undefined)
@@ -56,7 +56,7 @@ export const ColorPicker = ({
     <div>
       <Button
         aria-label="ColorPicker"
-        onClick={() => togglePicker()}
+        onClick={() => { togglePicker(); }}
         data-testid={testID}
       >
         <FontAwesomeIcon icon={faPalette} />
@@ -64,7 +64,7 @@ export const ColorPicker = ({
 
       {open ? (
         <div style={popover}>
-          <div style={cover} onClick={() => togglePicker()} />
+          <div style={cover} onClick={() => { togglePicker(); }} />
           <Container>
             <SketchPicker
               color={nextColor || '#fff'}

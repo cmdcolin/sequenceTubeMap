@@ -1,4 +1,5 @@
-import { GBZBaseAPI, blobToArrayBuffer } from './GBZBaseAPI.mjs'
+import { GBZBaseAPI } from './GBZBaseAPI.ts'
+import type { ViewTarget } from '../Types.ts'
 import { readFileSync } from 'node:fs'
 
 it('can be constructed', () => {
@@ -44,7 +45,7 @@ describe('when a file is uploaded', () => {
       type: 'application/octet-stream',
     })
 
-    const fileDataRetrieved = await blobToArrayBuffer(file)
+    const fileDataRetrieved = await file.arrayBuffer()
     if (fileDataRetrieved.byteLength != fileData.length) {
       throw new Error("Can't put data into and out of jsdom File")
     }
@@ -54,14 +55,12 @@ describe('when a file is uploaded', () => {
   })
 
   it('should show up in the list of files', async () => {
-    const fileNames = await api.getFilenames()
-    // GBZBaseAPI.getFilenames returns { name, type }, not the AvailableTrack
-    // shape declared by the typed APIInterface.
-    const files = fileNames.files as { name: string; type: string }[]
+    const fileNames = await api.getFilenames(null)
+    const files = fileNames.files ?? []
     let found = false
     for (const file of files) {
-      if (file.name === uploadName) {
-        expect(file.type).toEqual('graph')
+      if (file.trackFile === uploadName) {
+        expect(file.trackType).toEqual('graph')
         found = true
       }
     }
@@ -69,15 +68,15 @@ describe('when a file is uploaded', () => {
   })
 
   it('can be asked for a view', async () => {
-    const viewTarget = {
+    const viewTarget: ViewTarget = {
       dataType: 'mounted files',
-      tracks: [{ trackFile: uploadName, trackType: 'graph' }],
+      tracks: { 1: { trackFile: uploadName!, trackType: 'graph' } },
       region: 'x:1-10',
     }
     const controller = new AbortController()
     const view = await api.getChunkedData(viewTarget, controller.signal)
 
     expect(view.graph).toBeTruthy()
-    expect(view.graph.node).toBeTruthy()
+    expect(view.graph?.node).toBeTruthy()
   })
 })

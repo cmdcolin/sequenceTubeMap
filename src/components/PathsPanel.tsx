@@ -5,7 +5,7 @@ import {
   faChevronRight,
   faChevronDown,
 } from '@fortawesome/free-solid-svg-icons'
-import type { PathInfo } from '../Types'
+import type { PathInfo } from '../Types.ts'
 
 interface PathsPanelProps {
   pathInfo: PathInfo[]
@@ -20,7 +20,7 @@ function PathsPanel({ pathInfo, onLoadPath }: PathsPanelProps) {
   return (
     <Card className="mt-2">
       <CardHeader
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { setIsOpen(!isOpen); }}
         style={{ cursor: 'pointer', userSelect: 'none' }}
         className="d-flex justify-content-between align-items-center"
         role="button"
@@ -68,7 +68,7 @@ function PathsPanel({ pathInfo, onLoadPath }: PathsPanelProps) {
                     <Button
                       size="sm"
                       disabled={length === null}
-                      onClick={() => onLoadPath(`${name}:0-${length - 1}`)}
+                      onClick={() => { onLoadPath(`${name}:0-${length! - 1}`); }}
                     >
                       Load
                     </Button>

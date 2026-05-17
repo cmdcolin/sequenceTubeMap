@@ -15,7 +15,7 @@ export const TrackAddButton = ({
   return (
     <Button
       aria-label="TrackAdd"
-      onClick={() => onChange()}
+      onClick={() => { onChange(); }}
       data-testid={testID}
       style={{ width: '40px', marginLeft: '25px', marginTop: '5px' }}
     >

@@ -1,13 +1,13 @@
 import { Form, Row, Col } from 'reactstrap'
-import RadioRow from './RadioRow'
-import ColorPicker from './ColorPicker'
+import RadioRow from './RadioRow.tsx'
+import ColorPicker from './ColorPicker.tsx'
 import {
   DEFAULT_AVAILABLE_COLORS,
   type ColorPaletteName,
   type ColorScheme,
   type FileType,
   type Palette,
-} from '../Types'
+} from '../Types.ts'
 
 interface TrackSettingsProps {
   fileType?: FileType | 'nodeLabel'

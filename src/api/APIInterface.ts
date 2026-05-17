@@ -6,8 +6,8 @@ import type {
   RegionInfo,
   Track,
   ViewTarget,
-} from '../Types'
-import type { InputRegion, VgJson, VgRead } from '../util/tubemap'
+} from '../Types.ts'
+import type { InputRegion, VgJson, VgRead } from '../util/tubemap.ts'
 
 // Shape returned by getChunkedData. Tube map rendering consumes these.
 export interface ChunkedDataResponse {

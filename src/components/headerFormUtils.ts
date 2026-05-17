@@ -5,7 +5,7 @@ import type {
   Track,
   Tracks,
   ViewTarget,
-} from '../Types'
+} from '../Types.ts'
 
 // Return true if file is set to a string file name or URL, and false if it is
 // falsey or the "none" sentinel.
@@ -53,8 +53,9 @@ export function trackListWithImplied(
 
 export function firstGraphTrack(tracks: Tracks): Track | null {
   for (const key in tracks) {
-    if (tracks[key].trackType === 'graph') {
-      return tracks[key]
+    const track = tracks[key]!
+    if (track.trackType === 'graph') {
+      return track
     }
   }
   return null
@@ -122,8 +123,8 @@ export const determineRegionIndex = (
   if (chr) {
     for (let i = 0; i < chr.length; i++) {
       if (
-        parseInt(regionInfo.start![i]) === parsed.start &&
-        parseInt(regionInfo.end![i]) === parsed.end &&
+        parseInt(regionInfo.start![i]!) === parsed.start &&
+        parseInt(regionInfo.end![i]!) === parsed.end &&
         chr[i] === parsed.contig
       ) {
         return i

@@ -67,7 +67,7 @@ function find_chunkix() {
       // Add trailing slash
       prefix = prefix + '/'
     }
-    let chunkix_filename = prefix + 'chunkix.py'
+    const chunkix_filename = prefix + 'chunkix.py'
     console.log('Check for chunkix.py at:', chunkix_filename)
     if (fs.existsSync(chunkix_filename)) {
       find_chunkix.found_chunkix = chunkix_filename
@@ -155,7 +155,7 @@ var storage = multer.diskStorage({
     cb(null, UPLOAD_DATA_PATH)
   },
   filename: function (req, file, cb) {
-    let ext = file.originalname.substring(
+    const ext = file.originalname.substring(
       file.originalname.lastIndexOf('.'),
       file.originalname.length,
     )
@@ -325,7 +325,7 @@ api.post(
 )
 
 function indexGamSorted(req, res, next) {
-  let readsPath = req.file.path
+  const readsPath = req.file.path
   let prefix
   let sortedSuffix
   let indexSuffix
@@ -345,7 +345,7 @@ function indexGamSorted(req, res, next) {
     encoding: 'binary',
   })
 
-  let vgGamsortParams = ['gamsort', '-i', prefix + indexSuffix, req.file.path]
+  const vgGamsortParams = ['gamsort', '-i', prefix + indexSuffix, req.file.path]
   const vgGamsortChild = spawn(find_vg(), vgGamsortParams)
 
   req.error = Buffer.alloc(0)
@@ -433,7 +433,7 @@ function* eachFileOfType(tracks, type) {
 
 // Get the first files of the given type from all the given tracks.
 function getFilesOfType(tracks, type) {
-  let results = []
+  const results = []
   for (const file of eachFileOfType(tracks, type)) {
     results.push(file)
   }
@@ -613,7 +613,7 @@ async function getChunkedData(req, res, next) {
       }
 
       // Convert fetchedTracks into an object format the server expects
-      let fetchedTracksObject = fetchedTracks.reduce(
+      const fetchedTracksObject = fetchedTracks.reduce(
         (accumulator, obj, index) => {
           accumulator[index] = obj
           return accumulator
@@ -654,7 +654,7 @@ async function getChunkedData(req, res, next) {
   // We sometimes have a BED file with regions to look at
   const bedFile = req.body.bedFile
 
-  let gamFiles = getGams(req.body.tracks)
+  const gamFiles = getGams(req.body.tracks)
 
   console.log('graphFile ', graphFile)
   console.log('gbwtFile ', gbwtFile)
@@ -725,7 +725,7 @@ async function getChunkedData(req, res, next) {
 
   // We always need a range-version of the region, to fill in req.region, to
   // generate the region part of the response with the range.
-  let rangeRegion = convertRegionToRangeRegion(parsedRegion)
+  const rangeRegion = convertRegionToRangeRegion(parsedRegion)
 
   if (chunkPath === '') {
     // double-check that the file has a valid graph extension and is allowed
@@ -764,7 +764,7 @@ async function getChunkedData(req, res, next) {
         )
       }
 
-      let chunkixParams = [
+      const chunkixParams = [
         find_chunkix(),
         '-n',
         nodeFile,
@@ -895,7 +895,7 @@ async function getChunkedData(req, res, next) {
       // use vg-based pangenome
 
       // call 'vg chunk' to generate graph
-      let vgChunkParams = ['chunk']
+      const vgChunkParams = ['chunk']
       // TODO: Use same variable for check and command line?
 
       // Maybe check using file types in the future
@@ -1156,7 +1156,7 @@ async function getChunkedData(req, res, next) {
         } else {
           // If the query came in on a path with a subrange defined already,
           // translate it into base path coordinates.
-          let subrangeStart = getSubrangeStart(rangeRegion.contig)
+          const subrangeStart = getSubrangeStart(rangeRegion.contig)
           req.region = [
             rangeRegion.start + subrangeStart,
             rangeRegion.end + subrangeStart,
@@ -1178,10 +1178,10 @@ async function getChunkedData(req, res, next) {
     // We're using a shared directory for this request, so leave it in place
     // when the request finishes.
     req.rmChunk = false
-    let filename = `${req.chunkDir}/chunk.vg`
+    const filename = `${req.chunkDir}/chunk.vg`
     // vg simplify for bed files
     let vgSimplifyCall = null
-    let vgViewArguments = ['view', '-j']
+    const vgViewArguments = ['view', '-j']
     if (req.simplify) {
       vgSimplifyCall = spawn(find_vg(), ['simplify', filename])
       vgViewArguments.push('-')
@@ -1190,7 +1190,7 @@ async function getChunkedData(req, res, next) {
       vgViewArguments.push(filename)
     }
 
-    let vgViewCall = spawn(find_vg(), vgViewArguments)
+    const vgViewCall = spawn(find_vg(), vgViewArguments)
 
     let graphAsString = ''
     req.error = Buffer.alloc(0)
@@ -1282,7 +1282,7 @@ async function getChunkedData(req, res, next) {
       } else {
         // If the query came in on a path with a subrange defined already,
         // translate it into base path coordinates.
-        let subrangeStart = getSubrangeStart(rangeRegion.contig)
+        const subrangeStart = getSubrangeStart(rangeRegion.contig)
         req.region = [
           rangeRegion.start + subrangeStart,
           rangeRegion.end + subrangeStart,
@@ -1304,7 +1304,7 @@ const SUBRANGE_REGEX = /\[([0-9]+)(-([0-9]+))?\]$/
 
 /// Given a path name, get the start position of its subrange as a number, or 0.
 function getSubrangeStart(pathName) {
-  let match = pathName.match(SUBRANGE_REGEX)
+  const match = pathName.match(SUBRANGE_REGEX)
   if (!match) {
     return 0
   }
@@ -1316,13 +1316,13 @@ function getSubrangeStart(pathName) {
 function organizePathsTargetFirst(region, pathList) {
   if (region.contig !== 'node') {
     // We pull the subrange off the path names when comparing them
-    let targetBasePath = region.contig.replace(SUBRANGE_REGEX, '')
+    const targetBasePath = region.contig.replace(SUBRANGE_REGEX, '')
 
     // Make sure that path 0 is the path we actually asked about
-    let refPaths = []
-    let otherPaths = []
-    for (let path of pathList) {
-      let pathBasePath = path.name.replace(SUBRANGE_REGEX, '')
+    const refPaths = []
+    const otherPaths = []
+    for (const path of pathList) {
+      const pathBasePath = path.name.replace(SUBRANGE_REGEX, '')
       if (pathBasePath === targetBasePath) {
         // This is the path we asked about, so it goes first
         refPaths.push(path)
@@ -1425,10 +1425,10 @@ function bedChunkLocalPath(bed, chunk) {
 // Returns an empty string if the region is not found within the bed file
 async function getChunkName(bed, parsedRegion) {
   let chunk = ''
-  let regionInfo = await getBedRegions(bed)
+  const regionInfo = await getBedRegions(bed)
 
   for (let i = 0; i < regionInfo['desc'].length; i++) {
-    let entryRegion = {
+    const entryRegion = {
       contig: regionInfo['chr'][i],
       start: regionInfo['start'][i],
       end: regionInfo['end'][i],
@@ -1463,7 +1463,7 @@ async function getChunkPath(bed, parsedRegion) {
   }
 
   // Work out where data for this chunk will be, locally
-  let chunkPath = bedChunkLocalPath(bed, chunk)
+  const chunkPath = bedChunkLocalPath(bed, chunk)
 
   if (isValidURL(bed)) {
     // download the rest of the chunk
@@ -1473,7 +1473,7 @@ async function getChunkPath(bed, parsedRegion) {
   console.log('returning chunk path: ', chunkPath)
 
   // check that the 'chunk.vg' file exists in the chunk folder
-  let chunk_file = path.resolve(chunkPath, 'chunk.vg')
+  const chunk_file = path.resolve(chunkPath, 'chunk.vg')
   // We already checked allowed-ness in making the chunk path.
   if (fs.existsSync(chunk_file)) {
     console.log(`found pre-fetched chunk at ${chunk_file}`)
@@ -1576,8 +1576,8 @@ function processGamFile(req, res, next, gamFile, gamFileNumber) {
         }
       })
     } else {
-      let vgViewParams = ['view', '-j', '-a']
-      let vgConvertParams = ['convert']
+      const vgViewParams = ['view', '-j', '-a']
+      const vgConvertParams = ['convert']
 
       if (gamFile.endsWith('.gaf')) {
         // if input is GAF, vg convert will be piped into vg view
@@ -1658,7 +1658,7 @@ function processGamFiles(req, res, next) {
     console.time(`processing gam files-${req.reqId}`)
     const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
     // Find gam/gaf files
-    let gamFiles = []
+    const gamFiles = []
     if (graphFile.endsWith('.pos.bed.gz')) {
       // use tabix-based pangenome (experimental)
       // look for json files
@@ -1682,17 +1682,17 @@ function processGamFiles(req, res, next) {
     // Names are like, with either .gam or .gaf suffixes:
     // */chunk_*.gam for 0
     // */chunk-1_*.gam for 1, 2, 3, etc.
-    let gamNameToNumber = gamName => {
+    const gamNameToNumber = gamName => {
       if (gamName.endsWith('.json')) {
         const pattern = /.*\/chunk.([0-9]+).annot.json/
-        let matches = gamName.match(pattern)
+        const matches = gamName.match(pattern)
         if (!matches) {
           throw new InternalServerError('Bad GAF/JSON name ' + gamName)
         }
         return parseInt(matches[1])
       } else {
         const pattern = /.*\/chunk(-([0-9])+)?_.*\.ga[mf]/
-        let matches = gamName.match(pattern)
+        const matches = gamName.match(pattern)
         if (!matches) {
           throw new InternalServerError('Bad GAM/GAF name ' + gamName)
         }
@@ -1757,7 +1757,7 @@ function processRegionFile(req, res, next) {
 
       // First 3 fields are path base name, start, and end.
       // Build the subpath string we are talking about
-      let subpathName = arr[0] + '[' + arr[1] + '-' + arr[2] + ']'
+      const subpathName = arr[0] + '[' + arr[1] + '-' + arr[2] + ']'
 
       req.graph.path.forEach(p => {
         if (p.name === subpathName) {
@@ -1878,8 +1878,8 @@ function isAllowedPath(inputPath) {
     return false
   }
   // Split on delimiters
-  let parts = inputPath.split(/[/\\]/)
-  for (let part of parts) {
+  const parts = inputPath.split(/[/\\]/)
+  for (const part of parts) {
     if (part === '..') {
       // One of the path components is a .., so disallow it.
       return false
@@ -1888,9 +1888,9 @@ function isAllowedPath(inputPath) {
 
   // Now that we know the path doesn't go up, we can safely resolve it to an
   // absolute path.
-  let resolvedPath = path.resolve(inputPath)
+  const resolvedPath = path.resolve(inputPath)
 
-  for (let allowed of ALLOWED_DATA_DIRECTORIES) {
+  for (const allowed of ALLOWED_DATA_DIRECTORIES) {
     // Go through all the allowed directories
 
     // See if it's in there. Note that .. is not processed by pathIsInside, and
@@ -1933,7 +1933,7 @@ assert(
  * directory out of the path unless it is needed.
  */
 function toClientPath(absPath) {
-  let relPath = path.relative('.', absPath)
+  const relPath = path.relative('.', absPath)
   if (isAllowedPath(relPath)) {
     return relPath
   } else {
@@ -1949,7 +1949,7 @@ function toClientPath(absPath) {
  */
 function forEachFileUnder(directory, callback) {
   // Make a list of all the files in the directory
-  let children = new Set()
+  const children = new Set()
   fs.readdirSync(directory).forEach(basename => {
     children.add(basename)
   })
@@ -1963,10 +1963,10 @@ function forEachFileUnder(directory, callback) {
     return
   }
 
-  for (let basename of children) {
+  for (const basename of children) {
     // Go through all the files in the directory
-    let absPath = path.resolve(directory, basename)
-    let stat = fs.statSync(absPath, { throwIfNoEntry: false })
+    const absPath = path.resolve(directory, basename)
+    const stat = fs.statSync(absPath, { throwIfNoEntry: false })
     if (stat) {
       // It actually exists
       if (stat.isDirectory()) {
@@ -2046,9 +2046,7 @@ function runProcessLines(cmd, args, onLine) {
       if (code === null || !readerDone) return
       if (code !== 0) {
         const detail = stderr.trim() ? `: ${stderr.trim()}` : ''
-        reject(
-          new VgExecutionError(`${cmd} ${args.join(' ')} failed${detail}`),
-        )
+        reject(new VgExecutionError(`${cmd} ${args.join(' ')} failed${detail}`))
       } else {
         resolve()
       }
@@ -2145,7 +2143,10 @@ api.post('/getPathInfo', async (req, res, next) => {
       runVgLines(['paths', '-C', '-x', graphFile], line => {
         if (line && !line.startsWith('_')) {
           const [name, directed, undirected] = line.split('\t')
-          if (directed === 'directed-cyclic' || undirected === 'undirected-cyclic') {
+          if (
+            directed === 'directed-cyclic' ||
+            undirected === 'undirected-cyclic'
+          ) {
             cyclicNames.add(name)
           }
         }
@@ -2218,7 +2219,7 @@ const fetchAndValidate = async (url, maxBytes, existingLocation = null) => {
       'If-None-Match': ETagMap.get(url) || '-1',
     }
   }
-  let controller = timeoutController(config.fetchTimeout)
+  const controller = timeoutController(config.fetchTimeout)
   const options = {
     method: 'GET',
     credentials: 'omit',
@@ -2228,7 +2229,7 @@ const fetchAndValidate = async (url, maxBytes, existingLocation = null) => {
   }
 
   console.log('Fetching URL:', url)
-  let response = await fetch(url, options)
+  const response = await fetch(url, options)
 
   // file exists on disk and file has not been updated since last fetch
   if (response.status === 304) {
@@ -2262,7 +2263,7 @@ const fetchAndValidate = async (url, maxBytes, existingLocation = null) => {
   const dataRead = []
 
   while (true) {
-    let { done, value } = await reader.read()
+    const { done, value } = await reader.read()
 
     if (done) {
       break
@@ -2305,9 +2306,9 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
   }
 
   // Each chunk has an index in "chunk_contents.txt"
-  let chunkContentURL = new URL('chunk_contents.txt', chunkURL).toString()
+  const chunkContentURL = new URL('chunk_contents.txt', chunkURL).toString()
 
-  let response = await fetchAndValidate(
+  const response = await fetchAndValidate(
     chunkContentURL,
     config.maxFileSizeBytes,
   )
@@ -2329,11 +2330,11 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
     }
 
     // We can interpret all the files in chunk_contents.txt relative to the file they are listed in.
-    let chunkFileURL = new URL(fileName, chunkContentURL).toString()
+    const chunkFileURL = new URL(fileName, chunkContentURL).toString()
 
     // download only the tracks.json file if the includeContent flag is false
     if (includeContent || fileName == 'tracks.json') {
-      let chunkFilePath = path.resolve(chunkDir, fileName)
+      const chunkFilePath = path.resolve(chunkDir, fileName)
       await downloadFile(chunkFileURL, chunkFilePath)
     }
   }
@@ -2341,7 +2342,7 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
 
 // aborts fetch request after certain amount of time
 const timeoutController = seconds => {
-  let controller = new AbortController()
+  const controller = new AbortController()
   setTimeout(() => controller.abort(), seconds * 1000)
   return controller
 }
@@ -2356,8 +2357,8 @@ async function getChunkTracks(bedFile, chunk) {
   }
 
   // Get the path to where the track is downloaded
-  let chunkPath = bedChunkLocalPath(bedFile, chunk)
-  let track_json = path.resolve(chunkPath, 'tracks.json')
+  const chunkPath = bedChunkLocalPath(bedFile, chunk)
+  const track_json = path.resolve(chunkPath, 'tracks.json')
   let tracks = null
   // Attempt to read tracks.json and convert it into a tracks object
   if (fs.existsSync(track_json)) {
@@ -2402,7 +2403,7 @@ api.post('/getBedRegions', (req, res, next) => {
     }
 
     if (req.body.bedFile) {
-      let bed_info = await getBedRegions(req.body.bedFile)
+      const bed_info = await getBedRegions(req.body.bedFile)
       result.bedRegions = bed_info
       res.json(result)
     } else {
@@ -2415,7 +2416,7 @@ api.post('/getBedRegions', (req, res, next) => {
 // return a data structure describing all the pre-cached regions it defines.
 // Validates file paths for user-accessibility. May throw.
 async function getBedRegions(bed) {
-  let bed_info = {
+  const bed_info = {
     chr: [],
     start: [],
     end: [],
@@ -2424,7 +2425,6 @@ async function getBedRegions(bed) {
     tracks: [],
   }
   let bed_data
-  let lines
   console.log('bed file received ', bed)
   if (isValidURL(bed)) {
     const response = await fetchAndValidate(bed, config.maxFileSizeBytes)
@@ -2445,10 +2445,10 @@ async function getBedRegions(bed) {
     bed_data = fs.readFileSync(bed).toString()
   }
 
-  lines = bed_data.split(/\r?\n/)
+  const lines = bed_data.split(/\r?\n/)
 
-  for (let [index, line] of lines.entries()) {
-    let records = line.split('\t')
+  for (const [index, line] of lines.entries()) {
+    const records = line.split('\t')
 
     if (records.length < 3) {
       // This is an empty line or otherwise not BED
@@ -2490,7 +2490,7 @@ async function getBedRegions(bed) {
       const chunk_path = bedChunkLocalPath(bed, chunk)
 
       // See if we have downloaded tracks.json in a previous instance
-      let track_json = path.resolve(chunk_path, 'tracks.json')
+      const track_json = path.resolve(chunk_path, 'tracks.json')
 
       // If json file specifying the tracks exists, pass its information into a tracks object
       // future selection of this region won't re-fetch tracks.json
@@ -2517,7 +2517,7 @@ async function getBedRegions(bed) {
 // Return the string URL for the host and port at which the given Express app
 // server is listening, with HTTP scheme.
 function getServerURL(server) {
-  let address = server.address()
+  const address = server.address()
   return (
     'http://' +
     (address.family === 'IPv6'
@@ -2535,7 +2535,7 @@ export function start() {
   return new Promise((resolve, reject) => {
     // This holds the top-level state of the server and lets us close things up.
     // TODO: use a real class.
-    let state = {
+    const state = {
       // Express server
       server: undefined,
       // Web socket server
@@ -2549,20 +2549,28 @@ export function start() {
         console.log('[shutdown] removing temp dir')
         fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
 
-        console.log(`[shutdown] shutting down WSS (${state.connections.size} open WS connections)`)
+        console.log(
+          `[shutdown] shutting down WSS (${state.connections.size} open WS connections)`,
+        )
         state.wss.shutDown()
         console.log('[shutdown] closing file watcher')
         state.watcher.close()
-        console.log(`[shutdown] dropping ${state.connections.size} WebSocket connection(s)`)
+        console.log(
+          `[shutdown] dropping ${state.connections.size} WebSocket connection(s)`,
+        )
         for (const connection of state.connections) {
           connection.drop(1001)
         }
 
-        console.log('[shutdown] closing HTTP server + force-closing all connections')
+        console.log(
+          '[shutdown] closing HTTP server + force-closing all connections',
+        )
         await new Promise(resolve => {
           state.server.close(err => {
             if (err) {
-              console.log('[shutdown] HTTP server closed with error: ' + err.message)
+              console.log(
+                '[shutdown] HTTP server closed with error: ' + err.message,
+              )
             } else {
               console.log('[shutdown] HTTP server closed cleanly')
             }
@@ -2636,7 +2644,7 @@ export function start() {
     const watcher = fs.watch(MOUNTED_DATA_PATH, function (_event, _filename) {
       // There was a change in the file directory
       console.log('Directory has been changed')
-      for (let conn of state.connections) {
+      for (const conn of state.connections) {
         // Notify all open connections about the change
         conn.send('change')
       }

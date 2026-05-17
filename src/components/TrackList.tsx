@@ -1,11 +1,11 @@
-import { TrackListItem } from './TrackListItem'
+import { TrackListItem } from './TrackListItem.tsx'
 import type {
   AvailableTrack,
   ColorPaletteName,
   FileType,
   Track,
   Tracks,
-} from '../Types'
+} from '../Types.ts'
 
 interface TrackListProps {
   tracks: Tracks
@@ -37,7 +37,7 @@ export const TrackList = ({
 
   function renderTracks() {
     return Object.keys(tracks).map(trackID => {
-      const trackProps = tracks[trackID]
+      const trackProps = tracks[trackID]!
       return (
         <TrackListItem
           trackProps={trackProps}

@@ -5,7 +5,7 @@ fetchMocker.enableMocks()
 
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { HelpButton } from './HelpButton'
+import { HelpButton } from './HelpButton.tsx'
 
 describe('HelpButton', () => {
   it('opens popup with help instructions', async () => {

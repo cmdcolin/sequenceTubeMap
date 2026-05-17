@@ -5,16 +5,16 @@ import {
   within,
   waitFor,
 } from '@testing-library/react'
-import { TrackPicker } from './TrackPicker'
+import { TrackPicker } from './TrackPicker.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.mjs'
-import { selectMuiOption } from '../testUtils'
+import { selectMuiOption } from '../testUtils.ts'
 import type {
   AvailableTrack,
   ColorPaletteName,
   Tracks,
-} from '../Types'
+} from '../Types.ts'
 
 function openAutocomplete(container: HTMLElement) {
   const input = within(container).getByRole('combobox')

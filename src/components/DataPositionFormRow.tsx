@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from 'react'
-import { CopyLink } from './CopyLink'
+import { CopyLink } from './CopyLink.tsx'
 import { Form, Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -8,9 +8,9 @@ import {
   faSearchPlus,
   faSearchMinus,
 } from '@fortawesome/free-solid-svg-icons'
-import HelpButton from './HelpButton'
-import * as tubeMap from '../util/tubemap'
-import type { ViewTarget } from '../Types'
+import HelpButton from './HelpButton.tsx'
+import * as tubeMap from '../util/tubemap.ts'
+import type { ViewTarget } from '../Types.ts'
 
 const ZOOM_FACTOR = 2.0
 
@@ -74,7 +74,7 @@ function DataPositionFormRow({
             : 'No changes to apply; view is up to date.'
         }
         id="goButton"
-        onClick={() => handleGoButton()}
+        onClick={() => { handleGoButton(); }}
         disabled={uploadInProgress}
       >
         Go
@@ -82,7 +82,7 @@ function DataPositionFormRow({
       <Button
         color="primary"
         id="goLeftButton"
-        onClick={() => handleGoLeft()}
+        onClick={() => { handleGoLeft(); }}
         disabled={uploadInProgress || !canGoLeft}
       >
         <FontAwesomeIcon icon={faStepBackward} size="lg" />
@@ -90,21 +90,21 @@ function DataPositionFormRow({
       <Button
         color="primary"
         id="zoomInButton"
-        onClick={() => tubeMap.zoomBy(ZOOM_FACTOR)}
+        onClick={() => { tubeMap.zoomBy(ZOOM_FACTOR); }}
       >
         <FontAwesomeIcon icon={faSearchPlus} size="lg" />
       </Button>
       <Button
         color="primary"
         id="zoomOutButton"
-        onClick={() => tubeMap.zoomBy(1.0 / ZOOM_FACTOR)}
+        onClick={() => { tubeMap.zoomBy(1.0 / ZOOM_FACTOR); }}
       >
         <FontAwesomeIcon icon={faSearchMinus} size="lg" />
       </Button>
       <Button
         color="primary"
         id="goRightButton"
-        onClick={() => handleGoRight()}
+        onClick={() => { handleGoRight(); }}
         disabled={uploadInProgress || !canGoRight}
       >
         <FontAwesomeIcon icon={faStepForward} size="lg" />
@@ -112,7 +112,7 @@ function DataPositionFormRow({
       <Button
         color="secondary"
         id="downloadButton"
-        onClick={() => handleDownloadButton()}
+        onClick={() => { handleDownloadButton(); }}
       >
         Download Image
       </Button>

@@ -5,13 +5,13 @@ import {
   within,
   screen,
 } from '@testing-library/react'
-import { TrackListItem } from './TrackListItem'
-import { selectMuiOption } from '../testUtils'
+import { TrackListItem } from './TrackListItem.tsx'
+import { selectMuiOption } from '../testUtils.ts'
 import type {
   AvailableTrack,
   ColorPaletteName,
   ColorScheme,
-} from '../Types'
+} from '../Types.ts'
 
 describe('TrackListItem', () => {
   const trackFile = undefined

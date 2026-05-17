@@ -6,7 +6,7 @@ function getFilename(fullPath: string | null | undefined) {
     return ''
   }
   const segments = fullPath.split('/')
-  return segments[segments.length - 1]
+  return segments.at(-1) ?? ''
 }
 
 interface BedFileDropdownChangeEvent {

@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import 'bootstrap/dist/css/bootstrap.css'
-import App from './App'
+import App from './App.tsx'
 import package_json from '../package.json'
 
 let basename = ''

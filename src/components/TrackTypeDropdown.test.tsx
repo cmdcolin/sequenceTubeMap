@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react'
-import { TrackTypeDropdown } from './TrackTypeDropdown'
-import { selectMuiOption } from '../testUtils'
+import { TrackTypeDropdown } from './TrackTypeDropdown.tsx'
+import { selectMuiOption } from '../testUtils.ts'
 
 describe('TrackTypeDropdown', () => {
   it('calls the onChange callback handler', async () => {

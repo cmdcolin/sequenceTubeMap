@@ -21,10 +21,10 @@ import {
   act,
   within,
 } from '@testing-library/react'
-import { setCopyCallback, writeToClipboard } from './components/CopyLink'
+import { setCopyCallback, writeToClipboard } from './components/CopyLink.tsx'
 import userEvent from '@testing-library/user-event'
-import App from './App'
-import { selectMuiOption } from './testUtils'
+import App from './App.tsx'
+import { selectMuiOption } from './testUtils.ts'
 
 const getRegionInput = () => {
   // Helper function to select the Region input box
@@ -34,7 +34,7 @@ const getRegionInput = () => {
 let serverState = undefined
 
 // This holds the root element of the app
-let root = undefined
+const root = undefined
 
 // Mock clipboard (string)
 let fakeClipboard = undefined
@@ -80,7 +80,7 @@ afterAll(async () => {
 async function waitForLoadStart() {
   return new Promise((resolve, reject) => {
     function waitAround() {
-      let loader = document.getElementById('loader')
+      const loader = document.getElementById('loader')
       if (!loader) {
         setTimeout(waitAround, 100)
       } else {
@@ -95,7 +95,7 @@ async function waitForLoadStart() {
 async function waitForLoadEnd() {
   return new Promise((resolve, reject) => {
     function waitAround() {
-      let loader = document.getElementById('loader')
+      const loader = document.getElementById('loader')
       if (loader) {
         setTimeout(waitAround, 100)
       } else {
@@ -110,7 +110,7 @@ async function waitForLoadEnd() {
 async function waitForUploadStart() {
   return new Promise((resolve, reject) => {
     function waitAround() {
-      let loaders = document.getElementsByClassName('upload-in-progress')
+      const loaders = document.getElementsByClassName('upload-in-progress')
       if (loaders.length == 0) {
         setTimeout(waitAround, 100)
       } else {
@@ -125,7 +125,7 @@ async function waitForUploadStart() {
 async function waitForUploadEnd() {
   return new Promise((resolve, reject) => {
     function waitAround() {
-      let loaders = document.getElementsByClassName('upload-in-progress')
+      const loaders = document.getElementsByClassName('upload-in-progress')
       if (loaders.length > 0) {
         setTimeout(waitAround, 100)
       } else {
@@ -139,20 +139,20 @@ async function waitForUploadEnd() {
 async function clickCopyLink() {
   // Click copy link button to test clipboard
   await act(async () => {
-    let copyButton = document.getElementById('copyLinkButton')
+    const copyButton = document.getElementById('copyLinkButton')
     await userEvent.click(copyButton)
   })
 }
 function clickGoButton() {
   // Press go
   act(() => {
-    let go = document.getElementById('goButton')
+    const go = document.getElementById('goButton')
     userEvent.click(go)
   })
 }
 
 it('initially renders as loading', () => {
-  let loader = document.getElementById('loader')
+  const loader = document.getElementById('loader')
   expect(loader).toBeTruthy()
 })
 
@@ -178,7 +178,7 @@ describe('When we wait for it to load', () => {
   })
 
   it('eventually stops rendering as loading', () => {
-    let loader = document.getElementById('loader')
+    const loader = document.getElementById('loader')
     expect(loader).toBeFalsy()
   })
 
@@ -187,7 +187,7 @@ describe('When we wait for it to load', () => {
     expect(loader).toBeFalsy()
 
     act(() => {
-      let go = document.getElementById('goButton')
+      const go = document.getElementById('goButton')
       userEvent.click(go)
     })
 
@@ -208,7 +208,7 @@ describe('When we wait for it to load', () => {
       screen.getByTestId('dataSourceSelect'),
       'vg "small" example',
     )
-    let regionInput = getRegionInput()
+    const regionInput = getRegionInput()
     await act(async () => {
       userEvent.click(getRegionInput())
     })
@@ -227,7 +227,7 @@ describe('When we wait for it to load', () => {
     })
 
     await act(async () => {
-      let example1 = document.getElementById('example1')
+      const example1 = document.getElementById('example1')
       await userEvent.click(example1)
     })
 
@@ -236,7 +236,7 @@ describe('When we wait for it to load', () => {
 
     await waitForLoadEnd()
 
-    let svg = document.getElementById('svg')
+    const svg = document.getElementById('svg')
     expect(svg).toBeTruthy()
   })
 
@@ -262,16 +262,16 @@ describe('When we wait for it to load', () => {
     await waitFor(() => screen.getByTestId('autocomplete'))
 
     // Click go
-    let go = document.getElementById('goButton')
+    const go = document.getElementById('goButton')
     await userEvent.click(go)
 
-    let loader = document.getElementById('loader')
+    const loader = document.getElementById('loader')
     expect(loader).toBeTruthy()
 
     await waitForLoadEnd()
 
     // See if correct svg rendered
-    let svg = document.getElementById('svg')
+    const svg = document.getElementById('svg')
     expect(svg).toBeTruthy()
     expect(svg.getElementsByTagName('title').length).toEqual(50)
   })
@@ -298,16 +298,16 @@ describe('When we wait for it to load', () => {
     await waitFor(() => screen.getByTestId('autocomplete'))
 
     // Click go
-    let go = document.getElementById('goButton')
+    const go = document.getElementById('goButton')
     await userEvent.click(go)
 
-    let loader = document.getElementById('loader')
+    const loader = document.getElementById('loader')
     expect(loader).toBeTruthy()
 
     await waitForLoadEnd()
 
     // See if correct svg rendered
-    let svg = document.getElementById('svg')
+    const svg = document.getElementById('svg')
     expect(svg).toBeTruthy()
     expect(svg.getElementsByTagName('title').length).toEqual(22)
   })
@@ -363,7 +363,7 @@ it('can retrieve the list of mounted graph files', async () => {
   })
 
   // Find the select box's input
-  let trackSelectButton = screen.queryByTestId('TrackPickerButton')
+  const trackSelectButton = screen.queryByTestId('TrackPickerButton')
   expect(trackSelectButton).toBeTruthy()
 
   // open track selection
@@ -403,7 +403,7 @@ it('can accept uploaded files', async () => {
   })
 
   // Find the select box's input
-  let trackSelectButton = screen.queryByTestId('TrackPickerButton')
+  const trackSelectButton = screen.queryByTestId('TrackPickerButton')
   expect(trackSelectButton).toBeTruthy()
 
   // open track selection
@@ -480,13 +480,13 @@ it('can accept uploaded files', async () => {
   await waitFor(() => screen.getByTestId('autocomplete'))
 
   // Click go
-  let go = document.getElementById('goButton')
+  const go = document.getElementById('goButton')
   await userEvent.click(go)
 
   await waitForLoadEnd()
 
   // See if correct svg rendered
-  let svg = document.getElementById('svg')
+  const svg = document.getElementById('svg')
   expect(svg).toBeTruthy()
   // Since remove redundant nodes is on, we have 3 titles for nodes and 2 for paths.
   expect(svg.getElementsByTagName('title').length).toEqual(5)

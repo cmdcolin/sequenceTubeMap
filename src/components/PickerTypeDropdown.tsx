@@ -19,7 +19,7 @@ export const PickerTypeDropdown = ({
       <Select
         size="small"
         value={value}
-        onChange={e => handleInputChange(e.target.value)}
+        onChange={e => { handleInputChange(e.target.value); }}
       >
         {pickerOptions.map(option => (
           <MenuItem key={option} value={option}>

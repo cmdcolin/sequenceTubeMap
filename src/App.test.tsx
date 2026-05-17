@@ -3,10 +3,10 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
-import App from './App'
-import { selectMuiOption, muiSelectValue } from './testUtils'
-import type { fetchAndParse as FetchAndParse } from './fetchAndParse'
-import type * as FetchAndParseModule from './fetchAndParse'
+import App from './App.tsx'
+import { selectMuiOption, muiSelectValue } from './testUtils.ts'
+import type { fetchAndParse as FetchAndParse } from './fetchAndParse.ts'
+import type * as FetchAndParseModule from './fetchAndParse.ts'
 
 // SWR caches by key across renders; without a fresh provider per test, an
 // errored fetch in one test leaks into the next and the new mock is never

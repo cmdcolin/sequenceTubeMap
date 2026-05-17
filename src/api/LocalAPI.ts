@@ -1,50 +1,10 @@
 import * as Comlink from 'comlink'
-import type {
-  APIInterface,
-  ChunkedDataResponse,
-  FilenameSubscription,
-} from './APIInterface'
+import type { APIInterface, FilenameSubscription } from './APIInterface.ts'
 import { makeWorker } from './local/WorkerFactory.js'
-import type {
-  FileType,
-  FilenamesResponse,
-  PathInfo,
-  RegionInfo,
-  Track,
-  ViewTarget,
-} from '../Types'
+import type { WorkerAPIShape } from './local/WorkerImplementation.ts'
+import type { FileType, ViewTarget } from '../Types.ts'
 
-type WorkerProxy = Comlink.Remote<{
-  subscribeToFilenameChanges(handler: () => void): void
-  cancel(cancelID: number): void
-  getChunkedData(
-    viewTarget: ViewTarget,
-    cancelID: number | undefined,
-  ): Promise<ChunkedDataResponse>
-  getFilenames(cancelID: number | undefined): Promise<FilenamesResponse>
-  putFile(
-    fileType: FileType,
-    file: File,
-    cancelID: number | undefined,
-  ): Promise<string>
-  getBedRegions(
-    bedFile: string,
-    cancelID: number | undefined,
-  ): Promise<{ bedRegions?: RegionInfo }>
-  getPathNames(
-    graphFile: string,
-    cancelID: number | undefined,
-  ): Promise<{ pathNames: string[] }>
-  getPathInfo(
-    graphFile: string,
-    cancelID: number | undefined,
-  ): Promise<{ pathInfo: PathInfo[] }>
-  getChunkTracks(
-    bedFile: string,
-    chunk: string,
-    cancelID: number | undefined,
-  ): Promise<{ tracks?: Track[] }>
-}>
+type WorkerProxy = Comlink.Remote<WorkerAPIShape>
 
 /**
  * API implementation that uses a web worker to run a GBZBaseAPI.

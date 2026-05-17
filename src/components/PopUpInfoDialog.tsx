@@ -1,4 +1,4 @@
-import PopupDialog from './PopupDialog'
+import PopupDialog from './PopupDialog.tsx'
 
 export type InfoAttribute = readonly [label: string, value: React.ReactNode]
 

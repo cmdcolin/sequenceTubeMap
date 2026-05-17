@@ -3,17 +3,17 @@
  * EventEmitters so Comlink's postMessage/addEventListener API works on both sides.
  */
 
-import { setUpWorker } from '../WorkerImplementation.mjs'
+import { setUpWorker } from '../WorkerImplementation.ts'
 
 import { EventEmitter } from 'events'
 
 export function makeWorker() {
   // Make a couple EventEmmitters, chrome them up to look more browser-y, and
   // cross-connect their message events and postMessage functions.
-  let workerSide = new EventEmitter()
+  const workerSide = new EventEmitter()
   workerSide.addEventListener = workerSide.on
 
-  let userSide = new EventEmitter()
+  const userSide = new EventEmitter()
   userSide.addEventListener = userSide.on
 
   workerSide.postMessage = (message, _options) => {

@@ -4,7 +4,7 @@ import { Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faQuestion } from '@fortawesome/free-solid-svg-icons'
 import Markdown from 'markdown-to-jsx'
-import PopupDialog from './PopupDialog'
+import PopupDialog from './PopupDialog.tsx'
 
 interface HelpButtonProps {
   file: string

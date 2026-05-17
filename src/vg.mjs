@@ -30,7 +30,7 @@ export function find_vg() {
       // Add trailing slash
       prefix = prefix + '/'
     }
-    let vg_filename = prefix + 'vg'
+    const vg_filename = prefix + 'vg'
     console.log('Check for vg at:', vg_filename)
     if (fs.existsSync(vg_filename)) {
       if (!fs.statSync(vg_filename).isFile()) {

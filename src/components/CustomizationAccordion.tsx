@@ -10,8 +10,8 @@ import {
   Input,
   FormGroup,
 } from 'reactstrap'
-import TrackSettings from './TrackSettings'
-import type { ColorScheme, Palette, Tracks, VisOptions } from '../Types'
+import TrackSettings from './TrackSettings.tsx'
+import type { ColorScheme, Palette, Tracks, VisOptions } from '../Types.ts'
 
 interface VisualizationOptionsProps {
   visOptions: VisOptions
@@ -54,7 +54,7 @@ function VisualizationOptions({
   let readTrackNumber = 1
   const trackSettingsList: React.ReactNode[] = []
   for (const key in tracks) {
-    const track = tracks[key]
+    const track = tracks[key]!
     if (!track.trackFile) {
       continue
     }
@@ -68,7 +68,7 @@ function VisualizationOptions({
           fileType={type}
           trackColorSettings={visOptions.colorSchemes[idx]}
           setTrackColorSetting={(k, v) =>
-            setColorSetting(k as keyof ColorScheme, idx, v)
+            { setColorSetting(k, idx, v); }
           }
         />,
       )
@@ -83,7 +83,7 @@ function VisualizationOptions({
             fileType={type}
             trackColorSettings={visOptions.colorSchemes[idx]}
             setTrackColorSetting={(k, v) =>
-              setColorSetting(k as keyof ColorScheme, idx, v)
+              { setColorSetting(k, idx, v); }
             }
           />,
         )
@@ -141,7 +141,7 @@ function VisualizationOptions({
                     <Input
                       type="checkbox"
                       checked={visOptions.removeRedundantNodes}
-                      onChange={() => toggleFlag('removeRedundantNodes')}
+                      onChange={() => { toggleFlag('removeRedundantNodes'); }}
                     />
                     Remove redundant nodes
                   </Label>
@@ -152,7 +152,7 @@ function VisualizationOptions({
                       type="checkbox"
                       checked={visOptions.compressedView}
                       disabled={enableCompressedNodes}
-                      onChange={() => toggleFlag('compressedView')}
+                      onChange={() => { toggleFlag('compressedView'); }}
                     />
                     Compressed view
                   </Label>
@@ -162,7 +162,7 @@ function VisualizationOptions({
                     <Input
                       type="checkbox"
                       checked={visOptions.transparentNodes}
-                      onChange={() => toggleFlag('transparentNodes')}
+                      onChange={() => { toggleFlag('transparentNodes'); }}
                     />
                     Fully transparent nodes
                   </Label>
@@ -172,7 +172,7 @@ function VisualizationOptions({
                     <Input
                       type="checkbox"
                       checked={visOptions.showNodeLabels}
-                      onChange={() => toggleFlag('showNodeLabels')}
+                      onChange={() => { toggleFlag('showNodeLabels'); }}
                     />
                     Show node labels
                   </Label>
@@ -183,7 +183,7 @@ function VisualizationOptions({
                     label="Node Label"
                     trackColorSettings={visOptions.nodeLabelColorScheme}
                     setTrackColorSetting={(k, v) =>
-                      setNodeLabelColorSetting(k, v)
+                      { setNodeLabelColorSetting(k, v); }
                     }
                   />
                 )}
@@ -196,7 +196,7 @@ function VisualizationOptions({
                     <Input
                       type="checkbox"
                       checked={visOptions.showReads}
-                      onChange={() => toggleFlag('showReads')}
+                      onChange={() => { toggleFlag('showReads'); }}
                     />
                     Show sequence reads
                   </Label>
@@ -208,7 +208,7 @@ function VisualizationOptions({
                         <Input
                           type="checkbox"
                           checked={visOptions.showSoftClips}
-                          onChange={() => toggleFlag('showSoftClips')}
+                          onChange={() => { toggleFlag('showSoftClips'); }}
                         />
                         Show soft clips
                       </Label>
@@ -219,7 +219,7 @@ function VisualizationOptions({
                           type="checkbox"
                           checked={visOptions.colorReadsByMappingQuality}
                           onChange={() =>
-                            toggleFlag('colorReadsByMappingQuality')
+                            { toggleFlag('colorReadsByMappingQuality'); }
                           }
                         />
                         Color reads by mapping quality
@@ -231,7 +231,7 @@ function VisualizationOptions({
                           type="checkbox"
                           checked={visOptions.alphaReadsByMappingQuality}
                           onChange={() =>
-                            toggleFlag('alphaReadsByMappingQuality')
+                            { toggleFlag('alphaReadsByMappingQuality'); }
                           }
                         />
                         Transparency of reads by mapping quality
@@ -250,7 +250,7 @@ function VisualizationOptions({
                         className="custom-select"
                         value={visOptions.mappingQualityCutoff}
                         onChange={e =>
-                          handleMappingQualityCutoffChange(e.target.value)
+                          { handleMappingQualityCutoffChange(e.target.value); }
                         }
                       >
                         {mappingQualityOptions}
@@ -287,7 +287,7 @@ function VisualizationOptions({
                   id="apiSelect"
                   className="custom-select"
                   value={currentAPIMode}
-                  onChange={e => setAPIMode(e.target.value)}
+                  onChange={e => { setAPIMode(e.target.value); }}
                 >
                   <option value="server">On remote server</option>
                   <option value="local">

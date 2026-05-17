@@ -79,7 +79,7 @@ const ContextMenu = ({ header, items, x, y, onClose }: ContextMenuProps) => (
   <>
     <div
       style={BACKDROP_STYLE}
-      onMouseDown={() => onClose()}
+      onMouseDown={() => { onClose(); }}
       onContextMenu={e => {
         e.preventDefault()
         onClose()

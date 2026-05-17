@@ -1,7 +1,7 @@
 // Type declarations for common.mjs (kept as .mjs so the Node server can import
 // it directly without a TS build step).
 
-import type { ColorScheme, Tracks } from './Types'
+import type { ColorScheme, Tracks } from './Types.ts'
 
 export interface RangeRegion {
   contig: string

@@ -1,7 +1,7 @@
 import { render, fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { RegionInput } from './RegionInput'
-import type { RegionInfo } from '../Types'
+import { RegionInput } from './RegionInput.tsx'
+import type { RegionInfo } from '../Types.ts'
 
 const handleRegionChangeMock = vi.fn()
 const MOCK_REGIONS: RegionInfo = {

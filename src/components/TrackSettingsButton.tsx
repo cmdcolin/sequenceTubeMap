@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import PopupDialog from './PopupDialog'
-import TrackSettings from './TrackSettings'
+import PopupDialog from './PopupDialog.tsx'
+import TrackSettings from './TrackSettings.tsx'
 import { Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear } from '@fortawesome/free-solid-svg-icons'
@@ -10,7 +10,7 @@ import {
   type ColorScheme,
   type FileType,
   type Palette,
-} from '../Types'
+} from '../Types.ts'
 
 interface TrackSettingsButtonProps {
   fileType?: FileType | 'nodeLabel'
@@ -30,10 +30,10 @@ export const TrackSettingsButton = ({
   testID = 'settings-button-component',
 }: TrackSettingsButtonProps) => {
   const [open, setOpen] = useState(false)
-  const close = () => setOpen(false)
+  const close = () => { setOpen(false); }
   return (
     <div>
-      <Button aria-label="Settings" onClick={() => setOpen(!open)}>
+      <Button aria-label="Settings" onClick={() => { setOpen(!open); }}>
         <FontAwesomeIcon icon={faGear} data-testid={testID} />
       </Button>
       <PopupDialog open={open} close={close}>

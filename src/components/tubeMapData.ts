@@ -1,6 +1,6 @@
-import * as tubeMap from '../util/tubemap'
-import type { InputNode, InputTrack, VgJson, VgRead } from '../util/tubemap'
-import { dataOriginTypes } from '../enums'
+import * as tubeMap from '../util/tubemap.ts'
+import type { InputNode, InputTrack, VgJson, VgRead } from '../util/tubemap.ts'
+import { dataOriginTypes } from '../enums.ts'
 
 // demo-data.js types are inferred from JS literals; keep this loose so the
 // module-level shape (which includes a few extra JS-only fields) is

@@ -8,7 +8,7 @@ import { config } from './config-global.mjs'
 
 // function to remove commas from coordinate input
 const removeCommas = input => {
-  let parts = input.split(':')
+  const parts = input.split(':')
   if (parts.length < 2) {
     return input
   }
@@ -17,7 +17,7 @@ const removeCommas = input => {
   coordinates = coordinates.replace(/,/g, '')
   // put region input coordinate back together
   parts[parts.length - 1] = coordinates
-  let fixedInputValue = parts.join(':')
+  const fixedInputValue = parts.join(':')
   return fixedInputValue
 }
 
@@ -47,19 +47,19 @@ export function parseRegion(region) {
   region = removeCommas(region)
 
   // Get the part of the region after the last colon
-  let region_col = region.split(':')
-  let start_end = region_col[region_col.length - 1].split('-')
-  let pos_dist = region_col[region_col.length - 1].split('+')
+  const region_col = region.split(':')
+  const start_end = region_col[region_col.length - 1].split('-')
+  const pos_dist = region_col[region_col.length - 1].split('+')
 
-  let contig = region_col.slice(0, -1).join(':')
+  const contig = region_col.slice(0, -1).join(':')
 
   if (start_end.length === 2) {
-    let start = Number(start_end[0])
-    let end = Number(start_end[1])
+    const start = Number(start_end[0])
+    const end = Number(start_end[1])
     return { contig, start, end }
   } else if (pos_dist.length === 2) {
-    let start = Number(pos_dist[0])
-    let distance = Number(pos_dist[1])
+    const start = Number(pos_dist[0])
+    const distance = Number(pos_dist[1])
     return { contig, start, distance }
   } else {
     throw new Error("Coordinates must be in the form 'X:Y-Z' or 'X:Y+Z'.")
@@ -116,7 +116,7 @@ export function defaultTrackColors(trackType) {
 
 /* Function to determine if any of the tracks are reads, where the tracks parameter is an object of track types */
 export function readsExist(tracks) {
-  for (let key in tracks) {
+  for (const key in tracks) {
     if (tracks[key].trackType === 'read') {
       return true
     }

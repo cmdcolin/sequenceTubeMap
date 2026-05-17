@@ -5,13 +5,13 @@ import {
   within,
   screen,
 } from '@testing-library/react'
-import { TrackList } from './TrackList'
-import { selectMuiOption } from '../testUtils'
+import { TrackList } from './TrackList.tsx'
+import { selectMuiOption } from '../testUtils.ts'
 import type {
   AvailableTrack,
   ColorPaletteName,
   Tracks,
-} from '../Types'
+} from '../Types.ts'
 
 function openAutocomplete(container: HTMLElement) {
   const input = within(container).getByRole('combobox')

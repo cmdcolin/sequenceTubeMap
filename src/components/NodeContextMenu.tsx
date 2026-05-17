@@ -1,5 +1,5 @@
-import ContextMenu, { type ContextMenuItem } from './ContextMenu'
-import type { ReadGroup } from './ReadGroupsPanel'
+import ContextMenu, { type ContextMenuItem } from './ContextMenu.tsx'
+import type { ReadGroup } from './ReadGroupsPanel.tsx'
 
 interface NodeContextMenuProps {
   nodeName: string
@@ -34,20 +34,20 @@ const NodeContextMenu = ({
           ? 'No reads through this node'
           : `Add ${count} read${count === 1 ? '' : 's'} through this node to read set`,
       disabled: count === 0,
-      onClick: () => onAddReadsToSet(readNames),
+      onClick: () => { onAddReadsToSet(readNames); },
     },
     {
       label: alreadyInNodeSet
         ? 'Already in node set'
         : 'Add this node to node set',
       disabled: alreadyInNodeSet,
-      onClick: () => onAddNodeToNodeSet(nodeName),
+      onClick: () => { onAddNodeToNodeSet(nodeName); },
     },
   ]
   if (activeGroup && count > 0) {
     items.push({
       label: `Add ${count} read${count === 1 ? '' : 's'} to "${activeGroup.name}"`,
-      onClick: () => onAddReadsToActiveGroup(readNames),
+      onClick: () => { onAddReadsToActiveGroup(readNames); },
     })
   }
   return (

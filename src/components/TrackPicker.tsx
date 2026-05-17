@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import TrackPickerDisplay from './TrackPickerDisplay'
+import TrackPickerDisplay from './TrackPickerDisplay.tsx'
 import { Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faList } from '@fortawesome/free-solid-svg-icons'
-import PopupDialog from './PopupDialog'
+import PopupDialog from './PopupDialog.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type {
@@ -11,7 +11,7 @@ import type {
   ColorPaletteName,
   FileType,
   Tracks,
-} from '../Types'
+} from '../Types.ts'
 
 interface TrackPickerProps {
   tracks?: Tracks

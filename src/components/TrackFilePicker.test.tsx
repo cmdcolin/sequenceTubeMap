@@ -1,7 +1,7 @@
 import { render, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { TrackFilePicker } from './TrackFilePicker'
-import type { AvailableTrack } from '../Types'
+import { TrackFilePicker } from './TrackFilePicker.tsx'
+import type { AvailableTrack } from '../Types.ts'
 
 function openAutocomplete(component: HTMLElement) {
   const input = within(component).getByRole<HTMLInputElement>('combobox')

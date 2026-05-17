@@ -81,7 +81,7 @@ const PendingPanel = ({
           key={idx}
           type="button"
           title={action.hint}
-          onClick={() => action.onClick()}
+          onClick={() => { action.onClick(); }}
         >
           {action.label}
         </button>
@@ -95,7 +95,7 @@ const PendingPanel = ({
             <button
               type="button"
               style={CHIP_REMOVE_STYLE}
-              onClick={() => onRemove(name)}
+              onClick={() => { onRemove(name); }}
               aria-label={`Remove ${name}`}
             >
               ×

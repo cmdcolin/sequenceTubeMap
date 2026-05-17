@@ -1,14 +1,14 @@
 import { render, fireEvent, screen, within } from '@testing-library/react'
-import { TrackPickerDisplay } from './TrackPickerDisplay'
+import { TrackPickerDisplay } from './TrackPickerDisplay.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.mjs'
-import { selectMuiOption } from '../testUtils'
+import { selectMuiOption } from '../testUtils.ts'
 import type {
   AvailableTrack,
   ColorPaletteName,
   Tracks,
-} from '../Types'
+} from '../Types.ts'
 
 function openAutocomplete(container: HTMLElement) {
   const input = within(container).getByRole('combobox')

@@ -1,24 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Container, Row, Alert } from 'reactstrap'
 
-import TubeMap from './TubeMap'
-import * as tubeMap from '../util/tubemap'
+import TubeMap from './TubeMap.tsx'
+import * as tubeMap from '../util/tubemap.ts'
 import type {
   InputNode,
   InputRegion,
   InputTrack,
-  VgJson,
-  VgRead,
-} from '../util/tubemap'
-import { dataOriginTypes } from '../enums'
-import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog'
-import ReadContextMenu from './ReadContextMenu'
-import NodeContextMenu from './NodeContextMenu'
-import PendingPanel from './PendingPanel'
-import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel'
-import { computeExampleData } from './tubeMapData'
-import type { APIInterface } from '../api/APIInterface'
-import type { ViewTarget, VisOptions } from '../Types'
+} from '../util/tubemap.ts'
+import { dataOriginTypes } from '../enums.ts'
+import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog.tsx'
+import ReadContextMenu from './ReadContextMenu.tsx'
+import NodeContextMenu from './NodeContextMenu.tsx'
+import PendingPanel from './PendingPanel.tsx'
+import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel.tsx'
+import { computeExampleData } from './tubeMapData.ts'
+import type { APIInterface } from '../api/APIInterface.ts'
+import type { ViewTarget, VisOptions } from '../Types.ts'
 
 const GROUP_PALETTE_CYCLE = [
   'reds',
@@ -161,7 +159,7 @@ function TubeMapContainer({
     } else {
       setIsLoading(true)
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      import('../util/demo-data').then(data => {
+      import('../util/demo-data.js').then(data => {
         const result = computeExampleData(dataOrigin, data)
         setNodes(result.nodes)
         setTracks(result.tracks)

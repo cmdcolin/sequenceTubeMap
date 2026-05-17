@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
 import { faCode, faDna } from '@fortawesome/free-solid-svg-icons'
 
-import SafeLink from './SafeLink'
+import SafeLink from './SafeLink.tsx'
 
 import PACKAGE from '../../package.json'
 

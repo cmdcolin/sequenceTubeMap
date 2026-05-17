@@ -9,6 +9,7 @@
 
     "allowJs": true,
     "checkJs": false,
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

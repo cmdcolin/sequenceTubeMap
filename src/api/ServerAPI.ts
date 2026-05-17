@@ -1,6 +1,6 @@
-import { fetchAndParse } from '../fetchAndParse'
-import type { APIInterface, FilenameSubscription } from './APIInterface'
-import type { FileType, ViewTarget } from '../Types'
+import { fetchAndParse } from '../fetchAndParse.ts'
+import type { APIInterface, FilenameSubscription } from './APIInterface.ts'
+import type { FileType, ViewTarget } from '../Types.ts'
 
 interface WebSocketSubscription {
   ws?: WebSocket

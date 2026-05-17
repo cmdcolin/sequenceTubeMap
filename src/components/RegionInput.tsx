@@ -5,7 +5,7 @@ import Tooltip from '@mui/material/Tooltip'
 import '../config-client.js'
 import '../config-global.mjs'
 import { isEmpty } from '../common.mjs'
-import type { RegionInfo } from '../Types'
+import type { RegionInfo } from '../Types.ts'
 
 interface RegionOption {
   label: string
@@ -43,7 +43,7 @@ export const RegionInput = ({
         label: `${pathWithRegion} ${desc[index]}`,
         value: pathWithRegion,
       })
-      regionToDesc.set(pathWithRegion, desc[index])
+      regionToDesc.set(pathWithRegion, desc[index]!)
     }
   }
 

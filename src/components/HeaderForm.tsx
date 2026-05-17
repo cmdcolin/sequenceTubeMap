@@ -1,23 +1,24 @@
-import { Fragment, useState, useEffect, useRef } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import useSWR from 'swr'
 import { Container, Row, Col, Label, Alert, Button } from 'reactstrap'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import { LocalAPI } from '../api/LocalAPI'
-import type { APIInterface } from '../api/APIInterface'
-import DataPositionFormRow from './DataPositionFormRow'
-import ExampleSelectButtons from './ExampleSelectButtons'
-import RegionInput from './RegionInput'
-import PathsPanel from './PathsPanel'
-import TrackPicker from './TrackPicker'
-import BedFileDropdown from './BedFileDropdown'
+import { LocalAPI } from '../api/LocalAPI.ts'
+import type { APIInterface } from '../api/APIInterface.ts'
+import DataPositionFormRow from './DataPositionFormRow.tsx'
+import ExampleSelectButtons from './ExampleSelectButtons.tsx'
+import RegionInput from './RegionInput.tsx'
+import PathsPanel from './PathsPanel.tsx'
+import TrackPicker from './TrackPicker.tsx'
+import BedFileDropdown from './BedFileDropdown.tsx'
 import MenuItem from '@mui/material/MenuItem'
 import MuiSelect, { type SelectChangeEvent } from '@mui/material/Select'
 import FormHelperText from '@mui/material/FormHelperText'
-import PopupDialog from './PopupDialog'
+import PopupDialog from './PopupDialog.tsx'
 import Switch from 'react-switch'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear } from '@fortawesome/free-solid-svg-icons'
-import { parseRegion, stringifyRegion, isEmpty, isValidURL, readsExist } from '../common.mjs'
+import { parseRegion, stringifyRegion, isEmpty, readsExist } from '../common.mjs'
 import {
   determineRegionIndex,
   firstGraphTrack,
@@ -29,9 +30,8 @@ import {
   trackListWithImplied,
   tracksFromArray,
   viewTargetsEqual,
-} from './headerFormUtils'
+} from './headerFormUtils.ts'
 import type {
-  AvailableTrack,
   ColorScheme,
   FileType,
   PathInfo,
@@ -40,7 +40,7 @@ import type {
   Track,
   Tracks,
   ViewTarget,
-} from '../Types'
+} from '../Types.ts'
 
 export { determineRegionIndex, regionStringFromRegionIndex }
 
@@ -79,13 +79,10 @@ function HeaderForm({
   defaultViewTarget,
   APIInterface,
 }: HeaderFormProps) {
-  const initialView = defaultViewTarget ?? DATA_SOURCES[0]
+  const initialView = defaultViewTarget ?? DATA_SOURCES[0]!
   const [bedSelect, setBedSelect] = useState(
     isSet(initialView.bedFile) ? initialView.bedFile : 'none',
   )
-  const [desc, setDesc] = useState<string | null | undefined>('')
-  const [regionInfo, setRegionInfo] = useState<RegionInfo>({})
-  const [pathInfo, setPathInfo] = useState<PathInfo[]>([])
   const [tracks, setTracks] = useState<Tracks>(initialView.tracks)
   const [bedFile, setBedFile] = useState(initialView.bedFile)
   const [region, setRegion] = useState(initialView.region)
@@ -95,149 +92,88 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
-  const [error, setError] = useState<Error | string | null>(null)
-  const [availableTracks, setAvailableTracks] = useState<AvailableTrack[]>([])
-  const [availableBeds, setAvailableBeds] = useState<string[]>([])
+  const [manualError, setManualError] = useState<Error | string | null>(null)
   const [simplify, setSimplify] = useState(initialView.simplify ?? false)
   const [removeSequences, setRemoveSequences] = useState(
     initialView.removeSequences ?? false,
   )
   const [popupOpen, setPopupOpen] = useState(false)
 
-  // Ref for the AbortController — legitimate useRef: imperative handle that
-  // must persist across renders without triggering re-renders.
-  const cancelSignalRef = useRef<AbortSignal | null>(null)
-
-  // Snapshot of state read after `await` in async fetch handlers to avoid
-  // stale closures. Only fields actually consumed post-await are tracked.
-  // Assigned during render (not in useEffect) so the ref is in sync with the
-  // current render before any post-render code reads it.
-  const stateRef = useRef({
-    tracks,
-    bedFile,
-    region,
-    dataType,
-    availableTracks,
+  // SWR-managed fetches. Each key encodes the state it depends on, so changing
+  // that state automatically triggers a new fetch and supersedes any in-flight
+  // result for the previous key (SWR only returns data for the current key).
+  const {
+    data: filenamesData,
+    error: filenamesError,
+    mutate: refetchFilenames,
+  } = useSWR('headerForm.filenames', () => APIInterface.getFilenames(null), {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    shouldRetryOnError: false,
   })
-  // eslint-disable-next-line react-hooks/refs
-  stateRef.current = {
-    tracks,
-    bedFile,
-    region,
-    dataType,
-    availableTracks,
-  }
 
-  function handleFetchError(err: unknown, message: string) {
-    if (!cancelSignalRef.current?.aborted) {
-      console.error(message, err)
-      setError(err instanceof Error ? err : String(err))
-    }
-  }
+  const files = filenamesData?.files ?? []
+  const availableBeds = ['none', ...(filenamesData?.bedFiles ?? [])]
+  const availableTrackSet = makeAvailableTrackSet(files)
+  const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
 
-  async function getBedRegions(bedFileArg: string) {
-    setError(null)
-    try {
-      const json = await APIInterface.getBedRegions(
-        bedFileArg,
-        cancelSignalRef.current,
-      )
-      if (!json.bedRegions || !Array.isArray(json.bedRegions.desc)) {
-        throw new Error(
-          'Server did not send back an array of BED region descriptions',
-        )
-      }
-      if (stateRef.current.bedFile === bedFileArg) {
-        const newRegionInfo = json.bedRegions ?? {}
-        setRegionInfo(newRegionInfo)
-        setDesc(regionDescByCoords(stateRef.current.region, newRegionInfo))
-      }
-    } catch (err) {
-      handleFetchError(err, `API getBedRegions failed:`)
-    }
-  }
+  const bedKey =
+    dataType !== dataTypes.EXAMPLES && isSet(bedFile) ? bedFile : null
+  const { data: bedRegionsData, error: bedRegionsError } = useSWR(
+    bedKey,
+    (k: string) => APIInterface.getBedRegions(k, null),
+  )
+  const regionInfo: RegionInfo = bedRegionsData?.bedRegions ?? {}
 
-  async function getPathInfo(graphFile: string | null) {
-    if (graphFile === null) return
-    setError(null)
-    try {
-      const json = await APIInterface.getPathInfo(
-        graphFile,
-        cancelSignalRef.current,
-      )
-      if (!Array.isArray(json.pathInfo)) {
-        throw new Error('Server did not send back an array of path info')
-      }
-      const laterGraphTrack = firstGraphTrack(stateRef.current.tracks)
-      if (laterGraphTrack?.trackFile === graphFile) {
-        setPathInfo(json.pathInfo)
-      }
-    } catch (err) {
-      handleFetchError(err, 'API getPathInfo failed:')
-    }
-  }
+  const graphTrack = firstGraphTrack(tracks)
+  const graphKey =
+    dataType !== dataTypes.EXAMPLES &&
+    graphTrack?.trackFile &&
+    !trackIsImplied(graphTrack, availableTrackSet)
+      ? graphTrack.trackFile
+      : null
+  const { data: pathInfoData, error: pathInfoError } = useSWR(
+    graphKey,
+    (k: string) => APIInterface.getPathInfo(k, null),
+  )
+  const pathInfo: PathInfo[] = pathInfoData?.pathInfo ?? []
 
-  async function getMountedFilenames() {
-    setError(null)
-    try {
-      const json = await APIInterface.getFilenames(cancelSignalRef.current)
-      if (!json.files || json.files.length === 0) {
-        setError(
-          json.error ?? 'Server did not return a list of mounted filenames.',
-        )
-      } else {
-        const bedFiles = ['none', ...(json.bedFiles ?? [])]
-        const availableTrackSet = makeAvailableTrackSet(json.files)
+  // Server explicitly reported no mounted files (vs network/parse failure).
+  const noFilesMessage =
+    filenamesData && (!filenamesData.files || filenamesData.files.length === 0)
+      ? (filenamesData.error ??
+          'Server did not return a list of mounted filenames.')
+      : null
 
-        const currentDataType = stateRef.current.dataType
-        const currentBedFile = stateRef.current.bedFile
-        const currentTracks = stateRef.current.tracks
+  const error =
+    manualError ??
+    filenamesError ??
+    bedRegionsError ??
+    pathInfoError ??
+    noFilesMessage
 
-        if (currentDataType !== dataTypes.EXAMPLES) {
-          const bedAvailable =
-            isValidURL(currentBedFile) || bedFiles.includes(currentBedFile ?? '')
-          if (bedAvailable && isSet(currentBedFile)) {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            getBedRegions(currentBedFile)
-          }
+  const desc = regionDescByCoords(region, regionInfo)
 
-          const graphTrack = firstGraphTrack(currentTracks)
-          if (
-            graphTrack?.trackFile &&
-            !trackIsImplied(graphTrack, availableTrackSet)
-          ) {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            getPathInfo(graphTrack.trackFile)
-          }
-        }
-
-        setAvailableTracks(
-          trackListWithImplied(json.files, availableTrackSet, currentTracks),
-        )
-        setAvailableBeds(bedFiles)
-      }
-    } catch (err) {
-      handleFetchError(err, `API getFilenames failed:`)
-    }
-  }
-
+  // Subscribe to server-pushed filename changes; revalidate the SWR cache on
+  // each notification.
   useEffect(() => {
     const controller = new AbortController()
-    cancelSignalRef.current = controller.signal
-
-    /* eslint-disable @typescript-eslint/no-floating-promises, react-hooks/set-state-in-effect */
-    getMountedFilenames()
-    /* eslint-enable @typescript-eslint/no-floating-promises, react-hooks/set-state-in-effect */
     APIInterface.subscribeToFilenameChanges(
-      getMountedFilenames,
+      () => {
+        void refetchFilenames()
+      },
       controller.signal,
     )
-
     return () => {
       controller.abort()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [APIInterface, refetchFilenames])
+
+  // Per-invocation AbortController for getChunkTracks (event-driven, not
+  // SWR-cached). We abort the prior in-flight call when a new region change
+  // arrives so its result can't overwrite the newer one. Assigned only inside
+  // an event handler — never during render.
+  const chunkTracksAbortRef = useRef<AbortController | null>(null)
 
   function getNextViewTarget(): ViewTarget {
     return {
@@ -263,28 +199,9 @@ function HeaderForm({
     }
   }
 
-  // Re-fetch path info if the graph track changed and the new one is real.
-  function refreshPathInfoIfGraphChanged(
-    prevTracks: Tracks,
-    newTracks: Tracks,
-    availableTrackSet: Set<string>,
-  ) {
-    const oldGraph = firstGraphTrack(prevTracks)
-    const newGraph = firstGraphTrack(newTracks)
-    const sameGraph =
-      newGraph && oldGraph && newGraph.trackFile === oldGraph.trackFile
-    if (!sameGraph) {
-      setPathInfo([])
-      if (newGraph?.trackFile && !trackIsImplied(newGraph, availableTrackSet)) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        getPathInfo(newGraph.trackFile)
-      }
-    }
-  }
-
   async function handleRegionChange(coords: string) {
     setRegion(coords)
-    setDesc(regionDescByCoords(coords, regionInfo))
+    setManualError(null)
 
     const coordsToMetaData: Record<string, CoordsMetaData> = {}
     if (!isEmpty(regionInfo) && regionInfo.chr) {
@@ -300,64 +217,47 @@ function HeaderForm({
 
     let newTracks = coordsToMetaData[coords]?.tracks ?? null
     const chunk = coordsToMetaData[coords]?.chunk ?? null
+
     if (!newTracks && isSet(bedFile) && chunk) {
-      const json = await APIInterface.getChunkTracks(
-        bedFile,
-        chunk,
-        cancelSignalRef.current,
-      )
-      newTracks = json.tracks ?? null
+      chunkTracksAbortRef.current?.abort()
+      const controller = new AbortController()
+      chunkTracksAbortRef.current = controller
+      try {
+        const json = await APIInterface.getChunkTracks(
+          bedFile,
+          chunk,
+          controller.signal,
+        )
+        newTracks = json.tracks ?? null
+      } catch (e) {
+        if (controller.signal.aborted) {
+          return
+        }
+        console.error('API getChunkTracks failed:', e)
+        setManualError(e instanceof Error ? e : String(e))
+        return
+      }
     }
 
     if (newTracks) {
-      const trackObject = tracksFromArray(newTracks)
-      const availableTrackSet = makeAvailableTrackSet(
-        stateRef.current.availableTracks,
-      )
-      if (stateRef.current.region === coords) {
-        setTracks(trackObject)
-        setAvailableTracks(
-          trackListWithImplied(
-            stateRef.current.availableTracks,
-            availableTrackSet,
-            trackObject,
-          ),
-        )
-      }
-      refreshPathInfoIfGraphChanged(
-        stateRef.current.tracks,
-        trackObject,
-        availableTrackSet,
-      )
+      setTracks(tracksFromArray(newTracks))
+      // pathInfo SWR key derives from the graph track, so it re-fetches on its
+      // own when the new tracks contain a different graph.
     }
   }
 
   function handleInputChange(newTracks: Tracks) {
     setTracks(newTracks)
-    refreshPathInfoIfGraphChanged(
-      tracks,
-      newTracks,
-      makeAvailableTrackSet(availableTracks),
-    )
   }
 
   function handleBedChange(event: { target: { id: string; value: string } }) {
     const { id, value } = event.target
-    const changed = value !== bedFile
-
     if (id === 'bedSelect') {
       setBedSelect(value)
     }
     setBedFile(value)
-
-    if (changed) {
-      setRegionInfo({})
-      setDesc(undefined)
-      if (isSet(value)) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        getBedRegions(value)
-      }
-    }
+    // regionInfo + desc derive from the bedFile-keyed SWR fetch; nothing else
+    // to reset here.
   }
 
   async function budgeRegion(fraction: number) {
@@ -400,32 +300,26 @@ function HeaderForm({
 
   function handleGoRight() {
     if (isSet(bedFile)) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      jumpRegion(1)
+      void jumpRegion(1)
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      budgeRegion(0.5)
+      void budgeRegion(0.5)
     }
   }
 
   function handleGoLeft() {
     if (isSet(bedFile)) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      jumpRegion(-1)
+      void jumpRegion(-1)
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      budgeRegion(-0.5)
+      void budgeRegion(-0.5)
     }
   }
 
   function handleDataSourceChange(event: SelectChangeEvent) {
     const value = event.target.value
+    setManualError(null)
 
     if (value === dataTypes.CUSTOM_FILES) {
       setBedSelect('none')
-      setDesc('')
-      setRegionInfo({})
-      setPathInfo([])
       setTracks({})
       setBedFile('none')
       setRegion('')
@@ -433,35 +327,19 @@ function HeaderForm({
       setDataType(dataTypes.CUSTOM_FILES)
       setFileSizeAlert(false)
       setUploadInProgress(false)
-      setError(null)
     } else if (value === dataTypes.EXAMPLES) {
       setDataType(dataTypes.EXAMPLES)
     } else {
       const ds = DATA_SOURCES.find(d => d.name === value)
       if (ds) {
-        if (isSet(ds.bedFile)) {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          getBedRegions(ds.bedFile)
-        } else {
-          setRegionInfo({})
-        }
-
-        const graphTrack = firstGraphTrack(ds.tracks)
-        const laterGraph = firstGraphTrack(tracks)
-        if (!laterGraph || graphTrack?.trackFile !== laterGraph.trackFile) {
-          setPathInfo([])
-        }
-        if (graphTrack?.trackFile) {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          getPathInfo(graphTrack.trackFile)
-        }
-
         setTracks(ds.tracks)
         setBedFile(ds.bedFile)
         setBedSelect(isSet(ds.bedFile) ? ds.bedFile : 'none')
         setRegion(ds.region)
         setDataType(dataTypes.BUILT_IN)
         setName(ds.name)
+        // SWR keys for regionInfo + pathInfo update with the new bedFile /
+        // graph track and refetch automatically.
       }
     }
   }
@@ -479,25 +357,16 @@ function HeaderForm({
     }
 
     setUploadInProgress(true)
-
     try {
-      const fileName = await APIInterface.putFile(
-        fileType,
-        file,
-        cancelSignalRef.current,
-      )
+      const fileName = await APIInterface.putFile(fileType, file, null)
       if (fileType === 'graph') {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        getMountedFilenames()
+        void refetchFilenames()
       }
       setUploadInProgress(false)
       return fileName
     } catch (e) {
-      if (!cancelSignalRef.current?.aborted) {
-        setUploadInProgress(false)
-        throw e
-      }
-      return undefined
+      setUploadInProgress(false)
+      throw e
     }
   }
 
@@ -599,7 +468,7 @@ function HeaderForm({
             {!examplesFlag && (
               <RegionInput
                 regionInfo={regionInfo}
-                handleRegionChange={coords => handleRegionChange(coords)}
+                handleRegionChange={coords => { void handleRegionChange(coords); }}
                 region={region}
               />
             )}

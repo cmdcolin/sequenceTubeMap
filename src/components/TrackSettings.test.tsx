@@ -1,6 +1,6 @@
 import { render, fireEvent } from '@testing-library/react'
-import { TrackSettings } from './TrackSettings'
-import type { ColorPaletteName, ColorScheme } from '../Types'
+import { TrackSettings } from './TrackSettings.tsx'
+import type { ColorPaletteName, ColorScheme } from '../Types.ts'
 
 describe('TrackSettings', () => {
   const availableColors: ColorPaletteName[] = [

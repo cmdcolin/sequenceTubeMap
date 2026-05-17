@@ -1,5 +1,5 @@
-import { LocalAPI } from './LocalAPI'
-import type { ViewTarget } from '../Types'
+import { LocalAPI } from './LocalAPI.ts'
+import type { ViewTarget } from '../Types.ts'
 import { readFileSync } from 'node:fs'
 
 it('can be constructed', () => {
@@ -45,16 +45,11 @@ describe('when a file is uploaded', () => {
 
   it('should show up in the list of files', async () => {
     const fileNames = await api.getFilenames(null)
-    // Runtime shape from GBZBaseAPI.getFilenames is { name, type }, which
-    // doesn't match the typed AvailableTrack interface.
-    const files = (fileNames.files ?? []) as unknown as {
-      name: string
-      type: string
-    }[]
+    const files = fileNames.files ?? []
     let found = false
     for (const file of files) {
-      if (file.name === uploadName) {
-        expect(file.type).toEqual('graph')
+      if (file.trackFile === uploadName) {
+        expect(file.trackType).toEqual('graph')
         found = true
       }
     }

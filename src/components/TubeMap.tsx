@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
-import * as tubeMap from '../util/tubemap'
+import * as tubeMap from '../util/tubemap.ts'
 import type {
   InputNode,
   InputTrack,
   InputRegion,
   ReadGroup as TubeMapReadGroup,
-} from '../util/tubemap'
-import type { VisOptions } from '../Types'
+} from '../util/tubemap.ts'
+import type { VisOptions } from '../Types.ts'
 
 interface ReadGroupInput {
   color: string

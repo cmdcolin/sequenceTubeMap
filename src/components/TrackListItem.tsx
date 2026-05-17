@@ -1,8 +1,8 @@
 import { Container, Row, Col } from 'reactstrap'
-import { TrackFilePicker } from './TrackFilePicker'
-import { TrackTypeDropdown } from './TrackTypeDropdown'
-import { TrackDeleteButton } from './TrackDeleteButton'
-import { TrackSettingsButton } from './TrackSettingsButton'
+import { TrackFilePicker } from './TrackFilePicker.tsx'
+import { TrackTypeDropdown } from './TrackTypeDropdown.tsx'
+import { TrackDeleteButton } from './TrackDeleteButton.tsx'
+import { TrackSettingsButton } from './TrackSettingsButton.tsx'
 import { useState } from 'react'
 import { defaultTrackColors } from '../common.mjs'
 import '../config-client.js'
@@ -13,7 +13,7 @@ import type {
   ColorScheme,
   FileType,
   Track,
-} from '../Types'
+} from '../Types.ts'
 
 interface TrackListItemProps {
   trackProps: Track

@@ -16,5 +16,5 @@ export function makeWorker() {
   //
   // syntactic construction to know to actually pack up a
   // worker JS file.
-  return new Worker(new URL('./Worker.mjs', import.meta.url))
+  return new Worker(new URL('./Worker.ts', import.meta.url))
 }

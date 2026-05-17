@@ -25,7 +25,7 @@ export function TrackTypeDropdown({
         className={className}
         size="small"
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => { onChange(e.target.value); }}
       >
         {options.map(o => (
           <MenuItem key={o} value={o}>

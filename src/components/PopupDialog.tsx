@@ -44,7 +44,7 @@ export const PopupDialog = ({
       }}
     >
       <IconButton
-        onClick={() => close()}
+        onClick={() => { close(); }}
         data-testid={testID.concat('CloseButton')}
         size="small"
         sx={{ position: 'absolute', top: 8, right: 8 }}

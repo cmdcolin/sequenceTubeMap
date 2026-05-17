@@ -4,7 +4,7 @@ import TextField from '@mui/material/TextField'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { Input } from 'reactstrap'
-import type { AvailableTrack, FileType } from '../Types'
+import type { AvailableTrack, FileType } from '../Types.ts'
 
 interface TrackOption {
   label: string
@@ -68,8 +68,7 @@ export const TrackFilePicker = ({
   }
 
   function getFilename(fullPath: string) {
-    const segments = fullPath.split('/')
-    return segments[segments.length - 1]
+    return fullPath.split('/').at(-1) ?? ''
   }
 
   // Make the list of all options for the <Select>
