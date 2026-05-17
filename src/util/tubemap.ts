@@ -326,7 +326,7 @@ const fonts = '"Courier New", "Courier", "Lucida Console", monospace'
 
 let svgID: string // the (html-tag) ID of the svg
 let svg: AnySelection // the svg
-export let zoom: d3.ZoomBehavior<Element, unknown> // eslint-disable-line import/no-mutable-exports
+export let zoom: d3.ZoomBehavior<Element, unknown>  
 // inputNodes/nodes are 1-indexed: a hole at index 0 lets us use *signed*
 // indices to mean orientation (-i = reverse of node i). inputNodes is sparse
 // with undefined at [0]; nodes (a deep copy) inherits the same hole.
@@ -439,7 +439,7 @@ function deepCopy<T>(val: T): T {
 // Return true if the given name names a reverse strand node, and false otherwise.
 function isReverse(nodeName: string): boolean {
   const s = String(nodeName)
-  return s.length >= 1 && s.charAt(0) === '-'
+  return s.length >= 1 && s.startsWith('-')
 }
 
 // Get the forward version of a node name, which may be either forward or backward (negative)
@@ -829,7 +829,7 @@ function createTubeMap(): void {
   calculateTrackWidth()
   generateLaneAssignment()
 
-  if (config.showExonsFlag === true && bed !== null) addTrackFeatures()
+  if (config.showExonsFlag && bed !== null) addTrackFeatures()
 
   if (config.showReads && reads.length > 0) {
     generateReadOnlyNodeAttributes()
@@ -864,7 +864,7 @@ function createTubeMap(): void {
   defineSVGPatterns()
 
   // all drawn tracks are grouped
-  let trackGroup = svg.append('g').attr('class', 'track')
+  const trackGroup = svg.append('g').attr('class', 'track')
   drawTrackRectangles(trackRectangles, 'haplotype', trackGroup)
   drawTrackCurves('haplotype', trackGroup)
   drawReversalsByColor(
@@ -887,7 +887,7 @@ function createTubeMap(): void {
   )
 
   // all drawn nodes are grouped
-  let nodeGroup = svg.append('g').attr('class', 'node')
+  const nodeGroup = svg.append('g').attr('class', 'node')
   drawNodes(dNodes, nodeGroup)
   if (config.nodeWidthOption === 'normal' && !config.showNodeLabels)
     drawLabels(dNodes)
@@ -980,7 +980,7 @@ function assignReadsToNodes(): void {
 function removeNonPathNodesFromReads(): void {
   reads.forEach(read => {
     for (let i = read.sequence.length - 1; i >= 0; i -= 1) {
-      let nodeName = forward(read.sequence[i]!)
+      const nodeName = forward(read.sequence[i]!)
       const idx = nodeMap.get(nodeName)
       if (idx === undefined || nodes[idx]!.degree === 0) {
         read.sequence.splice(i, 1)
@@ -1030,36 +1030,38 @@ function placeReads(): void {
   const bottomY = calculateBottomY()
   const elementsWithoutNode: ElementWithoutNode[] = []
   reads.forEach((read, idx) => {
+    const len = read.path.length
+
+    // For each path index, precompute the nearest preceding/following segment
+    // whose node is non-null and truthy. Falls back to the boundary segment when
+    // none qualifies, matching the original walking-loop semantics.
+    const prevSegment = new Array<Segment | undefined>(len)
+    let lastValidPrev: Segment | undefined
+    for (let i = 0; i < len; i++) {
+      if (i === 0) {
+        prevSegment[i] = undefined
+      } else {
+        prevSegment[i] = lastValidPrev ?? read.path[0]
+      }
+      const seg = read.path[i]!
+      if (seg.node !== null && seg.node) lastValidPrev = seg
+    }
+    const nextSegment = new Array<Segment | undefined>(len)
+    let firstValidNext: Segment | undefined
+    for (let i = len - 1; i >= 0; i--) {
+      if (i === len - 1) {
+        nextSegment[i] = undefined
+      } else {
+        nextSegment[i] = firstValidNext ?? read.path[len - 1]
+      }
+      const seg = read.path[i]!
+      if (seg.node !== null && seg.node) firstValidNext = seg
+    }
+
     read.path.forEach((element, pathIdx) => {
       if (element.y === undefined) {
-        // previous y value from pathIdx - 1 might not exist yet if that segment is also without node
-        // use previous y value from last segment with node instead
-        let lastIndex = pathIdx - 1
-        let previousVisitToNode: Segment | undefined
-        while (
-          (previousVisitToNode?.node === null || !previousVisitToNode?.node) &&
-          lastIndex >= 0
-        ) {
-          previousVisitToNode = reads[idx]!.path[lastIndex]
-          lastIndex = lastIndex - 1
-        }
-
-        const previousValidY = previousVisitToNode?.y
-        const previousValidNode = previousVisitToNode?.node
-
-        // sometimes, elements without nodes are between 2 segments going to a node we've already visited, from the same direction
-        // this means we're looping back to a node we've already been to, and we should sort in reverse
-
-        // Find the next node in our path
-        let nextPathIndex = pathIdx + 1
-        let nextVisitToNode: Segment | undefined = reads[idx]!.path[nextPathIndex]
-        while (
-          (nextVisitToNode?.node === null || !nextVisitToNode?.node) &&
-          nextPathIndex < reads[idx]!.path.length
-        ) {
-          nextVisitToNode = reads[idx]!.path[nextPathIndex]
-          nextPathIndex = nextPathIndex + 1
-        }
+        const previousVisitToNode = prevSegment[pathIdx]
+        const nextVisitToNode = nextSegment[pathIdx]
 
         // Specifically referring to segments between a cycle that's traversing from right to left
         const betweenCycleReverseTraversal = Boolean(
@@ -1075,14 +1077,13 @@ function placeReads(): void {
                 nextVisitToNode.isForward === previousVisitToNode.isForward)),
         )
 
-        reads[idx]!.path[pathIdx]!.betweenCycleReverseTraversal =
-          betweenCycleReverseTraversal
+        element.betweenCycleReverseTraversal = betweenCycleReverseTraversal
 
         elementsWithoutNode.push({
           readIndex: idx,
           pathIndex: pathIdx,
-          previousY: previousValidY,
-          previousNode: previousValidNode,
+          previousY: previousVisitToNode?.y,
+          previousNode: previousVisitToNode?.node,
         })
       }
     })
@@ -1114,16 +1115,16 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
   }
 
   // Turn the read IDs into a set
-  let toPlace = new Set(readIDs)
+  const toPlace = new Set(readIDs)
 
   // Get arrays of the read entry/exit/internal-ness records we want to work on
   let incomingReads = node.incomingReads.filter(([readID, pathIndex]) =>
     toPlace.has(readID),
   )
-  let outgoingReads = node.outgoingReads.filter(([readID, pathIndex]) =>
+  const outgoingReads = node.outgoingReads.filter(([readID, pathIndex]) =>
     toPlace.has(readID),
   )
-  let internalReads = node.internalReads.filter(readID => toPlace.has(readID))
+  const internalReads = node.internalReads.filter(readID => toPlace.has(readID))
 
   // Only actually use the top margin if we have any reads on the node.
   if (
@@ -1136,10 +1137,40 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
 
   // Determine where we start vertically in the node.
   // TODO: Why do we have to double this to keep reads out of adjacent lanes???
-  let startY = node.y + node.contentHeight + topMargin * 2
+  const startY = node.y + node.contentHeight + topMargin * 2
 
-  // sort incoming reads
-  incomingReads.sort(compareReadIncomingSegmentsByComingFrom)
+  // sort incoming reads — decorate with a precomputed key so each compare is O(1).
+  // The original comparator walks pathIdx backwards in lockstep on both sides, picking
+  // the first step where either has a defined y (or reaches index 0). The walk's outcome
+  // for a single entry is fully captured by:
+  //   decisionStep: the smallest k>=1 where path[pathIdx-k].y is defined, or pathIdx+1
+  //                 if no preceding segment has a defined y (the "reached 0" case).
+  //   atZero: true iff decisionStep == pathIdx+1 (walked off the front).
+  //   y:      the defined y at decisionStep, when !atZero.
+  // Smaller decisionStep wins; ties prefer atZero (matches the `a[1]===0 return -1`
+  // early-exit ordering); otherwise compare y's.
+  const incomingKeys = incomingReads.map(entry => {
+    const [readID, pathIdx] = entry
+    const path = reads[readID]!.path
+    let decisionStep = pathIdx + 1
+    let foundY: number | undefined
+    for (let k = 1; k <= pathIdx; k++) {
+      const y = path[pathIdx - k]?.y
+      if (y !== undefined) {
+        decisionStep = k
+        foundY = y
+        break
+      }
+    }
+    return { entry, decisionStep, atZero: foundY === undefined, y: foundY }
+  })
+  incomingKeys.sort((a, b) => {
+    if (a.decisionStep !== b.decisionStep) return a.decisionStep - b.decisionStep
+    if (a.atZero) return -1
+    if (b.atZero) return 1
+    return a.y! - b.y!
+  })
+  incomingReads = incomingKeys.map(k => k.entry)
 
   // place incoming reads
   let currentY = startY
@@ -1358,33 +1389,6 @@ function compareReadOutgoingSegmentsByGoingTo(
   )
 }
 
-// compare read segments by (y-coord of) where they are coming from
-function compareReadIncomingSegmentsByComingFrom(
-  a: [number, number],
-  b: [number, number],
-): number {
-  // these boundary conditions avoid errors for incoming reads
-  // from inverted nodes (u-turns)
-  if (a[1] === 0) return -1
-  if (b[1] === 0) return 1
-
-  const pathA = reads[a[0]]!.path[a[1] - 1]!
-  const pathB = reads[b[0]]!.path[b[1] - 1]!
-  if (pathA.y !== undefined) {
-    if (pathB.y !== undefined) {
-      return pathA.y - pathB.y // a and b have y-property
-    }
-    return -1 // only a has y-property
-  }
-  if (pathB.y !== undefined) {
-    return 1 // only b has y-property
-  }
-  return compareReadIncomingSegmentsByComingFrom(
-    [a[0], a[1] - 1],
-    [b[0], b[1] - 1],
-  ) // neither has y-property
-}
-
 // Compare tracks based on ordering at their first convergence
 function compareTrackByInitialOrdering(trackA: Track, trackB: Track): number {
   // Find the first node where the two tracks converge, sort by layer
@@ -1585,7 +1589,7 @@ function generateBasicPathsForReads(): void {
 function reverseReversedReads(): void {
   reads.forEach(read => {
     let pos = 0
-    while (pos < read.sequence.length && read.sequence[pos]!.charAt(0) === '-') {
+    while (pos < read.sequence.length && read.sequence[pos]!.startsWith('-')) {
       pos += 1
     }
     if (pos === read.sequence.length) {
@@ -1682,7 +1686,7 @@ function generateTrackIndexSequences(tracksOrReads: Track[]): void {
 function removeUnusedNodes(allNodes: LayoutNode[]): LayoutNode[] {
   const dNodes: LayoutNode[] = []
   for (const n of allNodes) {
-    if (n && n.x !== undefined) {
+    if (n?.x !== undefined) {
       dNodes.push(n)
     }
   }
@@ -1921,13 +1925,13 @@ function generateNodeOrderOfSingleTrack(sequence: number[]): void {
     const idx = Math.abs(nodeIndex)
     if (nodeIndex < 0) {
       if (nodeOrders[idx] === undefined) nodeOrders[idx] = backwardOrder
-      const order = nodeOrders[idx]!
+      const order = nodeOrders[idx]
       if (order < minOrder) minOrder = order
       forwardOrder = order
       backwardOrder = order - 1
     } else {
       if (nodeOrders[idx] === undefined) nodeOrders[idx] = forwardOrder
-      const order = nodeOrders[idx]!
+      const order = nodeOrders[idx]
       forwardOrder = order + 1
       backwardOrder = order
     }
@@ -2376,7 +2380,7 @@ function calculateExtraSpace(): number[] {
       // Track is going to the same node, account for space taken up by edges looping around
       if (seg.order === prevSeg.order) {
         // repeat or translocation
-        if (seg.isForward === true) {
+        if (seg.isForward) {
           leftSideEdges[seg.order] = leftSideEdges[seg.order]! + 1
         } else {
           rightSideEdges[seg.order] = rightSideEdges[seg.order]! + 1
@@ -2772,7 +2776,7 @@ function getIdealLanesAndCoords(assignment: NodeAssignment[], order: number): vo
       }
       node.idealLane! += track.idealLane!
     })
-    node.idealLane! /= node.tracks.length
+    node.idealLane /= node.tracks.length
   })
 }
 
@@ -3078,7 +3082,7 @@ function generateTrackColor(track: Track, highlight?: string): string {
         Math.min(60, track.mapping_quality!) / 60,
       )
     } else {
-      if (track.is_reverse !== undefined && track.is_reverse === true) {
+      if (track.is_reverse !== undefined && track.is_reverse) {
         // get the color currently stored for this read source file, and stagger color using modulo
         const colorSet = getColorSet(config.colorSchemes[sourceID].auxPalette)
         trackColor = colorSet[track.id % colorSet.length]!
@@ -3088,7 +3092,7 @@ function generateTrackColor(track: Track, highlight?: string): string {
       }
     }
   } else {
-    if (config.showExonsFlag === false || highlight !== 'plain') {
+    if (!config.showExonsFlag || highlight !== 'plain') {
       // Don't repeat the color of the first track (reference) to highlight is better.
       // TODO: Allow using color 0 for other schemes not the same as the one for the reference path.
       // TODO: Stop reads from taking this color?
@@ -3204,7 +3208,7 @@ function generateSVGShapesFromPath(): void {
     // start of path
     yStart = track.path[0]!.y!
     if (track.type !== 'read') {
-      if (track.sequence[0]!.charAt(0) === '-') {
+      if (track.sequence[0]!.startsWith('-')) {
         // The track starts with an inversed node
         xStart = orderEndX[track.path[0]!.order]! + 20
       } else {
@@ -3417,7 +3421,7 @@ function createFeatureRectangle(
     if (currentHighlight !== feature.type) {
       // finish incoming rectangle
       c = generateTrackColor(track, currentHighlight)
-      if (node.isForward === true) {
+      if (node.isForward) {
         featureXStart =
           nodeXStart +
           Math.round((feature.start! * (nodeXEnd - nodeXStart + 1)) / nodeWidth)
@@ -3500,7 +3504,7 @@ function createFeatureRectangle(
     if (feature.end! < nodeWidth - 1 || feature.continue === undefined) {
       // finish internal rectangle
       c = generateTrackColor(track, currentHighlight)
-      if (node.isForward === true) {
+      if (node.isForward) {
         featureXEnd =
           nodeXStart +
           Math.round(
@@ -3773,9 +3777,9 @@ function drawNodes(dNodes: Node[], groupNode: SvgGroupSelection): void {
     .on('dblclick', nodeDoubleClick)
     .on('click', nodeSingleClick)
     .on('contextmenu', nodeRightClick)
-    .style('fill', d => colorNodes(d.name)['fill'] ?? null)
+    .style('fill', d => colorNodes(d.name).fill ?? null)
     .style('fill-opacity', d => colorNodes(d.name)['fill-opacity'] ?? null)
-    .style('stroke', d => colorNodes(d.name)['outline'] ?? null)
+    .style('stroke', d => colorNodes(d.name).outline ?? null)
     .style('stroke-width', '2px')
     .append('svg:title')
     .text(d => getPopUpNodeText(d))
@@ -3784,17 +3788,17 @@ function drawNodes(dNodes: Node[], groupNode: SvgGroupSelection): void {
 // Given a node name, return an object with "fill", "fill-opacity", and "outline"
 // keys describing what colors should be used to draw it.
 function colorNodes(nodeName: string): Record<string, string> {
-  let nodesColors: Record<string, string> = {}
+  const nodesColors: Record<string, string> = {}
   if (config.coloredNodes.includes(nodeName)) {
-    nodesColors['fill'] = '#ffc0cb'
-    nodesColors['outline'] = '#ff0000'
+    nodesColors.fill = '#ffc0cb'
+    nodesColors.outline = '#ff0000'
   } else {
-    nodesColors['fill'] = '#ffffff'
-    nodesColors['outline'] = '#000000'
+    nodesColors.fill = '#ffffff'
+    nodesColors.outline = '#000000'
   }
   nodesColors['fill-opacity'] = '0.4'
   if (config.transparentNodesFlag) {
-    nodesColors['fill'] = 'none'
+    nodesColors.fill = 'none'
   }
   return nodesColors
 }
@@ -3816,7 +3820,7 @@ function nodeSingleClick(this: SVGElement): void {
   /* jshint validthis: true */
   // Get the node name
   const nodeName = d3.select(this).attr('id')
-  let currentNode = getNodeByName(nodeName)
+  const currentNode = getNodeByName(nodeName)
   if (currentNode === undefined) {
     console.error('Missing node: ', nodeName)
     return
@@ -3904,7 +3908,7 @@ export function coverage(
     const currRead = allReads[readVisit[0]]
     const readPathIndex = readVisit[1]
     countBases += subtractDeletions(currRead)
-    if (currRead && currRead.sequenceNew) {
+    if (currRead?.sequenceNew) {
       const numNodes = currRead.sequenceNew.length
       //  if current node is the last node on the read path, add the finalNodeCoverLength number of bases
       if (numNodes === readPathIndex + 1 && currRead.finalNodeCoverLength !== undefined) {
@@ -4042,7 +4046,7 @@ function drawRuler(): void {
 
   // This will hold pairs of base position, x coordinate.
   let ticks: [number, number][] = []
-  let ticks_region: [number, number][] = []
+  const ticks_region: [number, number][] = []
 
   // We keep a cursor to the start of the current node traversal along the path
   let indexOfFirstBaseInNode: number = rulerTrack.indexOfFirstBase ?? 0
@@ -4056,7 +4060,7 @@ function drawRuler(): void {
     is_region = false,
   ) {
     // What base along our traversal of this node should we be marking?
-    let indexIntoVisitToMark = position - indexOfFirstBaseInNode
+    const indexIntoVisitToMark = position - indexOfFirstBaseInNode
 
     const nodeSeqLen = currentNode.sequenceLength ?? 0
     // What offset into the node should we mark at, relative to its forward-strand start?
@@ -4075,7 +4079,7 @@ function drawRuler(): void {
     }
 
     // Where should we mark in the visualization?
-    let xCoordOfMarking = getXCoordinateOfBaseWithinNode(
+    const xCoordOfMarking = getXCoordinateOfBaseWithinNode(
       currentNode,
       offsetIntoNodeForward,
     )
@@ -4084,10 +4088,10 @@ function drawRuler(): void {
 
   // Get the region in bp in the scale bar's coordinate space to highlight as
   // the target region. Will be null if we're using node IDs.
-  let start_region = inputRegion[0] !== null ? Number(inputRegion[0]) : null
-  let end_region = inputRegion[1] !== null ? Number(inputRegion[1]) : null
+  const start_region = inputRegion[0] !== null ? Number(inputRegion[0]) : null
+  const end_region = inputRegion[1] !== null ? Number(inputRegion[1]) : null
 
-  let intervalsVisitedByNodes: Interval[] = []
+  const intervalsVisitedByNodes: Interval[] = []
 
   for (let i = 0; i < rulerTrack.indexSequence.length; i++) {
     // Walk along the ruler track in ascending coordinate order.
@@ -4169,7 +4173,7 @@ function drawRuler(): void {
   }
 
   // merge intervals
-  var mergedIntervals = axisIntervals(
+  const mergedIntervals = axisIntervals(
     intervalsVisitedByNodes,
     config.nodeIntervalThreshold,
   )
@@ -4178,7 +4182,7 @@ function drawRuler(): void {
   ticks.sort(([, x1], [, x2]) => x1 - x2)
 
   // Filter ticks for a minimum X separation
-  let separatedTicks: [number, number][] = []
+  const separatedTicks: [number, number][] = []
   ticks.forEach(tick => {
     if (
       separatedTicks.length === 0 ||
@@ -4195,7 +4199,7 @@ function drawRuler(): void {
 
   // draw horizontal line for each interval
 
-  let axisY = minYCoordinate - 10
+  const axisY = minYCoordinate - 10
   mergedIntervals.forEach(interval => {
     svg
       .append('line')
@@ -4252,7 +4256,7 @@ function drawRulerMarking(
   xCoordinate: number,
   align: string,
 ): void {
-  let axisY = minYCoordinate - 10
+  const axisY = minYCoordinate - 10
   svg
     .append('text')
     .attr('text-anchor', align)
@@ -4282,11 +4286,11 @@ function drawRulerMarking(
 /// 2 items, no connecting line is drawn.
 function drawRulerMarkingRegion(ticks_region: [number, number][]): void {
   // Each tick is a base coordinate and an image coordinate
-  ticks_region.forEach(tick => drawRulerMarkingEndpoint(tick[0], tick[1]))
+  ticks_region.forEach(tick => { drawRulerMarkingEndpoint(tick[0], tick[1]); })
 
-  let lineY = minYCoordinate - NODE_MARGIN - 6
+  const lineY = minYCoordinate - NODE_MARGIN - 6
 
-  if (ticks_region && ticks_region.length === 2) {
+  if (ticks_region?.length === 2) {
     svg
       .append('line')
       .attr('x1', ticks_region[0]![1])
@@ -4302,10 +4306,10 @@ function drawRulerMarkingEndpoint(
   sequencePosition: number,
   xCoordinate: number,
 ): void {
-  let pointX = xCoordinate
-  let pointY = minYCoordinate - NODE_MARGIN - 1
-  let arrowWidth = 8
-  let arrowHeight = 10
+  const pointX = xCoordinate
+  const pointY = minYCoordinate - NODE_MARGIN - 1
+  const arrowWidth = 8
+  const arrowHeight = 10
 
   svg
     .append('path')
@@ -4618,8 +4622,8 @@ function drawTrackCurves(
   })
 
   // Rebuild one flat list of curves ordered by group and then using the within-group sort.
-  let groupKeys = []
-  for (let key in groupedCurves) {
+  const groupKeys = []
+  for (const key in groupedCurves) {
     groupKeys.push(key)
   }
   groupKeys.sort(function (a, b) {
@@ -4644,7 +4648,7 @@ function drawTrackCurves(
     }
   })
   let flattenedGroups: TrackCurve[] = []
-  for (let key of groupKeys) {
+  for (const key of groupKeys) {
     flattenedGroups = flattenedGroups.concat(groupedCurves[key] ?? [])
   }
 
@@ -4725,14 +4729,14 @@ function drawLegend(): void {
   listeners.forEach(id => {
     document
       .getElementById(`showTrack${id}`)!
-      .addEventListener('click', () => changeTrackVisibility(id), false)
+      .addEventListener('click', () => { changeTrackVisibility(id); }, false)
   })
   document
     .getElementById('selectall')!
-    .addEventListener('click', () => changeAllTracksVisibility(true), false)
+    .addEventListener('click', () => { changeAllTracksVisibility(true); }, false)
   document
     .getElementById('deselectall')!
-    .addEventListener('click', () => changeAllTracksVisibility(false), false)
+    .addEventListener('click', () => { changeAllTracksVisibility(false); }, false)
 }
 
 // Get a non-read input track index by the ID stored in their d3 objects.
@@ -4825,7 +4829,7 @@ function trackSingleClick(this: SVGElement): void {
   /* jshint validthis: true */
   // Get the track ID as a number
   const trackID = Number(d3.select(this).attr('trackID'))
-  let current_track = getTrackByID(trackID)
+  const current_track = getTrackByID(trackID)
   if (current_track === undefined) {
     console.error('Missing track: ', trackID)
     return
@@ -4852,7 +4856,7 @@ function trackRightClick(this: SVGElement, event: MouseEvent): void {
   /* jshint validthis: true */
   const trackID = Number(d3.select(this).attr('trackID'))
   const current_track = getTrackByID(trackID)
-  if (current_track && current_track.type === 'read') {
+  if (current_track?.type === 'read') {
     event.preventDefault()
     config.readContextMenuCallback({
       readName: current_track.name ?? '',
@@ -5023,7 +5027,7 @@ export function vgExtractTracks(
       isCompletelyReverse,
       // But haplotypes will have names starting with "thread_".
       sourceTrackID:
-        path.name && path.name.startsWith('thread_')
+        path.name?.startsWith('thread_')
           ? haplotypeSourceTrackID
           : pathSourceTrackId,
     }
@@ -5543,7 +5547,7 @@ function mergeableWithPred(
 ): string | false {
   if (pred[index]!.length !== 1) return false
   if (pred[index]![0] === 'None') return false
-  let predecessor = forward(pred[index]![0]!)
+  const predecessor = forward(pred[index]![0]!)
   const predecessorIndex = nodeMap.get(predecessor)!
   if (succ[predecessorIndex]!.length !== 1) return false
   if (succ[predecessorIndex]![0] === 'None') return false
@@ -5557,7 +5561,7 @@ function mergeableWithSucc(
 ): boolean {
   if (succ[index]!.length !== 1) return false
   if (succ[index]![0] === 'None') return false
-  let successor = forward(succ[index]![0]!)
+  const successor = forward(succ[index]![0]!)
   const successorIndex = nodeMap.get(successor)!
   if (pred[successorIndex]!.length !== 1) return false
   if (pred[successorIndex]![0] === 'None') return false
