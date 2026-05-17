@@ -1,9 +1,9 @@
-/// Footer.tsx: main page footer component. Includes project page links and demo link.
+/// Footer.tsx: main page footer component. Includes project page links.
 
 import { Container, Row, Col, Navbar, Nav, NavItem } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
-import { faCode, faDna } from '@fortawesome/free-solid-svg-icons'
+import { faDna } from '@fortawesome/free-solid-svg-icons'
 
 import SafeLink from './SafeLink.tsx'
 
@@ -38,18 +38,6 @@ export const Footer = () => {
             <Nav>
               <NavItem>
                 {PACKAGE.name} v{PACKAGE.version}
-              </NavItem>
-            </Nav>
-            <Nav>
-              <NavItem>
-                <SafeLink
-                  className="nav-link"
-                  to="/demo"
-                  title="Component Demos"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <FontAwesomeIcon icon={faCode} /> Component Demos
-                </SafeLink>
               </NavItem>
             </Nav>
           </Navbar>
