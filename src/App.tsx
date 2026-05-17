@@ -4,6 +4,7 @@ import isEqual from 'react-fast-compare'
 import './App.css'
 import HeaderForm from './components/HeaderForm.tsx'
 import TubeMapContainer from './components/TubeMapContainer.tsx'
+import Legend from './components/Legend.tsx'
 import { urlParamsToViewTarget } from './components/CopyLink.tsx'
 import CustomizationAccordion from './components/CustomizationAccordion.tsx'
 import Footer from './components/Footer.tsx'
@@ -166,6 +167,14 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
         visOptions={visOptions}
         APIInterface={apiInterface}
       />
+      <div style={{ margin: '8px 0' }}>
+        <Legend
+          tracks={
+            dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
+          }
+          colorSchemes={visOptions.colorSchemes}
+        />
+      </div>
       <CustomizationAccordion
         enableCompressedNodes={viewTarget.removeSequences}
         visOptions={visOptions}

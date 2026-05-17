@@ -18,6 +18,7 @@ import '../config-client.js'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import _externalConfig from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
+import { greys, ygreys, blues, reds, plainColors, lightColors } from './palettes.ts'
 import isEqual from 'react-fast-compare'
 
 // Replacement for d3-selection-multi (incompatible with d3 v7). Use via
@@ -316,76 +317,6 @@ export interface VgJson {
 
 type AnySelection = d3.Selection<Element, unknown, HTMLElement, unknown>
 type SvgGroupSelection = d3.Selection<SVGGElement, unknown, HTMLElement, unknown>
-
-const greys = [
-  '#d9d9d9',
-  '#bdbdbd',
-  '#969696',
-  '#737373',
-  '#525252',
-  '#252525',
-  '#000000',
-]
-
-// Greys but with a special color for the first thing.
-const ygreys = [
-  '#9467bd',
-  '#d9d9d9',
-  '#bdbdbd',
-  '#969696',
-  '#737373',
-  '#525252',
-  '#252525',
-  '#000000',
-]
-
-const blues = [
-  '#c6dbef',
-  '#9ecae1',
-  '#6baed6',
-  '#4292c6',
-  '#2171b5',
-  '#08519c',
-  '#08306b',
-]
-
-const reds = [
-  '#fcbba1',
-  '#fc9272',
-  '#fb6a4a',
-  '#ef3b2c',
-  '#cb181d',
-  '#a50f15',
-  '#67000d',
-]
-
-// d3 category10
-const plainColors = [
-  '#1f77b4',
-  '#ff7f0e',
-  '#2ca02c',
-  '#d62728',
-  '#9467bd',
-  '#8c564b',
-  '#e377c2',
-  '#7f7f7f',
-  '#bcbd22',
-  '#17becf',
-]
-
-// d3 category10
-const lightColors = [
-  '#ABCCE3',
-  '#FFCFA5',
-  '#B0DBB0',
-  '#F0AEAE',
-  '#D7C6E6',
-  '#C6ABA5',
-  '#F4CCE8',
-  '#CFCFCF',
-  '#E6E6AC',
-  '#A8E7ED',
-]
 
 // Font stack we will use in the SVG
 // We start with Courier New because it exists a lot more places than
