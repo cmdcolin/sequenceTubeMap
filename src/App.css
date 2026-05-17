@@ -226,6 +226,16 @@ input[type='file'] {
   right: -20px;
 }
 
+.help-dialog-icon {
+  opacity: 0.45;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.help-dialog-icon:hover {
+  opacity: 1;
+  color: #0d6efd;
+}
+
 .radio-row {
   /*max-width: max-content;  for some reason doesn't work for haplotype settings row */
   max-width: 680px; /* TODO: would like to make this flexible? */

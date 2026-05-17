@@ -4947,30 +4947,33 @@ function generateNodeWidth(): void {
         node.pixelWidth = Math.round(node.width * 8.401)
       })
       break
-    case 'normal':
+    case 'normal': {
+      // Font is monospace (see `fonts`), so width per character is constant.
+      // Measure one character once instead of forcing a layout reflow per node.
+      svg
+        .append('text')
+        .attr('x', 0)
+        .attr('y', 100)
+        .attr('id', 'dummytext')
+        .text('A')
+        .attr('font-family', fonts)
+        .attr('font-size', '14px')
+        .attr('fill', 'black')
+        .style('pointer-events', 'none')
+      const probe = document.getElementById('dummytext') as SVGTextElement | null
+      const charWidth =
+        probe && typeof probe.getComputedTextLength === 'function'
+          ? probe.getComputedTextLength()
+          : 8.401
+      probe?.remove()
+
       nodes.forEach(node => {
         node.width = node.sequenceLength!
-
-        // get width of node's text label by writing label, measuring it and removing label
-        svg
-          .append('text')
-          .attr('x', 0)
-          .attr('y', 100)
-          .attr('id', 'dummytext')
-          .text(node.seq ?? 'A')
-          .attr('font-family', fonts)
-          .attr('font-size', '14px')
-          .attr('fill', 'black')
-          .style('pointer-events', 'none')
-        // TODO: This assumes that svg is in the document.
-        const element = document.getElementById('dummytext') as SVGTextElement | null
-        if (element && typeof element.getComputedTextLength === 'function') {
-          // We are on a platform where text length computation is possible (i.e. a real browser)
-          node.pixelWidth = Math.round(element.getComputedTextLength())
-        }
-        document.getElementById('dummytext')!.remove()
+        const len = node.seq?.length ?? 1
+        node.pixelWidth = Math.round(charWidth * len)
       })
       break
+    }
     default:
       throw new Error(`${config.nodeWidthOption} not implemented`)
   }
