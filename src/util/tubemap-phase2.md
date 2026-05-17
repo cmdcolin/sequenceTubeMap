@@ -4,9 +4,10 @@ This document supersedes the earlier phase 1 handoff. Read this *first*.
 
 ## Current state
 
-- `src/util/tubemap.ts`: ~5700 lines, body still suppressed by `// @ts-nocheck`
-  at line 1. Many exported function signatures are now properly typed; the
-  internal body still has the original loose JS.
+- `src/util/tubemap.ts`: ~5870 lines, body still suppressed by `// @ts-nocheck`
+  at line 1. All top-level function signatures (params + return types)
+  typed; top half of body (through `generateNodeOrderTrackBeginning` at
+  ~line 2007) is already strict-clean.
 - `pnpm vitest run src/util/tubemap.test.ts` → 20/20 pass.
 - `pnpm vitest run` → 79/80 pass. The one failure (`App.test.tsx > renders
   without crashing when sent bad fetch data from server`) is **pre-existing**,
@@ -17,6 +18,39 @@ This document supersedes the earlier phase 1 handoff. Read this *first*.
   headerFormUtils.ts, BedFileDropdown.tsx, RegionInput.tsx, TrackList.tsx,
   TrackFilePicker.tsx, App.tsx, PathsPanel.tsx, CustomizationAccordion.tsx).
   None of these block phase 2.
+- With pragma removed, error count is **~774** (down from ~1206 baseline).
+  Concentrated in the second half of the file — layout algorithms,
+  drawing, mismatch/ruler overlays.
+
+## What's been done this pass
+
+- `reads`/`inputReads` normalized: `reads: Track[]` always (init `[]`),
+  `inputReads: InputTrack[]`. All `if (reads && ...)` guards → length-based.
+- All 44 `hasOwnProperty('foo')` patterns → `.foo !== undefined`.
+- d3 polyfill rewritten: dropped prototype monkey-patching and module
+  augmentation. Now uses a typed `applyAttrs(sel, attrs)` helper and
+  `.call(applyAttrs, {...})` at the 49 call sites. No more `.attrs()`
+  on the prototype.
+- `inputNodes` typed as `(InputNode | undefined)[]`, `inputTracks` as
+  `InputTrack[]`. Single boundary cast at `createTubeMap()` promotes them
+  to `(Node | undefined)[]` / `Track[]` once layout passes will populate
+  the rest. This is the one acknowledged `as` cast in the body.
+- Top half of body fully strict-clean: `moveTrackToFirstPosition`,
+  `straightenTrack`, the createTubeMap setup loop, `generateReadOnlyNodeAttributes`,
+  `assignReadsToNodes`, `removeNonPathNodesFromReads`, `placeReads`,
+  `placeReadSet`, `setOccupiedUntil`, all the comparators
+  (`compareNoNodeReads`, `compareReadOutgoingSegmentsByGoingTo`,
+  `compareReadIncomingSegmentsByComingFrom`, `compareTrackByInitialOrdering`,
+  `compareInternalReads`), `calculateBottomY`, `generateBasicPathsForReads`,
+  `reverseReversedReads`, `generateTrackIndexSequences`, `getImageDimensions`,
+  `minZoom`, `alignSVG` (including the inline `zoomed`/`configureZoomBounds`),
+  `zoomBy`, `generateNodeMap`, `generateNodeSuccessors`.
+
+The user's relaxed guidance for this pass: `!` is OK where the access is
+provably safe (e.g. `nodes[i]!` when `i` was just computed from
+`Math.abs(track.indexSequence[k]!)` and the algorithm guarantees the entry
+exists). Avoid fallback (`?? 0`) where the value is genuinely guaranteed —
+prefer `!` over masking-with-default in those spots.
 
 ## What's been typed (this pass)
 
@@ -69,28 +103,83 @@ This document supersedes the earlier phase 1 handoff. Read this *first*.
    - `src/api/APIInterface.ts` — `ChunkedDataResponse` uses VgJson / VgRead[][]
      / InputRegion / string[] instead of `unknown` everywhere.
 
-## What remains
+## What remains (next pass: ~774 errors)
 
-The body of `tubemap.ts` (under `@ts-nocheck`) still contains:
+Work top-down through the rest of the file. The remaining errors are
+concentrated in the layout algorithms and drawing code. Approach:
+drop `// @ts-nocheck`, fix each function, re-add pragma when stopping a
+session. Or just leave pragma off and accept a long error list during
+work.
 
-- **Layout algorithms**: `generateNodeOrder`, `switchNodeOrientation`,
-  `generateLaneAssignment`, `mergeNodes`, `generateNodeXCoords`,
-  `generateNodeWidth`, etc. These mutate `nodes` and `tracks` (the
-  module-level state) heavily and use indexed access like
-  `nodes[Math.abs(seq[i])]`. With `noUncheckedIndexedAccess` you'll get
-  many `T | undefined` results. Suggested helper:
-  ```ts
-  function nodeAt(idx: number): Node {
-    const n = nodes[idx]
-    if (n === undefined) throw new Error(`nodes[${idx}] missing`)
-    return n
-  }
-  ```
-- **d3 drawing**: `drawNodes`, `drawTrackRectangles`, `drawTrackCurves`,
-  `drawTrackCorners`, `drawMismatches`, `drawRuler`, `defineSVGPatterns`,
-  `drawLegend`. Type the Selection chains. `SvgGroupSelection` alias is
-  already defined; you may need more (e.g. for `<pattern>` selections).
-- **Mismatch / ruler overlays** — last, since they touch most internals.
+### Concrete next steps in order
+
+1. **Layout algorithms** (lines ~2007–2755, ~250 errors). `generateNodeOrder`,
+   `generateNodeOrderTrackBeginning` body, `switchNodeOrientation`,
+   `switchNodeOrientationForPaths`, `generateNodeXCoords`,
+   `calculateExtraSpace`, `generateLaneAssignment`, `addToAssignment`,
+   `getIdealLanesAndCoords`, `generateSingleLaneAssignment`,
+   `adjustVertically*`. Mostly bare `nodes[i]` / `tracks[i]` / `assignments[i]`
+   accesses inside bounded loops where `!` is safe. Pattern:
+
+   ```ts
+   const currentNode = nodes[Math.abs(sequence[i]!)]!
+   ```
+
+2. **Track features / colors** (lines ~2974–3186, ~50 errors).
+   `addTrackFeatures`, `calculateTrackWidth`, `getColorSet`,
+   `generateTrackColor`, `generateTrackAlpha`, `getReadXStart/End`,
+   `getXCoordinateOfBaseWithinNode`. Mostly straightforward `node`/`track`
+   field narrowing.
+
+3. **SVG shape generation** (lines ~3215–3710, ~150 errors).
+   `generateSVGShapesFromPath` is the biggest single function — 200+
+   lines mutating `track.path[i]`. `createFeatureRectangle`,
+   `generateForwardToReverse`, `generateReverseToForward`,
+   `drawReversalsByColor`. The `track.path[i].order`/`.y`/`.lane`/`.node`
+   accesses need `!` since the algorithm just populated them.
+
+4. **Drawing** (lines ~3731–4807, ~200 errors). `drawNodes`, `drawLabels`,
+   `drawNodeLabels`, `drawRuler`, `drawRulerMarking*`,
+   `drawTrackRectangles`, `drawTrackCurves`, `drawTrackCorners`,
+   `defineSVGPatterns`, `drawLegend`. The d3 `.data(arr).enter().append('rect')
+   .attr('x', d => d.xStart)` callbacks need `d` typed. Use
+   `.data<TrackRectangle>(arr)` to bind, then callbacks resolve. For
+   `getElementById(...)` calls used without null checks (`.innerHTML = ...`,
+   `.addEventListener`), narrow with an early return.
+
+5. **Click handlers / lookups** (lines ~4810–4980, ~30 errors).
+   `getInputTrackIndexByID`, `getTrackByID`, `trackSingleClick`,
+   `nodeRightClick`, `nodeDoubleClick`. The `this: SVGElement` annotations
+   are already there; just fix the few `node`/`track` accesses.
+
+6. **VG extractors / merge / mismatches** (lines ~4984–5849, ~90 errors).
+   `vgExtractReads` (already has its return type), `generateNodeWidth`,
+   `mergeNodes`, `mergeableWith*`, `drawMismatches`, `drawInsertion/
+   Substitution/Deletion`, the `*MouseOver/Out` handlers,
+   `filterReads`. Mostly nullable property access on `read.sequenceNew[i]`.
+
+7. **Drop the pragma**. Verify `pnpm tsc --noEmit` reports 0 errors in
+   `tubemap.ts`. Run `pnpm vitest run` (must stay 79/80) and `pnpm build`.
+
+### Style rules (from user this pass)
+
+- `!` is allowed where the access is provably safe (just-checked map,
+  bounded loop, algorithm invariant). Prefer `!` over `?? <fallback>`
+  when the value is genuinely guaranteed — a spurious `?? 0` masks
+  bugs. Use `?? <fallback>` only when undefined is a real runtime case.
+- No `as` casts in the body (the one boundary promotion in `createTubeMap`
+  is the only acceptable one — flag any new ones to the user).
+- Module augmentations / prototype patches are out — use a typed helper
+  function with `.call()` instead.
+- React Compiler is enabled — skip manual memoization.
+
+### Verification before each commit
+
+```
+pnpm vitest run src/util/tubemap.test.ts  # must stay 20/20
+pnpm tsc --noEmit 2>&1 | grep -c "tubemap.ts"  # monotonically decreasing
+pnpm build  # after layout/drawing sections
+```
 
 ## Hard constraints (re-iterated from user CLAUDE.md)
 

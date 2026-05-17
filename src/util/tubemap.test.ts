@@ -3,7 +3,7 @@ import {
   coverage,
   axisIntervals,
   type Mismatch,
-} from './tubemap'
+} from './tubemap.ts'
 
 // cigar string test
 describe('cigar_string', () => {
@@ -263,8 +263,8 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
     }
   }
   for (const pair of node.incomingReads) {
-    const readNum = pair[0]!
-    const visitIndex = pair[1]!
+    const readNum = pair[0]
+    const visitIndex = pair[1]
     if (readNum >= reads.length) {
       throw new Error('Incoming read ' + readNum + " doesn't exist")
     }
@@ -305,8 +305,8 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
   }
 
   for (const pair of node.outgoingReads) {
-    const readNum = pair[0]!
-    const visitIndex = pair[1]!
+    const readNum = pair[0]
+    const visitIndex = pair[1]
     if (readNum >= reads.length) {
       throw new Error('Outgoing read ' + readNum + " doesn't exist")
     }
