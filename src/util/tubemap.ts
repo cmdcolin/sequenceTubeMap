@@ -457,21 +457,27 @@ function flip(nodeName: string): string {
   return isReverse(nodeName) ? forward(nodeName) : reverse(nodeName)
 }
 
-// moves a specific track to the top
+// Signed-index orientation test. Uses 1/n to distinguish -0 from +0 since
+// indexSequence entries can be negative-zero for reverse-strand visits of node 0.
+function isForwardIndex(n: number): boolean {
+  return (n || 1 / n) >= 0
+}
+
+// moves a specific track to the top. The subsequent createTubeMap() call
+// will re-run straightenTrack against the new ordering.
 function moveTrackToFirstPosition(index: number): void {
   inputTracks.unshift(inputTracks[index]!) // add element to beginning
   inputTracks.splice(index + 1, 1) // remove 1 element from the middle
-  straightenTrack(0)
 }
 
 // straighten track given by index by inverting inverted nodes
 // only keep them inverted if this single track runs through them in both directions
-// TODO: This operates on `inputNodes`, etc. when it probably ought to operate on `nodes`
+// Operates on the per-render `nodes`/`tracks` copies; inputs are left untouched.
 function straightenTrack(index: number): void {
   const nodesToInvert = new Set<string>()
 
   // find out which nodes should be inverted
-  let currentSequence = inputTracks[index]!.sequence
+  let currentSequence = tracks[index]!.sequence
   for (let i = 0; i < currentSequence.length; i += 1) {
     const cur = currentSequence[i]!
     if (isReverse(cur)) {
@@ -485,8 +491,8 @@ function straightenTrack(index: number): void {
   }
 
   // invert nodes in the tracks' sequence
-  for (let i = 0; i < inputTracks.length; i += 1) {
-    currentSequence = inputTracks[i]!.sequence
+  for (let i = 0; i < tracks.length; i += 1) {
+    currentSequence = tracks[i]!.sequence
     for (let j = 0; j < currentSequence.length; j += 1) {
       const cur = currentSequence[j]!
       if (!isReverse(cur)) {
@@ -500,7 +506,7 @@ function straightenTrack(index: number): void {
   }
 
   // invert the sequence within the nodes
-  inputNodes.forEach(node => {
+  nodes.forEach(node => {
     if (node && nodesToInvert.has(node.name)) {
       node.seq = node.seq.split('').reverse().join('')
     }
@@ -765,12 +771,13 @@ function createTubeMap(): void {
   // changed before any graph has been rendered
   if (inputNodes.length === 0 || inputTracks.length === 0) return
 
-  straightenTrack(0)
   // Boundary promotion: layout passes below populate the Node/Track fields
   // (width, order, x/y, path, indexSequence, etc.) before any reader runs.
   nodes = deepCopy(inputNodes) as LayoutNode[]
   tracks = deepCopy(inputTracks) as Track[]
   reads = deepCopy(inputReads) as Track[]
+
+  straightenTrack(0)
 
   reads = filterReads(reads)
 
@@ -1461,12 +1468,10 @@ function calculateBottomY(): number[] {
 // containing order, node and orientation, but no concrete coordinates
 // TODO: Duplicates a lot of the same work as generateLaneAssignment() does for non-read tracks.
 function generateBasicPathsForReads(): void {
-  const isPositive = (n: number): boolean => ((n = +n) || 1 / n) >= 0
-
   reads.forEach(read => {
     // add info for start of track
     let currentNodeIndex = Math.abs(read.indexSequence[0]!)
-    let currentNodeIsForward = isPositive(read.indexSequence[0]!)
+    let currentNodeIsForward = isForwardIndex(read.indexSequence[0]!)
     let currentNode = nodes[currentNodeIndex]!
     let previousNode = currentNode
     let previousNodeIsForward = currentNodeIsForward
@@ -1483,7 +1488,7 @@ function generateBasicPathsForReads(): void {
       previousNodeIsForward = currentNodeIsForward
 
       currentNodeIndex = Math.abs(read.indexSequence[i]!)
-      currentNodeIsForward = isPositive(read.indexSequence[i]!)
+      currentNodeIsForward = isForwardIndex(read.indexSequence[i]!)
       currentNode = nodes[currentNodeIndex]!
 
       if (currentNode.order > previousNode.order) {
@@ -1629,25 +1634,12 @@ function reverseReversedReads(): void {
   })
 }
 
+const COMPLEMENT: Record<string, string> = { A: 'T', T: 'A', C: 'G', G: 'C' }
+
 function getReverseComplement(s: string): string {
   let result = ''
   for (let i = s.length - 1; i >= 0; i -= 1) {
-    switch (s.charAt(i)) {
-      case 'A':
-        result += 'T'
-        break
-      case 'T':
-        result += 'A'
-        break
-      case 'C':
-        result += 'G'
-        break
-      case 'G':
-        result += 'C'
-        break
-      default:
-        result += 'N'
-    }
+    result += COMPLEMENT[s.charAt(i)] ?? 'N'
   }
   return result
 }
@@ -2000,8 +1992,14 @@ function generateNodeOrder(): void {
     config.showReads && reads.length > 0 ? tracks.concat(reads) : tracks
 
   nodeOrders = new Array(nodes.length) // reset scratch; undefined = unassigned
-  // Clear stale orders from previous runs so downstream guards work correctly.
-  ;(nodes as Node[]).forEach(node => { if (node) node.order = undefined })
+  // Clear stale orders from previous runs so downstream `order === undefined`
+  // guards still identify unassigned nodes. LayoutNode.order is non-optional
+  // (set by this very pass), so we widen via the Node base type to allow the reset.
+  ;(nodes as Node[]).forEach(node => {
+    if (node) {
+      node.order = undefined
+    }
+  })
 
   generateNodeOrderOfSingleTrack(tracks[0]!.indexSequence)
 
@@ -2422,7 +2420,6 @@ function generateLaneAssignment(): void {
   // When an order slot is visited multiple times, holds whatever
   // SegmentAssignment was created most recently.
   const prevSegmentPerOrderPerTrack: (SegmentAssignment | null)[][] = []
-  const isPositive = (v: number): boolean => { const n = +v; return (n || 1 / n) >= 0 }
 
   // create empty variables
   for (let i = 0; i <= maxOrder; i += 1) {
@@ -2443,7 +2440,7 @@ function generateLaneAssignment(): void {
 
     // add info for start of track
     currentNodeIndex = Math.abs(track.indexSequence[0]!)
-    currentNodeIsForward = isPositive(track.indexSequence[0]!)
+    currentNodeIsForward = isForwardIndex(track.indexSequence[0]!)
     currentNode = nodes[currentNodeIndex]!
 
     track.path = []
@@ -2467,7 +2464,7 @@ function generateLaneAssignment(): void {
       previousNodeIsForward = currentNodeIsForward
 
       currentNodeIndex = Math.abs(track.indexSequence[i]!)
-      currentNodeIsForward = isPositive(track.indexSequence[i]!)
+      currentNodeIsForward = isForwardIndex(track.indexSequence[i]!)
       currentNode = nodes[currentNodeIndex]!
 
       if (currentNode.order > previousNode.order) {
@@ -3764,8 +3761,6 @@ function drawNodes(dNodes: Node[], groupNode: SvgGroupSelection): void {
     }
   })
 
-  console.log('config:', config)
-
   groupNode
     .selectAll('node')
     .data(dNodes)
@@ -3813,17 +3808,8 @@ function getNodeByName(nodeName: string): Node | undefined {
   if (typeof nodeName !== 'string') {
     throw new Error('Node Names must be strings')
   }
-  // We just do a scan.
-  // TODO: index!
-  console.log('All nodes:', nodes) //
-  for (let i = 1; i < nodes.length; i++) {
-    // changes i to start from 1 instead of 0
-    const node = nodes[i]
-    if (node !== undefined && node.name === nodeName) {
-      console.log('Found node with name', nodeName, 'at index ', i)
-      return node
-    }
-  }
+  const index = nodeMap.get(nodeName)
+  return index === undefined ? undefined : nodes[index]
 }
 
 function nodeSingleClick(this: SVGElement): void {
@@ -3831,7 +3817,6 @@ function nodeSingleClick(this: SVGElement): void {
   // Get the node name
   const nodeName = d3.select(this).attr('id')
   let currentNode = getNodeByName(nodeName)
-  console.log('Node ', nodeName, ' is ', currentNode)
   if (currentNode === undefined) {
     console.error('Missing node: ', nodeName)
     return
@@ -3850,8 +3835,6 @@ function nodeSingleClick(this: SVGElement): void {
     ['Coverage:', coverage({ ...currentNode, sequenceLength: currentNode.sequenceLength ?? 0 }, reads)],
   ]
 
-  console.log('Single Click')
-  console.log('node show info callback', config.showInfoCallback)
   config.showInfoCallback(nodeAttributes)
 }
 
@@ -3900,7 +3883,6 @@ function subtractDeletions(read: ReadCoverageInfo | undefined): number {
     for (const entry of read.sequenceNew) {
       for (const mm of entry.mismatches) {
         if (mm.type === 'deletion' && mm.length !== undefined) {
-          console.log('this read has a deletion', read)
           delta -= mm.length
         }
       }
@@ -4737,7 +4719,7 @@ function drawLegend(): void {
       listeners.push(track.id)
     }
   }
-  content += '</table'
+  content += '</table>'
   // $('#legendDiv').html(content);
   document.getElementById('legendDiv')!.innerHTML = content
   listeners.forEach(id => {
@@ -4773,14 +4755,7 @@ function getTrackByID(trackID: number): Track | undefined {
   if (typeof trackID !== 'number') {
     throw new Error('Track IDs must be numbers')
   }
-  // We just do a scan.
-  // TODO: index!
-  for (let i = 0; i < tracks.length; i++) {
-    if (tracks[i]!.id === trackID) {
-      console.log('Found track with ID ', trackID, ' at index ', i)
-      return tracks[i]
-    }
-  }
+  return tracks.find(t => t.id === trackID)
 }
 
 // Highlight track on mouseover
@@ -4851,7 +4826,6 @@ function trackSingleClick(this: SVGElement): void {
   // Get the track ID as a number
   const trackID = Number(d3.select(this).attr('trackID'))
   let current_track = getTrackByID(trackID)
-  console.log('Track ', trackID, ' is ', current_track)
   if (current_track === undefined) {
     console.error('Missing track: ', trackID)
     return
@@ -4869,8 +4843,6 @@ function trackSingleClick(this: SVGElement): void {
     track_attributes.push(['Mapping Quality', current_track.mapping_quality])
     track_attributes.push(['Path Info', getPathInfo(current_track)])
   }
-  console.log('Single Click')
-  console.log('read path')
   config.showInfoCallback(track_attributes)
 }
 
@@ -4971,7 +4943,6 @@ function generateNodeWidth(): void {
     case 'fixed':
       // when there's no reads in the node, it should be a little wider
       nodes.forEach(node => {
-        console.log('node.sequenceLength:', node.sequenceLength)
         node.width = 10
         node.pixelWidth = Math.round(node.width * 8.401)
       })
@@ -4986,7 +4957,7 @@ function generateNodeWidth(): void {
           .attr('x', 0)
           .attr('y', 100)
           .attr('id', 'dummytext')
-          .text(node.seq ? node.seq.substr(1) : 'A')
+          .text(node.seq ?? 'A')
           .attr('font-family', fonts)
           .attr('font-size', '14px')
           .attr('fill', 'black')
