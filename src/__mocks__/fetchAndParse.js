@@ -1,4 +1,9 @@
-import { bedRegions, pathNames, mountedFileNames, chunkedData } from './data/index.js'
+import {
+  bedRegions,
+  pathNames,
+  mountedFileNames,
+  chunkedData,
+} from './data/index.js'
 
 export const fetchAndParse = async path => {
   if (path.match(/getBedRegions/)) {

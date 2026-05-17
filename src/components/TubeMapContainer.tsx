@@ -28,11 +28,7 @@ const GROUP_PALETTE_CYCLE = [
 ] as const
 
 function paletteForIndex(idx: number): string {
-  const palette = GROUP_PALETTE_CYCLE[idx % GROUP_PALETTE_CYCLE.length]
-  if (palette === undefined) {
-    throw new Error('GROUP_PALETTE_CYCLE indexing failed')
-  }
-  return palette
+  return GROUP_PALETTE_CYCLE[idx % GROUP_PALETTE_CYCLE.length] ?? 'greys'
 }
 
 interface ReadContextMenuState {

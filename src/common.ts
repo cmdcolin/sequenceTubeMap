@@ -19,15 +19,6 @@ export interface DistanceRegion {
 
 export type Region = RangeRegion | DistanceRegion
 
-function removeCommas(input: string): string {
-  const colonIndex = input.lastIndexOf(':')
-  if (colonIndex >= 0) {
-    return input.slice(0, colonIndex + 1) + input.slice(colonIndex + 1).replace(/,/g, '')
-  } else {
-    return input
-  }
-}
-
 // Parse a region string like "17:1-100" into { contig, start, end }
 // or "17:1+100" into { contig, start, distance }.
 // Commas in coordinates are ignored. Throws if the region is not understood.
@@ -42,10 +33,9 @@ export function parseRegion(region: string): Region {
     throw new Error("Region ends with a ':' and is missing coordinates.")
   }
 
-  const cleaned = removeCommas(region)
-  const colonIndex = cleaned.lastIndexOf(':')
-  const contig = cleaned.slice(0, colonIndex)
-  const coords = cleaned.slice(colonIndex + 1)
+  const colonIndex = region.lastIndexOf(':')
+  const contig = region.slice(0, colonIndex)
+  const coords = region.slice(colonIndex + 1).replace(/,/g, '')
 
   const rangeMatch = /^(\d+)-(\d+)$/.exec(coords)
   const distMatch = /^(\d+)\+(\d+)$/.exec(coords)

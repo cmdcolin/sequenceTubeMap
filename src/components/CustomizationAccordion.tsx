@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import {
   Container,
   Collapse,
@@ -11,17 +11,46 @@ import {
   FormGroup,
 } from 'reactstrap'
 import TrackSettings from './TrackSettings.tsx'
-import type { Palette, PaletteField, Tracks, VisOptions } from '../Types.ts'
+import type { Palette, VisOptions } from '../Types.ts'
+
+interface CollapsibleCardProps {
+  title: string
+  headerId: string
+  isOpen: boolean
+  onToggle: () => void
+  children: ReactNode
+}
+
+const CollapsibleCard = ({
+  title,
+  headerId,
+  isOpen,
+  onToggle,
+  children,
+}: CollapsibleCardProps) => (
+  <Card>
+    <CardHeader id={headerId}>
+      <h5 className="mb-0">
+        <a
+          href="#collapse"
+          onClick={e => {
+            e.preventDefault()
+            onToggle()
+          }}
+        >
+          {title}
+        </a>
+      </h5>
+    </CardHeader>
+    <Collapse isOpen={isOpen}>
+      <CardBody>{children}</CardBody>
+    </Collapse>
+  </Card>
+)
 
 interface VisualizationOptionsProps {
   visOptions: VisOptions
   toggleFlag: (flagName: string) => void
-  tracks: Tracks
-  setColorSetting: (
-    key: PaletteField,
-    index: number,
-    value: Palette,
-  ) => void
   setNodeLabelColorSetting: (key: string, value: Palette) => void
   handleMappingQualityCutoffChange: (value: string) => void
   enableCompressedNodes?: boolean
@@ -32,8 +61,6 @@ interface VisualizationOptionsProps {
 function VisualizationOptions({
   visOptions,
   toggleFlag,
-  tracks,
-  setColorSetting,
   setNodeLabelColorSetting,
   handleMappingQualityCutoffChange,
   enableCompressedNodes,
@@ -45,92 +72,31 @@ function VisualizationOptions({
     useState(true)
   const [isOpenServer, setIsOpenServer] = useState(false)
 
-  const mappingQualityOptions = Array.from(Array(61).keys()).map(i => (
+  const mappingQualityOptions = Array.from({ length: 61 }, (_, i) => (
     <option value={i} key={i}>
       {i}
     </option>
   ))
 
-  let readTrackNumber = 1
-  const trackSettingsList: React.ReactNode[] = []
-  tracks.forEach((track, idx) => {
-    if (!track.trackFile) return
-    const type = track.trackType
-    if (type === 'graph') {
-      trackSettingsList.push(
-        <TrackSettings
-          key={idx}
-          label="Graph Paths"
-          fileType={type}
-          trackColorSettings={visOptions.colorSchemes[idx]}
-          setTrackColorSetting={(k, v) =>
-            { setColorSetting(k, idx, v); }
-          }
-        />,
-      )
-    } else if (type === 'haplotype' || type === 'node') {
-      // Haplotypes get assigned to the graph as their source track for now.
-    } else if (type === 'read') {
-      if (visOptions.showReads) {
-        trackSettingsList.push(
-          <TrackSettings
-            key={idx}
-            label={'Read Track ' + readTrackNumber}
-            fileType={type}
-            trackColorSettings={visOptions.colorSchemes[idx]}
-            setTrackColorSetting={(k, v) =>
-              { setColorSetting(k, idx, v); }
-            }
-          />,
-        )
-        readTrackNumber++
-      }
-    } else {
-      throw new Error('Unknown track type ' + type)
-    }
-  })
-
   return (
     <Container>
       <div id="accordion">
-        <Card>
-          <CardHeader id="legendCard">
-            <h5 className="mb-0">
-              <a
-                href="#collapse"
-                onClick={e => {
-                  setIsOpenLegend(!isOpenLegend)
-                  e.preventDefault()
-                }}
-              >
-                Legend
-              </a>
-            </h5>
-          </CardHeader>
-          <Collapse isOpen={isOpenLegend}>
-            <CardBody>
-              <div id="legendDiv" />
-            </CardBody>
-          </Collapse>
-        </Card>
+        <CollapsibleCard
+          title="Legend"
+          headerId="legendCard"
+          isOpen={isOpenLegend}
+          onToggle={() => { setIsOpenLegend(o => !o); }}
+        >
+          <div id="legendDiv" />
+        </CollapsibleCard>
 
-        <Card>
-          <CardHeader id="visOptionsCard">
-            <h5 className="mb-0">
-              <a
-                href="#collapse"
-                onClick={e => {
-                  setIsOpenVisualizationOptions(!isOpenVisualizationOptions)
-                  e.preventDefault()
-                }}
-              >
-                Visualization Options
-              </a>
-            </h5>
-          </CardHeader>
-          <Collapse isOpen={isOpenVisualizationOptions}>
-            <CardBody>
-              <FormGroup>
+        <CollapsibleCard
+          title="Visualization Options"
+          headerId="visOptionsCard"
+          isOpen={isOpenVisualizationOptions}
+          onToggle={() => { setIsOpenVisualizationOptions(o => !o); }}
+        >
+          <FormGroup>
                 <h5>General</h5>
                 <FormGroup check>
                   <Label check>
@@ -255,45 +221,31 @@ function VisualizationOptions({
                   </Fragment>
                 )}
               </FormGroup>
-            </CardBody>
-          </Collapse>
-        </Card>
-        <Card>
-          <CardHeader id="serverCard">
-            <h5 className="mb-0">
-              <a
-                href="#collapse"
-                onClick={e => {
-                  setIsOpenServer(!isOpenServer)
-                  e.preventDefault()
-                }}
-              >
-                Backend Configuration
-              </a>
-            </h5>
-          </CardHeader>
-          <Collapse isOpen={isOpenServer}>
-            <CardBody>
-              <Form>
-                <Label className="me-sm-2 " htmlFor="apiSelect">
-                  Extract tube map data:
-                </Label>
-                <Input
-                  type="select"
-                  id="apiSelect"
-                  className="custom-select"
-                  value={currentAPIMode}
-                  onChange={e => { setAPIMode(e.target.value); }}
-                >
-                  <option value="server">On remote server</option>
-                  <option value="local">
-                    In-browser (.gbz.db uploads only!)
-                  </option>
-                </Input>
-              </Form>
-            </CardBody>
-          </Collapse>
-        </Card>
+        </CollapsibleCard>
+        <CollapsibleCard
+          title="Backend Configuration"
+          headerId="serverCard"
+          isOpen={isOpenServer}
+          onToggle={() => { setIsOpenServer(o => !o); }}
+        >
+          <Form>
+            <Label className="me-sm-2 " htmlFor="apiSelect">
+              Extract tube map data:
+            </Label>
+            <Input
+              type="select"
+              id="apiSelect"
+              className="custom-select"
+              value={currentAPIMode}
+              onChange={e => { setAPIMode(e.target.value); }}
+            >
+              <option value="server">On remote server</option>
+              <option value="local">
+                In-browser (.gbz.db uploads only!)
+              </option>
+            </Input>
+          </Form>
+        </CollapsibleCard>
       </div>
     </Container>
   )

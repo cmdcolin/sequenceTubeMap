@@ -86,10 +86,10 @@ export const urlParamsToViewTarget = (
     if (result[flag] === 'true') result[flag] = true
     else if (result[flag] === 'false') result[flag] = false
   }
-  const rawTracks = result['tracks']
+  const rawTracks = result.tracks
   if (rawTracks !== null && typeof rawTracks === 'object' && !Array.isArray(rawTracks)) {
     const tracksRecord = rawTracks as Record<string, unknown>
-    result['tracks'] = Object.keys(tracksRecord)
+    result.tracks = Object.keys(tracksRecord)
       .sort((a, b) => Number(a) - Number(b))
       .map(k => tracksRecord[k] as Track)
   }

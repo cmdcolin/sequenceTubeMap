@@ -11,6 +11,7 @@ import type {
   AvailableTrack,
   ColorPaletteName,
   Tracks,
+  Track,
 } from '../Types.ts'
 
 function openAutocomplete(container: HTMLElement) {
@@ -70,7 +71,7 @@ describe('TrackList', () => {
   function rerenderTrackList(
     rerender: (ui: React.ReactElement) => void,
     newTracks: Tracks,
-    fakeOnChange: (trackID: number, newTrack: import('../Types.ts').Track) => void,
+    fakeOnChange: (trackID: number, newTrack: Track) => void,
     fakeOnDelete: (trackID: number) => void,
   ) {
     rerender(
@@ -127,7 +128,10 @@ describe('TrackList', () => {
 
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
     // onChange is now (trackID, newTrack), so we check the call args
-    expect(fakeOnChange).toHaveBeenCalledWith(0, expect.objectContaining({ trackType: 'haplotype' }))
+    expect(fakeOnChange).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ trackType: 'haplotype' }),
+    )
 
     const newTracks: Tracks = JSON.parse(JSON.stringify(tracks))
     newTracks[0]!.trackType = 'haplotype'
@@ -137,7 +141,13 @@ describe('TrackList', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'fileB1.gbwt' }))
 
     expect(fakeOnChange).toHaveBeenCalledTimes(2)
-    expect(fakeOnChange).toHaveBeenCalledWith(0, expect.objectContaining({ trackFile: 'fileB1.gbwt', trackType: 'haplotype' }))
+    expect(fakeOnChange).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({
+        trackFile: 'fileB1.gbwt',
+        trackType: 'haplotype',
+      }),
+    )
 
     newTracks[0]!.trackFile = 'fileB1.gbwt'
     rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete)
@@ -148,7 +158,12 @@ describe('TrackList', () => {
     fireEvent.click(document)
 
     expect(fakeOnChange).toHaveBeenCalledTimes(3)
-    expect(fakeOnChange).toHaveBeenCalledWith(0, expect.objectContaining({ trackColorSettings: expect.objectContaining({ mainPalette: 'reds' }) }))
+    expect(fakeOnChange).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({
+        trackColorSettings: expect.objectContaining({ mainPalette: 'reds' }),
+      }),
+    )
   })
 
   it('should use a new event handler when passed', async () => {

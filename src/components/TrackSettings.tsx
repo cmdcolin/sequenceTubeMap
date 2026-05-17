@@ -10,8 +10,10 @@ import {
   type Palette,
 } from '../Types.ts'
 
+type SettingsFileType = FileType | 'nodeLabel'
+
 interface TrackSettingsProps {
-  fileType?: FileType | 'nodeLabel'
+  fileType?: SettingsFileType
   // Partial because the node-label dialog only carries mainPalette.
   trackColorSettings?: Partial<ColorScheme>
   setTrackColorSetting: (key: PaletteField, value: Palette) => void
@@ -40,6 +42,52 @@ const DEFAULT_COLOR_SETTINGS: Partial<ColorScheme> = {
   alphaReadsByMappingQuality: false,
 }
 
+// Per file type, the row headings for the (main, aux) palette slots.
+// undefined for aux means that file type only has a single palette slot.
+const ROW_LABELS: Partial<Record<SettingsFileType, [string, string?]>> = {
+  haplotype: ['Haplotypes'],
+  graph: ['Reference Path', 'Non-Reference Path'],
+  read: ['Forward Reads', 'Reverse Reads'],
+  nodeLabel: ['Node Labels'],
+}
+
+interface PaletteRowProps {
+  heading: string
+  palette: Palette | undefined
+  field: PaletteField
+  setColor: (field: PaletteField, value: Palette) => void
+  availableColors: ColorPaletteName[]
+  presetColors: string[]
+}
+
+const PaletteRow = ({
+  heading,
+  palette,
+  field,
+  setColor,
+  availableColors,
+  presetColors,
+}: PaletteRowProps) => (
+  <Row>
+    <Col className="radio-row">
+      <RadioRow
+        rowHeading={heading}
+        color={palette}
+        setting={field}
+        setColorSetting={setColor}
+        availableColors={availableColors}
+      />
+    </Col>
+    <Col className="tracklist-button" md="1">
+      <ColorPicker
+        color={palette}
+        presetColors={presetColors}
+        onChange={color => { setColor(field, color); }}
+      />
+    </Col>
+  </Row>
+)
+
 /**
  * A component meant to contain settings related to an individual track.
  */
@@ -51,120 +99,32 @@ export const TrackSettings = ({
   availableColors = DEFAULT_AVAILABLE_COLORS,
   presetColors = DEFAULT_PRESET_COLORS,
 }: TrackSettingsProps) => {
-  function colorRenderSwitch(fileType: FileType | 'nodeLabel') {
-    switch (fileType) {
-      case 'haplotype':
-        return (
-          <Form>
-            <Row>
-              <Col className="radio-row">
-                <RadioRow
-                  rowHeading="Haplotypes"
-                  color={trackColorSettings.mainPalette}
-                  setting="mainPalette"
-                  setColorSetting={setTrackColorSetting}
-                  availableColors={availableColors}
-                />
-              </Col>
-              <Col className="tracklist-button" md="1">
-                <ColorPicker
-                  color={trackColorSettings.mainPalette}
-                  presetColors={presetColors}
-                  onChange={color => {
-                    setTrackColorSetting('mainPalette', color)
-                  }}
-                />
-              </Col>
-            </Row>
-          </Form>
-        )
-      case 'graph':
-      case 'read':
-        return (
-          <Form>
-            <Row>
-              <Col className="radio-row">
-                <RadioRow
-                  rowHeading={
-                    fileType === 'read' ? 'Forward Reads' : 'Reference Path'
-                  }
-                  color={trackColorSettings.mainPalette}
-                  setting="mainPalette"
-                  setColorSetting={setTrackColorSetting}
-                  availableColors={availableColors}
-                />
-              </Col>
-              <Col className="tracklist-button" md="1">
-                <ColorPicker
-                  color={trackColorSettings.mainPalette}
-                  presetColors={presetColors}
-                  onChange={color => {
-                    setTrackColorSetting('mainPalette', color)
-                  }}
-                />
-              </Col>
-            </Row>
-            <Row>
-              <Col className="radio-row">
-                <RadioRow
-                  rowHeading={
-                    fileType === 'read' ? 'Reverse Reads' : 'Non-Reference Path'
-                  }
-                  color={trackColorSettings.auxPalette}
-                  setting="auxPalette"
-                  setColorSetting={setTrackColorSetting}
-                  availableColors={availableColors}
-                />
-              </Col>
-              <Col className="tracklist-button" md="1">
-                <ColorPicker
-                  color={trackColorSettings.auxPalette}
-                  presetColors={presetColors}
-                  onChange={color => {
-                    setTrackColorSetting('auxPalette', color)
-                  }}
-                />
-              </Col>
-            </Row>
-          </Form>
-        )
-      case 'nodeLabel':
-        return (
-          <Form>
-            <Row>
-              <Col className="radio-row">
-                <RadioRow
-                  rowHeading="Node Labels"
-                  color={trackColorSettings.mainPalette}
-                  setting="mainPalette"
-                  setColorSetting={setTrackColorSetting}
-                  availableColors={availableColors}
-                />
-              </Col>
-              <Col className="tracklist-button" md="1">
-                <ColorPicker
-                  color={trackColorSettings.mainPalette}
-                  presetColors={presetColors}
-                  onChange={color => {
-                    setTrackColorSetting('mainPalette', color)
-                  }}
-                />
-              </Col>
-            </Row>
-          </Form>
-        )
-      case 'node':
-      case 'translation':
-        return null
-      default:
-        throw new Error('Invalid file type')
-    }
-  }
-
+  const labels = ROW_LABELS[fileType]
   return (
     <>
       <h5>{label} Colors</h5>
-      {colorRenderSwitch(fileType)}
+      {labels && (
+        <Form>
+          <PaletteRow
+            heading={labels[0]}
+            palette={trackColorSettings.mainPalette}
+            field="mainPalette"
+            setColor={setTrackColorSetting}
+            availableColors={availableColors}
+            presetColors={presetColors}
+          />
+          {labels[1] !== undefined && (
+            <PaletteRow
+              heading={labels[1]}
+              palette={trackColorSettings.auxPalette}
+              field="auxPalette"
+              setColor={setTrackColorSetting}
+              availableColors={availableColors}
+              presetColors={presetColors}
+            />
+          )}
+        </Form>
+      )}
     </>
   )
 }

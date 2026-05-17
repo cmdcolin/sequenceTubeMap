@@ -13,6 +13,7 @@ import './config-client.js'
 import { config } from './config-global.mjs'
 import ServerAPI from './api/ServerAPI.ts'
 import { LocalAPI } from './api/LocalAPI.ts'
+import { defaultTrackColors } from './common.ts'
 import type {
   ColorScheme,
   Palette,
@@ -28,20 +29,12 @@ const EXAMPLE_TRACKS: Tracks = [
 ]
 
 function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
-  return tracks.map(t => {
-    if (t.trackColorSettings !== undefined) {
-      return t.trackColorSettings
-    } else if (t.trackType === 'read') {
-      return { ...config.defaultReadColorPalette }
-    } else {
-      return { ...config.defaultHaplotypeColorPalette }
-    }
-  })
+  return tracks.map(t => t.trackColorSettings ?? defaultTrackColors(t.trackType))
 }
 
 function removeUndefined<T extends object>(obj: T): T {
   return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v != null),
+    Object.entries(obj).filter(([, v]) => v !== undefined),
   ) as T
 }
 
@@ -178,12 +171,8 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
       <CustomizationAccordion
         enableCompressedNodes={viewTarget.removeSequences}
         visOptions={visOptions}
-        tracks={
-          dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
-        }
         toggleFlag={toggleVisOptionFlag}
         handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
-        setColorSetting={setColorSetting}
         setNodeLabelColorSetting={setNodeLabelColorSetting}
         currentAPIMode={getAPIMode(apiInterface)}
         setAPIMode={setAPIMode}

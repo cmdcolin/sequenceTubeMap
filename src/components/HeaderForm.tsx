@@ -31,7 +31,6 @@ import {
   viewTargetsEqual,
 } from './headerFormUtils.ts'
 import type {
-  ColorScheme,
   FileType,
   PaletteField,
   PathInfo,
@@ -278,7 +277,7 @@ function HeaderForm({
     handleGoButton()
   }
 
-  async function jumpRegion(offset: number) {
+  async function jumpRegion(offset: -1 | 1) {
     const current = determineRegionIndex(region, regionInfo) ?? 0
     const canMove =
       (offset === -1 && canGoLeft(current)) ||
@@ -298,19 +297,11 @@ function HeaderForm({
       : true
   }
 
-  function handleGoRight() {
+  function move(dir: -1 | 1) {
     if (isSet(bedFile)) {
-      void jumpRegion(1)
+      void jumpRegion(dir)
     } else {
-      void budgeRegion(0.5)
-    }
-  }
-
-  function handleGoLeft() {
-    if (isSet(bedFile)) {
-      void jumpRegion(-1)
-    } else {
-      void budgeRegion(-0.5)
+      void budgeRegion(dir * 0.5)
     }
   }
 
@@ -402,8 +393,8 @@ function HeaderForm({
 
   const DataPositionFormRowComponent = (
     <DataPositionFormRow
-      handleGoLeft={() => { handleGoLeft(); }}
-      handleGoRight={() => { handleGoRight(); }}
+      handleGoLeft={() => { move(-1); }}
+      handleGoRight={() => { move(1); }}
       handleGoButton={() => { handleGoButton(); }}
       uploadInProgress={uploadInProgress}
       getCurrentViewTarget={getCurrentViewTarget}
@@ -478,7 +469,7 @@ function HeaderForm({
                 <div className="d-flex justify-content-end align-items-start flex-shrink-0">
                   <>
                     <Button
-                      onClick={() => { setPopupOpen(!popupOpen); }}
+                      onClick={() => { setPopupOpen(o => !o); }}
                       outline
                       active={simplify || removeSequences}
                     >
@@ -486,7 +477,7 @@ function HeaderForm({
                     </Button>
                     <PopupDialog
                       open={popupOpen}
-                      close={() => { setPopupOpen(!popupOpen); }}
+                      close={() => { setPopupOpen(false); }}
                       width="400px"
                     >
                       <div style={{ height: '10vh' }}>
@@ -496,17 +487,17 @@ function HeaderForm({
                         >
                           <span>Remove Small Variants</span>
                           <Switch
-                            onChange={() => { setSimplify(!simplify); }}
-                            checked={!!simplify}
+                            onChange={() => { setSimplify(s => !s); }}
+                            checked={simplify}
                           />
                         </label>
                         <label className="d-flex align-items-center justify-content-between">
                           <span>Remove Node Sequences</span>
                           <Switch
                             onChange={() =>
-                              { setRemoveSequences(!removeSequences); }
+                              { setRemoveSequences(s => !s); }
                             }
-                            checked={!!removeSequences}
+                            checked={removeSequences}
                           />
                         </label>
                       </div>

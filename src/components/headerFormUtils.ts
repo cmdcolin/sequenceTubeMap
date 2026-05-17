@@ -15,7 +15,7 @@ export function isSet(file: string | undefined | null): file is string {
 
 // Stringly-typed key for tracks (no tuple in JS).
 function makeKey(track: Track | AvailableTrack) {
-  return JSON.stringify([track.trackType, track.trackFile])
+  return `${track.trackType}|${track.trackFile ?? ''}`
 }
 
 export function makeAvailableTrackSet(availableTracks: AvailableTrack[]) {
