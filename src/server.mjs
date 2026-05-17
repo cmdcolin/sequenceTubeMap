@@ -1984,11 +1984,55 @@ function forEachFileUnder(directory, callback) {
   }
 }
 
+// Walk the immediate subdirectories of `rootDir` and collect any
+// `manifest.json` they contain. Relative trackFile/bedFile paths in a manifest
+// are resolved to client-relative paths under the manifest's folder.
+function readFolderManifests(rootDir) {
+  const manifests = {}
+  let entries
+  try {
+    entries = fs.readdirSync(rootDir, { withFileTypes: true })
+  } catch {
+    return manifests
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const folderAbs = path.resolve(rootDir, entry.name)
+    const manifestPath = path.join(folderAbs, 'manifest.json')
+    if (!fs.existsSync(manifestPath)) continue
+    let manifest
+    try {
+      manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+    } catch (e) {
+      console.warn(`Skipping bad manifest.json at ${manifestPath}:`, e.message)
+      continue
+    }
+    const folderRel = toClientPath(folderAbs)
+    if (Array.isArray(manifest.tracks)) {
+      manifest.tracks = manifest.tracks.map(t => {
+        if (typeof t?.trackFile === 'string' && !t.trackFile.includes('/')) {
+          return { ...t, trackFile: `${folderRel}/${t.trackFile}` }
+        }
+        return t
+      })
+    }
+    if (
+      typeof manifest.bedFile === 'string' &&
+      !manifest.bedFile.includes('/')
+    ) {
+      manifest.bedFile = `${folderRel}/${manifest.bedFile}`
+    }
+    manifests[folderRel] = manifest
+  }
+  return manifests
+}
+
 api.get('/getFilenames', (req, res) => {
   console.log('received request for filenames')
   const result = {
     files: [], // store a list of file object, excluding bed files, {  name: string; type: filetype;}
     bedFiles: [],
+    folderManifests: {},
   }
 
   if (isAllowedPath(MOUNTED_DATA_PATH)) {
@@ -2015,6 +2059,7 @@ api.get('/getFilenames', (req, res) => {
         result.bedFiles.push(clientPath)
       }
     })
+    result.folderManifests = readFolderManifests(MOUNTED_DATA_PATH)
   } else {
     // Somehow MOUNTED_DATA_PATH isn't one of our ALLOWED_DATA_DIRECTORIES (anymore?).
     // Perhaps the server administrator has put a .. in it.

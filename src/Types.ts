@@ -136,9 +136,23 @@ export interface PathInfo {
   cyclic: boolean
 }
 
+// Per-folder metadata read from a manifest.json in the mounted data path.
+// Any field may be omitted; missing fields fall back to auto-detection from
+// the files in the folder.
+export interface FolderManifest {
+  name?: string
+  region?: string
+  tracks?: Track[]
+  bedFile?: string
+  simplify?: boolean
+  removeSequences?: boolean
+}
+
 // Shape returned by APIInterface.getFilenames().
 export interface FilenamesResponse {
   files?: AvailableTrack[]
   bedFiles?: string[]
+  // Map from folder client path (e.g. "exampleData/internal") to manifest.
+  folderManifests?: Record<string, FolderManifest>
   error?: string
 }

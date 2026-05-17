@@ -12,6 +12,7 @@ import PathsPanel from './PathsPanel.tsx'
 import TrackPicker from './TrackPicker.tsx'
 import BedFileDropdown from './BedFileDropdown.tsx'
 import MenuItem from '@mui/material/MenuItem'
+import ListSubheader from '@mui/material/ListSubheader'
 import MuiSelect, { type SelectChangeEvent } from '@mui/material/Select'
 import FormHelperText from '@mui/material/FormHelperText'
 import PopupDialog from './PopupDialog.tsx'
@@ -21,6 +22,7 @@ import { faGear } from '@fortawesome/free-solid-svg-icons'
 import { parseRegion, stringifyRegion, isEmpty, readsExist } from '../common.ts'
 import {
   determineRegionIndex,
+  discoverDataSources,
   firstGraphTrack,
   isSet,
   makeAvailableTrackSet,
@@ -91,6 +93,10 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
+  // Set true when a dataset with a BED but no preset region is picked; the
+  // effect below applies the first BED entry as the default region once BED
+  // data arrives, then clears the flag.
+  const [pendingRegionDefault, setPendingRegionDefault] = useState(false)
   const [manualError, setManualError] = useState<Error | string | null>(null)
   const [simplify, setSimplify] = useState(initialView.simplify ?? false)
   const [removeSequences, setRemoveSequences] = useState(
@@ -115,12 +121,33 @@ function HeaderForm({
   const availableBeds = ['none', ...(filenamesData?.bedFiles ?? [])]
   const availableTrackSet = makeAvailableTrackSet(files)
   const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
+  const discoveredDataSources = discoverDataSources(
+    files,
+    filenamesData?.bedFiles ?? [],
+    DATA_SOURCES,
+    config.dataPath,
+    filenamesData?.folderManifests,
+  )
+  const allDataSources = [...DATA_SOURCES, ...discoveredDataSources]
 
   const bedKey =
     dataType !== dataTypes.EXAMPLES && isSet(bedFile) ? bedFile : null
   const { data: bedRegionsData, error: bedRegionsError } = useSWR(
     bedKey,
     (k: string) => APIInterface.getBedRegions(k, null),
+    {
+      // Apply the auto-default region from the first BED entry when BED data
+      // arrives for a dataset switch that armed pendingRegionDefault.
+      onSuccess: data => {
+        if (pendingRegionDefault) {
+          const ri = data.bedRegions
+          if (ri?.chr && ri.chr.length > 0) {
+            setRegion(regionStringFromRegionIndex(0, ri))
+          }
+          setPendingRegionDefault(false)
+        }
+      },
+    },
   )
   const regionInfo: RegionInfo = bedRegionsData?.bedRegions ?? {}
 
@@ -167,6 +194,7 @@ function HeaderForm({
       controller.abort()
     }
   }, [APIInterface, refetchFilenames])
+
 
   // Per-invocation AbortController for getChunkTracks (event-driven, not
   // SWR-cached). We abort the prior in-flight call when a new region change
@@ -321,7 +349,7 @@ function HeaderForm({
     } else if (value === dataTypes.EXAMPLES) {
       setDataType(dataTypes.EXAMPLES)
     } else {
-      const ds = DATA_SOURCES.find(d => d.name === value)
+      const ds = allDataSources.find(d => d.name === value)
       if (ds) {
         setTracks(ds.tracks)
         setBedFile(ds.bedFile)
@@ -329,6 +357,7 @@ function HeaderForm({
         setRegion(ds.region)
         setDataType(dataTypes.BUILT_IN)
         setName(ds.name)
+        setPendingRegionDefault(isSet(ds.bedFile) && !ds.region)
         // SWR keys for regionInfo + pathInfo update with the new bedFile /
         // graph track and refetch automatically.
       }
@@ -375,11 +404,34 @@ function HeaderForm({
     )
   }
 
-  const dataSourceDropdownOptions = [
-    ...DATA_SOURCES.map(ds => ({ value: ds.name, label: ds.name })),
-    { value: dataTypes.EXAMPLES, label: 'synthetic data examples' },
-    { value: dataTypes.CUSTOM_FILES, label: 'custom' },
-  ]
+  // Group options for visual separation. Subheaders are only emitted when
+  // there's something to separate, so the dropdown stays flat in the common
+  // case (no discovered folders).
+  const dataSourceGroups: {
+    heading: string | null
+    options: { value: string; label: string }[]
+  }[] = []
+  const hasDiscovered = discoveredDataSources.length > 0
+  dataSourceGroups.push({
+    heading: hasDiscovered ? 'Built-in' : null,
+    options: DATA_SOURCES.map(ds => ({ value: ds.name!, label: ds.name! })),
+  })
+  if (hasDiscovered) {
+    dataSourceGroups.push({
+      heading: 'Discovered folders',
+      options: discoveredDataSources.map(ds => ({
+        value: ds.name!,
+        label: ds.name!,
+      })),
+    })
+  }
+  dataSourceGroups.push({
+    heading: hasDiscovered ? 'Other' : null,
+    options: [
+      { value: dataTypes.EXAMPLES, label: 'synthetic data examples' },
+      { value: dataTypes.CUSTOM_FILES, label: 'custom' },
+    ],
+  })
   const dataSourceValue =
     dataType === dataTypes.BUILT_IN ? (name ?? '') : dataType
 
@@ -429,11 +481,18 @@ function HeaderForm({
               value={dataSourceValue}
               onChange={e => { handleDataSourceChange(e); }}
             >
-              {dataSourceDropdownOptions.map(opt => (
-                <MenuItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
-              ))}
+              {dataSourceGroups.flatMap(group => [
+                group.heading ? (
+                  <ListSubheader key={`heading-${group.heading}`}>
+                    {group.heading}
+                  </ListSubheader>
+                ) : null,
+                ...group.options.map(opt => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                )),
+              ])}
             </MuiSelect>
             &nbsp;
             {customFilesFlag && (

@@ -1,6 +1,7 @@
 import { convertRegionToRangeRegion, parseRegion } from '../common.ts'
 import type {
   AvailableTrack,
+  FolderManifest,
   RegionInfo,
   Track,
   Tracks,
@@ -53,6 +54,116 @@ export function trackListWithImplied(
 
 export function firstGraphTrack(tracks: Tracks): Track | null {
   return tracks.find(t => t.trackType === 'graph') ?? null
+}
+
+function parentDir(filePath: string) {
+  const idx = filePath.lastIndexOf('/')
+  return idx === -1 ? '' : filePath.slice(0, idx)
+}
+
+function trimTrailingSlash(s: string) {
+  return s.endsWith('/') ? s.slice(0, -1) : s
+}
+
+// Synthesize ViewTarget entries from immediate subdirectories of the mounted
+// data path that either (a) contain a manifest.json or (b) contain at least
+// one graph file. Manifest fields override auto-detected fields; missing
+// fields fall back to auto-detection.
+export function discoverDataSources(
+  availableTracks: AvailableTrack[],
+  bedFiles: string[],
+  builtIn: ViewTarget[],
+  rootDataPath: string,
+  folderManifests: Record<string, FolderManifest> = {},
+): ViewTarget[] {
+  const root = trimTrailingSlash(rootDataPath)
+
+  // Folders already covered by a built-in entry (so we don't duplicate them).
+  const skipDirs = new Set<string>()
+  const skipNames = new Set<string>()
+  for (const ds of builtIn) {
+    skipNames.add(ds.name ?? '')
+    for (const t of ds.tracks) {
+      if (t.trackFile) {
+        skipDirs.add(parentDir(t.trackFile))
+      }
+    }
+    if (ds.bedFile) {
+      skipDirs.add(parentDir(ds.bedFile))
+    }
+  }
+
+  const groups = new Map<string, { tracks: AvailableTrack[]; beds: string[] }>()
+  const groupFor = (dir: string) => {
+    let g = groups.get(dir)
+    if (!g) {
+      g = { tracks: [], beds: [] }
+      groups.set(dir, g)
+    }
+    return g
+  }
+  for (const t of availableTracks) {
+    if (t.trackFile) {
+      groupFor(parentDir(t.trackFile)).tracks.push(t)
+    }
+  }
+  for (const bed of bedFiles) {
+    groupFor(parentDir(bed)).beds.push(bed)
+  }
+  // A folder with only a manifest (no auto-detected files) should still
+  // produce an entry — seed an empty group for each manifest folder.
+  for (const folder of Object.keys(folderManifests)) {
+    groupFor(trimTrailingSlash(folder))
+  }
+
+  const out: ViewTarget[] = []
+  for (const [dir, { tracks, beds }] of groups) {
+    if (dir === '' || dir === root) continue
+    if (skipDirs.has(dir)) continue
+
+    const manifest = folderManifests[dir]
+    const autoGraph = tracks.find(t => t.trackType === 'graph')
+    const autoHaplotype = tracks.find(t => t.trackType === 'haplotype')
+    const autoReads = tracks.filter(t => t.trackType === 'read')
+    const autoTracks: Tracks = autoGraph?.trackFile
+      ? [
+          { trackType: 'graph', trackFile: autoGraph.trackFile },
+          ...(autoHaplotype?.trackFile
+            ? [
+                {
+                  trackType: 'haplotype' as const,
+                  trackFile: autoHaplotype.trackFile,
+                },
+              ]
+            : []),
+          ...autoReads
+            .filter(r => !!r.trackFile)
+            .map(r => ({
+              trackType: 'read' as const,
+              trackFile: r.trackFile,
+            })),
+        ]
+      : []
+
+    const finalTracks = manifest?.tracks ?? autoTracks
+    if (finalTracks.length === 0) continue
+
+    const folderName = dir.split('/').filter(Boolean).pop() ?? dir
+    const name = manifest?.name ?? folderName
+    if (skipNames.has(name)) continue
+
+    out.push({
+      name,
+      tracks: finalTracks,
+      bedFile: manifest?.bedFile ?? beds[0],
+      region: manifest?.region ?? '',
+      dataType: 'built-in',
+      simplify: manifest?.simplify,
+      removeSequences: manifest?.removeSequences,
+    })
+  }
+  out.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+  return out
 }
 
 
