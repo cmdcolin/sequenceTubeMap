@@ -56,6 +56,33 @@ export function firstGraphTrack(tracks: Tracks): Track | null {
   return tracks.find(t => t.trackType === 'graph') ?? null
 }
 
+// Inputs for building a ViewTarget. All fields are explicit so callers can't
+// accidentally mix freshly-set state (e.g. just-changed region) with closure
+// reads of state that hasn't re-rendered yet. Returns a complete ViewTarget
+// with the simplify flag normalized against the resolved track set.
+export interface ViewTargetInputs {
+  tracks: Tracks
+  bedFile: string | undefined
+  name: string | undefined
+  region: string
+  dataType: string
+  simplify: boolean
+  removeSequences: boolean
+}
+
+export function makeViewTarget(inputs: ViewTargetInputs): ViewTarget {
+  const hasReads = inputs.tracks.some(t => t.trackType === 'read')
+  return {
+    tracks: inputs.tracks,
+    bedFile: inputs.bedFile,
+    name: inputs.name,
+    region: inputs.region,
+    dataType: inputs.dataType,
+    simplify: inputs.simplify && !hasReads,
+    removeSequences: inputs.removeSequences,
+  }
+}
+
 function parentDir(filePath: string) {
   const idx = filePath.lastIndexOf('/')
   return idx === -1 ? '' : filePath.slice(0, idx)

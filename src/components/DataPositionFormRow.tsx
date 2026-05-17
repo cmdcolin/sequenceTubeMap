@@ -21,6 +21,7 @@ interface DataPositionFormRowProps {
   uploadInProgress: boolean
   getCurrentViewTarget: () => ViewTarget
   viewTargetHasChange: boolean
+  canGo: boolean
   canGoLeft: boolean
   canGoRight: boolean
   handleInputChange?: (event: KeyboardEvent<HTMLFormElement>) => void
@@ -33,6 +34,7 @@ function DataPositionFormRow({
   uploadInProgress,
   getCurrentViewTarget,
   viewTargetHasChange,
+  canGo,
   canGoLeft,
   canGoRight,
   handleInputChange,
@@ -41,9 +43,18 @@ function DataPositionFormRow({
     if (event.key === 'Enter') {
       event.preventDefault()
       handleInputChange?.(event)
-      handleGoButton()
+      if (canGo) {
+        handleGoButton()
+      }
     }
   }
+
+  const goDisabled = uploadInProgress || !canGo
+  const goTitle = !canGo
+    ? 'Pick a region (e.g. "ref:0-1000") and load a graph before clicking Go.'
+    : viewTargetHasChange
+      ? 'Click to apply pending changes.'
+      : 'No changes to apply; view is up to date.'
 
   const handleDownloadButton = () => {
     const svgN = document.getElementById('svg')
@@ -68,14 +79,10 @@ function DataPositionFormRow({
       <HelpButton file="./help/help.md" />
       <Button
         color={viewTargetHasChange ? 'alert' : 'primary'}
-        title={
-          viewTargetHasChange
-            ? 'Click to apply pending changes.'
-            : 'No changes to apply; view is up to date.'
-        }
+        title={goTitle}
         id="goButton"
         onClick={() => { handleGoButton(); }}
-        disabled={uploadInProgress}
+        disabled={goDisabled}
       >
         Go
       </Button>

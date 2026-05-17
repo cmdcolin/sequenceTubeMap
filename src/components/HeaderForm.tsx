@@ -19,13 +19,19 @@ import PopupDialog from './PopupDialog.tsx'
 import Switch from 'react-switch'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGear } from '@fortawesome/free-solid-svg-icons'
-import { parseRegion, stringifyRegion, isEmpty, readsExist } from '../common.ts'
+import {
+  isValidRegion,
+  parseRegion,
+  stringifyRegion,
+  isEmpty,
+} from '../common.ts'
 import {
   determineRegionIndex,
   discoverDataSources,
   firstGraphTrack,
   isSet,
   makeAvailableTrackSet,
+  makeViewTarget,
   regionDescByCoords,
   regionStringFromRegionIndex,
   trackIsImplied,
@@ -202,31 +208,53 @@ function HeaderForm({
   // an event handler — never during render.
   const chunkTracksAbortRef = useRef<AbortController | null>(null)
 
-  function getNextViewTarget(): ViewTarget {
-    return {
-      tracks,
+  function buildViewTarget(overrides?: {
+    region?: string
+    tracks?: Tracks
+  }): ViewTarget {
+    return makeViewTarget({
+      tracks: overrides?.tracks ?? tracks,
       bedFile,
       name,
-      region,
+      region: overrides?.region ?? region,
       dataType,
-      simplify: simplify && !readsExist(tracks),
+      simplify,
       removeSequences,
+    })
+  }
+
+  function getNextViewTarget(): ViewTarget {
+    return buildViewTarget()
+  }
+
+  function commitViewTarget(next: ViewTarget) {
+    if (!isValidRegion(next.region)) {
+      setManualError(
+        new Error(
+          `Cannot load: region "${next.region}" is missing or malformed. ` +
+            `Type a region like "ref:0-1000" or pick a path below.`,
+        ),
+      )
+      return
+    }
+    if (
+      next.tracks.length > 0 &&
+      !viewTargetsEqual(getCurrentViewTarget(), next)
+    ) {
+      setCurrentViewTarget(next)
     }
   }
 
   function handleGoButton() {
-    const nextViewTarget = getNextViewTarget()
-    const currViewTarget = getCurrentViewTarget()
-
-    if (
-      nextViewTarget.tracks.length > 0 &&
-      !viewTargetsEqual(currViewTarget, nextViewTarget)
-    ) {
-      setCurrentViewTarget(nextViewTarget)
-    }
+    commitViewTarget(getNextViewTarget())
   }
 
-  async function handleRegionChange(coords: string) {
+  // Updates region (and tracks, if a BED-driven chunk requires it) and returns
+  // the fresh values so callers that immediately "go" can build a view target
+  // without reading stale state from this render's closure.
+  async function handleRegionChange(
+    coords: string,
+  ): Promise<{ region: string; tracks: Tracks } | null> {
     setRegion(coords)
     setManualError(null)
 
@@ -258,11 +286,11 @@ function HeaderForm({
         newTracks = json.tracks ?? null
       } catch (e) {
         if (controller.signal.aborted) {
-          return
+          return null
         }
         console.error('API getChunkTracks failed:', e)
         setManualError(e instanceof Error ? e : String(e))
-        return
+        return null
       }
     }
 
@@ -270,6 +298,14 @@ function HeaderForm({
       setTracks(newTracks)
       // pathInfo SWR key derives from the graph track, so it re-fetches on its
       // own when the new tracks contain a different graph.
+    }
+    return { region: coords, tracks: newTracks ?? tracks }
+  }
+
+  async function changeRegionAndGo(coords: string) {
+    const result = await handleRegionChange(coords)
+    if (result) {
+      commitViewTarget(buildViewTarget(result))
     }
   }
 
@@ -301,8 +337,7 @@ function HeaderForm({
             start: nextStart,
             end: Math.max(0, Math.round(parsed.end + shift)),
           }
-    await handleRegionChange(stringifyRegion(shifted))
-    handleGoButton()
+    await changeRegionAndGo(stringifyRegion(shifted))
   }
 
   async function jumpRegion(offset: -1 | 1) {
@@ -311,8 +346,7 @@ function HeaderForm({
       (offset === -1 && canGoLeft(current)) ||
       (offset === 1 && canGoRight(current))
     const next = canMove ? current + offset : current
-    await handleRegionChange(regionStringFromRegionIndex(next, regionInfo))
-    handleGoButton()
+    await changeRegionAndGo(regionStringFromRegionIndex(next, regionInfo))
   }
 
   function canGoLeft(regionIndex: number) {
@@ -451,6 +485,7 @@ function HeaderForm({
       uploadInProgress={uploadInProgress}
       getCurrentViewTarget={getCurrentViewTarget}
       viewTargetHasChange={viewTargetHasChange}
+      canGo={isValidRegion(region) && tracks.length > 0}
       canGoLeft={canGoLeft(regionIndex)}
       canGoRight={canGoRight(regionIndex)}
     />
@@ -611,10 +646,7 @@ function HeaderForm({
             <Col>
               <PathsPanel
                 pathInfo={pathInfo}
-                onLoadPath={async region => {
-                  await handleRegionChange(region)
-                  handleGoButton()
-                }}
+                onLoadPath={region => { void changeRegionAndGo(region); }}
               />
             </Col>
           </Row>

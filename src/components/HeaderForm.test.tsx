@@ -2,6 +2,8 @@ import {
   determineRegionIndex,
   regionStringFromRegionIndex,
 } from './HeaderForm.js'
+import { makeViewTarget } from './headerFormUtils.ts'
+import type { Tracks } from '../Types.ts'
 
 // test for determineRegionIndex and regionStringFromRegionIndex
 describe('determine regionIndex and corresponding region strings for various region inputs', () => {
@@ -80,5 +82,60 @@ describe('determine regionIndex and corresponding region strings for various reg
     const regionString = '17:5000-7000'
     const regionIndex = determineRegionIndex(regionString, regionInfo)
     expect(regionIndex).toBe(null)
+  })
+})
+
+// Reproduces the "Missing region" bug: when a discovered dataset has no preset
+// region (e.g. Toxo with no manifest.json), clicking "Load" on a path in
+// PathsPanel must build the view target with the freshly-supplied region —
+// reading region from React state would still see the empty initial value
+// because setRegion's update hasn't applied yet.
+describe('makeViewTarget — fresh values are honored', () => {
+  const graphTracks: Tracks = [
+    { trackType: 'graph', trackFile: 'Toxo_SB_numeric.xg' },
+  ]
+
+  it('emits the explicit region even when prior state had none', () => {
+    const vt = makeViewTarget({
+      tracks: graphTracks,
+      bedFile: undefined,
+      name: 'Toxo',
+      region: 'Circ1:0-1000',
+      dataType: 'built-in',
+      simplify: false,
+      removeSequences: false,
+    })
+    expect(vt.region).toBe('Circ1:0-1000')
+    expect(vt.tracks).toEqual(graphTracks)
+  })
+
+  it('disables simplify when reads are present', () => {
+    const tracksWithReads: Tracks = [
+      ...graphTracks,
+      { trackType: 'read', trackFile: 'reads.gam' },
+    ]
+    const vt = makeViewTarget({
+      tracks: tracksWithReads,
+      bedFile: undefined,
+      name: 'Toxo',
+      region: 'Circ1:0-1000',
+      dataType: 'built-in',
+      simplify: true,
+      removeSequences: false,
+    })
+    expect(vt.simplify).toBe(false)
+  })
+
+  it('keeps simplify on for graph-only track sets', () => {
+    const vt = makeViewTarget({
+      tracks: graphTracks,
+      bedFile: undefined,
+      name: 'Toxo',
+      region: 'Circ1:0-1000',
+      dataType: 'built-in',
+      simplify: true,
+      removeSequences: false,
+    })
+    expect(vt.simplify).toBe(true)
   })
 })

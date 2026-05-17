@@ -49,6 +49,18 @@ export function parseRegion(region: string): Region {
   }
 }
 
+export function isValidRegion(region: string | undefined | null): boolean {
+  if (!region) {
+    return false
+  }
+  try {
+    parseRegion(region)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function convertRegionToRangeRegion(region: Region): RangeRegion {
   if ('distance' in region) {
     return { contig: region.contig, start: region.start, end: region.start + region.distance }
