@@ -1765,13 +1765,46 @@ function alignSVG(): void {
   const previousTransform = (svgElement as { __zoom?: d3.ZoomTransform })
     .__zoom
 
+  // rAF-coalesce zoom events so a burst of wheel/pointer ticks only triggers
+  // one transform write (and one browser repaint) per frame instead of one per
+  // event. With ~600k SVG children this is the difference between "fluid" and
+  // "stuck" on the Toxo dataset.
+  let pendingTransform: string | null = null
+  let rafHandle: number | null = null
+  function flushTransform(): void {
+    rafHandle = null
+    if (pendingTransform !== null) {
+      svg.attr('transform', pendingTransform)
+      pendingTransform = null
+    }
+  }
   function zoomed(event: d3.D3ZoomEvent<Element, unknown>): void {
-    // Apply the panning/zooming transform
-    svg.attr('transform', String(event.transform))
+    pendingTransform = String(event.transform)
+    if (rafHandle === null) {
+      rafHandle = requestAnimationFrame(flushTransform)
+    }
+  }
+
+  // Disable pointer events on the transformed content during an active zoom
+  // gesture. Hit-testing against ~600k child elements is what makes zoom feel
+  // sticky; the outer SVG still receives pointer events (it's the zoom target),
+  // so the gesture itself keeps working.
+  function setInteractive(on: boolean): void {
+    svg.style('pointer-events', on ? null : 'none')
   }
 
   zoom = d3.zoom()
+  zoom.on('start', () => { setInteractive(false) })
   zoom.on('zoom', zoomed)
+  zoom.on('end', () => {
+    // Make sure the final transform is applied before re-enabling hit-testing,
+    // otherwise a tooltip can fire against stale geometry.
+    if (rafHandle !== null) {
+      cancelAnimationFrame(rafHandle)
+      flushTransform()
+    }
+    setInteractive(true)
+  })
 
   function configureZoomBounds(): void {
     if (!parentElement) return
@@ -1829,18 +1862,33 @@ function alignSVG(): void {
     resizeObserver.observe(parentElement)
   }
 
-  // On the first draw, centre the view. On subsequent draws (e.g. visOptions
-  // changes, or any parent re-render that gives us a new prop reference)
-  // preserve the user's existing pan/zoom — recreating the tube map should
-  // not silently reset the viewport.
+  // On the first draw, fit vertically and centre horizontally. On subsequent
+  // draws (e.g. visOptions changes, or any parent re-render that gives us a
+  // new prop reference) preserve the user's existing pan/zoom — recreating
+  // the tube map should not silently reset the viewport.
+  //
+  // Fit-to-height matters for layouts that pile up vertically (e.g. a tiny
+  // graph with thousands of stacked reads): at scale=1 the visible 1200×800
+  // window would sit far above the content and the user would see a blank
+  // canvas. We deliberately *don't* fit horizontally — horizontal panning is
+  // the natural way to explore a tube map, so we'd rather render at natural
+  // scale and let the user pan than shrink everything to unreadable widths.
+  const totalHeight = maxYCoordinate - minYCoordinate + RAIL_SPACE
+  const initialScale = Math.min(
+    1,
+    totalHeight > 0 ? parentElement.clientHeight / totalHeight : 1,
+  )
   const containerWidth = parentElement.clientWidth
+  const scaledWidth = maxXCoordinate * initialScale
   const xOffset =
-    maxXCoordinate + 10 < containerWidth
-      ? (containerWidth - maxXCoordinate - 10) / 2
+    scaledWidth + 10 < containerWidth
+      ? (containerWidth - scaledWidth - 10) / 2
       : 0
   const initialTransform =
     previousTransform ??
-    d3.zoomIdentity.translate(xOffset, RAIL_SPACE - minYCoordinate)
+    d3.zoomIdentity
+      .translate(xOffset, RAIL_SPACE - minYCoordinate * initialScale)
+      .scale(initialScale)
   // @ts-expect-error — zoom.transform overload signature doesn't match call()'s generic constraint due to d3 type limitations.
   d3.select(document).select(svgID).call(zoom.transform, initialTransform)
 }
