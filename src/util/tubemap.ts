@@ -31,7 +31,7 @@ function applyAttrs<T extends d3.BaseType, U, V extends d3.BaseType, W>(
   for (const [k, v] of Object.entries(attrs)) sel.attr(k, v)
 }
 
-const DEBUG = false
+const DEBUG = true
 
 // ---------------------------------------------------------------------------
 // Core domain types
@@ -240,6 +240,7 @@ interface TubeMapConfig {
   nodeLabelColorScheme: { mainPalette: string }
   showReads: boolean
   showSoftClips: boolean
+  bundleReadsByPath: boolean
   colorSchemes: Record<number, ColorScheme>
   coloredNodes: string[]
   exonColors: string
@@ -368,6 +369,7 @@ const config: TubeMapConfig = {
   nodeLabelColorScheme: { mainPalette: 'plainColors' },
   showReads: true,
   showSoftClips: true,
+  bundleReadsByPath: false,
   colorSchemes: {},
   // colors corresponds with tracks(input files), [haplotype, read1, read2, ...]
   exonColors: 'lightColors',
@@ -574,6 +576,15 @@ export function setSoftClipsFlag(value: boolean): void {
 export function setShowReadsFlag(value: boolean): void {
   if (config.showReads !== value) {
     config.showReads = value
+    svg = d3.select(svgID)
+    createTubeMap()
+  }
+}
+
+// sets the flag for whether reads with identical paths should be bundled
+export function setBundleReadsByPath(value: boolean): void {
+  if (config.bundleReadsByPath !== value) {
+    config.bundleReadsByPath = value
     svg = d3.select(svgID)
     createTubeMap()
   }
@@ -812,6 +823,22 @@ function createTubeMap(): void {
     if (config.showReads && reads.length > 0) generateTrackIndexSequences(reads)
   }
 
+  // Bundle after mergeNodes/reverseReversedReads so reads collide on
+  // post-merge node paths rather than pre-merge ones (toxo-style graphs
+  // shed lots of linear chains during merge).
+  if (config.bundleReadsByPath && reads.length > 0) {
+    const before = reads.length
+    reads = bundleReadsByPath(reads)
+    if (DEBUG) {
+      const bundleSizes = reads.map(r => r.freq ?? 1).sort((a, b) => b - a)
+      console.log(
+        `bundleReadsByPath: ${before} reads -> ${reads.length} bundles ` +
+          `(top sizes: ${bundleSizes.slice(0, 10).join(', ')}, ` +
+          `singletons: ${bundleSizes.filter(s => s === 1).length})`,
+      )
+    }
+  }
+
   numberOfNodes = nodes.length
   numberOfTracks = tracks.length
   generateNodeSuccessors()
@@ -852,12 +879,9 @@ function createTubeMap(): void {
 
   generateSVGShapesFromPath()
   if (DEBUG) {
-    console.log('Tracks:')
-    console.log(tracks)
-    console.log('Nodes:')
-    console.log(nodes)
-    console.log('Lane assignment:')
-    console.log(assignments)
+    console.log('Tracks:', JSON.stringify(tracks))
+    console.log('Nodes:', JSON.stringify(nodes))
+    console.log('Lane assignment:', JSON.stringify(assignments))
   }
   getImageDimensions()
   alignSVG()
@@ -953,7 +977,11 @@ function assignReadsToNodes(): void {
     }
   })
   reads.forEach((read, idx) => {
-    read.width = READ_WIDTH
+    if (read.freq !== undefined && read.freq > 1) {
+      read.width = Math.round((Math.log(read.freq) + 1) * READ_WIDTH)
+    } else {
+      read.width = READ_WIDTH
+    }
     if (read.path.length === 1) {
       const firstNode = read.path[0]!.node
       if (firstNode !== null) {
@@ -1098,8 +1126,7 @@ function placeReads(): void {
   })
 
   if (DEBUG) {
-    console.log('Reads:')
-    console.log(reads)
+    console.log('Reads:', JSON.stringify(reads))
   }
 }
 
@@ -2056,7 +2083,6 @@ function generateNodeOrder(): void {
   generateNodeOrderOfSingleTrack(tracks[0]!.indexSequence)
 
   for (let i = 1; i < tracksAndReads.length; i += 1) {
-    if (DEBUG) console.log(`generating order for track ${i + 1}`)
     rightIndex = generateNodeOrderTrackBeginning(
       tracksAndReads[i]!.indexSequence,
     )!
@@ -4628,7 +4654,52 @@ function drawTrackCurves(
     groupedCurves[key].push(curve)
   })
 
+  const bundleEdges = config.bundleReadsByPath && type === 'read'
+
+  // In bundle mode, replace each (nodeStart, nodeEnd) group's read curves with
+  // one envelope ribbon: top edge follows the topmost read on each side,
+  // bottom edge follows the bottommost. SVG element count drops from per-read
+  // to per-edge.
+  if (bundleEdges) {
+    for (const key of Object.keys(groupedCurves)) {
+      const group = groupedCurves[key]!
+      if (group.length < 2) continue
+      const rep = group[0]!
+      let yStartTop = Infinity
+      let yStartBot = -Infinity
+      let yEndTop = Infinity
+      let yEndBot = -Infinity
+      for (const c of group) {
+        if (c.yStart < yStartTop) yStartTop = c.yStart
+        if (c.yStart + c.width > yStartBot) yStartBot = c.yStart + c.width
+        if (c.yEnd < yEndTop) yEndTop = c.yEnd
+        if (c.yEnd + c.width > yEndBot) yEndBot = c.yEnd + c.width
+      }
+      const xMid = rep.xStart + (rep.xEnd - rep.xStart) * 0.5
+      const path =
+        `M ${rep.xStart} ${yStartTop}` +
+        ` C ${xMid} ${yStartTop} ${xMid} ${yEndTop} ${rep.xEnd} ${yEndTop}` +
+        ` V ${yEndBot}` +
+        ` C ${xMid} ${yEndBot} ${xMid} ${yStartBot} ${rep.xStart} ${yStartBot}` +
+        ` Z`
+      groupedCurves[key] = [
+        {
+          ...rep,
+          yStart: yStartTop,
+          yEnd: yEndTop,
+          width: Math.max(yStartBot - yStartTop, yEndBot - yEndTop),
+          path,
+          name: `bundle (${group.length} curves)`,
+        },
+      ]
+    }
+  }
+
   Object.values(groupedCurves).forEach(curveGroup => {
+    // Bundle-mode groups already have a precomputed envelope path; skip the
+    // per-curve control-point spreading.
+    if (bundleEdges && curveGroup.length === 1 && curveGroup[0]!.path) return
+
     // Control point adjustment range: 30% to 70% of the original x values
     let adjustValue = 0.3
     let adjustIncrement = 0.4 / curveGroup.length
@@ -5181,9 +5252,6 @@ type CigarOp = 'M' | 'I' | 'D'
 type CigarToken = number | CigarOp
 
 export function cigar_string(readPath: VgPath): string {
-  if (DEBUG) {
-    console.log('readPath mapping:', readPath.mapping)
-  }
   let cigar: CigarToken[] = []
   for (const mapping of readPath.mapping) {
     for (const edit of mapping.edit) {
@@ -5217,9 +5285,6 @@ export function cigar_string(readPath: VgPath): string {
         cigar = append_cigar_operation(to, 'I', cigar)
       }
     }
-  }
-  if (DEBUG) {
-    console.log('cigar string:', cigar.join(''))
   }
   return cigar.join('')
 }
@@ -5273,8 +5338,7 @@ export function vgExtractReads(
   sourceTrackID: number,
 ): ExtractedVgRead[] {
   if (DEBUG) {
-    console.log('Reads:')
-    console.log(myReads)
+    console.log('Reads (raw):', JSON.stringify(myReads))
   }
   const extracted: ExtractedVgRead[] = []
 
@@ -5356,11 +5420,7 @@ export function vgExtractReads(
           }
         }
       })
-      if (sequence.length === 0) {
-        if (DEBUG) {
-          console.log(`read ${i} is empty`)
-        }
-      } else {
+      if (sequence.length !== 0) {
         const firstMapping = read.path.mapping[firstIndex]
         const lastMapping = read.path.mapping[lastIndex]
         // where within node does read start
@@ -5810,4 +5870,47 @@ function filterReads(reads: Track[]): Track[] {
       (read.mapping_quality ?? 0) >= config.mappingQualityCutoff &&
       (!focusNames || (read.name !== undefined && focusNames.has(read.name))),
   )
+}
+
+// Collapse reads with identical node paths into a single representative read
+// per group. The representative carries freq = group size, used to scale the
+// rendered lane height (see assignReadsToNodes). Per-read mismatch detail is
+// dropped since it would only reflect the representative.
+function bundleReadsByPath(reads: Track[]): Track[] {
+  const groups = new Map<string, Track[]>()
+  for (const read of reads) {
+    const key =
+      read.sequence.join('|') +
+      '#' +
+      (read.is_reverse ? 'r' : 'f') +
+      '#' +
+      (read.sourceTrackID ?? 0)
+    const bucket = groups.get(key)
+    if (bucket === undefined) {
+      groups.set(key, [read])
+    } else {
+      bucket.push(read)
+    }
+  }
+  const bundled: Track[] = []
+  for (const bucket of groups.values()) {
+    const rep = bucket[0]!
+    if (bucket.length === 1) {
+      bundled.push(rep)
+    } else {
+      bundled.push({
+        ...rep,
+        name: `bundle (${bucket.length} reads)`,
+        freq: bucket.length,
+        // Keep sequenceNew shape (mergeNodes indexes into it) but drop
+        // per-read mismatches: they'd only reflect the representative.
+        sequenceNew: rep.sequenceNew?.map(entry => ({
+          nodeName: entry.nodeName,
+          mismatches: [],
+        })),
+        cigar_string: undefined,
+      })
+    }
+  }
+  return bundled
 }

@@ -123,6 +123,7 @@ export interface VisOptions {
   nodeLabelColorScheme: { mainPalette: Palette }
   showReads: boolean
   showSoftClips: boolean
+  bundleReadsByPath: boolean
   colorReadsByMappingQuality: boolean
   alphaReadsByMappingQuality: boolean
   colorSchemes: ColorSchemes

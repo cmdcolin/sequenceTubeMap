@@ -66,6 +66,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     nodeLabelColorScheme: { mainPalette: 'plainColors' },
     showReads: true,
     showSoftClips: true,
+    bundleReadsByPath: false,
     colorReadsByMappingQuality: false,
     alphaReadsByMappingQuality: false,
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),

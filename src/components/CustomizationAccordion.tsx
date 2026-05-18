@@ -179,6 +179,16 @@ function VisualizationOptions({
                       <Label check>
                         <Input
                           type="checkbox"
+                          checked={visOptions.bundleReadsByPath}
+                          onChange={() => { toggleFlag('bundleReadsByPath'); }}
+                        />
+                        Bundle reads by path
+                      </Label>
+                    </FormGroup>
+                    <FormGroup check>
+                      <Label check>
+                        <Input
+                          type="checkbox"
                           checked={visOptions.colorReadsByMappingQuality}
                           onChange={() =>
                             { toggleFlag('colorReadsByMappingQuality'); }

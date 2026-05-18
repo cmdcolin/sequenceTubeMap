@@ -37,6 +37,7 @@ function updateVisOptions(
   tubeMap.setTransparentNodesFlag(visOptions.transparentNodes)
   tubeMap.setShowReadsFlag(visOptions.showReads)
   tubeMap.setSoftClipsFlag(visOptions.showSoftClips)
+  tubeMap.setBundleReadsByPath(visOptions.bundleReadsByPath)
   tubeMap.setColoredNodes(visOptions.coloredNodes)
   tubeMap.setShowNodeLabels(visOptions.showNodeLabels)
   tubeMap.setNodeLabelColorScheme(visOptions.nodeLabelColorScheme)
