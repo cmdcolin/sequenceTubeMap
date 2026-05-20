@@ -1,7 +1,7 @@
 {
   "name": "sequence-tube-maps",
   "version": "0.1.0",
-  "homepage": "https://cmdcolin.github.io/sequenceTubeMap",
+  "homepage": ".",
   "author": "Wolfgang Beyer",
   "license": "MIT",
   "imports": {
@@ -60,7 +60,7 @@
     "start": "concurrently -n frontend,backend -c cyan,green 'webpack serve' 'npm:serve'",
     "build": "webpack --mode production",
     "test": "vitest run",
-    "predeploy": "PUBLIC_URL=/sequenceTubeMap npm run build",
+    "predeploy": "pnpm run build",
     "deploy": "gh-pages -d build",
     "serve": "node --strip-types ./src/server.mjs",
     "format": "prettier --write \"**/*.+(mjs|js|css)\"",

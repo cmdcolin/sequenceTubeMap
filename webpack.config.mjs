@@ -16,7 +16,7 @@ export default {
   entry: './src/index.tsx',
   output: {
     path: path.resolve(__dirname, 'build'),
-    publicPath: process.env.PUBLIC_URL ? process.env.PUBLIC_URL + '/' : '/',
+    publicPath: 'auto',
     filename: isProduction
       ? 'static/js/[name].[contenthash:8].js'
       : 'static/js/bundle.js',
@@ -76,6 +76,11 @@ export default {
           to: '.',
           globOptions: { ignore: ['**/index.html'] },
         },
+        {
+          from: 'exampleData',
+          to: 'exampleData',
+          noErrorOnMissing: true,
+        },
       ],
     }),
     ...(isProduction
@@ -95,7 +100,13 @@ export default {
     proxy: [
       { context: ['/api'], target: `http://localhost:${serverPort}`, ws: true },
     ],
-    static: { directory: path.resolve(__dirname, 'public') },
+    static: [
+      { directory: path.resolve(__dirname, 'public') },
+      {
+        directory: path.resolve(__dirname, 'exampleData'),
+        publicPath: '/exampleData',
+      },
+    ],
     devMiddleware: { stats: 'errors-warnings' },
     client: { logging: 'warn' },
   },

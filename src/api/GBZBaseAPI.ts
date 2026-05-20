@@ -70,8 +70,46 @@ export class GBZBaseAPI implements APIInterface {
   private files: Blob[] = []
   // Index of upload ids by track type.
   private filesByType = new Map<FileType, string[]>()
+  // Cache of blobs fetched lazily from URLs (built-in sample data sources
+  // use paths like "exampleData/cactus.vg.xg" instead of uploaded files).
+  private urlCache = new Map<string, Promise<Blob>>()
+  // Base URL to resolve relative trackFile paths against. Required because
+  // GBZBaseAPI typically runs in a Web Worker whose self.location points at
+  // /static/js/Worker.ts, not the page; the host LocalAPI passes the page's
+  // baseURI via setBaseUrl().
+  private baseUrl: string | null = null
   // Promise for the compiled WebAssembly module. Populated lazily by setUp().
   private compiledWasm: Promise<WebAssembly.Module> | null = null
+
+  setBaseUrl(url: string): void {
+    this.baseUrl = url
+  }
+
+  // Resolve a trackFile string to a Blob: a numeric ID points at the uploads
+  // array; anything else is fetched from the URL (cached).
+  private async resolveTrackFile(trackFile: string): Promise<Blob> {
+    if (/^\d+$/.test(trackFile)) {
+      const blob = this.files[parseInt(trackFile, 10)]
+      if (blob === undefined) {
+        throw new Error(`Uploaded file ${trackFile} does not exist`)
+      }
+      return blob
+    }
+    let cached = this.urlCache.get(trackFile)
+    if (!cached) {
+      cached = (async () => {
+        const response = await fetch(trackFile)
+        if (!response.ok) {
+          throw new Error(
+            `Could not load ${trackFile}: HTTP ${response.status}`,
+          )
+        }
+        return response.blob()
+      })()
+      this.urlCache.set(trackFile, cached)
+    }
+    return cached
+  }
 
   async setUp(): Promise<WebAssembly.Module> {
     this.compiledWasm ??= getCompiledWasm()
@@ -169,11 +207,7 @@ export class GBZBaseAPI implements APIInterface {
       throw new Error('No graph track selected')
     }
 
-    const graphFileBlob = this.files[parseInt(graphTrack.trackFile, 10)]
-
-    if (graphFileBlob === undefined) {
-      throw new Error('Graph file ' + graphTrack.trackFile + ' does not exist')
-    }
+    const graphFileBlob = await this.resolveTrackFile(graphTrack.trackFile)
 
     const region = convertRegionToRangeRegion(parseRegion(viewTarget.region))
 
