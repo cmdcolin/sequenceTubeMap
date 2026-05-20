@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readGam, readGamRegion } from './gam.ts'
 import { loadGamIndex, runsForNodeRange } from './gamIndex.ts'
+import type { VgRead } from '../../util/tubemap.ts'
 
 function loadAsBlob(path: string): Blob {
   return new Blob([readFileSync(path)])
@@ -124,11 +125,11 @@ describe('readGamRegion', () => {
     const gam = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam')
     const gai = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam.gai')
     const all = await readGam(gam)
-    const inRange = (r: { path?: { mapping: { position?: { node_id?: string | bigint } }[] } }) =>
+    const inRange = (r: VgRead) =>
       r.path?.mapping.some(m => {
         const id = m.position?.node_id
         if (id === undefined) return false
-        const n = typeof id === 'bigint' ? id : BigInt(id)
+        const n = BigInt(id)
         return n >= 1n && n <= 24n
       }) ?? false
     const filtered = all.filter(inRange)

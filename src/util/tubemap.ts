@@ -1794,7 +1794,11 @@ function alignSVG(): void {
   // sticky; the outer SVG still receives pointer events (it's the zoom target),
   // so the gesture itself keeps working.
   function setInteractive(on: boolean): void {
-    svg.style('pointer-events', on ? null : 'none')
+    if (on) {
+      svg.style('pointer-events', null)
+    } else {
+      svg.style('pointer-events', 'none')
+    }
   }
 
   zoom = d3.zoom()

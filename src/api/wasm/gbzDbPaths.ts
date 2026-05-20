@@ -58,8 +58,9 @@ export async function readGbzDbPaths(blob: Blob): Promise<PathInfo[]> {
       GROUP BY p.handle
       ORDER BY p.contig, p.haplotype, p.fragment
     `)
-    if (!result.length) return []
-    return result[0].values
+    const [firstResult] = result
+    if (!firstResult) return []
+    return firstResult.values
       .map(row => {
         const sample = (row[0] as string) ?? ''
         const contig = (row[1] as string) ?? ''
