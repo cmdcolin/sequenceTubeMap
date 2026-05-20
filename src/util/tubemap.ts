@@ -893,7 +893,7 @@ function createTubeMap(): void {
     console.log(assignments)
   }
   getImageDimensions()
-  alignSVG()
+  const applyInitialTransform = alignSVG()
   defineSVGPatterns()
 
   // all drawn tracks are grouped
@@ -932,6 +932,10 @@ function createTubeMap(): void {
     console.log(`number of nodes: ${numberOfNodes}`)
   }
   emitTrackVisibility()
+  // Apply the initial zoom transform now that all content (including node
+  // labels) is in the DOM. The zoom handler's synchronous "end" flush will
+  // counter-scale every label group on this first paint.
+  applyInitialTransform()
 }
 
 // generates attributes (node.y, node.contentHeight) for nodes without tracks, only reads
@@ -1781,14 +1785,17 @@ const NODE_MARGIN = 10
 const RAIL_SPACE = RULER_WIDTH + NODE_MARGIN
 
 // align visualization to the top and left within svg and resize svg to correct size
-// enable zooming and panning
-function alignSVG(): void {
+// enable zooming and panning. Returns a function that applies the initial zoom
+// transform; the caller is expected to invoke it *after* all content (nodes,
+// labels, etc.) has been appended, so the zoom handler's synchronous flush can
+// counter-scale every label group on the first paint.
+function alignSVG(): () => void {
   // Find the SVG element.
   // Trim off the leading "#" from the SVG ID.
   const svgElement = document.getElementById(svgID.substring(1))
   const parentElement =
     svgElement?.parentNode instanceof HTMLElement ? svgElement.parentNode : null
-  if (!svgElement || !parentElement) return
+  if (!svgElement || !parentElement) return () => {}
 
   // d3-zoom stores the current transform on the SVG node as __zoom. It is
   // undefined until the first time we attach a zoom behaviour. By capturing it
@@ -1937,8 +1944,9 @@ function alignSVG(): void {
     d3.zoomIdentity
       .translate(xOffset, RAIL_SPACE - minYCoordinate * initialScale)
       .scale(initialScale)
-  // @ts-expect-error — zoom.transform overload signature doesn't match call()'s generic constraint due to d3 type limitations.
-  d3.select(document).select(svgID).call(zoom.transform, initialTransform)
+  return () => {
+    zoom.transform(d3.select<Element, unknown>(svgID), initialTransform)
+  }
 }
 
 export function zoomBy(zoomFactor: number): void {
