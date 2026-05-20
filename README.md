@@ -36,6 +36,8 @@ Navigate using `<contig>:<start>-<end>` (e.g. `Circ1:0-1320`). Open the **Paths 
 
 For WASM build details and caveats: [doc/wasm-build.md](doc/wasm-build.md).
 
+For constructing deep-link URLs: [doc/linking.md](doc/linking.md).
+
 ## License
 
 Copyright (c) 2018 Wolfgang Beyer, 2026 Colin Diesh, MIT License.
