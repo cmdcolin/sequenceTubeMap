@@ -20,6 +20,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import FormHelperText from '@mui/material/FormHelperText'
 import {
   isValidRegion,
+  isLocalCompatibleDataSource,
   parseRegion,
   stringifyRegion,
   isEmpty,
@@ -125,14 +126,20 @@ function HeaderForm({
   const availableBeds = ['none', ...(filenamesData?.bedFiles ?? [])]
   const availableTrackSet = makeAvailableTrackSet(files)
   const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
+  // In WASM/local mode the gbz-base query.wasm only understands .gbz.db files,
+  // so .vg.xg-based built-ins would silently fail. Hide them from the dropdown.
+  const isLocal = APIInterface instanceof LocalAPI
+  const visibleDataSources = isLocal
+    ? DATA_SOURCES.filter(isLocalCompatibleDataSource)
+    : DATA_SOURCES
   const discoveredDataSources = discoverDataSources(
     files,
     filenamesData?.bedFiles ?? [],
-    DATA_SOURCES,
+    visibleDataSources,
     config.dataPath,
     filenamesData?.folderManifests,
   )
-  const allDataSources = [...DATA_SOURCES, ...discoveredDataSources]
+  const allDataSources = [...visibleDataSources, ...discoveredDataSources]
 
   const bedKey =
     dataType !== dataTypes.EXAMPLES && isSet(bedFile) ? bedFile : null
@@ -461,7 +468,10 @@ function HeaderForm({
   const hasDiscovered = discoveredDataSources.length > 0
   dataSourceGroups.push({
     heading: hasDiscovered ? 'Built-in' : null,
-    options: DATA_SOURCES.map(ds => ({ value: ds.name!, label: ds.name! })),
+    options: visibleDataSources.map(ds => ({
+      value: ds.name!,
+      label: ds.name!,
+    })),
   })
   if (hasDiscovered) {
     dataSourceGroups.push({
@@ -497,7 +507,7 @@ function HeaderForm({
       setFileSizeAlert(false)
       setUploadInProgress(false)
     } else {
-      const first = DATA_SOURCES[0]!
+      const first = visibleDataSources[0] ?? DATA_SOURCES[0]!
       setTracks(first.tracks)
       setBedFile(first.bedFile)
       setBedSelect(isSet(first.bedFile) ? first.bedFile : 'none')
@@ -563,7 +573,7 @@ function HeaderForm({
                 Sample data
               </ToggleButton>
               <ToggleButton value="upload" data-testid="dataModeUpload">
-                Upload data
+                Open custom data
               </ToggleButton>
             </ToggleButtonGroup>
             &nbsp;
@@ -584,6 +594,7 @@ function HeaderForm({
                   handleFileUpload={async (fileType, file) =>
                     handleFileUpload(fileType, file)
                   }
+                  isLocal={isLocal}
                 />
               </div>
             )}

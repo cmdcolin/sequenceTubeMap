@@ -13,7 +13,7 @@ import './config-client.js'
 import { config } from './config-global.mjs'
 import ServerAPI from './api/ServerAPI.ts'
 import { LocalAPI } from './api/LocalAPI.ts'
-import { defaultTrackColors } from './common.ts'
+import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
 import type {
   ColorScheme,
   Palette,
@@ -52,9 +52,13 @@ const isLocalMode = config.BACKEND_URL === false
 
 const defaultApiUrl = isLocalMode ? '' : `${config.BACKEND_URL}/api/v0`
 
+const localDefaultViewTarget: ViewTarget =
+  config.DATA_SOURCES.find(isLocalCompatibleDataSource) ??
+  { tracks: [], region: '' }
+
 const defaultViewTarget: ViewTarget =
   urlParamsToViewTarget(document.location) ??
-  (isLocalMode ? { tracks: [], region: '' } : config.DATA_SOURCES[0])
+  (isLocalMode ? localDefaultViewTarget : config.DATA_SOURCES[0])
 
 interface AppProps {
   apiUrl?: string
@@ -87,8 +91,11 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     if (mode === 'local') {
       setApiInterface(new LocalAPI())
       setDataOrigin(dataOriginTypes.API)
-      setViewTarget({ tracks: [], region: '' })
-      setVisOptions(v => ({ ...v, colorSchemes: [] }))
+      setViewTarget(localDefaultViewTarget)
+      setVisOptions(v => ({
+        ...v,
+        colorSchemes: getColorSchemesFromTracks(localDefaultViewTarget.tracks),
+      }))
     } else if (mode === 'server') {
       setApiInterface(new ServerAPI(apiUrl))
       setDataOrigin(dataOriginTypes.API)

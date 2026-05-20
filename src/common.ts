@@ -3,7 +3,7 @@
 // the server's ESM runtime. Config is set up by config-client.js (browser) or
 // config-server.mjs (Node) before this module loads.
 import { config } from './config-global.mjs'
-import type { BaseTrack, ColorScheme, FileType } from './Types.ts'
+import type { BaseTrack, ColorScheme, FileType, ViewTarget } from './Types.ts'
 
 export interface RangeRegion {
   contig: string
@@ -112,4 +112,12 @@ export function isValidURL(value: string | undefined | null): boolean {
 
 export function isEmpty(obj: object): boolean {
   return Object.keys(obj).length === 0
+}
+
+// The WASM backend (gbz-base/query.wasm) only reads SQLite-backed .gbz.db
+// files. Used to autoload a compatible source in local mode and to hide
+// dropdown entries that would silently fail to parse.
+export function isLocalCompatibleDataSource(ds: ViewTarget): boolean {
+  const trackFile = ds.tracks.find(t => t.trackType === 'graph')?.trackFile
+  return !!trackFile && /\.(gbz\.db|db)$/i.test(trackFile)
 }

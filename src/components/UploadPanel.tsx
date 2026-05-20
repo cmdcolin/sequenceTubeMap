@@ -15,15 +15,40 @@ interface UploadPanelProps {
     fileType: FileType,
     file: File,
   ) => Promise<string | undefined>
+  // True when the active API is the in-browser LocalAPI. Controls the privacy
+  // copy ("files stay on your machine") and the LocalAPI-only graph format
+  // note.
+  isLocal?: boolean
 }
 
-const GRAPH_EXTS = ['.xg', '.vg', '.hg', '.pg', '.db']
-const READ_EXTS = ['.gam']
+const GRAPH_EXTS = ['.xg', '.vg', '.hg', '.pg', '.gbz', '.gbz.db', '.db']
+const READ_EXTS = ['.gam', '.gaf', '.gaf.gz']
 const HAPLOTYPE_EXTS = ['.gbwt']
-const ACCEPT = [...GRAPH_EXTS, ...READ_EXTS, ...HAPLOTYPE_EXTS, '.gbz'].join(',')
+// .gai is the sibling index for a sorted .gam — accepted so the picker
+// doesn't reject a user dragging both files at once. detectType marks it as
+// "skip" because the .gam itself is what gets registered as a read track.
+const INDEX_EXTS = ['.gai', '.tbi']
+const ACCEPT = [
+  ...GRAPH_EXTS,
+  ...READ_EXTS,
+  ...HAPLOTYPE_EXTS,
+  ...INDEX_EXTS,
+].join(',')
+
+function isIndexSibling(name: string): boolean {
+  const lower = name.toLowerCase()
+  return INDEX_EXTS.some(e => lower.endsWith(e))
+}
 
 function detectType(name: string): FileType | null {
   const lower = name.toLowerCase()
+  if (INDEX_EXTS.some(e => lower.endsWith(e))) {
+    // Index files ride along with their data file. We classify them as 'read'
+    // so they get uploaded through the same path; the backend recognizes the
+    // suffix and stores them as a sibling instead of registering them as
+    // their own read track.
+    return 'read'
+  }
   if (GRAPH_EXTS.some(e => lower.endsWith(e))) {
     return 'graph'
   }
@@ -33,15 +58,13 @@ function detectType(name: string): FileType | null {
   if (HAPLOTYPE_EXTS.some(e => lower.endsWith(e))) {
     return 'haplotype'
   }
-  if (lower.endsWith('.gbz')) {
-    return 'graph'
-  }
   return null
 }
 
 export const UploadPanel = ({
   onUploaded,
   handleFileUpload,
+  isLocal,
 }: UploadPanelProps) => {
   const [files, setFiles] = useState<StagedFile[]>([])
   const [uploading, setUploading] = useState(false)
@@ -78,7 +101,10 @@ export const UploadPanel = ({
           continue
         }
         const uploadedName = await handleFileUpload(type, file)
-        if (uploadedName !== undefined) {
+        // Index siblings (.gai, .tbi) are uploaded so the backend can pair
+        // them with their data file, but they aren't tracks in their own
+        // right.
+        if (uploadedName !== undefined && !isIndexSibling(file.name)) {
           tracks.push({
             trackFile: uploadedName,
             trackType: type,
@@ -110,6 +136,35 @@ export const UploadPanel = ({
 
   return (
     <div data-testid="UploadPanel">
+      {isLocal ? (
+        <div
+          style={{
+            fontSize: 12,
+            color: '#555',
+            background: '#f4f7ff',
+            border: '1px solid #d0dbf2',
+            borderRadius: 4,
+            padding: 8,
+            marginBottom: 8,
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>Files stay on your machine.</strong> Nothing is uploaded — the
+          parser and rendering both run in your browser via WebAssembly.
+          <br />
+          <strong>Graph format:</strong> the in-browser backend reads{' '}
+          <code>.gbz.db</code> (a SQLite snapshot of a GBZ pangenome). If you
+          have a <code>.xg</code> / <code>.vg</code> / <code>.gbz</code> graph,
+          convert it once with vg:{' '}
+          <code>vg gbwt -G in.xg --gbz-format -g out.gbz</code> then{' '}
+          <code>vg gbz2db --gbz out.gbz --db out.gbz.db</code> (or run the
+          equivalent <code>gbz2db</code> WASM bundled with this app).
+          <br />
+          <strong>Reads:</strong> <code>.gam</code> works out of the box; drop a{' '}
+          <code>.sorted.gam</code> + matching <code>.sorted.gam.gai</code>{' '}
+          together to enable indexed region queries.
+        </div>
+      ) : null}
       <div
         onDrop={e => {
           onDrop(e)
@@ -140,7 +195,17 @@ export const UploadPanel = ({
         <div style={{ fontWeight: 500 }}>
           Drop files here or click to choose
         </div>
-        <div style={{ fontSize: 12, marginTop: 4 }}>Accepted: {ACCEPT}</div>
+        <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.4 }}>
+          <div>
+            <strong>Graph:</strong> {GRAPH_EXTS.join(', ')}
+          </div>
+          <div>
+            <strong>Reads:</strong> {READ_EXTS.join(', ')}
+          </div>
+          <div>
+            <strong>Haplotype:</strong> {HAPLOTYPE_EXTS.join(', ')}
+          </div>
+        </div>
       </div>
       <input
         ref={inputRef}
