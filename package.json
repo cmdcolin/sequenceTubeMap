@@ -69,7 +69,7 @@
     "serve": "node --strip-types ./src/server.mjs",
     "tubemap-cli": "esbuild scripts/tubemap-cli.ts --bundle --platform=node --format=esm --packages=external --alias:#wasm-loader=./scripts/cli-wasm-loader.ts --outfile=build/tubemap-cli.mjs && node build/tubemap-cli.mjs",
     "format": "prettier --write \"**/*.+(mjs|js|css)\"",
-    "lint": "eslint --cache"
+    "lint": "eslint"
   },
   "engines": {
     "node": ">=18.0.0"

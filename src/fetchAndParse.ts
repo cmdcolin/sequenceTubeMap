@@ -5,9 +5,9 @@ export async function fetchAndParse<T = unknown>(
 ): Promise<T> {
   const response = await fetch(...fetchArgs)
   const json = await response.json() as Record<string, unknown>
-  if (json['error']) {
+  if (json.error) {
     // Even 200 responses can come with error messages.
-    throw new Error(String(json['error']))
+    throw new Error(String(json.error))
   }
   if (response.status < 200 || response.status > 299) {
     throw new Error('Server responded with error code ' + response.status)

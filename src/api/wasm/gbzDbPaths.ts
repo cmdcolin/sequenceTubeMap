@@ -62,8 +62,8 @@ export async function readGbzDbPaths(blob: Blob): Promise<PathInfo[]> {
     if (!firstResult) return []
     return firstResult.values
       .map(row => {
-        const sample = (row[0] as string) ?? ''
-        const contig = (row[1] as string) ?? ''
+        const sample = typeof row[0] === 'string' ? row[0] : ''
+        const contig = typeof row[1] === 'string' ? row[1] : ''
         const haplotype = Number(row[2] ?? 0)
         const approxLen = Number(row[4] ?? 0)
         return {

@@ -167,7 +167,7 @@ export class GBZBaseAPI implements APIInterface {
           try {
             // The inner read loop is what actually paces progress reporting;
             // pull all the chunks before assembling the Blob.
-            while (true) {
+            for (;;) {
               const { done, value } = await reader.read()
               if (done) break
               chunks.push(value)

@@ -31,7 +31,7 @@ export function BedFileDropdown({
   options,
 }: BedFileDropdownProps) {
   return (
-    <Autocomplete<string, false, true, false>
+    <Autocomplete<string, false, true>
       id={id}
       className={className}
       size="small"

@@ -10,7 +10,6 @@ import { config } from '../config-global.mjs'
 import type {
   AvailableTrack,
   ColorPaletteName,
-  ColorScheme,
   FileType,
   Track,
 } from '../Types.ts'
@@ -95,7 +94,7 @@ export const TrackListItem = ({
                 trackColorSettings: {
                   ...(trackProps.trackColorSettings ?? defaultTrackColors(trackProps.trackType)),
                   [key]: value,
-                } as ColorScheme,
+                },
               }); }
             }
             availableColors={availableColors}

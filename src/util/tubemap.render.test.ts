@@ -40,7 +40,7 @@ function dataForExample(suffix: string) {
   const key = `EXAMPLE_${suffix}` as keyof typeof dataOriginTypes
   return computeExampleData(
     dataOriginTypes[key],
-    demo as Parameters<typeof computeExampleData>[1],
+    demo,
   )
 }
 

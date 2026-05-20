@@ -19,6 +19,7 @@ export default defineConfig(
       'vite.config.mjs',
       'src/util/tubemap.js',
       'src/util/tubemap.ts',
+      'scripts',
     ],
   },
   {
