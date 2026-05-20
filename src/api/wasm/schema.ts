@@ -66,19 +66,27 @@ export function convertSchema(inGraph: GbzGraph): ConvertedGraph {
     to_end: e.to_is_reverse,
   }))
 
-  const path: VgPath[] = inGraph.paths.map(p => ({
-    ...p,
-    mapping: p.path.map(visit => {
-      const length = nodeLength.get(visit.id)
-      if (length === undefined) {
-        throw new Error(`Path visit references unknown node ${visit.id}`)
-      }
-      return {
-        position: { node_id: visit.id, is_reverse: visit.is_reverse },
-        edit: [{ from_length: length, to_length: length }],
-      }
-    }),
-  }))
+  // gbz-base emits subpath names as `<base>[<start>-<end>]`. Mirror the
+  // server's normalization (server.mjs:1759-1782): strip the suffix and lift
+  // <start> into indexOfFirstBase so tubemap.ts draws the bp ruler.
+  const subpathRe = /^(.*)\[(\d+)-\d+\]$/
+  const path: VgPath[] = inGraph.paths.map(p => {
+    const match = p.name === undefined ? null : subpathRe.exec(p.name)
+    return {
+      ...p,
+      ...(match ? { name: match[1], indexOfFirstBase: match[2] } : {}),
+      mapping: p.path.map(visit => {
+        const length = nodeLength.get(visit.id)
+        if (length === undefined) {
+          throw new Error(`Path visit references unknown node ${visit.id}`)
+        }
+        return {
+          position: { node_id: visit.id, is_reverse: visit.is_reverse },
+          edit: [{ from_length: length, to_length: length }],
+        }
+      }),
+    }
+  })
 
   return { node: inGraph.nodes, edge, path }
 }

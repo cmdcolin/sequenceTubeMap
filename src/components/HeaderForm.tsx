@@ -16,6 +16,7 @@ import TrackPicker from './TrackPicker.tsx'
 import BedFileDropdown from './BedFileDropdown.tsx'
 import UploadPanel from './UploadPanel.tsx'
 import SimplifyButton from './SimplifyButton.tsx'
+import TrackVisibilityPanel from './TrackVisibilityPanel.tsx'
 import FormHelperText from '@mui/material/FormHelperText'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
@@ -755,7 +756,7 @@ function HeaderForm({
             anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
           >
             <Box sx={{ p: 1 }}>
-              <div id="legendDiv" />
+              <TrackVisibilityPanel />
             </Box>
           </Popover>
           <Box sx={{ flexGrow: 1 }} />

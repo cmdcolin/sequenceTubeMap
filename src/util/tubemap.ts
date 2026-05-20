@@ -426,7 +426,6 @@ export function create(params: CreateParams): void {
   config.clickableNodesFlag = params.clickableNodes || false
   config.hideLegendFlag = params.hideLegend || false
   createTubeMap()
-  if (!config.hideLegendFlag) drawLegend()
 }
 
 // structuredClone preserves sparse-array holes; JSON round-trip would fill them with null.
@@ -517,23 +516,55 @@ export function changeTrackVisibility(trackID: number): void {
     track.hidden = !track.hidden
   }
   createTubeMap()
+  emitTrackVisibility()
 }
 
 // to select/deselect all
 export function changeAllTracksVisibility(value: boolean): void {
-  let i = 0
-  while (i < inputTracks.length) {
-    const t = inputTracks[i]
-    if (t) {
-      t.hidden = !value
-      const checkbox = document.getElementById(`showTrack${t.id}`)
-      if (checkbox instanceof HTMLInputElement) {
-        checkbox.checked = value
-      }
-    }
-    i += 1
+  for (const t of inputTracks) {
+    t.hidden = !value
   }
   createTubeMap()
+  emitTrackVisibility()
+}
+
+// React subscription for the per-track visibility panel. tubemap.ts owns
+// the track list (and visibility state) and emits a fresh snapshot after
+// every redraw; TrackVisibilityPanel renders from it without poking the DOM.
+export interface TrackVisibilityItem {
+  id: number
+  name: string
+  color: string
+  hidden: boolean
+}
+const visibilitySubscribers = new Set<(items: TrackVisibilityItem[]) => void>()
+
+export function subscribeTrackVisibility(
+  cb: (items: TrackVisibilityItem[]) => void,
+): () => void {
+  visibilitySubscribers.add(cb)
+  // Push the current state immediately so a subscriber mounting after the
+  // first render still sees the legend (e.g. opening the Popover later).
+  emitTrackVisibility()
+  return () => { visibilitySubscribers.delete(cb) }
+}
+
+function emitTrackVisibility(): void {
+  if (config.hideLegendFlag || visibilitySubscribers.size === 0) return
+  const items: TrackVisibilityItem[] = []
+  // Match createTubeMap's defaulting: tracks with no explicit type are
+  // treated as haplotype (see the `t.type === undefined` branch above).
+  for (const t of inputTracks) {
+    if (t.type === 'haplotype' || t.type === undefined) {
+      items.push({
+        id: t.id,
+        name: t.name ?? String(t.id),
+        color: generateTrackColor(t as Track, 'exon'),
+        hidden: t.hidden === true,
+      })
+    }
+  }
+  for (const cb of visibilitySubscribers) cb(items)
 }
 
 export function changeExonVisibility(): void {
@@ -583,7 +614,6 @@ export function setColorSet(fileID: number | string, newColor: ColorScheme): voi
   if (!currColor || !isEqual(currColor, newColor)) {
     config.colorSchemes[Number(fileID)] = newColor
     createTubeMap()
-    if (!config.hideLegendFlag && tracks) drawLegend()
   }
 }
 
@@ -892,6 +922,7 @@ function createTubeMap(): void {
     console.log(`number of tracks: ${numberOfTracks}`)
     console.log(`number of nodes: ${numberOfNodes}`)
   }
+  emitTrackVisibility()
 }
 
 // generates attributes (node.y, node.contentHeight) for nodes without tracks, only reads
@@ -4778,45 +4809,6 @@ function drawTrackCorners(
     .on('contextmenu', trackRightClick)
     .append('svg:title')
     .text(d => getPopUpTrackText(d.name))
-}
-
-function drawLegend(): void {
-  let content = '<button id="selectall">Select all</button>'
-  content += '<button id="deselectall">Deselect all</button>'
-  content +=
-    '<table class="table-sm table-condensed table-nonfluid"><thead><tr><th>Color</th><th>Trackname</th><th>Show Track</th></tr></thead>'
-  const listeners: number[] = []
-  // This is in terms of tracks, but when we change visibility we need to touch inputTracks, so we need to set up listeners by track ID.
-  for (let i = 0; i < tracks.length; i += 1) {
-    const track = tracks[i]!
-    if (track.type === 'haplotype') {
-      content += `<tr><td style="text-align:right"><div class="color-box" style="background-color: ${generateTrackColor(
-        track,
-        'exon',
-      )};"></div></td>`
-      if (track.name !== undefined) {
-        content += `<td>${track.name}</td>`
-      } else {
-        content += `<td>${track.id}</td>`
-      }
-      content += `<td><input type="checkbox" checked=true id="showTrack${track.id}"></td>`
-      listeners.push(track.id)
-    }
-  }
-  content += '</table>'
-  // $('#legendDiv').html(content);
-  document.getElementById('legendDiv')!.innerHTML = content
-  listeners.forEach(id => {
-    document
-      .getElementById(`showTrack${id}`)!
-      .addEventListener('click', () => { changeTrackVisibility(id); }, false)
-  })
-  document
-    .getElementById('selectall')!
-    .addEventListener('click', () => { changeAllTracksVisibility(true); }, false)
-  document
-    .getElementById('deselectall')!
-    .addEventListener('click', () => { changeAllTracksVisibility(false); }, false)
 }
 
 // Get a non-read input track index by the ID stored in their d3 objects.
