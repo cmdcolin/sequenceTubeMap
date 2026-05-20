@@ -36,6 +36,11 @@ function paletteForIndex(idx: number): string {
 // can always opt into more via the chooser.
 const READ_LIMIT_PRESETS = [100, 500, 2000, 10000] as const
 
+// Default cap, exported so PathsPanel's "heavy" badge fires at the same
+// threshold the renderer will actually subsample at — otherwise the badge's
+// meaning ("this will be subsampled by default") drifts from reality.
+export const DEFAULT_READ_RENDER_LIMIT = READ_LIMIT_PRESETS[0]
+
 // Subsample reads to at most `limit` by taking every k-th read (k chosen so
 // the output count lands at `limit`). Preserves the original ordering, which
 // for indexed gam queries is roughly node-position-sorted, so the subsample

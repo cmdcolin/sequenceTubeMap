@@ -2,6 +2,7 @@ import { Card, CardHeader, Collapse, CardBody, Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronRight, faChevronDown } from '@fortawesome/free-solid-svg-icons'
 import type { PathInfo } from '../Types.ts'
+import { DEFAULT_READ_RENDER_LIMIT } from './TubeMapContainer.tsx'
 import HelpDialog from './HelpDialog.tsx'
 
 interface PathsPanelProps {
@@ -108,7 +109,8 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                 // Mirror the per-region read cap in TubeMapContainer: anything
                 // above the cap will render subsampled by default. Surface as
                 // a warning so the user doesn't click in blind.
-                const heavyReads = readCounts !== undefined && reads >= 1000
+                const heavyReads =
+                  readCounts !== undefined && reads > DEFAULT_READ_RENDER_LIMIT
                 return (
                   <tr key={name}>
                     <td>
