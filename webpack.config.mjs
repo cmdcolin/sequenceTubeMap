@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import HtmlWebpackPlugin from 'html-webpack-plugin'
 import MiniCssExtractPlugin from 'mini-css-extract-plugin'
+import CopyWebpackPlugin from 'copy-webpack-plugin'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const appConfig = JSON.parse(readFileSync('./src/config.json', 'utf-8'))
@@ -68,6 +69,15 @@ export default {
   },
   plugins: [
     new HtmlWebpackPlugin({ template: './public/index.html' }),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: 'public',
+          to: '.',
+          globOptions: { ignore: ['**/index.html'] },
+        },
+      ],
+    }),
     ...(isProduction
       ? [
           new MiniCssExtractPlugin({
