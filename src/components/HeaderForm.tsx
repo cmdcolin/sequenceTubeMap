@@ -611,13 +611,13 @@ function HeaderForm({
                 />
               </div>
             )}
-            {customFilesFlag && (
+            {customFilesFlag && filenamesData?.bedFiles?.length ? (
               <Fragment>
                 <Label
                   htmlFor="bedSelectInput"
                   className="customData tight-label mb-2 me-sm-2 mb-sm-0 ms-2"
                 >
-                  BED:
+                  BED file (optional — list of bookmarked regions):
                 </Label>
                 &nbsp;
                 <BedFileDropdown
@@ -630,7 +630,7 @@ function HeaderForm({
                 />
                 &nbsp;
               </Fragment>
-            )}
+            ) : null}
             {!examplesFlag && (
               <RegionInput
                 regionInfo={regionInfo}
