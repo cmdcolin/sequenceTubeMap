@@ -756,6 +756,7 @@ function HeaderForm({
                 regionInfo={regionInfo}
                 handleRegionChange={coords => { void handleRegionChange(coords); }}
                 region={region}
+                onSubmit={() => { handleGoButton() }}
               />
             )}
             {pathInfo.length > 0 && !examplesFlag && (
