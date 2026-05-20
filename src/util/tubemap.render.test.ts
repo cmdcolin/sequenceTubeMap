@@ -204,16 +204,17 @@ describe('tubemap.create — node click pops info dialog', () => {
     expect(nodePath).not.toBeNull()
     if (!nodePath) return
 
-    // d3-drag reads `event.view.document` on mousedown. jsdom's IDL check
-    // rejects the view unless the MouseEvent constructor itself comes from the
-    // same window — using `document.defaultView.MouseEvent` ensures both halves
-    // are the jsdom window.
-    const view = document.defaultView!
-    const Mouse = view.MouseEvent
-    const opts: MouseEventInit = { bubbles: true, cancelable: true, button: 0, view }
-    nodePath.dispatchEvent(new Mouse('mousedown', opts))
-    nodePath.dispatchEvent(new Mouse('mouseup', opts))
-    nodePath.dispatchEvent(new Mouse('click', opts))
+    // d3-drag reads `event.view.document` on mousedown. jsdom rejects `view`
+    // passed via the MouseEvent init (IDL window-check), so construct the
+    // events normally and then patch `view` on after the fact.
+    function fire(type: string): void {
+      const ev = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 })
+      Object.defineProperty(ev, 'view', { value: document.defaultView })
+      nodePath?.dispatchEvent(ev)
+    }
+    fire('mousedown')
+    fire('mouseup')
+    fire('click')
 
     expect(onInfo).toHaveBeenCalledTimes(1)
     const attrs = onInfo.mock.calls[0]?.[0] ?? []
