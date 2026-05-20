@@ -537,34 +537,37 @@ export interface TrackVisibilityItem {
   color: string
   hidden: boolean
 }
-const visibilitySubscribers = new Set<(items: TrackVisibilityItem[]) => void>()
+const visibilitySubscribers = new Set<() => void>()
+let visibilitySnapshot: TrackVisibilityItem[] = []
 
-export function subscribeTrackVisibility(
-  cb: (items: TrackVisibilityItem[]) => void,
-): () => void {
+// For useSyncExternalStore — returns the cached snapshot (stable ref when unchanged).
+export function getTrackVisibilitySnapshot(): TrackVisibilityItem[] {
+  return visibilitySnapshot
+}
+
+export function subscribeTrackVisibility(cb: () => void): () => void {
   visibilitySubscribers.add(cb)
-  // Push the current state immediately so a subscriber mounting after the
-  // first render still sees the legend (e.g. opening the Popover later).
-  emitTrackVisibility()
   return () => { visibilitySubscribers.delete(cb) }
 }
 
 function emitTrackVisibility(): void {
-  if (config.hideLegendFlag || visibilitySubscribers.size === 0) return
+  if (config.hideLegendFlag) return
   const items: TrackVisibilityItem[] = []
   // Match createTubeMap's defaulting: tracks with no explicit type are
   // treated as haplotype (see the `t.type === undefined` branch above).
+  // Use 'plain' highlight to match the color the draw loop actually uses.
   for (const t of inputTracks) {
     if (t.type === 'haplotype' || t.type === undefined) {
       items.push({
         id: t.id,
         name: t.name ?? String(t.id),
-        color: generateTrackColor(t as Track, 'exon'),
+        color: generateTrackColor(t as Track, 'plain'),
         hidden: t.hidden === true,
       })
     }
   }
-  for (const cb of visibilitySubscribers) cb(items)
+  visibilitySnapshot = items
+  for (const cb of visibilitySubscribers) cb()
 }
 
 export function changeExonVisibility(): void {

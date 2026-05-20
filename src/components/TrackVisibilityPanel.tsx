@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import {
   Box,
   Button,
@@ -11,15 +11,16 @@ import {
   TableRow,
 } from '@mui/material'
 import * as tubeMap from '../util/tubemap.ts'
-import type { TrackVisibilityItem } from '../util/tubemap.ts'
 
-// Tracks visibility checklist — populated by tubemap.ts via subscribeTrackVisibility.
+// Tracks visibility checklist — populated by tubemap.ts via useSyncExternalStore.
 // Visibility state lives in tubemap.ts (mutable inputTracks[i].hidden);
 // toggling here calls back into tubemap, which redraws and re-emits the
 // updated snapshot so the checkbox reflects the new state.
 function TrackVisibilityPanel() {
-  const [items, setItems] = useState<TrackVisibilityItem[]>([])
-  useEffect(() => tubeMap.subscribeTrackVisibility(setItems), [])
+  const items = useSyncExternalStore(
+    tubeMap.subscribeTrackVisibility,
+    tubeMap.getTrackVisibilitySnapshot,
+  )
 
   if (items.length === 0) {
     return <Box sx={{ color: 'text.secondary', fontSize: 13 }}>No tracks</Box>
