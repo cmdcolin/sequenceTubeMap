@@ -82,6 +82,11 @@ export const urlParamsToViewTarget = (
     return null
   }
   const result = qs.parse(parsed.search.slice(1)) as Record<string, unknown>
+  if (result.tracks === undefined || result.region === undefined) {
+    // The query carries something other than a saved view (e.g. analytics
+    // params). Don't fabricate a partial ViewTarget — callers default-fill.
+    return null
+  }
   for (const flag of ['simplify', 'removeSequences']) {
     if (result[flag] === 'true') result[flag] = true
     else if (result[flag] === 'false') result[flag] = false

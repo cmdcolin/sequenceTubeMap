@@ -9,7 +9,18 @@ const GLOBAL_HOME = globalThis
 // (webpack-dev-server proxies /api there). Production builds keep whatever
 // config.json says — typically BACKEND_URL=false on gh-pages, which selects
 // the WASM LocalAPI.
-if (process.env.NODE_ENV !== 'production' && config.BACKEND_URL === false) {
+//
+// Append `#local` to the dev URL to skip this override and run LocalAPI mode
+// in dev without needing the express backend up. Paired with
+// `pnpm start:local`, which launches only webpack-dev-server. We use the URL
+// hash so saved view-target query strings never collide with the mode flag.
+const forceLocal =
+  typeof window !== 'undefined' && window.location.hash === '#local'
+if (
+  process.env.NODE_ENV !== 'production' &&
+  !forceLocal &&
+  config.BACKEND_URL === false
+) {
   config.BACKEND_URL = ''
 }
 
