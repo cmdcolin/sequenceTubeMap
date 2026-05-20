@@ -13,6 +13,7 @@ import './config-client.js'
 import { config } from './config-global.mjs'
 import ServerAPI from './api/ServerAPI.ts'
 import { LocalAPI } from './api/LocalAPI.ts'
+import type { APIInterface } from './api/APIInterface.ts'
 import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
 import type {
   ColorScheme,
@@ -38,14 +39,6 @@ function removeUndefined<T extends object>(obj: T): T {
   ) as T
 }
 
-function getAPIMode(apiInterface: LocalAPI | ServerAPI): 'local' | 'server' {
-  if (apiInterface instanceof LocalAPI) {
-    return 'local'
-  } else {
-    return 'server'
-  }
-}
-
 // BACKEND_URL semantics: literal `false` selects the WASM LocalAPI; any string
 // (possibly empty for same-origin via the dev-server proxy) means ServerAPI.
 const isLocalMode = config.BACKEND_URL === false
@@ -67,12 +60,12 @@ interface AppProps {
 function App({ apiUrl = defaultApiUrl }: AppProps) {
   const [dataOrigin, setDataOrigin] = useState<string>(dataOriginTypes.API)
   const [viewTarget, setViewTarget] = useState<ViewTarget>(defaultViewTarget)
+  const [legendVisible, setLegendVisible] = useState(true)
   const [visOptions, setVisOptions] = useState<VisOptions>({
     removeRedundantNodes: true,
     compressedView: false,
     transparentNodes: false,
     showNodeLabels: false,
-    nodeLabelColorScheme: { mainPalette: 'plainColors' },
     showReads: true,
     showSoftClips: true,
     colorReadsByMappingQuality: false,
@@ -80,12 +73,12 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
     mappingQualityCutoff: 0,
   })
-  const [apiInterface, setApiInterface] = useState<LocalAPI | ServerAPI>(
+  const [apiInterface, setApiInterface] = useState<APIInterface>(
     () => (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),
   )
 
   const setAPIMode = (mode: string) => {
-    if (mode === getAPIMode(apiInterface)) {
+    if (mode === apiInterface.mode) {
       return
     }
     if (mode === 'local') {
@@ -135,13 +128,6 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     setVisOptions(v => ({ ...v, mappingQualityCutoff: Number(value) }))
   }
 
-  const setNodeLabelColorSetting = (key: string, value: Palette) => {
-    setVisOptions(v => ({
-      ...v,
-      nodeLabelColorScheme: { ...v.nodeLabelColorScheme, [key]: value },
-    }))
-  }
-
   const setColorSetting = (
     key: PaletteField,
     index: number,
@@ -165,29 +151,45 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
         defaultViewTarget={defaultViewTarget}
         getCurrentViewTarget={getCurrentViewTarget}
         APIInterface={apiInterface}
-      />
-      <TubeMapContainer
-        viewTarget={viewTarget}
-        dataOrigin={dataOrigin}
+        legendVisible={legendVisible}
+        toggleLegend={() => { setLegendVisible(v => !v) }}
         visOptions={visOptions}
-        APIInterface={apiInterface}
+        toggleVisOptionFlag={toggleVisOptionFlag}
+        handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
+        enableCompressedNodes={viewTarget.removeSequences}
       />
-      <div style={{ margin: '8px 0' }}>
-        <Legend
-          tracks={
-            dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
-          }
-          colorSchemes={visOptions.colorSchemes}
+      <div style={{ position: 'relative', margin: '8px 0' }}>
+        <TubeMapContainer
+          viewTarget={viewTarget}
+          dataOrigin={dataOrigin}
+          visOptions={visOptions}
+          APIInterface={apiInterface}
         />
+        {legendVisible && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              zIndex: 10,
+              maxHeight: 'calc(100vh - 120px)',
+              overflowY: 'auto',
+            }}
+          >
+            <Legend
+              tracks={
+                dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
+              }
+              colorSchemes={visOptions.colorSchemes}
+              onClose={() => { setLegendVisible(false) }}
+            />
+          </div>
+        )}
       </div>
       <CustomizationAccordion
-        enableCompressedNodes={viewTarget.removeSequences}
-        visOptions={visOptions}
-        toggleFlag={toggleVisOptionFlag}
-        handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
-        setNodeLabelColorSetting={setNodeLabelColorSetting}
-        currentAPIMode={getAPIMode(apiInterface)}
+        currentAPIMode={apiInterface.mode}
         setAPIMode={setAPIMode}
+        showBackendConfig={!isLocalMode}
       />
       <Footer />
     </div>

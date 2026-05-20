@@ -3,7 +3,6 @@ import useSWR from 'swr'
 import { Button, Container, Row, Col, Label, Alert } from 'reactstrap'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import { LocalAPI } from '../api/LocalAPI.ts'
 import type { APIInterface } from '../api/APIInterface.ts'
 import DataPositionFormRow from './DataPositionFormRow.tsx'
 import HelpButton from './HelpButton.tsx'
@@ -19,6 +18,9 @@ import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
+import Checkbox from '@mui/material/Checkbox'
+import ListItemIcon from '@mui/material/ListItemIcon'
+import ListItemText from '@mui/material/ListItemText'
 import ListSubheader from '@mui/material/ListSubheader'
 import Divider from '@mui/material/Divider'
 import Dialog from '@mui/material/Dialog'
@@ -54,6 +56,7 @@ import type {
   Track,
   Tracks,
   ViewTarget,
+  VisOptions,
 } from '../Types.ts'
 
 export { determineRegionIndex, regionStringFromRegionIndex }
@@ -78,11 +81,52 @@ interface HeaderFormProps {
   getCurrentViewTarget: () => ViewTarget
   defaultViewTarget?: ViewTarget
   APIInterface: APIInterface
+  legendVisible?: boolean
+  toggleLegend?: () => void
+  visOptions?: VisOptions
+  toggleVisOptionFlag?: (flag: string) => void
+  handleMappingQualityCutoffChange?: (value: string | number) => void
+  enableCompressedNodes?: boolean
 }
 
 interface CoordsMetaData {
   tracks: Track[] | null
   chunk: string
+}
+
+function CheckboxMenuItem({
+  label,
+  checked,
+  onToggle,
+  disabled,
+  testid,
+}: {
+  label: string
+  checked: boolean
+  onToggle: () => void
+  disabled?: boolean
+  testid?: string
+}) {
+  return (
+    <MenuItem
+      dense
+      data-testid={testid}
+      disabled={disabled}
+      onClick={() => { onToggle() }}
+    >
+      <ListItemIcon>
+        <Checkbox
+          edge="start"
+          size="small"
+          checked={checked}
+          disabled={disabled}
+          tabIndex={-1}
+          disableRipple
+        />
+      </ListItemIcon>
+      <ListItemText primary={label} />
+    </MenuItem>
+  )
 }
 
 function HeaderForm({
@@ -92,6 +136,12 @@ function HeaderForm({
   getCurrentViewTarget,
   defaultViewTarget,
   APIInterface,
+  legendVisible,
+  toggleLegend,
+  visOptions,
+  toggleVisOptionFlag,
+  handleMappingQualityCutoffChange,
+  enableCompressedNodes,
 }: HeaderFormProps) {
   const initialView = defaultViewTarget ?? DATA_SOURCES[0]!
   const [bedSelect, setBedSelect] = useState(
@@ -106,7 +156,7 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
-  const [menuAnchor, setMenuAnchor] = useState<{ type: 'examples' | 'file'; el: HTMLElement } | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<{ type: 'examples' | 'file' | 'view' | 'reads'; el: HTMLElement } | null>(null)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   // Set true when a dataset with a BED but no preset region is picked; the
   // effect below applies the first BED entry as the default region once BED
@@ -137,7 +187,7 @@ function HeaderForm({
   const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
   // In WASM/local mode the gbz-base query.wasm only understands .gbz.db files,
   // so .vg.xg-based built-ins would silently fail. Hide them from the dropdown.
-  const isLocal = APIInterface instanceof LocalAPI
+  const isLocal = APIInterface.mode === 'local'
   const visibleDataSources = isLocal
     ? DATA_SOURCES.filter(isLocalCompatibleDataSource)
     : DATA_SOURCES
@@ -398,7 +448,7 @@ function HeaderForm({
     file: File,
   ): Promise<string | undefined> {
     if (
-      !(APIInterface instanceof LocalAPI) &&
+      APIInterface.mode !== 'local' &&
       file.size > config.MAXUPLOADSIZE
     ) {
       setFileSizeAlert(true)
@@ -457,7 +507,7 @@ function HeaderForm({
         position="static"
         color="primary"
         elevation={2}
-        sx={{ background: 'linear-gradient(to right, #7d3c98, #1f618d)', mb: 1 }}
+        sx={{ background: '#1a5276', mb: 1 }}
       >
         <Toolbar variant="dense">
           <img src="./logo.svg" alt="IVG" style={{ height: 32, marginRight: 8 }} />
@@ -530,6 +580,105 @@ function HeaderForm({
               Open…
             </MenuItem>
           </Menu>
+          {toggleLegend && visOptions && toggleVisOptionFlag && (
+            <>
+              <MuiButton
+                color="inherit"
+                data-testid="viewMenuButton"
+                onClick={(e) => { setMenuAnchor({ type: 'view', el: e.currentTarget }); }}
+              >
+                View
+              </MuiButton>
+              <Menu
+                anchorEl={menuAnchor?.type === 'view' ? menuAnchor.el : null}
+                open={menuAnchor?.type === 'view'}
+                onClose={() => { setMenuAnchor(null); }}
+                slotProps={{ list: { dense: true } }}
+              >
+                <CheckboxMenuItem
+                  label="Show legend"
+                  checked={!!legendVisible}
+                  onToggle={() => { toggleLegend() }}
+                  testid="legendToggleMenuItem"
+                />
+                <CheckboxMenuItem
+                  label="Remove redundant nodes"
+                  checked={visOptions.removeRedundantNodes}
+                  onToggle={() => { toggleVisOptionFlag('removeRedundantNodes') }}
+                />
+                <CheckboxMenuItem
+                  label="Compressed view"
+                  checked={visOptions.compressedView}
+                  disabled={enableCompressedNodes}
+                  onToggle={() => { toggleVisOptionFlag('compressedView') }}
+                />
+                <CheckboxMenuItem
+                  label="Fully transparent nodes"
+                  checked={visOptions.transparentNodes}
+                  onToggle={() => { toggleVisOptionFlag('transparentNodes') }}
+                />
+                <CheckboxMenuItem
+                  label="Show node labels"
+                  checked={visOptions.showNodeLabels}
+                  onToggle={() => { toggleVisOptionFlag('showNodeLabels') }}
+                />
+              </Menu>
+              <MuiButton
+                color="inherit"
+                data-testid="readsMenuButton"
+                onClick={(e) => { setMenuAnchor({ type: 'reads', el: e.currentTarget }); }}
+              >
+                Reads
+              </MuiButton>
+              <Menu
+                anchorEl={menuAnchor?.type === 'reads' ? menuAnchor.el : null}
+                open={menuAnchor?.type === 'reads'}
+                onClose={() => { setMenuAnchor(null); }}
+                slotProps={{ list: { dense: true } }}
+              >
+                <CheckboxMenuItem
+                  label="Show sequence reads"
+                  checked={visOptions.showReads}
+                  onToggle={() => { toggleVisOptionFlag('showReads') }}
+                />
+                <CheckboxMenuItem
+                  label="Show soft clips"
+                  checked={visOptions.showSoftClips}
+                  disabled={!visOptions.showReads}
+                  onToggle={() => { toggleVisOptionFlag('showSoftClips') }}
+                />
+                <CheckboxMenuItem
+                  label="Color by mapping quality"
+                  checked={visOptions.colorReadsByMappingQuality}
+                  disabled={!visOptions.showReads}
+                  onToggle={() => { toggleVisOptionFlag('colorReadsByMappingQuality') }}
+                />
+                <CheckboxMenuItem
+                  label="Transparency by mapping quality"
+                  checked={visOptions.alphaReadsByMappingQuality}
+                  disabled={!visOptions.showReads}
+                  onToggle={() => { toggleVisOptionFlag('alphaReadsByMappingQuality') }}
+                />
+                {handleMappingQualityCutoffChange && (
+                  <Box
+                    sx={{ px: 2, py: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
+                    onClick={(e) => { e.stopPropagation() }}
+                  >
+                    <Typography variant="body2">Mapping quality cutoff:</Typography>
+                    <select
+                      disabled={!visOptions.showReads}
+                      value={visOptions.mappingQualityCutoff}
+                      onChange={(e) => { handleMappingQualityCutoffChange(e.target.value) }}
+                    >
+                      {Array.from({ length: 61 }, (_, i) => (
+                        <option value={i} key={i}>{i}</option>
+                      ))}
+                    </select>
+                  </Box>
+                )}
+              </Menu>
+            </>
+          )}
           <Box sx={{ flexGrow: 1 }} />
           <Typography
             variant="body2"
@@ -609,6 +758,13 @@ function HeaderForm({
                 region={region}
               />
             )}
+            {pathInfo.length > 0 && !examplesFlag && (
+              <PathsPanel
+                pathInfo={pathInfo}
+                onLoadPath={region => { void changeRegionAndGo(region); }}
+                onCopyToRegion={region => { setRegion(region); }}
+              />
+            )}
             {customFilesFlag && (
               <div className="d-flex justify-content-between align-items-start">
                 <div>{DataPositionFormRowComponent}</div>
@@ -663,17 +819,6 @@ function HeaderForm({
             ) : null}
           </Col>
         </Row>
-        {pathInfo.length > 0 && !examplesFlag && (
-          <Row>
-            <Col>
-              <PathsPanel
-                pathInfo={pathInfo}
-                onLoadPath={region => { void changeRegionAndGo(region); }}
-                onCopyToRegion={region => { setRegion(region); }}
-              />
-            </Col>
-          </Row>
-        )}
       </Container>
       <Dialog
         open={uploadDialogOpen}

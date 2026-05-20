@@ -112,9 +112,10 @@ interface LegendProps {
   tracks: Tracks
   colorSchemes: ColorScheme[]
   title?: string
+  onClose?: () => void
 }
 
-function Legend({ tracks, colorSchemes, title = 'Color legend' }: LegendProps) {
+function Legend({ tracks, colorSchemes, title = 'Color legend', onClose }: LegendProps) {
   if (tracks.length === 0) {
     return null
   }
@@ -122,15 +123,45 @@ function Legend({ tracks, colorSchemes, title = 'Color legend' }: LegendProps) {
   return (
     <div
       style={{
-        display: 'inline-block',
         padding: '8px 12px',
         border: '1px solid #ddd',
         borderRadius: 4,
-        background: '#fafafa',
+        background: 'rgba(250, 250, 250, 0.97)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         fontSize: 12,
+        minWidth: 180,
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 6 }}>{title}</div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          marginBottom: 6,
+        }}
+      >
+        <div style={{ fontWeight: 600 }}>{title}</div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={() => { onClose() }}
+            aria-label="Hide legend"
+            title="Hide legend"
+            style={{
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: 16,
+              lineHeight: 1,
+              padding: '0 4px',
+              color: '#666',
+            }}
+          >
+            ×
+          </button>
+        )}
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {tracks.map((t, i) => {
           const scheme = colorSchemes[i]

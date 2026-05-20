@@ -10,6 +10,7 @@ type WorkerProxy = Comlink.Remote<WorkerAPIShape>
  * API implementation that uses a web worker to run a GBZBaseAPI.
  */
 export class LocalAPI implements APIInterface {
+  readonly mode = 'local' as const
   private readonly worker: Worker
   private readonly workerAPI: WorkerProxy
   private nextCancelID = 0
