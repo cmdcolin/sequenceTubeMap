@@ -172,10 +172,14 @@ function HeaderForm({
   const pathInfo: PathInfo[] = pathInfoData?.pathInfo ?? []
 
   // Server explicitly reported no mounted files (vs network/parse failure).
+  // LocalAPI starts with no files until the user uploads, so we only surface
+  // the generic fallback when a real server returned an empty list.
   const noFilesMessage =
     filenamesData && (!filenamesData.files || filenamesData.files.length === 0)
       ? (filenamesData.error ??
-          'Server did not return a list of mounted filenames.')
+          (APIInterface instanceof LocalAPI
+            ? null
+            : 'Server did not return a list of mounted filenames.'))
       : null
 
   const error =

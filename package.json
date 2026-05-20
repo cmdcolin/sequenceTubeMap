@@ -62,6 +62,7 @@
     "test": "vitest run",
     "predeploy": "PUBLIC_URL=/sequenceTubeMap npm run build",
     "deploy": "gh-pages -d build",
+    "postdeploy": "git push --follow-tags",
     "serve": "node --strip-types ./src/server.mjs",
     "format": "prettier --write \"**/*.+(mjs|js|css)\"",
     "lint": "eslint --cache"
