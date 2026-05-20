@@ -1,5 +1,6 @@
 import { PALETTES } from '../util/palettes.ts'
 import type { PaletteInfo } from '../util/palettes.ts'
+import { truncateMiddle } from '../util/text.ts'
 import type { ColorScheme, FileType, Palette, Tracks } from '../Types.ts'
 
 function gradientBackground(colors: readonly string[]): string {
@@ -91,18 +92,6 @@ function trackLabel(
     return last
   }
   return file
-}
-
-// Middle-ellipsis truncation. Filenames in this app often carry pipeline
-// provenance in the prefix (sample/run ids) and format info in the suffix
-// (.sorted.gam), so head+tail beats CSS text-overflow which would only keep
-// the prefix. Full label is preserved in the `title` attribute for hover.
-function truncateMiddle(s: string, max: number): string {
-  if (s.length <= max) return s
-  const keep = max - 1
-  const head = Math.ceil(keep / 2)
-  const tail = Math.floor(keep / 2)
-  return `${s.slice(0, head)}…${s.slice(-tail)}`
 }
 
 // Labels for the two palette slots, which mean different things per track type.

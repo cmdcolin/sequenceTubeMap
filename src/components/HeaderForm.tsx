@@ -7,6 +7,7 @@ import { Button, Container, Row, Col, Label, Alert } from 'reactstrap'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { APIInterface } from '../api/APIInterface.ts'
+import { truncateMiddle } from '../util/text.ts'
 import DataPositionFormRow from './DataPositionFormRow.tsx'
 import HelpButton from './HelpButton.tsx'
 import ExampleSelectButtons from './ExampleSelectButtons.tsx'
@@ -877,7 +878,7 @@ function HeaderForm({
             {recentlyUploaded.length > 0 && (
               <Alert color="success" className="mt-2 mb-2 py-2">
                 <strong>Loaded {recentlyUploaded.length} file{recentlyUploaded.length === 1 ? '' : 's'}:</strong>{' '}
-                {recentlyUploaded.join(', ')}.{' '}
+                {recentlyUploaded.map(f => truncateMiddle(f, 40)).join(', ')}.{' '}
                 {pathInfo.length > 0
                   ? 'Pick a path below or type a region to view it.'
                   : 'Type a region above to view it.'}
