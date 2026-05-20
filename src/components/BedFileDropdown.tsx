@@ -31,22 +31,16 @@ export function BedFileDropdown({
   options,
 }: BedFileDropdownProps) {
   return (
-    <Autocomplete<string, false, true, true>
+    <Autocomplete<string, false, true, false>
       id={id}
       className={className}
       size="small"
-      freeSolo
       disableClearable
-      value={value ?? ''}
+      value={value ?? 'none'}
       options={options}
       getOptionLabel={option => getFilename(option)}
       onChange={(_event, newValue) => {
         onChange({ target: { id, value: newValue } })
-      }}
-      onInputChange={(_event, newInput, reason) => {
-        if (reason === 'input') {
-          onChange({ target: { id, value: newInput } })
-        }
       }}
       renderInput={params => (
         <TextField
