@@ -1826,11 +1826,20 @@ function alignSVG(): () => void {
         return `translate(${cx},${cy}) scale(${labelScale})`
       })
       // Hide mismatches when the zoom is too far out for them to be readable.
-      const layer = svg.select<SVGGElement>('g.mismatches-layer')
-      if (pendingK < MISMATCH_HIDE_BELOW_K) {
-        layer.style('display', 'none')
-      } else {
-        layer.style('display', null)
+      // Only touch the style when crossing the threshold so we're not writing
+      // attrs every frame, and log the crossing so it's visible during tuning.
+      const shouldHide = pendingK < MISMATCH_HIDE_BELOW_K
+      if (shouldHide !== mismatchesHidden) {
+        mismatchesHidden = shouldHide
+        const layer = svg.select<SVGGElement>('g.mismatches-layer')
+        if (shouldHide) {
+          layer.style('display', 'none')
+        } else {
+          layer.style('display', null)
+        }
+        console.log(
+          `mismatches ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
+        )
       }
       pendingTransform = null
     }
@@ -5745,8 +5754,15 @@ function mergeableWithSucc(
 // so they reappear instantly when the user zooms back in.
 const MISMATCH_HIDE_BELOW_K = 0.5
 
+// Tracks the current display state so the flush only writes a style attr
+// (and logs) when the threshold is actually crossed.
+let mismatchesHidden = false
+
 function drawMismatches(): void {
   const layer = svg.append('g').attr('class', 'mismatches-layer')
+  // Fresh layer starts visible — reset so the next flush will (re-)hide it
+  // if the user is currently zoomed out below the threshold.
+  mismatchesHidden = false
   tracks.forEach(read => {
     if (read.type === 'read') {
       read.sequenceNew!.forEach((element, i) => {
