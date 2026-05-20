@@ -23,6 +23,7 @@ interface RegionInputProps {
   region: string
   regionInfo: RegionInfo
   handleRegionChange: (region: string) => void
+  onSubmit?: () => void
 }
 
 // RegionInput: The path and region input box component
@@ -31,6 +32,7 @@ export const RegionInput = ({
   region,
   regionInfo,
   handleRegionChange,
+  onSubmit,
 }: RegionInputProps) => {
   const [helpOpen, setHelpOpen] = useState(false)
   const pathsWithRegion: RegionOption[] = []
@@ -96,6 +98,12 @@ export const RegionInput = ({
                 size="small"
                 label={'Region'}
                 name="Region Input"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && onSubmit) {
+                    e.preventDefault()
+                    onSubmit()
+                  }
+                }}
               />
             )}
           />
