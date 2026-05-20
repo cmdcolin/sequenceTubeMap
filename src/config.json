@@ -14,6 +14,14 @@
       "removeSequences": false
     },
     {
+      "name": "vg \"small\" (WASM-compatible)",
+      "tracks": [
+        {"trackFile": "exampleData/x.gbz.db", "trackType": "graph"}
+      ],
+      "region": "x:1-100",
+      "dataType": "built-in"
+    },
+    {
       "name": "vg \"small\" example",
       "tracks": [
         {"trackFile": "exampleData/x.vg.xg", "trackType": "graph"},
