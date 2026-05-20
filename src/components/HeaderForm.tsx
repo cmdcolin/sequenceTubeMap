@@ -99,14 +99,14 @@ interface CoordsMetaData {
   chunk: string
 }
 
-function HelpIcon({ label, helpText, onOpen }: { label: string; helpText: string; onOpen?: () => void }) {
+function HelpIcon({ label, helpText }: { label: string; helpText: string }) {
   const [open, setOpen] = useState(false)
   return (
     <>
       <IconButton
         size="small"
         sx={{ ml: 0.5, color: 'action.active' }}
-        onClick={(e) => { e.stopPropagation(); setOpen(true); onOpen?.(); }}
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
       >
         <FontAwesomeIcon icon={faCircleInfo} size="xs" />
       </IconButton>
@@ -130,7 +130,6 @@ function CheckboxMenuItem({
   disabled,
   testid,
   helpText,
-  onHelpOpen,
 }: {
   label: string
   checked: boolean
@@ -138,7 +137,6 @@ function CheckboxMenuItem({
   disabled?: boolean
   testid?: string
   helpText?: string
-  onHelpOpen?: () => void
 }) {
   return (
     <MenuItem
@@ -158,7 +156,7 @@ function CheckboxMenuItem({
         />
       </ListItemIcon>
       <ListItemText primary={label} />
-      {helpText && <HelpIcon label={label} helpText={helpText} onOpen={onHelpOpen} />}
+      {helpText && <HelpIcon label={label} helpText={helpText} />}
     </MenuItem>
   )
 }
@@ -640,7 +638,7 @@ function HeaderForm({
                   checked={visOptions.removeRedundantNodes}
                   onToggle={() => { toggleVisOptionFlag('removeRedundantNodes') }}
                   helpText="Merges consecutive nodes that only ever connect to each other with no branching, collapsing simple linear paths into single nodes for a cleaner layout."
-                  onHelpOpen={() => { setMenuAnchor(null); }}
+
                 />
                 <CheckboxMenuItem
                   label="Compressed view"
@@ -648,21 +646,21 @@ function HeaderForm({
                   disabled={enableCompressedNodes}
                   onToggle={() => { toggleVisOptionFlag('compressedView') }}
                   helpText="Uses a logarithmic scale for node width instead of a linear one, so very long nodes don't visually dominate short ones. Sequence bases are not rendered in this mode."
-                  onHelpOpen={() => { setMenuAnchor(null); }}
+
                 />
                 <CheckboxMenuItem
                   label="Fully transparent nodes"
                   checked={visOptions.transparentNodes}
                   onToggle={() => { toggleVisOptionFlag('transparentNodes') }}
                   helpText="Makes graph nodes fully transparent so only the colored read paths passing through them are visible, giving an unobstructed view of alignment patterns."
-                  onHelpOpen={() => { setMenuAnchor(null); }}
+
                 />
                 <CheckboxMenuItem
                   label="Show node labels"
                   checked={visOptions.showNodeLabels}
                   onToggle={() => { toggleVisOptionFlag('showNodeLabels') }}
                   helpText="Displays the numeric node ID on each graph node."
-                  onHelpOpen={() => { setMenuAnchor(null); }}
+
                 />
               </Menu>
               <MuiButton
@@ -689,7 +687,7 @@ function HeaderForm({
                   disabled={!visOptions.showReads}
                   onToggle={() => { toggleVisOptionFlag('showSoftClips') }}
                   helpText="Renders the soft-clipped portions of reads — bases that were not aligned to the reference — as colored extensions beyond the aligned segment."
-                  onHelpOpen={() => { setMenuAnchor(null); }}
+
                 />
                 <CheckboxMenuItem
                   label="Color by mapping quality"
@@ -697,7 +695,7 @@ function HeaderForm({
                   disabled={!visOptions.showReads}
                   onToggle={() => { toggleVisOptionFlag('colorReadsByMappingQuality') }}
                   helpText="Colors each read by its mapping quality (MAPQ) score. Higher scores (more confident placements) appear darker; lower scores appear lighter."
-                  onHelpOpen={() => { setMenuAnchor(null); }}
+
                 />
                 <CheckboxMenuItem
                   label="Transparency by mapping quality"
@@ -705,7 +703,7 @@ function HeaderForm({
                   disabled={!visOptions.showReads}
                   onToggle={() => { toggleVisOptionFlag('alphaReadsByMappingQuality') }}
                   helpText="Makes reads with lower mapping quality more transparent, so high-confidence alignments stand out visually."
-                  onHelpOpen={() => { setMenuAnchor(null); }}
+
                 />
                 {handleMappingQualityCutoffChange && (
                   <Box
@@ -716,7 +714,6 @@ function HeaderForm({
                     <HelpIcon
                       label="Mapping quality cutoff"
                       helpText="Hides reads whose mapping quality (MAPQ) score falls below this value (0–60). Higher values show only the most confidently placed reads."
-                      onOpen={() => { setMenuAnchor(null); }}
                     />
                     <select
                       disabled={!visOptions.showReads}

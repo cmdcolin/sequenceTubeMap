@@ -26,7 +26,10 @@ export const Footer = () => (
         fontSize: '0.95em',
       }}
     >
-      <SafeLink target="_blank" href="https://github.com/cmdcolin/sequenceTubeMap">
+      <SafeLink
+        target="_blank"
+        href="https://github.com/cmdcolin/sequenceTubeMap"
+      >
         <FontAwesomeIcon icon={faGithub} /> More info on this fork
       </SafeLink>
       <div style={{ marginTop: 4 }}>
@@ -40,7 +43,8 @@ export const Footer = () => (
           target="_blank"
         >
           Rafeed Rahman Turjya
-        </SafeLink>
+        </SafeLink>{' '}
+        et al.
       </div>
       <div style={{ marginTop: 4 }}>
         Thanks to the organizers for a great{' '}
