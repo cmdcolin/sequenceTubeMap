@@ -357,9 +357,9 @@ it('can retrieve the list of mounted graph files', async () => {
   // Wait for everything to settle so we don't stop the server while it is thinking
   await waitForLoadEnd()
 
-  // Swap over to the custom files mode
+  // Swap over to the custom files mode via the data mode toggle
   await act(async () => {
-    await selectMuiOption(screen.getByTestId('dataSourceSelect'), 'custom')
+    fireEvent.click(screen.getByTestId('dataModeUpload'))
   })
 
   // Find the select box's input
@@ -397,9 +397,9 @@ it('can retrieve the list of mounted graph files', async () => {
 it('can accept uploaded files', async () => {
   await waitForLoadEnd()
 
-  // Swap over to the custom files mode
+  // Swap over to the custom files mode via the data mode toggle
   await act(async () => {
-    await selectMuiOption(screen.getByTestId('dataSourceSelect'), 'custom')
+    fireEvent.click(screen.getByTestId('dataModeUpload'))
   })
 
   // Find the select box's input
