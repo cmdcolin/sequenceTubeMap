@@ -89,11 +89,19 @@ export async function readGamRegion(
     }
     const slice = compressed.subarray(startBlock, stop)
     const decompressed = await decompress(slice)
-    // We can't honor the per-byte VO precisely without per-block uncompressed
-    // sizes, so we scan from the start of the slice. Group framing realigns
-    // on the next varint64, which by construction starts at the run.start
-    // offset within the first block.
-    for (const msg of iterateMessages(decompressed)) {
+    // A virtual offset is (block_start << 16) | offset_within_block. The
+    // decompressed slice begins at byte 0 of `startBlock`, so the in-block
+    // offset of run.start is the index into `decompressed` at which the
+    // group framing actually resumes. Skipping ahead is necessary because
+    // groups are not aligned to BGZF block boundaries — if we start at
+    // byte 0 of a block whose run lands mid-block, we end up parsing
+    // the tail of an unrelated group and either fail or yield junk
+    // messages that won't decode as Alignments.
+    const startInBlock = Number(run.start & 0xFFFFn)
+    const stream = startInBlock > 0 && startInBlock < decompressed.length
+      ? decompressed.subarray(startInBlock)
+      : decompressed
+    for (const msg of iterateMessages(stream)) {
       if (msg.tag !== GAM_TAG && msg.tag !== '') {
         continue
       }

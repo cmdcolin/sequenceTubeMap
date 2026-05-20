@@ -109,4 +109,33 @@ describe('readGamRegion', () => {
       xs.map(x => x.name ?? '').sort()
     expect(names(indexed)).toEqual(names(filtered))
   })
+
+  // Regression: BRCA1's gai has runs with non-zero in-block offsets (e.g.
+  // run.start = (block << 16) | 33306). The reader has to skip those bytes
+  // before iterating message groups, or it lands mid-group and either reads
+  // a truncated varint or "successfully" frames junk that fails to decode.
+  // It also has to tolerate the tail of the slice landing inside another
+  // bin's group that spans into a block we deliberately didn't fetch.
+  //
+  // The "exact same names as a full-scan filter" check is the real teeth: if
+  // the truncation tolerance ever starts silently dropping reads from inside
+  // our run (vs. only dropping unrelated tail bytes), this assertion fails.
+  it('matches full-scan filter on a BRCA1 narrow range', async () => {
+    const gam = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam')
+    const gai = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam.gai')
+    const all = await readGam(gam)
+    const inRange = (r: { path?: { mapping: { position?: { node_id?: string | bigint } }[] } }) =>
+      r.path?.mapping.some(m => {
+        const id = m.position?.node_id
+        if (id === undefined) return false
+        const n = typeof id === 'bigint' ? id : BigInt(id)
+        return n >= 1n && n <= 24n
+      }) ?? false
+    const filtered = all.filter(inRange)
+    const indexed = await readGamRegion(gam, gai, 1n, 24n)
+    expect(indexed.length).toBeGreaterThan(0)
+    const names = (xs: { name?: string }[]) =>
+      xs.map(x => x.name ?? '').sort()
+    expect(names(indexed)).toEqual(names(filtered))
+  })
 })

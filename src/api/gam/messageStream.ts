@@ -33,32 +33,35 @@ export interface TaggedMessage {
 
 // Iterate every (tag, bytes) pair in a decompressed message stream.
 //
-// The caller is responsible for BGZF decompression. `data` must be the full
-// uncompressed byte stream; group boundaries are not aligned with BGZF blocks
-// so reading partial blocks is not supported here.
+// `data` is a contiguous decompressed slice from one or more BGZF blocks.
+// When the caller is reading a region (a coalesced range from the .gam.gai),
+// the slice may end mid-group — the trailing bytes belong to a different
+// bin whose payload spills into a block we deliberately didn't fetch. In
+// that case we silently terminate after the last complete message; any
+// alignments we needed are already inside the requested range.
 export function* iterateMessages(data: Uint8Array): Generator<TaggedMessage> {
   let offset = 0
   let currentTag = ''
   while (offset < data.length) {
-    const group = readVarint64(data, offset)
+    const group = tryReadVarint64(data, offset)
+    if (group === null) return
     if (group.value < 1n) {
-      // Empty / sentinel group; advance and keep scanning.
       offset = group.offset
       continue
     }
     offset = group.offset
     const groupCount = Number(group.value)
 
-    // First item in a group: may be a tag string or, if not a known tag, the
-    // first message of an implicit "" (empty-tag) group.
-    const first = readSizedBytes(data, offset)
+    const first = tryReadSizedBytes(data, offset)
+    if (first === null) return
     offset = first.offset
     const firstAsString = decodeIfPrintable(first.bytes)
     if (firstAsString !== undefined && KNOWN_TAGS.has(firstAsString)) {
       currentTag = firstAsString
       // The tag counts as one of the group's items.
       for (let i = 1; i < groupCount; i++) {
-        const msg = readSizedBytes(data, offset)
+        const msg = tryReadSizedBytes(data, offset)
+        if (msg === null) return
         offset = msg.offset
         yield { tag: currentTag, bytes: msg.bytes }
       }
@@ -69,7 +72,8 @@ export function* iterateMessages(data: Uint8Array): Generator<TaggedMessage> {
       const tag = currentTag
       yield { tag, bytes: first.bytes }
       for (let i = 1; i < groupCount; i++) {
-        const msg = readSizedBytes(data, offset)
+        const msg = tryReadSizedBytes(data, offset)
+        if (msg === null) return
         offset = msg.offset
         yield { tag, bytes: msg.bytes }
       }
@@ -77,11 +81,34 @@ export function* iterateMessages(data: Uint8Array): Generator<TaggedMessage> {
   }
 }
 
-function readSizedBytes(
+// Return null when the buffer is exhausted mid-value (so callers can treat
+// truncation as end-of-stream). Other errors still throw.
+function tryReadVarint64(
   buf: Uint8Array,
   offset: number,
-): { bytes: Uint8Array; offset: number } {
-  const sz = readVarint32(buf, offset)
+): { value: bigint; offset: number } | null {
+  try {
+    return readVarint64(buf, offset)
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('end of buffer')) return null
+    throw e
+  }
+}
+
+function tryReadSizedBytes(
+  buf: Uint8Array,
+  offset: number,
+): { bytes: Uint8Array; offset: number } | null {
+  let sz
+  try {
+    sz = readVarint32(buf, offset)
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('end of buffer')) return null
+    throw e
+  }
+  // Size header parsed, but the payload itself runs past the slice. Same
+  // story: a different bin's data spills past where we stopped reading.
+  if (sz.offset + sz.value > buf.length) return null
   return {
     bytes: buf.subarray(sz.offset, sz.offset + sz.value),
     offset: sz.offset + sz.value,
