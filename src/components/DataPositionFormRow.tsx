@@ -39,7 +39,7 @@ function DataPositionFormRow({
     }
   }
 
-  const goDisabled = uploadInProgress || !canGo
+  const goDisabled = uploadInProgress || !canGo || !viewTargetHasChange
   const goTitle = !canGo
     ? 'Pick a region (e.g. "ref:0-1000") and load a graph before clicking Go.'
     : viewTargetHasChange
@@ -67,7 +67,7 @@ function DataPositionFormRow({
         <div className="smallLoader" id="fileUploadSpinner" />
       )}
       <Button
-        color={viewTargetHasChange ? 'alert' : 'primary'}
+        color="primary"
         title={goTitle}
         id="goButton"
         onClick={() => { handleGoButton(); }}
