@@ -17,6 +17,7 @@ import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
 import { getCompiledWasm } from '#wasm-loader'
 import { makeWasiFile } from './wasm/blobWasiFile.ts'
 import { convertSchema, removeNodeSequencesInPlace } from './wasm/schema.ts'
+import { clearProgress, report } from './downloadProgress.ts'
 import { readGbzDbPaths } from './wasm/gbzDbPaths.ts'
 import { readGam, readGamRegion } from './gam/gam.ts'
 import { UploadRegistry } from './local/fileRegistry.ts'
@@ -129,7 +130,10 @@ export class GBZBaseAPI implements APIInterface {
   }
 
   // Resolve a trackFile string to a Blob: a numeric ID points at the uploads
-  // array; anything else is fetched from the URL (cached).
+  // array; anything else is fetched from the URL (cached). For large URL
+  // fetches (e.g. the 128 MB hprc-chr20.gbz.db demo file) we stream the body
+  // and publish progress via `downloadProgress.report` so the loader spinner
+  // can show "downloading X / Y MB" instead of looking frozen.
   private async resolveTrackFile(trackFile: string): Promise<Blob> {
     if (/^\d+$/.test(trackFile)) {
       const blob = this.registry.get(trackFile)
@@ -149,6 +153,31 @@ export class GBZBaseAPI implements APIInterface {
           throw new Error(
             `Could not load ${trackFile}: HTTP ${response.status}`,
           )
+        }
+        const contentLength = response.headers.get('content-length')
+        const total = contentLength === null ? null : Number(contentLength)
+        // Stream the body so we can publish progress. Fall through to the
+        // plain .blob() path if the body isn't readable (older browsers /
+        // jsdom test env / opaque responses).
+        if (response.body) {
+          const reader = response.body.getReader()
+          const chunks: Uint8Array[] = []
+          let received = 0
+          report(resolved, 0, total)
+          try {
+            // The inner read loop is what actually paces progress reporting;
+            // pull all the chunks before assembling the Blob.
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              chunks.push(value)
+              received += value.length
+              report(resolved, received, total)
+            }
+          } finally {
+            clearProgress(resolved)
+          }
+          return new Blob(chunks as BlobPart[])
         }
         return response.blob()
       })()
@@ -303,7 +332,7 @@ export class GBZBaseAPI implements APIInterface {
         wasmErrorLine === undefined ||
         /unsupported|cannot open|not a database|schema|magic/i.test(wasmErrorLine)
       const formatHint = looksLikeFormatError
-        ? `\nThe in-browser WASM backend only reads gbz-base SQLite (.gbz.db) files; .vg / .xg / .gbz are not supported.`
+        ? `\nThe in-browser WASM backend reads .gbz (preferred) or .gbz.db files; .vg / .xg are not supported.`
         : ''
       const stderrSuffix =
         stderrTail && stderrTail !== wasmErrorLine

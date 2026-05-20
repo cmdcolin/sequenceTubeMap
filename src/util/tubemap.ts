@@ -3877,8 +3877,6 @@ function drawNodes(dNodes: Node[], groupNode: SvgGroupSelection): void {
     .style('fill-opacity', d => colorNodes(d.name)['fill-opacity'] ?? null)
     .style('stroke', d => colorNodes(d.name).outline ?? null)
     .style('stroke-width', '2px')
-    .append('svg:title')
-    .text(d => getPopUpNodeText(d))
 }
 
 // Given a node name, return an object with "fill", "fill-opacity", and "outline"
@@ -4480,8 +4478,6 @@ function drawTrackRectangles(
     .on('dblclick', trackDoubleClick)
     .on('click', trackSingleClick)
     .on('contextmenu', trackRightClick)
-    .append('svg:title')
-    .text(d => getPopUpTrackText(d.name))
 }
 
 function compareCurvesByXYStartValue(a: TrackCurve, b: TrackCurve): number {
@@ -4791,8 +4787,6 @@ function drawTrackCurves(
     .on('dblclick', trackDoubleClick)
     .on('click', trackSingleClick)
     .on('contextmenu', trackRightClick)
-    .append('svg:title')
-    .text(d => getPopUpTrackText(d.name))
 }
 
 function drawTrackCorners(
@@ -4819,8 +4813,6 @@ function drawTrackCorners(
     .on('dblclick', trackDoubleClick)
     .on('click', trackSingleClick)
     .on('contextmenu', trackRightClick)
-    .append('svg:title')
-    .text(d => getPopUpTrackText(d.name))
 }
 
 // Get a non-read input track index by the ID stored in their d3 objects.
@@ -5772,8 +5764,6 @@ function drawInsertion(
     .attr('nodeY', nodeY)
     .on('mouseover', insertionMouseOver)
     .on('mouseout', insertionMouseOut)
-    .append('svg:title')
-    .text(seq ?? null)
 }
 
 function drawSubstitution(

@@ -1,0 +1,68 @@
+# GBZ-base releases
+
+## GBZ-base 0.5.0 (2026-05-05)
+
+* Database versions: GBZ-base version 4, GAF-base version 4
+* GBZ-base version 4:
+  * Same as version 0.4.0, but with the new version number scheme.
+* GAF-base version 4:
+  * Quality strings are compressed with rANS 4x16 (order-1, rle).
+  * GAF-base is now substantially smaller than bgzip-compressed sorted GAF.
+* Improved snarl-aware queries:
+  * `SnarlOutput::Contained`: Extend the subgraph with snarls that have both boundary nodes in the subgraph (existing behavior).
+  * `SnarlOutput::Overlapping`: Extend the subgraph with all overlapping snarls (requires a connected subgraph).
+
+## GBZ-base 0.4.0 (2026-04-17)
+
+* Database versions: GBZ-base v0.4.0, GAF-base version 3
+* GBZ-base and GAF-base construction without vg:
+  * GBZ-base construction will find top-level chains automatically if not provided.
+  * GAF sorting with `gaf_sort()` and the `gafsort` tool.
+  * GBWT construction in a background thread when building GAF-base.
+* Bug fixes:
+  * Exact alignments in a block with varying query lengths are now encoded correctly. GAF-bases must be rebuilt.
+* Binaries:
+  * Command line arguments can use suffixes (e.g. `k`, `MiB`) for sizes and counts that can plausibly be large.
+  * Binaries report peak memory usage.
+
+## GAF-base 0.3.0 (2026-02-18)
+
+* Database versions: GBZ-base v0.4.0, GAF-base version 3
+* Support for GBZ version 2 with Zstandard compressed sequences.
+* GAF-base version 3:
+  * More space-efficient representation of numerical values in table `Alignments`.
+  * Database construction parameters stored in table `Tags`.
+  * Optional reference-free GAF-base by storing node sequences in table `Nodes`.
+  * Option to leave out base quality strings.
+  * Also stores unknown optional fields, unless told otherwise.
+
+## GBZ-base 0.2.0 (2025-12-26)
+
+* Database versions: GBZ-base v0.4.0, GAF-base v0.2.0
+* `db2gaf` tool for converting a GAF-base back to GAF format.
+* Support for [stable graph names](https://github.com/jltsiren/pggname):
+  * Uses `pggname::GraphName` for importing graph names and relationships between GBZ tags and GFA/GAF headers.
+  * Stable graph names are stored in databases and included in GFA/GAF outputs.
+  * `db2gaf` and `query` use the information for determining if the graph is a valid reference for the alignments.
+
+## GBZ-base 0.1.0 (2025-11-06)
+
+* Database versions: GBZ-base v0.4.0, GAF-base v0.2.0
+
+This is the initial release of GBZ-base and GAF-base.
+
+## Release process
+
+* Clean up with `cargo clean`.
+* Update database versions to non-dev versions in `db.rs`.
+* Update version in `Cargo.toml`.
+* Switch to crates.io versions of dependencies, if necessary.
+* Update `RELEASES.md`.
+* Run `cargo clippy`.
+* Run tests with `cargo test`.
+* Build documentation with `cargo doc`.
+* Build the optimized version with `cargo build --release`.
+* Commit the final changes for the release.
+* Publish in crates.io with `cargo publish`.
+* Push to GitHub.
+* Draft a new release in GitHub.

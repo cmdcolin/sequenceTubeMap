@@ -10,6 +10,7 @@ import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog.tsx'
 import ReadContextMenu from './ReadContextMenu.tsx'
 import NodeContextMenu from './NodeContextMenu.tsx'
 import PendingPanel from './PendingPanel.tsx'
+import DownloadProgressPanel from './DownloadProgressPanel.tsx'
 import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel.tsx'
 import { computeExampleData } from './tubeMapData.ts'
 import type { APIInterface } from '../api/APIInterface.ts'
@@ -187,6 +188,7 @@ function TubeMapContainer({
           <Row>
             <div id="loaderContainer">
               <div id="loader" />
+              <DownloadProgressPanel />
             </div>
           </Row>
         </Container>

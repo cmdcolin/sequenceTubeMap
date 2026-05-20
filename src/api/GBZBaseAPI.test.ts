@@ -140,3 +140,37 @@ describe('uploaded read + index siblings', () => {
     expect(trackFileIds).not.toContain(gaiId!)
   })
 })
+
+// Network-gated smoke test against the S3-hosted HPRC chr20 file referenced
+// by the "HPRC chr20 (URL-hosted, full PanSN)" entry in config.json. Proves:
+//   1. URL-backed track files load correctly via `resolveTrackFile`'s fetch.
+//   2. The patched gbz-base WASM (vendor/gbz-base-patch/) resolves real PanSN
+//      sample names from the GBWT metadata instead of emitting "unknown#N".
+//
+// Opt-in via `RUN_NETWORK_TESTS=1` because the file is ~128 MB — too much for
+// every developer-machine `pnpm test` and a real risk of flakes on slow CI.
+const RUN_NETWORK = process.env.RUN_NETWORK_TESTS === '1'
+describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC chr20', () => {
+  it('returns real PanSN sample names (no `unknown#N` fallback)', async () => {
+    const api = new GBZBaseAPI()
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [{
+        trackFile: 'https://jbrowse.org/demos/ivg/hprc/hprc-chr20.gbz.db',
+        trackType: 'graph',
+      }],
+      region: 'GRCh38#chr20:30000000-30000500',
+    }
+    const view = await api.getChunkedData(viewTarget, new AbortController().signal)
+    const paths = view.graph?.path ?? []
+    const names = paths.map(p => p.name).filter((n): n is string => n !== undefined)
+
+    // Reference path always present.
+    expect(names.some(n => n.startsWith('GRCh38'))).toBe(true)
+    // At least one real HG-prefixed haplotype sample shows up — the patch's
+    // whole point. Without it these would be `unknown#N#contig` instead.
+    expect(names.some(n => /^HG\d{5}/.test(n))).toBe(true)
+    // Nothing should fall back to the anonymous label.
+    expect(names.every(n => !n.startsWith('unknown#'))).toBe(true)
+  }, 180000) // 3 min: 128 MB fetch + WASM query
+})

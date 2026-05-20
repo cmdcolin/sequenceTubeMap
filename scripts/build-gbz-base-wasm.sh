@@ -29,37 +29,23 @@
 
 set -euo pipefail
 
-VERSION="${1:-v0.5}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK_DIR="${REPO_ROOT}/tmp/gbz-base-build"
 VENDOR_DIR="${REPO_ROOT}/vendor/gbz-base"
+SRC_DIR="${REPO_ROOT}/vendor/gbz-base-patch"
 SIMPLE_SDS_PATCH="${REPO_ROOT}/vendor/simple-sds-patch"
 GBZ_PATCH="${REPO_ROOT}/vendor/gbz-patch"
 WASI_SDK_VERSION="20"
 RUST_TARGET="wasm32-wasip1"
 
 mkdir -p "${WORK_DIR}"
-cd "${WORK_DIR}"
 
-if [[ ! -d "gbz-base-${VERSION#v}" ]]; then
-  echo "Fetching gbz-base ${VERSION}..."
-  curl -sL "https://github.com/jltsiren/gbz-base/archive/refs/tags/${VERSION}.tar.gz" \
-    -o "src-${VERSION}.tar.gz"
-  tar -xf "src-${VERSION}.tar.gz"
-fi
+# Use the vendored gbz-base fork at vendor/gbz-base-patch/. See its PATCH-NOTES.md.
+# (Previously this script fetched gbz-base v0.5 from GitHub; we now carry the
+# source in-tree so we can keep our own modifications.)
 
-SRC_DIR="${WORK_DIR}/gbz-base-${VERSION#v}"
-
-# Upstream's .cargo/config.toml sets `-C target-cpu=native`, which is wrong
-# for the wasm target. Replace it (idempotent).
-mkdir -p "${SRC_DIR}/.cargo"
-cat >"${SRC_DIR}/.cargo/config.toml" <<EOF
-[build]
-rustflags = ""
-EOF
-
-# Patch simple-sds (drops libc default + fixes 32-bit usize overflow in
-# binaries.rs SUFFIXES table). See vendor/simple-sds-patch/README.md.
+# Make sure the [patch.crates-io] block points the in-tree gbz-base build at
+# our vendored simple-sds + gbz forks. Idempotent.
 if ! grep -q "patch.crates-io" "${SRC_DIR}/Cargo.toml"; then
   cat >>"${SRC_DIR}/Cargo.toml" <<EOF
 

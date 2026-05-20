@@ -266,10 +266,18 @@ describe('When we wait for it to load', () => {
 
     await waitForLoadEnd()
 
-    // See if correct svg rendered
+    // See if correct svg rendered. The custom hover-tooltip replaced the
+    // native <svg:title> elements that used to live on every node and track
+    // shape, so count the rendered shapes directly: <path> nodes inside the
+    // g.node group plus anything carrying a `trackID` attribute (track
+    // rectangles, curves, and corners).
     const svg = document.getElementById('svg')
     expect(svg).toBeTruthy()
-    expect(svg.getElementsByTagName('title').length).toEqual(50)
+    const shapes =
+      svg.querySelectorAll('g.node path').length +
+      svg.querySelectorAll('[trackID]').length +
+      svg.querySelectorAll('[nodeY]').length
+    expect(shapes).toEqual(50)
   })
 
   it('draws the right SVG for cactus multiple reads', async () => {
@@ -298,10 +306,16 @@ describe('When we wait for it to load', () => {
 
     await waitForLoadEnd()
 
-    // See if correct svg rendered
+    // See if correct svg rendered. The custom hover-tooltip replaced the
+    // native <svg:title> elements that used to live on every node and track
+    // shape, so count the rendered shapes directly.
     const svg = document.getElementById('svg')
     expect(svg).toBeTruthy()
-    expect(svg.getElementsByTagName('title').length).toEqual(22)
+    const shapes =
+      svg.querySelectorAll('g.node path').length +
+      svg.querySelectorAll('[trackID]').length +
+      svg.querySelectorAll('[nodeY]').length
+    expect(shapes).toEqual(22)
   })
 })
 
@@ -460,10 +474,15 @@ it('can accept uploaded files', async () => {
 
   await waitForLoadEnd()
 
-  // See if correct svg rendered
+  // See if correct svg rendered. The custom hover-tooltip replaced the
+  // native <svg:title> elements; count rendered shapes directly. With
+  // remove-redundant-nodes on, we expect 3 nodes and 2 track shapes.
   const svg = document.getElementById('svg')
   expect(svg).toBeTruthy()
-  // Since remove redundant nodes is on, we have 3 titles for nodes and 2 for paths.
-  expect(svg.getElementsByTagName('title').length).toEqual(5)
+  const shapes =
+    svg.querySelectorAll('g.node path').length +
+    svg.querySelectorAll('[trackID]').length +
+    svg.querySelectorAll('[nodeY]').length
+  expect(shapes).toEqual(5)
 }, 50000) // We need to allow a long time for the slow vg test machines.
 // TODO: Is this slow because of unnecessary re-renders caused by the new color schemes taking effect and being rendered with the old data, before the new data downloads?
