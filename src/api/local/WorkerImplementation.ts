@@ -125,6 +125,22 @@ class WorkerAPI {
     }
   }
 
+  async getReadCountsPerPath(
+    graphFile: string,
+    readFile: string,
+    cancelID: number | undefined,
+  ): Promise<{ counts: Record<string, number> } | null> {
+    try {
+      return await this.#api.getReadCountsPerPath(
+        graphFile,
+        readFile,
+        this.#getSignal(cancelID),
+      )
+    } finally {
+      this.#requestOver(cancelID)
+    }
+  }
+
   subscribeToFilenameChanges(onChangeCallback: () => void): () => void {
     const controller = new AbortController()
     this.#api.subscribeToFilenameChanges(onChangeCallback, controller.signal)

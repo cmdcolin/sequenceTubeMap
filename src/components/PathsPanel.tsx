@@ -6,6 +6,11 @@ import HelpDialog from './HelpDialog.tsx'
 
 interface PathsPanelProps {
   pathInfo: PathInfo[]
+  // Per-path read counts. `undefined` whole map = still computing (or no
+  // read track loaded / API doesn't support it); missing key = computed
+  // but zero. Used to mark heavy paths up-front so users avoid clicking
+  // into regions that produce 100k+ SVG elements.
+  readCounts?: Record<string, number>
   onLoadPath: (region: string) => void
   onCopyToRegion: (region: string) => void
   isOpen: boolean
@@ -20,7 +25,7 @@ function regionFor(name: string, length: number) {
   return `${name}:0-${length - 1}`
 }
 
-function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion, isOpen, onToggle }: PathsPanelProps) {
+function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, onToggle }: PathsPanelProps) {
 
   if (!pathInfo.length) return null
 
@@ -92,12 +97,18 @@ function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion, isOpen, onToggle }: 
               <tr>
                 <th>Name</th>
                 <th>Length</th>
+                {readCounts !== undefined && <th>Reads</th>}
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {pathInfo.map(({ name, length, cyclic }) => {
                 const slow = length !== null && length >= SLOW_PATH_THRESHOLD
+                const reads = readCounts?.[name] ?? 0
+                // Mirror the per-region read cap in TubeMapContainer: anything
+                // above the cap will render subsampled by default. Surface as
+                // a warning so the user doesn't click in blind.
+                const heavyReads = readCounts !== undefined && reads >= 1000
                 return (
                   <tr key={name}>
                     <td>
@@ -123,6 +134,20 @@ function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion, isOpen, onToggle }: 
                         </span>
                       )}
                     </td>
+                    {readCounts !== undefined && (
+                      <td title="Approximate count of reads aligned to nodes in this path's range">
+                        {reads > 0 ? `~${reads.toLocaleString()}` : '—'}
+                        {heavyReads && (
+                          <span
+                            className="badge bg-warning text-dark ms-1"
+                            style={{ fontSize: '0.7em' }}
+                            title="High coverage — will be subsampled by default to keep the browser responsive"
+                          >
+                            heavy
+                          </span>
+                        )}
+                      </td>
+                    )}
                     <td className="text-nowrap">
                       <Button
                         size="sm"

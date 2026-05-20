@@ -60,6 +60,18 @@ export interface APIInterface {
     cancelSignal: AbortSignal | null,
   ): Promise<{ pathInfo: PathInfo[] }>
 
+  // Count reads from `readFile` that visit any node belonging to each path
+  // declared in `graphFile`. Approximate — uses the gbz-base ReferenceIndex
+  // sampled handles to bound each path's node-id range, so a read that
+  // touches an out-of-range node missed by the sampling won't be counted.
+  // Returns null in environments that can't (or don't) implement it (i.e.
+  // ServerAPI without a counterpart endpoint).
+  getReadCountsPerPath?: (
+    graphFile: string,
+    readFile: string,
+    cancelSignal: AbortSignal | null,
+  ) => Promise<{ counts: Record<string, number> } | null>
+
   getChunkTracks(
     bedFile: string,
     chunk: string,

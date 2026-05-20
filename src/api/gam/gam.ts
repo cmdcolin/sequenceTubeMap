@@ -18,6 +18,14 @@ import { unzip } from '@gmod/bgzf-filehandle'
 import { decodeAlignment } from './alignment.ts'
 import { iterateMessages } from './messageStream.ts'
 import { loadGamIndex, runsForNodeRange, type GamIndex } from './gamIndex.ts'
+import {
+  readFieldHeader,
+  readLengthDelimited,
+  skipField,
+  WIRE_LEN,
+  WIRE_VARINT,
+} from './protoDecode.ts'
+import { readVarint64 } from './varint.ts'
 import type { VgRead } from '../../util/tubemap.ts'
 
 const GAM_TAG = 'GAM'
@@ -26,6 +34,88 @@ export async function readGam(blob: Blob): Promise<VgRead[]> {
   const compressed = new Uint8Array(await blob.arrayBuffer())
   const decompressed = await decompress(compressed)
   return collectAlignments(decompressed)
+}
+
+// Stream just the visited node IDs per read, without decoding the rest of
+// the Alignment proto (sequence, quality, mismatches, etc.). Per-read cost
+// is one varint per mapping versus the full alignment.ts decode path —
+// large win for read-coverage estimation across all paths, where the
+// alignment payload is never used.
+export async function scanReadNodeIds(blob: Blob): Promise<bigint[][]> {
+  const compressed = new Uint8Array(await blob.arrayBuffer())
+  const decompressed = await decompress(compressed)
+  const reads: bigint[][] = []
+  for (const msg of iterateMessages(decompressed)) {
+    if (msg.tag !== GAM_TAG && msg.tag !== '') {
+      continue
+    }
+    reads.push(extractNodeIds(msg.bytes))
+  }
+  return reads
+}
+
+// Walk an Alignment message and pull node IDs out of path.mapping[].position.node_id.
+// Mirrors decodeAlignment's field-number assignments but skips everything else.
+function extractNodeIds(buf: Uint8Array): bigint[] {
+  const nodes: bigint[] = []
+  let offset = 0
+  while (offset < buf.length) {
+    const header = readFieldHeader(buf, offset)
+    offset = header.offset
+    if (header.fieldNumber === 2 && header.wireType === WIRE_LEN) {
+      const { bytes, offset: next } = readLengthDelimited(buf, offset)
+      extractPathNodeIds(bytes, nodes)
+      offset = next
+    } else {
+      offset = skipField(buf, offset, header.wireType)
+    }
+  }
+  return nodes
+}
+
+function extractPathNodeIds(buf: Uint8Array, out: bigint[]): void {
+  let offset = 0
+  while (offset < buf.length) {
+    const header = readFieldHeader(buf, offset)
+    offset = header.offset
+    if (header.fieldNumber === 2 && header.wireType === WIRE_LEN) {
+      const { bytes, offset: next } = readLengthDelimited(buf, offset)
+      extractMappingNodeId(bytes, out)
+      offset = next
+    } else {
+      offset = skipField(buf, offset, header.wireType)
+    }
+  }
+}
+
+function extractMappingNodeId(buf: Uint8Array, out: bigint[]): void {
+  let offset = 0
+  while (offset < buf.length) {
+    const header = readFieldHeader(buf, offset)
+    offset = header.offset
+    if (header.fieldNumber === 1 && header.wireType === WIRE_LEN) {
+      const { bytes, offset: next } = readLengthDelimited(buf, offset)
+      const id = extractPositionNodeId(bytes)
+      if (id !== null) out.push(id)
+      offset = next
+    } else {
+      offset = skipField(buf, offset, header.wireType)
+    }
+  }
+}
+
+function extractPositionNodeId(buf: Uint8Array): bigint | null {
+  let offset = 0
+  while (offset < buf.length) {
+    const header = readFieldHeader(buf, offset)
+    offset = header.offset
+    if (header.fieldNumber === 1 && header.wireType === WIRE_VARINT) {
+      return readVarint64(buf, offset).value
+    } else {
+      offset = skipField(buf, offset, header.wireType)
+    }
+  }
+  return null
 }
 
 // vg's `vg gamsort` writes BGZF; older or hand-rolled .gam files are plain

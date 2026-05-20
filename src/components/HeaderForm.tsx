@@ -274,6 +274,27 @@ function HeaderForm({
   )
   const pathInfo: PathInfo[] = pathInfoData?.pathInfo ?? []
 
+  // Optional read-coverage stats: scan the first read track once and bucket
+  // reads to paths so the PathsPanel can label heavy paths up front. Only
+  // available when the API implements getReadCountsPerPath (LocalAPI does;
+  // ServerAPI doesn't yet). Keyed by (graph, read) so it re-runs when either
+  // changes, but stays cached across re-renders within the same dataset.
+  const readTrackForCounts = tracks.find(t => t.trackType === 'read')
+  const readCountsKey =
+    graphKey !== null
+    && readTrackForCounts?.trackFile
+    && APIInterface.getReadCountsPerPath
+      ? [graphKey, readTrackForCounts.trackFile] as const
+      : null
+  const { data: readCountsData } = useSWR(
+    readCountsKey,
+    async ([g, r]: readonly [string, string]) =>
+      APIInterface.getReadCountsPerPath!(g, r, null),
+    { revalidateOnFocus: false, revalidateOnReconnect: false, shouldRetryOnError: false },
+  )
+  const readCounts: Record<string, number> | undefined =
+    readCountsData?.counts
+
   // Adjust state during render when the graph file changes — re-opens the
   // paths panel for the new graph. See:
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
@@ -442,20 +463,20 @@ function HeaderForm({
   // Shared reset for the two entry points into custom-files mode (the File
   // menu's Open… item, and an upload completing). Always clears the rendered
   // tube map so the previous dataset's graph doesn't linger while the user
-  // picks new files.
-  function enterCustomFilesMode(opts: {
-    tracks: Tracks
-    uploaded: string[]
-  }) {
+  // picks new files. The success banner derives its filenames directly from
+  // the tracks' `trackDisplayName` (set by UploadPanel).
+  function enterCustomFilesMode(newTracks: Tracks) {
     setBedSelect('none')
     setBedFile('none')
     setRegion('')
     setName(undefined)
-    setTracks(opts.tracks)
+    setTracks(newTracks)
     setDataType(dataTypes.CUSTOM_FILES)
     setFileSizeAlert(false)
     setManualError(null)
-    setRecentlyUploaded(opts.uploaded)
+    setRecentlyUploaded(
+      newTracks.map(t => t.trackDisplayName ?? t.trackFile ?? '(unnamed)'),
+    )
     setCurrentViewTarget({ tracks: [], region: '' })
   }
 
@@ -466,7 +487,7 @@ function HeaderForm({
     setRecentlyUploaded([])
 
     if (value === dataTypes.CUSTOM_FILES) {
-      enterCustomFilesMode({ tracks: [], uploaded: [] })
+      enterCustomFilesMode([])
       setUploadInProgress(false)
     } else if (value === dataTypes.EXAMPLES) {
       setDataType(dataTypes.EXAMPLES)
@@ -498,11 +519,8 @@ function HeaderForm({
     }
   }
 
-  function handleQuickUploaded(uploadedTracks: Track[], displayNames: string[]) {
-    enterCustomFilesMode({
-      tracks: uploadedTracks,
-      uploaded: displayNames,
-    })
+  function handleQuickUploaded(uploadedTracks: Track[]) {
+    enterCustomFilesMode(uploadedTracks)
   }
 
   async function handleFileUpload(
@@ -868,6 +886,7 @@ function HeaderForm({
             {pathInfo.length > 0 && !examplesFlag && (
               <PathsPanel
                 pathInfo={pathInfo}
+                readCounts={readCounts}
                 isOpen={pathsPanelOpen}
                 onToggle={() => { setPathsPanelOpen(o => !o); }}
                 onLoadPath={region => { void changeRegionAndGo(region); }}
@@ -946,8 +965,8 @@ function HeaderForm({
         <DialogTitle>Open custom files</DialogTitle>
         <DialogContent>
           <UploadPanel
-            onUploaded={(uploadedTracks, displayNames) => {
-              handleQuickUploaded(uploadedTracks, displayNames)
+            onUploaded={uploadedTracks => {
+              handleQuickUploaded(uploadedTracks)
               setUploadDialogOpen(false)
             }}
             handleFileUpload={async (fileType, file) =>

@@ -38,7 +38,18 @@ function formatName(sample: string, contig: string, haplotype: number): string {
   return `${sample}#${haplotype}#${contig}`
 }
 
-export async function readGbzDbPaths(blob: Blob): Promise<PathInfo[]> {
+// Per-path node-id range derived from ReferenceIndex sampled handles. Used
+// to attribute reads (from .gai/.gam) to paths without walking the GBWT.
+// Approximate — ReferenceIndex samples nodes, so a path can in principle
+// traverse handles outside MIN/MAX; for typical PanSN reference paths this
+// is rare. node_id = node_handle >> 1 in GBZ encoding (the low bit is the
+// orientation flag).
+export interface PathInfoWithRange extends PathInfo {
+  minNodeId: bigint | null
+  maxNodeId: bigint | null
+}
+
+export async function readGbzDbPaths(blob: Blob): Promise<PathInfoWithRange[]> {
   const SQL = await getSqlJs()
   const bytes = new Uint8Array(await blob.arrayBuffer())
   const db: Database = new SQL.Database(bytes)
@@ -46,12 +57,15 @@ export async function readGbzDbPaths(blob: Blob): Promise<PathInfo[]> {
     // is_indexed = 1 picks reference paths (those with ReferenceIndex
     // entries). MAX(path_offset) approximates the path length — it is the
     // start offset of the last sampled node, so the true length is up to
-    // one node-sequence longer. Good enough for the panel's "click to
-    // load" affordance.
+    // one node-sequence longer. MIN/MAX(node_handle) approximates the node-id
+    // range of the path (used for read-coverage attribution); same caveat,
+    // sampled.
     const result = db.exec(`
       SELECT
         p.sample, p.contig, p.haplotype, p.fragment,
-        COALESCE(MAX(r.path_offset), 0) AS approx_len
+        COALESCE(MAX(r.path_offset), 0) AS approx_len,
+        MIN(r.node_handle) AS min_handle,
+        MAX(r.node_handle) AS max_handle
       FROM Paths p
       LEFT JOIN ReferenceIndex r ON p.handle = r.path_handle
       WHERE p.is_indexed = 1
@@ -66,12 +80,16 @@ export async function readGbzDbPaths(blob: Blob): Promise<PathInfo[]> {
         const contig = typeof row[1] === 'string' ? row[1] : ''
         const haplotype = Number(row[2] ?? 0)
         const approxLen = Number(row[4] ?? 0)
+        const minHandle = handleToBigInt(row[5])
+        const maxHandle = handleToBigInt(row[6])
         return {
           name: formatName(sample, contig, haplotype),
           // Length is approximate (lower bound) — null would disable the
           // load-this-path button, so surface what we have.
           length: approxLen > 0 ? approxLen : null,
           cyclic: false,
+          minNodeId: minHandle === null ? null : minHandle >> 1n,
+          maxNodeId: maxHandle === null ? null : maxHandle >> 1n,
         }
       })
       // Match server-side filtering: skip internal "_…" paths (e.g.
@@ -84,4 +102,13 @@ export async function readGbzDbPaths(blob: Blob): Promise<PathInfo[]> {
   } finally {
     db.close()
   }
+}
+
+function handleToBigInt(raw: unknown): bigint | null {
+  // sql.js returns INTEGER columns as either number or string depending on
+  // size; node_handle can exceed 2^53 so prefer the string path when present.
+  if (typeof raw === 'bigint') return raw
+  if (typeof raw === 'number') return BigInt(raw)
+  if (typeof raw === 'string' && /^-?\d+$/.test(raw)) return BigInt(raw)
+  return null
 }

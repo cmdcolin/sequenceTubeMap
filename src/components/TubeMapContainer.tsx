@@ -29,6 +29,131 @@ function paletteForIndex(idx: number): string {
   return GROUP_PALETTE_CYCLE[idx % GROUP_PALETTE_CYCLE.length] ?? 'greys'
 }
 
+// User-pickable caps for read rendering. The smallest value is the default;
+// anything larger surfaces a "may freeze the browser" warning next to the
+// chooser. `null` means render every read. Defaults are aggressive (100) so
+// even pathological coverage stays interactive on first render — the user
+// can always opt into more via the chooser.
+const READ_LIMIT_PRESETS = [100, 500, 2000, 10000] as const
+
+// Subsample reads to at most `limit` by taking every k-th read (k chosen so
+// the output count lands at `limit`). Preserves the original ordering, which
+// for indexed gam queries is roughly node-position-sorted, so the subsample
+// stays spatially representative rather than biasing to one end of the
+// region (which `slice(0, limit)` would do).
+function subsampleReads<T>(reads: T[], limit: number): T[] {
+  if (reads.length <= limit) return reads
+  const stride = reads.length / limit
+  const out: T[] = []
+  for (let i = 0; out.length < limit && Math.floor(i) < reads.length; i += stride) {
+    const r = reads[Math.floor(i)]
+    if (r !== undefined) out.push(r)
+  }
+  return out
+}
+
+function ReadRenderLimitBanner({
+  totalReads,
+  limit,
+  onChange,
+}: {
+  totalReads: number
+  limit: number | null
+  onChange: (limit: number | null) => void
+}) {
+  // Local draft so the user can type freely without each keystroke retriggering
+  // a 5k-read re-layout. Committed on Enter or blur. Synced from the canonical
+  // `limit` prop when it changes externally (e.g. region change resets it, or
+  // the "Render all" button is clicked).
+  const [draft, setDraft] = useState(limit === null ? '' : String(limit))
+  const [lastLimitProp, setLastLimitProp] = useState(limit)
+  if (limit !== lastLimitProp) {
+    setLastLimitProp(limit)
+    setDraft(limit === null ? '' : String(limit))
+  }
+
+  const shown = limit === null ? totalReads : Math.min(limit, totalReads)
+  const capped = limit !== null && totalReads > limit
+
+  function commitDraft() {
+    if (draft.trim() === '') {
+      onChange(null)
+      return
+    }
+    const n = Number(draft)
+    if (Number.isFinite(n) && n > 0) {
+      onChange(Math.floor(n))
+    } else {
+      setDraft(limit === null ? '' : String(limit))
+    }
+  }
+
+  return (
+    <Alert
+      color={capped ? 'warning' : 'info'}
+      style={{ margin: '0 20px 8px', padding: '6px 12px', fontSize: 13 }}
+    >
+      <strong>
+        Showing {shown.toLocaleString()} of {totalReads.toLocaleString()} reads
+      </strong>
+      {capped
+        ? ' (subsampled to keep the browser responsive). '
+        : ' (all reads). '}
+      Subsample to:{' '}
+      <input
+        type="number"
+        min={1}
+        value={draft}
+        placeholder="all"
+        onChange={e => { setDraft(e.target.value); }}
+        onBlur={() => { commitDraft(); }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            commitDraft()
+          }
+        }}
+        style={{ width: 90, fontSize: 13 }}
+      />
+      {' '}reads.{' '}
+      {READ_LIMIT_PRESETS.map(n => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => { onChange(n); }}
+          style={{
+            marginLeft: 4,
+            padding: '0 6px',
+            fontSize: 12,
+            background: limit === n ? '#cce5ff' : 'transparent',
+            border: '1px solid #999',
+            borderRadius: 3,
+            cursor: 'pointer',
+          }}
+        >
+          {n.toLocaleString()}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => { onChange(null); }}
+        style={{
+          marginLeft: 4,
+          padding: '0 6px',
+          fontSize: 12,
+          background: limit === null ? '#cce5ff' : 'transparent',
+          border: '1px solid #999',
+          borderRadius: 3,
+          cursor: 'pointer',
+        }}
+        title="Render every read (may freeze the browser for high-coverage regions)"
+      >
+        all
+      </button>
+    </Alert>
+  )
+}
+
 interface TubeMapData {
   nodes: InputNode[]
   tracks: InputTrack[]
@@ -82,6 +207,23 @@ function TubeMapContainer({
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [groupCounter, setGroupCounter] = useState(0)
   const [otherReadsColor, setOtherReadsColor] = useState('greys')
+  // Render-time cap on reads. Deep-coverage regions can produce 5k+ reads,
+  // which inflate the tube-map layout to ~150k SVG elements and freeze the
+  // browser. `null` means render all. Default is the smallest preset so the
+  // first render of a fresh region is always responsive.
+  const [readRenderLimit, setReadRenderLimit] = useState<number | null>(
+    READ_LIMIT_PRESETS[0],
+  )
+  // Reset the limit each time the user navigates to a new region/track set,
+  // so the cap re-engages for the new dataset. Done as a render-time
+  // adjustment (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+  // keyed on the viewTarget reference, which App.tsx keeps stable across
+  // unrelated re-renders.
+  const [lastViewTargetForLimit, setLastViewTargetForLimit] = useState(viewTarget)
+  if (viewTarget !== lastViewTargetForLimit) {
+    setLastViewTargetForLimit(viewTarget)
+    setReadRenderLimit(READ_LIMIT_PRESETS[0])
+  }
 
   // SWR key: null when there's nothing to fetch (no tracks selected). The
   // viewTarget object is stable across re-renders thanks to App.tsx's equality
@@ -397,12 +539,23 @@ function TubeMapContainer({
           ]}
         />
       ) : null}
+      {reads !== undefined && reads.length > READ_LIMIT_PRESETS[0] ? (
+        <ReadRenderLimitBanner
+          totalReads={reads.length}
+          limit={readRenderLimit}
+          onChange={setReadRenderLimit}
+        />
+      ) : null}
       <div id="tubeMapSVG">
         {nodes !== undefined && tracks !== undefined ? (
           <TubeMap
             nodes={nodes}
             tracks={tracks}
-            reads={reads}
+            reads={
+              reads !== undefined && readRenderLimit !== null
+                ? subsampleReads(reads, readRenderLimit)
+                : reads
+            }
             region={region}
             visOptions={{
               coloredNodes,

@@ -15,6 +15,10 @@ export type FileType =
 export interface BaseTrack {
   trackFile?: string
   trackType: FileType
+  // Human-readable label, e.g. the original filename for an upload. Optional
+  // because URL/path-based trackFiles are already readable. The Legend and
+  // other UI surfaces prefer this when present and fall back to trackFile.
+  trackDisplayName?: string
 }
 
 // Represents a track available in an API.

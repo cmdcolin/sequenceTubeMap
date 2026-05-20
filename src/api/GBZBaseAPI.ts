@@ -19,7 +19,7 @@ import { makeWasiFile } from './wasm/blobWasiFile.ts'
 import { convertSchema, removeNodeSequencesInPlace } from './wasm/schema.ts'
 import { clearProgress, report } from './downloadProgress.ts'
 import { readGbzDbPaths } from './wasm/gbzDbPaths.ts'
-import { readGam, readGamRegion } from './gam/gam.ts'
+import { readGam, readGamRegion, scanReadNodeIds } from './gam/gam.ts'
 import { UploadRegistry, isUploadId } from './local/fileRegistry.ts'
 
 import type {
@@ -492,7 +492,13 @@ export class GBZBaseAPI implements APIInterface {
     try {
       const blob = await this.resolveTrackFile(graphFile)
       const pathInfo = await readGbzDbPaths(blob)
-      return { pathInfo }
+      // Drop the node-range fields before returning so the public PathInfo
+      // shape stays stable; getReadCountsPerPath re-derives them.
+      return {
+        pathInfo: pathInfo.map(({ name, length, cyclic }) => ({
+          name, length, cyclic,
+        })),
+      }
     } catch (e) {
       debugLog('getPathInfo failed:', e)
       return { pathInfo: [] }
@@ -505,6 +511,69 @@ export class GBZBaseAPI implements APIInterface {
     _cancelSignal: AbortSignal | null,
   ): Promise<{ tracks?: Track[] }> {
     return { tracks: [] }
+  }
+
+  // Per-path read count cache: scanning a .gam is expensive, so we
+  // memoize per (graphFile, readFile) pair. Keyed by stringified pair —
+  // upload ids/URLs are both stable identifiers, so they're safe map keys.
+  private readCountCache = new Map<
+    string,
+    Promise<{ counts: Record<string, number> } | null>
+  >()
+
+  async getReadCountsPerPath(
+    graphFile: string,
+    readFile: string,
+    _cancelSignal: AbortSignal | null,
+  ): Promise<{ counts: Record<string, number> } | null> {
+    const cacheKey = `${graphFile}|${readFile}`
+    const cached = this.readCountCache.get(cacheKey)
+    if (cached) return cached
+    const promise = this.computeReadCountsPerPath(graphFile, readFile)
+    this.readCountCache.set(cacheKey, promise)
+    return promise
+  }
+
+  private async computeReadCountsPerPath(
+    graphFile: string,
+    readFile: string,
+  ): Promise<{ counts: Record<string, number> } | null> {
+    const checkName = isUploadId(graphFile)
+      ? this.registry.getName(graphFile)
+      : graphFile
+    if (!checkName?.endsWith('.gbz.db')) return null
+    try {
+      const graphBlob = await this.resolveTrackFile(graphFile)
+      const paths = await readGbzDbPaths(graphBlob)
+      const pathsWithRange = paths.filter(
+        (p): p is typeof p & { minNodeId: bigint; maxNodeId: bigint } =>
+          p.minNodeId !== null && p.maxNodeId !== null,
+      )
+      if (pathsWithRange.length === 0) return null
+
+      const gamBlob = await this.resolveTrackFile(readFile)
+      const readNodes = await scanReadNodeIds(gamBlob)
+
+      const counts: Record<string, number> = {}
+      for (const path of pathsWithRange) {
+        let n = 0
+        for (const nodes of readNodes) {
+          // De-dup per read: increment once even if multiple visited nodes
+          // fall inside the path's range.
+          for (const id of nodes) {
+            if (id >= path.minNodeId && id <= path.maxNodeId) {
+              n++
+              break
+            }
+          }
+        }
+        counts[path.name] = n
+      }
+      return { counts }
+    } catch (e) {
+      debugLog('getReadCountsPerPath failed:', e)
+      return null
+    }
   }
 }
 

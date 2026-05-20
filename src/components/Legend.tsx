@@ -73,7 +73,16 @@ function PaletteSwatch({ palette }: { palette: Palette }) {
   }
 }
 
-function trackLabel(file: string | undefined, type: string): string {
+function trackLabel(
+  file: string | undefined,
+  type: string,
+  displayName: string | undefined,
+): string {
+  // displayName is set by UploadPanel to the original filename, since
+  // `trackFile` for LocalAPI uploads is an opaque numeric registry id.
+  if (displayName) {
+    return displayName
+  }
   if (!file) {
     return `(unset ${type})`
   }
@@ -82,6 +91,18 @@ function trackLabel(file: string | undefined, type: string): string {
     return last
   }
   return file
+}
+
+// Middle-ellipsis truncation. Filenames in this app often carry pipeline
+// provenance in the prefix (sample/run ids) and format info in the suffix
+// (.sorted.gam), so head+tail beats CSS text-overflow which would only keep
+// the prefix. Full label is preserved in the `title` attribute for hover.
+function truncateMiddle(s: string, max: number): string {
+  if (s.length <= max) return s
+  const keep = max - 1
+  const head = Math.ceil(keep / 2)
+  const tail = Math.floor(keep / 2)
+  return `${s.slice(0, head)}…${s.slice(-tail)}`
 }
 
 // Labels for the two palette slots, which mean different things per track type.
@@ -168,12 +189,24 @@ function Legend({ tracks, colorSchemes, title = 'Color legend', onClose }: Legen
           const roles = paletteRoles(t.trackType, hasHaplotype)
           return (
             <div key={`${i}-${t.trackFile ?? ''}`}>
-              <div style={{ fontWeight: 600, marginBottom: 2 }}>
-                {trackLabel(t.trackFile, t.trackType)}{' '}
-                <span style={{ color: '#666', fontWeight: 400 }}>
-                  ({t.trackType})
-                </span>
-              </div>
+              {(() => {
+                const fullLabel = trackLabel(
+                  t.trackFile,
+                  t.trackType,
+                  t.trackDisplayName,
+                )
+                return (
+                  <div
+                    style={{ fontWeight: 600, marginBottom: 2 }}
+                    title={fullLabel}
+                  >
+                    {truncateMiddle(fullLabel, 40)}{' '}
+                    <span style={{ color: '#666', fontWeight: 400 }}>
+                      ({t.trackType})
+                    </span>
+                  </div>
+                )
+              })()}
               {scheme ? (
                 <div
                   style={{

@@ -112,6 +112,18 @@ export class LocalAPI implements APIInterface {
       this.getCancelID(cancelSignal),
     )
   }
+
+  getReadCountsPerPath(
+    graphFile: string,
+    readFile: string,
+    cancelSignal: AbortSignal | null,
+  ) {
+    return this.workerAPI.getReadCountsPerPath(
+      graphFile,
+      readFile,
+      this.getCancelID(cancelSignal),
+    )
+  }
 }
 
 export default LocalAPI
