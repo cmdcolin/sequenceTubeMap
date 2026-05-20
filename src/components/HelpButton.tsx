@@ -57,7 +57,7 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
         <FontAwesomeIcon icon={faCircleQuestion} />
       </IconButton>
       <PopupDialog open={open} close={() => { setOpen(false); }}>
-        <div style={{ height: '90vh', overflowY: 'scroll', overflowX: 'hidden' }}>
+        <div style={{ maxHeight: '80vh', overflowY: 'auto', overflowX: 'hidden' }}>
           <Markdown options={options}>{content}</Markdown>
         </div>
       </PopupDialog>

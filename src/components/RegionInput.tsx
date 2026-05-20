@@ -1,7 +1,14 @@
+import { useState } from 'react'
 import TextField from '@mui/material/TextField'
 import Autocomplete from '@mui/material/Autocomplete'
-import FormHelperText from '@mui/material/FormHelperText'
 import Tooltip from '@mui/material/Tooltip'
+import IconButton from '@mui/material/IconButton'
+import Box from '@mui/material/Box'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
 import '../config-client.js'
 import '../config-global.mjs'
 import { isEmpty } from '../common.ts'
@@ -25,6 +32,7 @@ export const RegionInput = ({
   regionInfo,
   handleRegionChange,
 }: RegionInputProps) => {
+  const [helpOpen, setHelpOpen] = useState(false)
   const pathsWithRegion: RegionOption[] = []
 
   const regionToDesc = new Map<string, string>()
@@ -57,44 +65,65 @@ export const RegionInput = ({
 
   return (
     <>
-      <Tooltip title={descLabel} placement="top-start">
-        <Autocomplete<RegionOption | string, false, false, true>
-          disablePortal
-          freeSolo
-          size="small"
-          getOptionLabel={option =>
-            typeof option === 'string' ? option : option.label
-          }
-          value={region}
-          inputValue={region}
-          data-testid="autocomplete"
-          id="regionInput"
-          onInputChange={(_event, newInput) => {
-            let regionValue = newInput
-            const regionObject = displayRegions.find(
-              option => option.label === newInput,
-            )
-            if (regionObject) {
-              regionValue = regionObject.value
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Tooltip title={descLabel} placement="top-start">
+          <Autocomplete<RegionOption | string, false, false, true>
+            disablePortal
+            freeSolo
+            size="small"
+            sx={{ flexGrow: 1 }}
+            getOptionLabel={option =>
+              typeof option === 'string' ? option : option.label
             }
-            handleRegionChange(regionValue)
-          }}
-          options={displayRegions}
-          renderInput={params => (
-            <TextField
-              {...params}
-              size="small"
-              label={'Region'}
-              name="Region Input"
-            />
-          )}
-        />
-      </Tooltip>
-      <FormHelperText id="comboBoxHelperText">
-        {`
-        Input a data segment to select with format <path>:<regionRange> and hit 'Go'.  See ? for more information.
-          `}
-      </FormHelperText>
+            value={region}
+            inputValue={region}
+            data-testid="autocomplete"
+            id="regionInput"
+            onInputChange={(_event, newInput) => {
+              let regionValue = newInput
+              const regionObject = displayRegions.find(
+                option => option.label === newInput,
+              )
+              if (regionObject) {
+                regionValue = regionObject.value
+              }
+              handleRegionChange(regionValue)
+            }}
+            options={displayRegions}
+            renderInput={params => (
+              <TextField
+                {...params}
+                size="small"
+                label={'Region'}
+                name="Region Input"
+              />
+            )}
+          />
+        </Tooltip>
+        <IconButton size="small" onClick={() => { setHelpOpen(true); }}>
+          <FontAwesomeIcon icon={faCircleQuestion} />
+        </IconButton>
+      </Box>
+      <Dialog open={helpOpen} onClose={() => { setHelpOpen(false); }} maxWidth="sm" fullWidth>
+        <DialogTitle>Region format</DialogTitle>
+        <DialogContent>
+          <p>
+            <strong>Format:</strong> <code>path:start-end</code>
+            <br />
+            <em>e.g.</em> <code>GRCh38#chr1:10000-20000</code>
+          </p>
+          <p>
+            Paths assign linearly increasing coordinates to the nodes of a
+            pangenome graph. A range query returns every node the path visits
+            in that interval — even when the underlying graph is non-linear or
+            contains bubbles.
+          </p>
+          <p>
+            Use the <strong>Paths in this graph</strong> panel below to browse
+            available paths and copy a range into this field.
+          </p>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
