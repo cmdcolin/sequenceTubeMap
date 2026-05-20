@@ -135,7 +135,7 @@ export class GBZBaseAPI implements APIInterface {
   // and publish progress via `downloadProgress.report` so the loader spinner
   // can show "downloading X / Y MB" instead of looking frozen.
   private async resolveTrackFile(trackFile: string): Promise<Blob> {
-    if (/^\d+$/.test(trackFile)) {
+    if (isUploadId(trackFile)) {
       const blob = this.registry.get(trackFile)
       if (!blob) {
         throw new Error(`Uploaded file ${trackFile} does not exist`)
@@ -378,7 +378,7 @@ export class GBZBaseAPI implements APIInterface {
     trackFile: string,
     suffix: string,
   ): Promise<Blob | null> {
-    if (/^\d+$/.test(trackFile)) {
+    if (isUploadId(trackFile)) {
       return this.registry.sibling(trackFile, suffix)
     }
     try {
@@ -483,7 +483,7 @@ export class GBZBaseAPI implements APIInterface {
   ): Promise<{ pathInfo: PathInfo[] }> {
     // For uploaded files `graphFile` is a numeric registry id like "0", so the
     // extension check has to look at the original filename the registry kept.
-    const checkName = /^\d+$/.test(graphFile)
+    const checkName = isUploadId(graphFile)
       ? this.registry.getName(graphFile)
       : graphFile
     if (!checkName?.endsWith('.gbz.db')) {
