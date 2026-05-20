@@ -62,22 +62,11 @@ input[type='file'] {
 /* spinning loader during graph construction */
 #loader {
   border: 5px solid #f3f3f3;
-  -webkit-animation: spin 1s linear infinite;
   animation: spin 1s linear infinite;
   border-top: 5px solid #555;
   border-radius: 50%;
   width: 50px;
   height: 50px;
-}
-
-@-webkit-keyframes spin {
-  0% {
-    -webkit-transform: rotate(0deg);
-  }
-
-  100% {
-    -webkit-transform: rotate(360deg);
-  }
 }
 
 @keyframes spin {
@@ -93,7 +82,6 @@ input[type='file'] {
 /* spinning loader covering the "Go"-button during file uploads */
 .smallLoader {
   border: 5px solid #f3f3f3;
-  -webkit-animation: spin 1s linear infinite;
   animation: spin 1s linear infinite;
   border-top: 5px solid #555;
   border-radius: 50%;
@@ -116,9 +104,15 @@ input[type='file'] {
   top: 5px;
 }
 
+@keyframes pending-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 16, 16, 0.8); }
+  50%       { box-shadow: 0 0 0 10px rgba(224, 16, 16, 0); }
+}
+
 .btn-alert {
   background-color: #e01010;
   border-color: #e01010;
+  animation: pending-pulse 1.8s ease-in-out infinite;
 }
 
 .btn-alert:hover {
@@ -179,18 +173,7 @@ input[type='file'] {
 
 .popup .show {
   visibility: visible;
-  -webkit-animation: fadeIn 1s;
   animation: fadeIn 1s;
-}
-
-@-webkit-keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
 }
 
 @keyframes fadeIn {
