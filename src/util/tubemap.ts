@@ -237,7 +237,6 @@ interface TubeMapConfig {
   showExonsFlag: boolean
   nodeWidthOption: 'normal' | 'compressed' | 'small' | 'fixed'
   showNodeLabels: boolean
-  nodeLabelColorScheme: { mainPalette: string }
   showReads: boolean
   showSoftClips: boolean
   colorSchemes: Record<number, ColorScheme>
@@ -365,7 +364,6 @@ const config: TubeMapConfig = {
   // fixed...set fixed node width to 1 base
   nodeWidthOption: 'normal',
   showNodeLabels: false,
-  nodeLabelColorScheme: { mainPalette: 'plainColors' },
   showReads: true,
   showSoftClips: true,
   colorSchemes: {},
@@ -618,10 +616,6 @@ export function setColoredNodes(value: unknown): void {
 
 export function setShowNodeLabels(value: boolean): void {
   config.showNodeLabels = value
-}
-
-export function setNodeLabelColorScheme(scheme: { mainPalette: string }): void {
-  config.nodeLabelColorScheme = scheme
 }
 
 // sets callback function that would generate React popup of track information. The callback would
@@ -1770,16 +1764,26 @@ function alignSVG(): void {
   // event. With ~600k SVG children this is the difference between "fluid" and
   // "stuck" on the Toxo dataset.
   let pendingTransform: string | null = null
+  let pendingK = 1
   let rafHandle: number | null = null
   function flushTransform(): void {
     rafHandle = null
     if (pendingTransform !== null) {
       svg.attr('transform', pendingTransform)
+      // Counter-scale node labels so they stay at constant visual size when zoomed out
+      // Cap counter-scale so labels don't grow unboundedly when zoomed far out
+      const labelScale = Math.min(1 / pendingK, 4)
+      svg.selectAll<SVGGElement, Node>('.node-label-group').attr('transform', d => {
+        const cx = d.x + d.pixelWidth / 2
+        const cy = d.y - 14
+        return `translate(${cx},${cy}) scale(${labelScale})`
+      })
       pendingTransform = null
     }
   }
   function zoomed(event: d3.D3ZoomEvent<Element, unknown>): void {
     pendingTransform = String(event.transform)
+    pendingK = event.transform.k
     if (rafHandle === null) {
       rafHandle = requestAnimationFrame(flushTransform)
     }
@@ -4007,23 +4011,47 @@ function drawLabels(dNodes: Node[]): void {
   }
 }
 
+const NODE_LABEL_FONT_SIZE = 12
+const NODE_LABEL_PADDING = 3
+
 function drawNodeLabels(dNodes: Node[]): void {
-  const colorSet = getColorSet(config.nodeLabelColorScheme.mainPalette)
-  svg
+  const groups = svg
     .append('g')
     .attr('class', 'node-labels')
-    .selectAll('text')
+    .selectAll('g')
     .data(dNodes)
     .enter()
-    .append('text')
-    .attr('x', d => d.x + d.pixelWidth / 2)
-    .attr('y', d => d.y - 12)
-    .attr('text-anchor', 'middle')
-    .text(d => d.name)
-    .attr('font-family', fonts)
-    .attr('font-size', '10px')
-    .attr('fill', (d, i) => colorSet[i % colorSet.length] ?? null)
+    .append('g')
+    .attr('class', 'node-label-group')
+    // Positioned at the label anchor; zoom handler applies counter-scale here
+    .attr('transform', d => `translate(${d.x + d.pixelWidth / 2},${d.y - 14})`)
     .style('pointer-events', 'none')
+
+  // Append rect first (sized after text is in DOM via getBBox)
+  groups.append('rect').attr('fill', '#FFE500').attr('rx', 2)
+
+  groups
+    .append('text')
+    .text(d => d.name)
+    .attr('x', 0)
+    .attr('y', 0)
+    .attr('text-anchor', 'middle')
+    .attr('font-family', fonts)
+    .attr('font-size', `${NODE_LABEL_FONT_SIZE}px`)
+    .attr('font-weight', 'bold')
+    .attr('fill', 'black')
+
+  // Size each rect to its text's actual bounding box
+  groups.each(function () {
+    const textEl = d3.select(this).select<SVGTextElement>('text').node()
+    if (!textEl) return
+    const { x, y, width, height } = textEl.getBBox()
+    d3.select(this).select('rect')
+      .attr('x', x - NODE_LABEL_PADDING)
+      .attr('y', y - NODE_LABEL_PADDING)
+      .attr('width', width + NODE_LABEL_PADDING * 2)
+      .attr('height', height + NODE_LABEL_PADDING * 2)
+  })
 }
 
 function nodePixelCoordinatesInX(node: Node): [number, number] {

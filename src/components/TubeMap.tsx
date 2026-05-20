@@ -39,7 +39,6 @@ function updateVisOptions(
   tubeMap.setSoftClipsFlag(visOptions.showSoftClips)
   tubeMap.setColoredNodes(visOptions.coloredNodes)
   tubeMap.setShowNodeLabels(visOptions.showNodeLabels)
-  tubeMap.setNodeLabelColorScheme(visOptions.nodeLabelColorScheme)
 
   visOptions.colorSchemes.forEach((scheme, idx) => {
     tubeMap.setColorSet(idx, {

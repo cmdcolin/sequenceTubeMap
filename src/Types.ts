@@ -124,7 +124,6 @@ export interface VisOptions {
   compressedView: boolean
   transparentNodes: boolean
   showNodeLabels: boolean
-  nodeLabelColorScheme: { mainPalette: Palette }
   showReads: boolean
   showSoftClips: boolean
   colorReadsByMappingQuality: boolean
