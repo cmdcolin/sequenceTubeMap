@@ -27,6 +27,30 @@ vg gbwt --xg-name input.xg --index-paths --gbz-format -g input.gbz
 node scripts/gbz2db.mjs input.gbz input.gbz.db
 ```
 
+Starting from a GFA (e.g. an HPRC pangenome distribution):
+
+```bash
+# .gfa → .gbz → .gbz.db
+vg gbwt -G input.gfa --gbz-format -g input.gbz
+node scripts/gbz2db.mjs input.gbz input.gbz.db
+```
+
+PanSN-named paths (`sample#haplotype#contig`) are queried as
+`sample#contig:start-end` in the Region field — see the bundled
+"HPRC chrM" example.
+
+Whole-chromosome HPRC graphs are large (chr20 is ~130 MB as a .gbz.db).
+To bundle a small browseable slice instead, chunk with `vg chunk -T` to
+preserve the haplotype walks, then rebuild:
+
+```bash
+# Extract ~100kb around a region, keeping haplotype threads
+vg chunk -x input.gbz -p "GRCh38#0#chr20:1000000-1100000" -c 20 -T -O gfa \
+  | vg convert -f - > slice.gfa
+vg gbwt -G slice.gfa --gbz-format -g slice.gbz
+node scripts/gbz2db.mjs slice.gbz slice.gbz.db
+```
+
 Index your reads (optional):
 
 ```bash

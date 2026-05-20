@@ -19,6 +19,7 @@ import '../config-client.js'
 import _externalConfig from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
 import { greys, ygreys, blues, reds, plainColors, lightColors } from './palettes.ts'
+import { formatTrackDisplayName } from './trackName.ts'
 import isEqual from 'react-fast-compare'
 
 // Replacement for d3-selection-multi (incompatible with d3 v7). Use via
@@ -536,6 +537,10 @@ export interface TrackVisibilityItem {
   name: string
   color: string
   hidden: boolean
+  // Haplotype-cluster weight from gbz-base --distinct (collapsed traversals).
+  // Used by the formatter to render "name ×N" so the user can see relative
+  // abundance for anonymized clusters.
+  freq?: number
 }
 const visibilitySubscribers = new Set<() => void>()
 let visibilitySnapshot: TrackVisibilityItem[] = []
@@ -563,6 +568,7 @@ function emitTrackVisibility(): void {
         name: t.name ?? String(t.id),
         color: generateTrackColor(t as Track, 'plain'),
         hidden: t.hidden === true,
+        ...(t.freq !== undefined ? { freq: t.freq } : {}),
       })
     }
   }
@@ -4469,6 +4475,7 @@ function drawTrackRectangles(
     .attr('class', d => `track${d.id}`)
     .attr('color', d => d.color)
     .on('mouseover', trackMouseOver)
+    .on('mousemove', trackMouseMove)
     .on('mouseout', trackMouseOut)
     .on('dblclick', trackDoubleClick)
     .on('click', trackSingleClick)
@@ -4779,6 +4786,7 @@ function drawTrackCurves(
     .attr('class', d => `track${d.id}`)
     .attr('color', d => d.color)
     .on('mouseover', trackMouseOver)
+    .on('mousemove', trackMouseMove)
     .on('mouseout', trackMouseOut)
     .on('dblclick', trackDoubleClick)
     .on('click', trackSingleClick)
@@ -4806,6 +4814,7 @@ function drawTrackCorners(
     .attr('class', d => `track${d.id}`)
     .attr('color', d => d.color)
     .on('mouseover', trackMouseOver)
+    .on('mousemove', trackMouseMove)
     .on('mouseout', trackMouseOut)
     .on('dblclick', trackDoubleClick)
     .on('click', trackSingleClick)
@@ -4837,14 +4846,73 @@ function getTrackByID(trackID: number): Track | undefined {
   return tracks.find(t => t.id === trackID)
 }
 
-// Highlight track on mouseover
-function trackMouseOver(this: SVGElement): void {
+// Singleton hover tooltip. Attached lazily on first use; appended to <body>
+// so it isn't clipped by the SVG viewport and inherits no inherited styles
+// from the d3 nodes we're hovering.
+let hoverTooltip: HTMLDivElement | undefined
+function ensureHoverTooltip(): HTMLDivElement {
+  if (hoverTooltip) return hoverTooltip
+  const el = document.createElement('div')
+  el.style.cssText = [
+    'position:fixed',
+    'pointer-events:none',
+    'z-index:9999',
+    'background:rgba(30,30,30,0.92)',
+    'color:#fff',
+    'font:12px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif',
+    'padding:4px 8px',
+    'border-radius:4px',
+    'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
+    'max-width:320px',
+    'white-space:nowrap',
+    'display:none',
+  ].join(';')
+  document.body.appendChild(el)
+  hoverTooltip = el
+  return el
+}
+
+function trackTooltipText(trackID: number): string {
+  const t = inputTracks.find(x => x.id === trackID)
+  if (!t) return String(trackID)
+  const display = formatTrackDisplayName(t.name, t.freq)
+  const kind = t.type === 'read' ? 'read' : 'haplotype'
+  return `${display} (${kind})`
+}
+
+function positionHoverTooltip(event: MouseEvent): void {
+  const el = ensureHoverTooltip()
+  // Anchor below-right of cursor; flip if it would clip the viewport edge.
+  const pad = 12
+  const { innerWidth, innerHeight } = window
+  const rect = el.getBoundingClientRect()
+  const x = event.clientX + pad + rect.width > innerWidth
+    ? event.clientX - pad - rect.width
+    : event.clientX + pad
+  const y = event.clientY + pad + rect.height > innerHeight
+    ? event.clientY - pad - rect.height
+    : event.clientY + pad
+  el.style.left = `${Math.max(0, x)}px`
+  el.style.top = `${Math.max(0, y)}px`
+}
+
+// Highlight track on mouseover and show the hover tooltip.
+function trackMouseOver(this: SVGElement, event: MouseEvent): void {
   /* jshint validthis: true */
   const trackID = d3.select(this).attr('trackID')
   // TODO: We want to also .raise() here, but it makes Firefox 124.0.2 on Mac
   // lose the mouseout and immediately trigger another mouseover, if the mouse
   // is over a curved section of a read.
   d3.selectAll(`.track${trackID}`).style('fill', 'url(#patternA)')
+
+  const el = ensureHoverTooltip()
+  el.textContent = trackTooltipText(Number(trackID))
+  el.style.display = 'block'
+  positionHoverTooltip(event)
+}
+
+function trackMouseMove(event: MouseEvent): void {
+  if (hoverTooltip?.style.display === 'block') positionHoverTooltip(event)
 }
 
 // Highlight node on mouseover
@@ -4852,13 +4920,14 @@ function nodeMouseOver(this: SVGElement): void {
   d3.select(this).style('stroke-width', '4px')
 }
 
-// Restore original track appearance on mouseout
+// Restore original track appearance on mouseout and hide tooltip.
 function trackMouseOut(this: SVGElement): void {
   const trackID = d3.select(this).attr('trackID')
   d3.selectAll(`.track${trackID}`).each(function clearTrackHighlight() {
     const c = d3.select(this).attr('color')
     d3.select(this).style('fill', c)
   })
+  if (hoverTooltip) hoverTooltip.style.display = 'none'
 }
 
 // Restore original node appearance on mouseout
@@ -4942,8 +5011,12 @@ function trackRightClick(this: SVGElement, event: MouseEvent): void {
 }
 
 // show track name when hovering mouse
-function getPopUpTrackText(trackid: string | number | undefined): string {
-  return String(trackid)
+// Long-hover (native) SVG tooltip text. The d3 datum binds the track name
+// directly, so we don't need an inputTracks lookup here — but `freq` is on
+// the InputTrack, so we fall back to the formatter without it.
+function getPopUpTrackText(trackName: string | number | undefined): string {
+  if (trackName === undefined) return ''
+  return formatTrackDisplayName(String(trackName))
 }
 
 // Right-click on a node. Fires the node context-menu callback with the list of

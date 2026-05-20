@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@mui/material'
 import * as tubeMap from '../util/tubemap.ts'
+import { formatTrackDisplayName } from '../util/trackName.ts'
 
 // Tracks visibility checklist — populated by tubemap.ts via useSyncExternalStore.
 // Visibility state lives in tubemap.ts (mutable inputTracks[i].hidden);
@@ -65,7 +66,9 @@ function TrackVisibilityPanel() {
                   }}
                 />
               </TableCell>
-              <TableCell>{item.name}</TableCell>
+              <TableCell title={item.name}>
+                {formatTrackDisplayName(item.name, item.freq)}
+              </TableCell>
               <TableCell padding="checkbox">
                 <Checkbox
                   size="small"

@@ -76,7 +76,11 @@ export async function readGbzDbPaths(blob: Blob): Promise<PathInfo[]> {
       })
       // Match server-side filtering: skip internal "_…" paths (e.g.
       // a future synthetic sample that bypasses the formatName strip).
-      .filter(p => !p.name.startsWith('_'))
+      // Also drop `thread_N` paths — these are GBWT-internal P-line names
+      // that vg gbwt -G emits when ingesting a GFA whose haplotypes came
+      // through `vg chunk -T` (the chunked chr20 example creates them).
+      // They're not meaningful contigs and clutter the path picker.
+      .filter(p => !p.name.startsWith('_') && !/^thread_\d+$/.test(p.name))
   } finally {
     db.close()
   }

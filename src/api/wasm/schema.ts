@@ -22,6 +22,10 @@ interface GbzEdge {
 
 interface GbzPath extends Omit<VgPath, 'mapping'> {
   path: GbzVisit[]
+  // --distinct mode: how many input haplotypes share this collapsed traversal.
+  // tubemap.ts uses `freq` for the same purpose (track-width sizing); we copy
+  // weight → freq below so abundance is reflected in the rendering.
+  weight?: number
 }
 
 interface GbzGraph {
@@ -75,6 +79,7 @@ export function convertSchema(inGraph: GbzGraph): ConvertedGraph {
     return {
       ...p,
       ...(match ? { name: match[1], indexOfFirstBase: match[2] } : {}),
+      ...(p.weight !== undefined ? { freq: p.weight } : {}),
       mapping: p.path.map(visit => {
         const length = nodeLength.get(visit.id)
         if (length === undefined) {

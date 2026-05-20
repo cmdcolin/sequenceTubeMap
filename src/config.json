@@ -61,6 +61,22 @@
       "dataType": "built-in"
     },
     {
+      "name": "HPRC chrM (WASM-compatible, PanSN)",
+      "tracks": [
+        {"trackFile": "exampleData/hprc-chrM.gbz.db", "trackType": "graph"}
+      ],
+      "region": "GRCh38#chrM:1-200",
+      "dataType": "built-in"
+    },
+    {
+      "name": "HPRC chr20 ~1Mb chunk (WASM-compatible, PanSN)",
+      "tracks": [
+        {"trackFile": "exampleData/hprc-chr20-100kb.gbz.db", "trackType": "graph"}
+      ],
+      "region": "GRCh38#chr20:1000000-1000500",
+      "dataType": "built-in"
+    },
+    {
       "name": "cactus multiple reads",
       "tracks": [
         {"trackFile": "exampleData/cactus.vg.xg", "trackType": "graph"},
