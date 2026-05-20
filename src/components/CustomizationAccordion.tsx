@@ -21,14 +21,6 @@ function VisualizationOptions({
 }: VisualizationOptionsProps) {
   return (
     <Container sx={{ mt: 1 }}>
-      <Accordion disableGutters>
-        <AccordionSummary expandIcon={<Box sx={{ fontSize: 18, lineHeight: 1 }}>▾</Box>}>
-          Track visibility
-        </AccordionSummary>
-        <AccordionDetails>
-          <div id="legendDiv" />
-        </AccordionDetails>
-      </Accordion>
       {showBackendConfig && (
         <Accordion disableGutters>
           <AccordionSummary expandIcon={<Box sx={{ fontSize: 18, lineHeight: 1 }}>▾</Box>}>

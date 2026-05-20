@@ -1,4 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCircleInfo } from '@fortawesome/free-solid-svg-icons'
+import IconButton from '@mui/material/IconButton'
 import useSWR from 'swr'
 import { Button, Container, Row, Col, Label, Alert } from 'reactstrap'
 import '../config-client.js'
@@ -28,6 +31,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import MuiButton from '@mui/material/Button'
+import Popover from '@mui/material/Popover'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import {
@@ -94,18 +98,46 @@ interface CoordsMetaData {
   chunk: string
 }
 
+function HelpIcon({ label, helpText, onOpen }: { label: string; helpText: string; onOpen?: () => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <IconButton
+        size="small"
+        sx={{ ml: 0.5, color: 'action.active' }}
+        onClick={(e) => { e.stopPropagation(); setOpen(true); onOpen?.(); }}
+      >
+        <FontAwesomeIcon icon={faCircleInfo} size="xs" />
+      </IconButton>
+      <Dialog open={open} onClose={() => { setOpen(false); }} maxWidth="xs" fullWidth>
+        <DialogTitle>{label}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">{helpText}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <MuiButton onClick={() => { setOpen(false); }}>Close</MuiButton>
+        </DialogActions>
+      </Dialog>
+    </>
+  )
+}
+
 function CheckboxMenuItem({
   label,
   checked,
   onToggle,
   disabled,
   testid,
+  helpText,
+  onHelpOpen,
 }: {
   label: string
   checked: boolean
   onToggle: () => void
   disabled?: boolean
   testid?: string
+  helpText?: string
+  onHelpOpen?: () => void
 }) {
   return (
     <MenuItem
@@ -125,6 +157,7 @@ function CheckboxMenuItem({
         />
       </ListItemIcon>
       <ListItemText primary={label} />
+      {helpText && <HelpIcon label={label} helpText={helpText} onOpen={onHelpOpen} />}
     </MenuItem>
   )
 }
@@ -156,7 +189,7 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
-  const [menuAnchor, setMenuAnchor] = useState<{ type: 'examples' | 'file' | 'view' | 'reads'; el: HTMLElement } | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<{ type: 'examples' | 'file' | 'view' | 'reads' | 'visibility'; el: HTMLElement } | null>(null)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   // Set true when a dataset with a BED but no preset region is picked; the
   // effect below applies the first BED entry as the default region once BED
@@ -602,25 +635,33 @@ function HeaderForm({
                   testid="legendToggleMenuItem"
                 />
                 <CheckboxMenuItem
-                  label="Remove redundant nodes"
+                  label="Merge node chains"
                   checked={visOptions.removeRedundantNodes}
                   onToggle={() => { toggleVisOptionFlag('removeRedundantNodes') }}
+                  helpText="Merges consecutive nodes that only ever connect to each other with no branching, collapsing simple linear paths into single nodes for a cleaner layout."
+                  onHelpOpen={() => { setMenuAnchor(null); }}
                 />
                 <CheckboxMenuItem
                   label="Compressed view"
                   checked={visOptions.compressedView}
                   disabled={enableCompressedNodes}
                   onToggle={() => { toggleVisOptionFlag('compressedView') }}
+                  helpText="Uses a logarithmic scale for node width instead of a linear one, so very long nodes don't visually dominate short ones. Sequence bases are not rendered in this mode."
+                  onHelpOpen={() => { setMenuAnchor(null); }}
                 />
                 <CheckboxMenuItem
                   label="Fully transparent nodes"
                   checked={visOptions.transparentNodes}
                   onToggle={() => { toggleVisOptionFlag('transparentNodes') }}
+                  helpText="Makes graph nodes fully transparent so only the colored read paths passing through them are visible, giving an unobstructed view of alignment patterns."
+                  onHelpOpen={() => { setMenuAnchor(null); }}
                 />
                 <CheckboxMenuItem
                   label="Show node labels"
                   checked={visOptions.showNodeLabels}
                   onToggle={() => { toggleVisOptionFlag('showNodeLabels') }}
+                  helpText="Displays the numeric node ID on each graph node."
+                  onHelpOpen={() => { setMenuAnchor(null); }}
                 />
               </Menu>
               <MuiButton
@@ -646,18 +687,24 @@ function HeaderForm({
                   checked={visOptions.showSoftClips}
                   disabled={!visOptions.showReads}
                   onToggle={() => { toggleVisOptionFlag('showSoftClips') }}
+                  helpText="Renders the soft-clipped portions of reads — bases that were not aligned to the reference — as colored extensions beyond the aligned segment."
+                  onHelpOpen={() => { setMenuAnchor(null); }}
                 />
                 <CheckboxMenuItem
                   label="Color by mapping quality"
                   checked={visOptions.colorReadsByMappingQuality}
                   disabled={!visOptions.showReads}
                   onToggle={() => { toggleVisOptionFlag('colorReadsByMappingQuality') }}
+                  helpText="Colors each read by its mapping quality (MAPQ) score. Higher scores (more confident placements) appear darker; lower scores appear lighter."
+                  onHelpOpen={() => { setMenuAnchor(null); }}
                 />
                 <CheckboxMenuItem
                   label="Transparency by mapping quality"
                   checked={visOptions.alphaReadsByMappingQuality}
                   disabled={!visOptions.showReads}
                   onToggle={() => { toggleVisOptionFlag('alphaReadsByMappingQuality') }}
+                  helpText="Makes reads with lower mapping quality more transparent, so high-confidence alignments stand out visually."
+                  onHelpOpen={() => { setMenuAnchor(null); }}
                 />
                 {handleMappingQualityCutoffChange && (
                   <Box
@@ -665,6 +712,11 @@ function HeaderForm({
                     onClick={(e) => { e.stopPropagation() }}
                   >
                     <Typography variant="body2">Mapping quality cutoff:</Typography>
+                    <HelpIcon
+                      label="Mapping quality cutoff"
+                      helpText="Hides reads whose mapping quality (MAPQ) score falls below this value (0–60). Higher values show only the most confidently placed reads."
+                      onOpen={() => { setMenuAnchor(null); }}
+                    />
                     <select
                       disabled={!visOptions.showReads}
                       value={visOptions.mappingQualityCutoff}
@@ -679,6 +731,33 @@ function HeaderForm({
               </Menu>
             </>
           )}
+          {customFilesFlag && (
+            <TrackPicker
+              tracks={tracks}
+              availableTracks={availableTracks}
+              onChange={newTracks => { handleInputChange(newTracks); }}
+              handleFileUpload={async (fileType, file) =>
+                handleFileUpload(fileType, file)
+              }
+            />
+          )}
+          <MuiButton
+            color="inherit"
+            onClick={(e) => { setMenuAnchor({ type: 'visibility', el: e.currentTarget }); }}
+          >
+            Visibility
+          </MuiButton>
+          <Popover
+            keepMounted
+            open={menuAnchor?.type === 'visibility'}
+            anchorEl={menuAnchor?.type === 'visibility' ? menuAnchor.el : null}
+            onClose={() => { setMenuAnchor(null); }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          >
+            <Box sx={{ p: 1 }}>
+              <div id="legendDiv" />
+            </Box>
+          </Popover>
           <Box sx={{ flexGrow: 1 }} />
           <Typography
             variant="body2"
@@ -775,14 +854,6 @@ function HeaderForm({
                     removeSequences={removeSequences}
                     setSimplify={(next) => { setSimplify(next); }}
                     setRemoveSequences={(next) => { setRemoveSequences(next); }}
-                  />
-                  <TrackPicker
-                    tracks={tracks}
-                    availableTracks={availableTracks}
-                    onChange={newTracks => { handleInputChange(newTracks); }}
-                    handleFileUpload={async (fileType, file) =>
-                      handleFileUpload(fileType, file)
-                    }
                   />
                 </div>
               </div>

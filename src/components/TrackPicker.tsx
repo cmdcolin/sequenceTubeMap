@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import TrackPickerDisplay from './TrackPickerDisplay.tsx'
-import { Button } from 'reactstrap'
+import MuiButton from '@mui/material/Button'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faList } from '@fortawesome/free-solid-svg-icons'
 import PopupDialog from './PopupDialog.tsx'
@@ -35,13 +35,15 @@ export const TrackPicker = ({
 
   return (
     <div>
-      <Button
+      <MuiButton
+        color="inherit"
         aria-label="Track Picker"
         data-testid={'TrackPickerButton'}
         onClick={() => { setOpen(!open); }}
+        startIcon={<FontAwesomeIcon icon={faList} />}
       >
-        <FontAwesomeIcon icon={faList} /> Configure Tracks
-      </Button>
+        Tracks
+      </MuiButton>
       {/* width=null because the default fixed width is too small for the track list items */}
       <PopupDialog
         open={open}
