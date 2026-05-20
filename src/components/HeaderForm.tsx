@@ -532,14 +532,30 @@ function HeaderForm({
           </Menu>
           <Box sx={{ flexGrow: 1 }} />
           <Typography
-            variant="caption"
+            variant="body2"
             component="a"
             href="https://github.com/cmdcolin/sequenceTubeMap"
             target="_blank"
             rel="noopener noreferrer"
-            sx={{ color: 'inherit', textDecoration: 'none', mr: 2, opacity: 0.85 }}
+            sx={{
+              textDecoration: 'none',
+              mr: 2,
+              fontWeight: 900,
+              background:
+                'linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b)',
+              backgroundSize: '200% auto',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+              display: 'inline-block',
+              animation: 'rainbowShift 3s linear infinite',
+              '@keyframes rainbowShift': {
+                '0%': { backgroundPosition: '0% center' },
+                '100%': { backgroundPosition: '200% center' },
+              },
+            }}
           >
-            MemPanG26 edition!
+            ✨ MemPanG26 edition! ✨
           </Typography>
           <HelpButton file="./help/help.md" />
         </Toolbar>
