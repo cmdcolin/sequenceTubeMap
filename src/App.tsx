@@ -46,10 +46,13 @@ function getAPIMode(apiInterface: LocalAPI | ServerAPI): 'local' | 'server' {
   }
 }
 
-const defaultApiUrl =
-  (config.BACKEND_URL || window.location.origin) + '/api/v0'
+const isLocalMode = !config.BACKEND_URL
+
+const defaultApiUrl = isLocalMode ? '' : config.BACKEND_URL + '/api/v0'
+
 const defaultViewTarget: ViewTarget =
-  urlParamsToViewTarget(document.location) ?? config.DATA_SOURCES[0]
+  urlParamsToViewTarget(document.location) ??
+  (isLocalMode ? { tracks: [], region: '' } : config.DATA_SOURCES[0])
 
 interface AppProps {
   apiUrl?: string
@@ -72,7 +75,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     mappingQualityCutoff: 0,
   })
   const [apiInterface, setApiInterface] = useState<LocalAPI | ServerAPI>(
-    () => new ServerAPI(apiUrl),
+    () => (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),
   )
 
   const setAPIMode = (mode: string) => {
