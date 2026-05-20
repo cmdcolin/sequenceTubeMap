@@ -1825,6 +1825,13 @@ function alignSVG(): () => void {
         const { cx, cy } = nodeLabelAnchor(d)
         return `translate(${cx},${cy}) scale(${labelScale})`
       })
+      // Hide mismatches when the zoom is too far out for them to be readable.
+      const layer = svg.select<SVGGElement>('g.mismatches-layer')
+      if (pendingK < MISMATCH_HIDE_BELOW_K) {
+        layer.style('display', 'none')
+      } else {
+        layer.style('display', null)
+      }
       pendingTransform = null
     }
   }
@@ -5731,8 +5738,16 @@ function mergeableWithSucc(
   return true
 }
 
+// Below this zoom scale, a 12px mismatch glyph is <~6px on screen — unreadable
+// noise. The zoom flush handler toggles the layer's `display` so the browser
+// skips paint and hit-test for mismatches when the user is zoomed out far
+// enough that they wouldn't be legible anyway. The elements stay in the DOM,
+// so they reappear instantly when the user zooms back in.
+const MISMATCH_HIDE_BELOW_K = 0.5
+
 function drawMismatches(): void {
-  tracks.forEach((read, trackIdx) => {
+  const layer = svg.append('g').attr('class', 'mismatches-layer')
+  tracks.forEach(read => {
     if (read.type === 'read') {
       read.sequenceNew!.forEach((element, i) => {
         element.mismatches.forEach(mm => {
@@ -5752,17 +5767,17 @@ function drawMismatches(): void {
                 (mm.pos !== read.finalNodeCoverLength ||
                   i !== read.sequenceNew!.length - 1))
             ) {
-              drawInsertion(x - 3, y + READ_WIDTH, mm.seq, node.y)
+              drawInsertion(layer, x - 3, y + READ_WIDTH, mm.seq, node.y)
             }
           } else if (mm.type === 'deletion') {
             const x2 = getXCoordinateOfBaseWithinNode(node, mm.pos + mm.length!)!
-            drawDeletion(x, x2, y + 4, node.y)
+            drawDeletion(layer, x, x2, y + 4, node.y)
           } else if (mm.type === 'substitution') {
             const x2 = getXCoordinateOfBaseWithinNode(
               node,
               mm.pos + mm.seq!.length,
             )!
-            drawSubstitution(x + 1, x2, y + READ_WIDTH, node.y, mm.seq)
+            drawSubstitution(layer, x + 1, x2, y + READ_WIDTH, node.y, mm.seq)
           }
         })
       })
@@ -5771,12 +5786,13 @@ function drawMismatches(): void {
 }
 
 function drawInsertion(
+  target: SvgGroupSelection,
   x: number,
   y: number,
   seq: string | undefined,
   nodeY: number,
 ): void {
-  svg
+  target
     .append('text')
     .attr('x', x)
     .attr('y', y)
@@ -5790,13 +5806,14 @@ function drawInsertion(
 }
 
 function drawSubstitution(
+  target: SvgGroupSelection,
   x1: number,
   x2: number,
   y: number,
   nodeY: number,
   seq: string | undefined,
 ): void {
-  svg
+  target
     .append('text')
     .attr('x', x1)
     .attr('y', y)
@@ -5811,13 +5828,14 @@ function drawSubstitution(
 }
 
 function drawDeletion(
+  target: SvgGroupSelection,
   x1: number,
   x2: number,
   y: number,
   nodeY: number,
 ): void {
   // draw horizontal block
-  svg
+  target
     .append('line')
     .attr('x1', x1)
     .attr('y1', y - 1)
