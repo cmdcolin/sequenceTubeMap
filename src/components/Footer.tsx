@@ -1,5 +1,3 @@
-/// Footer.tsx: main page footer component. Includes project page links.
-
 import { Container, Row, Col, Navbar, Nav, NavItem } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
@@ -20,9 +18,18 @@ export const Footer = () => {
                 <SafeLink
                   className="nav-link"
                   target="_blank"
+                  href="https://github.com/cmdcolin/sequenceTubeMap"
+                >
+                  <FontAwesomeIcon icon={faGithub} /> Github (MemPanG26 fork)
+                </SafeLink>
+              </NavItem>
+              <NavItem>
+                <SafeLink
+                  className="nav-link"
+                  target="_blank"
                   href="https://github.com/vgteam/sequenceTubeMap"
                 >
-                  <FontAwesomeIcon icon={faGithub} /> Github
+                  <FontAwesomeIcon icon={faGithub} /> Upstream
                 </SafeLink>
               </NavItem>
               <NavItem>
@@ -36,7 +43,25 @@ export const Footer = () => {
               </NavItem>
             </Nav>
             <Nav>
-              <NavItem>
+              <NavItem style={{ fontSize: '0.85em', color: '#555' }}>
+                MemPanG26 Edition &mdash; Hackathon Team 2:{' '}
+                <SafeLink
+                  href="https://github.com/cmdcolin"
+                  target="_blank"
+                  style={{ color: 'inherit' }}
+                >
+                  Colin Diesh
+                </SafeLink>
+                {' & '}
+                <SafeLink
+                  href="https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en"
+                  target="_blank"
+                  style={{ color: 'inherit' }}
+                >
+                  Rafeed Rahman Turjya
+                </SafeLink>
+              </NavItem>
+              <NavItem style={{ fontSize: '0.85em', color: '#888', marginLeft: '1em' }}>
                 {PACKAGE.name} v{PACKAGE.version}
               </NavItem>
             </Nav>

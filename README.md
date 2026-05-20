@@ -1,4 +1,26 @@
-# Sequence Tube Map
+# Sequence Tube Map — MemPanG26 Edition
+
+![MemPanG26 Edition](public/mempang26-badge.svg)
+
+> **MemPanG26 Hackathon Team 2** — Colin Diesh & [Rafeed Rahman Turjya](https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en)
+>
+> This is a modernized fork of the upstream [vgteam/sequenceTubeMap](https://github.com/vgteam/sequenceTubeMap). Key improvements over upstream:
+>
+> - **Browser-native WASM mode** — visualize GBZ graphs locally without a server, powered by [gbz-base](https://github.com/jltsiren/gbz-base) WASM
+> - **Full TypeScript conversion** — frontend components and utilities converted to TypeScript with strict types
+> - **Read filtering by click** — interactive read group panel; click reads to filter, group, and color them independently
+> - **React 19 + React Compiler** — eliminates manual `useMemo`/`useCallback` boilerplate; components rebuilt as functions
+> - **Performance** — faster `placeReads`, large-path rendering, and d3 zoom coalescing; fit-to-height initial zoom
+> - **Legend component** — color legend for active graph, haplotype, and read tracks
+> - **MUI v9 UI** — standardized on Material UI v9 for selects, dialogs, and autocomplete inputs
+> - **Paths panel** — browse and load paths directly from the panel with live region updates
+> - **vg stderr surfaced** — server-side vg errors are now forwarded to the browser
+>
+> *[MemPanG26 demo](https://cmdcolin.github.io/sequenceTubeMap/)* | *[Upstream demo](https://vgteam.github.io/sequenceTubeMap/)*
+>
+> Development assisted by [Claude Code](https://claude.ai/code).
+
+---
 
 ![Header Graphic](/images/header.png)
 

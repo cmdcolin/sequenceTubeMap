@@ -15,7 +15,7 @@ export default {
   entry: './src/index.tsx',
   output: {
     path: path.resolve(__dirname, 'build'),
-    publicPath: '/',
+    publicPath: process.env.PUBLIC_URL ? process.env.PUBLIC_URL + '/' : '/',
     filename: isProduction
       ? 'static/js/[name].[contenthash:8].js'
       : 'static/js/bundle.js',
