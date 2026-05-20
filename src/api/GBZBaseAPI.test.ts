@@ -101,3 +101,42 @@ describe('when a file is uploaded', () => {
     }
   })
 })
+
+// Sibling-index pairing: uploading both a .sorted.gam and its .sorted.gam.gai
+// should let the LocalAPI find the index when reading the GAM, so region
+// queries work for dropped folders like exampleData/Toxo.
+describe('uploaded read + index siblings', () => {
+  const api = new GBZBaseAPI()
+  let gamId: string | null = null
+  let gaiId: string | null = null
+
+  beforeAll(async () => {
+    const gamData = readFileSync('exampleData/cactus0_10.sorted.gam')
+    const gaiData = readFileSync('exampleData/cactus0_10.sorted.gam.gai')
+    const gamFile = new window.File([gamData], 'cactus0_10.sorted.gam', {
+      type: 'application/octet-stream',
+    })
+    const gaiFile = new window.File([gaiData], 'cactus0_10.sorted.gam.gai', {
+      type: 'application/octet-stream',
+    })
+    const c = new AbortController()
+    gamId = await api.putFile('read', gamFile, c.signal)
+    gaiId = await api.putFile('read', gaiFile, c.signal)
+  })
+
+  it('returns distinct upload ids for the gam and its index', () => {
+    expect(gamId).toBeTruthy()
+    expect(gaiId).toBeTruthy()
+    expect(gamId).not.toEqual(gaiId)
+  })
+
+  it('lists only the gam as a read track, hiding the .gai sibling', async () => {
+    const filenames = await api.getFilenames(null)
+    const readFiles = (filenames.files ?? []).filter(
+      f => f.trackType === 'read',
+    )
+    const trackFileIds = readFiles.map(f => f.trackFile)
+    expect(trackFileIds).toContain(gamId!)
+    expect(trackFileIds).not.toContain(gaiId!)
+  })
+})

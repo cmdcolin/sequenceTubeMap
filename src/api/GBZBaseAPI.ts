@@ -17,6 +17,8 @@ import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
 import { getCompiledWasm } from '#wasm-loader'
 import { makeWasiFile } from './wasm/blobWasiFile.ts'
 import { convertSchema, removeNodeSequencesInPlace } from './wasm/schema.ts'
+import { readGam, readGamRegion } from './gam/gam.ts'
+import { UploadRegistry } from './local/fileRegistry.ts'
 
 import type {
   APIInterface,
@@ -31,6 +33,7 @@ import type {
   Track,
   ViewTarget,
 } from '../Types.ts'
+import type { VgNode, VgRead } from '../util/tubemap.ts'
 
 // Set GBZBASE_DEBUG=1 / localStorage.gbzBaseDebug = '1' to re-enable the
 // chatty per-call logging that was unconditional in the original .mjs.
@@ -59,6 +62,44 @@ interface WasmResult {
   stderr: string
 }
 
+function nodeIdRange(
+  nodes: VgNode[],
+): { min: bigint; max: bigint } | null {
+  if (nodes.length === 0) {
+    return null
+  }
+  let min: bigint | null = null
+  let max: bigint | null = null
+  for (const n of nodes) {
+    const id = typeof n.id === 'bigint' ? n.id : BigInt(n.id)
+    if (min === null || id < min) {
+      min = id
+    }
+    if (max === null || id > max) {
+      max = id
+    }
+  }
+  return min === null || max === null ? null : { min, max }
+}
+
+function alignmentInRange(
+  aln: VgRead,
+  min: bigint,
+  max: bigint,
+): boolean {
+  for (const m of aln.path?.mapping ?? []) {
+    const id = m.position?.node_id
+    if (id === undefined) {
+      continue
+    }
+    const n = typeof id === 'bigint' ? id : BigInt(id)
+    if (n >= min && n <= max) {
+      return true
+    }
+  }
+  return false
+}
+
 /**
  * API implementation that uses tools compiled to WebAssembly, client-side.
  *
@@ -67,7 +108,7 @@ interface WasmResult {
  */
 export class GBZBaseAPI implements APIInterface {
   // User-uploaded files, indexed by string id (the array index).
-  private files: Blob[] = []
+  private registry = new UploadRegistry()
   // Index of upload ids by track type.
   private filesByType = new Map<FileType, string[]>()
   // Cache of blobs fetched lazily from URLs (built-in sample data sources
@@ -89,8 +130,8 @@ export class GBZBaseAPI implements APIInterface {
   // array; anything else is fetched from the URL (cached).
   private async resolveTrackFile(trackFile: string): Promise<Blob> {
     if (/^\d+$/.test(trackFile)) {
-      const blob = this.files[parseInt(trackFile, 10)]
-      if (blob === undefined) {
+      const blob = this.registry.get(trackFile)
+      if (!blob) {
         throw new Error(`Uploaded file ${trackFile} does not exist`)
       }
       return blob
@@ -223,7 +264,7 @@ export class GBZBaseAPI implements APIInterface {
     const sample = parts[0] ?? ''
     const contig = parts[parts.length - 1] ?? ''
 
-    const { stdout } = await this.callWasm(
+    const { stdout, stderr, returnCode } = await this.callWasm(
       [
         'query',
         '--sample',
@@ -240,19 +281,80 @@ export class GBZBaseAPI implements APIInterface {
       { 'graph.gbz.db': graphFileBlob },
     )
 
-    const result = convertSchema(JSON.parse(stdout))
+    let result
+    try {
+      result = convertSchema(JSON.parse(stdout))
+    } catch {
+      const stderrTail = stderr.trim().split('\n').slice(-5).join('\n')
+      const stderrSuffix = stderrTail ? `\nWASM stderr:\n${stderrTail}` : ''
+      throw new Error(
+        `Could not parse "${graphTrack.trackFile}" as a GBZ .gbz.db file. ` +
+          `The in-browser WASM backend only reads gbz-base SQLite files; .vg / .xg / .gbz are not supported. ` +
+          `(WASM exit ${returnCode ?? 'undefined'})${stderrSuffix}`,
+      )
+    }
+    const readTracks = viewTarget.tracks.filter(t => t.trackType === 'read')
+    const nodeRange = nodeIdRange(result.node)
+    const gam: ChunkedDataResponse['gam'] = []
+    for (const track of readTracks) {
+      if (!track.trackFile) {
+        gam.push([])
+        continue
+      }
+      gam.push(await this.readsForTrack(track.trackFile, nodeRange))
+    }
+
     if (viewTarget.removeSequences) {
       removeNodeSequencesInPlace(result)
     }
 
     return {
       graph: result,
-      gam: [],
+      gam,
       // Match the server's [start, end] shape; the tubemap ruler indexes [0]
       // and [1] as numbers to position the region-highlight ticks.
       region: [region.start, region.end],
       coloredNodes: [],
     }
+  }
+
+  // Try to resolve a sibling file at `trackFile + suffix` (e.g. ".gai").
+  //
+  // For URL-based tracks, this is a plain fetch of the sibling URL.
+  //
+  // For uploaded tracks (numeric ids) we look the sibling up by original
+  // filename — putFile records the upload's `file.name`, so a `.sorted.gam`
+  // and its `.sorted.gam.gai` dropped together pair up automatically.
+  private async resolveSibling(
+    trackFile: string,
+    suffix: string,
+  ): Promise<Blob | null> {
+    if (/^\d+$/.test(trackFile)) {
+      return this.registry.sibling(trackFile, suffix)
+    }
+    try {
+      return await this.resolveTrackFile(trackFile + suffix)
+    } catch {
+      return null
+    }
+  }
+
+  private async readsForTrack(
+    trackFile: string,
+    nodeRange: { min: bigint; max: bigint } | null,
+  ): Promise<VgRead[]> {
+    const gamBlob = await this.resolveTrackFile(trackFile)
+    if (nodeRange) {
+      const gaiBlob = await this.resolveSibling(trackFile, '.gai')
+      if (gaiBlob) {
+        return readGamRegion(gamBlob, gaiBlob, nodeRange.min, nodeRange.max)
+      }
+    }
+    const all = await readGam(gamBlob)
+    if (!nodeRange) {
+      return all
+    }
+    return all.filter(r => alignmentInRange(r, nodeRange.min, nodeRange.max))
   }
 
   async getFilenames(
@@ -288,20 +390,27 @@ export class GBZBaseAPI implements APIInterface {
     file: File,
     _cancelSignal: AbortSignal | null,
   ): Promise<string> {
-    // Track files just by array index.
-    const fileName = this.files.length.toString()
-    this.files.push(file)
-
+    const { id, isSibling } = this.registry.add({
+      name: file.name,
+      blob: file,
+    })
     debugLog(`Store ${file.size} byte upload:`, file)
+
+    // Sibling index files (.gai for .gam, .tbi for .gaf.gz) get uploaded so
+    // they're available for region queries, but they aren't tracks in their
+    // own right; `resolveSibling` looks them up by name later.
+    if (isSibling) {
+      return id
+    }
 
     let list = this.filesByType.get(fileType)
     if (!list) {
       list = []
       this.filesByType.set(fileType, list)
     }
-    list.push(fileName)
+    list.push(id)
 
-    return fileName
+    return id
   }
 
   async getBedRegions(

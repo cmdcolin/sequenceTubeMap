@@ -29,6 +29,9 @@ importers:
       '@fortawesome/react-fontawesome':
         specifier: ^3.3.1
         version: 3.3.1(@fortawesome/fontawesome-svg-core@7.2.0)(react@19.2.6)
+      '@gmod/bgzf-filehandle':
+        specifier: ^6.0.23
+        version: 6.0.23
       '@mui/material':
         specifier: ^9.0.1
         version: 9.0.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.6))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.6))(@types/react@19.2.14)(react@19.2.6))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -77,6 +80,9 @@ importers:
       gbz-base:
         specifier: ^0.1.0-alpha.1
         version: 0.1.0-alpha.1
+      generic-filehandle2:
+        specifier: ^2.1.9
+        version: 2.1.9
       gh-pages:
         specifier: ^6.3.0
         version: 6.3.0
@@ -89,6 +95,9 @@ importers:
       node-cron:
         specifier: ^4.2.1
         version: 4.2.1
+      pako-esm2:
+        specifier: ^2.0.2
+        version: 2.0.2
       path-is-inside:
         specifier: ^1.0.2
         version: 1.0.2
@@ -783,6 +792,9 @@ packages:
       '@fortawesome/fontawesome-svg-core': ~6 || ~7
       react: ^18.0.0 || ^19.0.0
 
+  '@gmod/bgzf-filehandle@6.0.23':
+    resolution: {integrity: sha512-Xrkzq1sP09HOiKfjJGN1eRWKOjSvx4nNhNmeZBIwYCQSVgEyrzQn6GKW3QqK9RAZmkmc2wlkjly2jMBbq/++vA==}
+
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
     engines: {node: '>=18.18.0'}
@@ -807,6 +819,10 @@ packages:
     resolution: {integrity: sha512-QPcGmICAPbGLGb6F/yNf/KzKqvFx8z5qx3D1yFqVAjoFmXK35EgyW+cJ57Te3CNsmzblwtzakLGFqHPqrfb4Tw==}
     peerDependencies:
       react: '*'
+
+  '@jbrowse/quick-lru@7.3.5':
+    resolution: {integrity: sha512-DPEtODWKt+QGmCg+EO36sSmKOmdjJOwtxeV/4PBnf+7jqC/P7R4YIz+/yohtqh9UZ38dbLtXIlmigPlkZy8SAA==}
+    engines: {node: '>=18'}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -2822,6 +2838,9 @@ packages:
     resolution: {integrity: sha512-SFdFmIJi+ybC0vjlHN0ZGVGHc3lgE0DxPAT0djjVg+kjOnSqclqmj0KQ7ykTOLP6YxoqOvuAODGdcHJn+43q3g==}
     engines: {node: '>= 0.4'}
 
+  generic-filehandle2@2.1.9:
+    resolution: {integrity: sha512-2kMTEHulkO6G2JNPDrRufoU0BzO91WeYe8acyh7Xzq/slgTxtKBzk33gaTolQvx9ocFH4cvU6S96XRazcvS78Q==}
+
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
@@ -3662,6 +3681,9 @@ packages:
   p-try@2.2.0:
     resolution: {integrity: sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==}
     engines: {node: '>=6'}
+
+  pako-esm2@2.0.2:
+    resolution: {integrity: sha512-bm+PwddAyroj8Ny8tNuLepGW28OUdI2b/PkvhaW2jHBVZ5fgcR1xsrLPiOKwk8LoXyc1az2NdHlvICBN2BjR6Q==}
 
   param-case@3.0.4:
     resolution: {integrity: sha512-RXlj7zCYokReqWpOPH9oYivUzLYZ5vAPIfEmCTNViosC78F8F0H9y7T7gG2M39ymgutxF5gcFEsyZQSph9Bp3A==}
@@ -5346,6 +5368,12 @@ snapshots:
       '@fortawesome/fontawesome-svg-core': 7.2.0
       react: 19.2.6
 
+  '@gmod/bgzf-filehandle@6.0.23':
+    dependencies:
+      '@jbrowse/quick-lru': 7.3.5
+      generic-filehandle2: 2.1.9
+      pako-esm2: 2.0.2
+
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -5365,6 +5393,8 @@ snapshots:
   '@icons/material@0.2.4(react@19.2.6)':
     dependencies:
       react: 19.2.6
+
+  '@jbrowse/quick-lru@7.3.5': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -7698,6 +7728,8 @@ snapshots:
 
   generator-function@2.0.1: {}
 
+  generic-filehandle2@2.1.9: {}
+
   gensync@1.0.0-beta.2: {}
 
   get-caller-file@2.0.5: {}
@@ -8504,6 +8536,8 @@ snapshots:
       retry: 0.13.1
 
   p-try@2.2.0: {}
+
+  pako-esm2@2.0.2: {}
 
   param-case@3.0.4:
     dependencies:
