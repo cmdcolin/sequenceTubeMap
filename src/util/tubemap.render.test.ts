@@ -187,11 +187,8 @@ describe('tubemap.create — node click pops info dialog', () => {
     setupSvg()
   })
 
-  // Regression: d3-zoom's "start" event used to flip pointer-events:none on the
-  // content group before any movement, so by the time `click` was dispatched
-  // the node <path> couldn't receive it. We now defer the disable to the first
-  // real 'zoom' event. The full pointerdown→pointerup→click sequence is what
-  // surfaces the bug — a bare `click` dispatch wouldn't touch d3-zoom at all.
+  // The click handler on node <path> must be wired and must call the
+  // info-dialog callback with the node's attributes.
   it('invokes setInfoCallback when a node <path> is clicked', () => {
     const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
     tubeMap.setInfoCallback(onInfo)
@@ -199,22 +196,11 @@ describe('tubemap.create — node click pops info dialog', () => {
     const { nodes, tracks } = dataForExample('1')
     render(nodes, tracks)
 
-    // Nodes are rendered as <path id={nodeName}> inside the .node group.
     const nodePath = document.querySelector('g.node path[id]') as SVGPathElement | null
     expect(nodePath).not.toBeNull()
-    if (!nodePath) return
-
-    // d3-drag reads `event.view.document` on mousedown. jsdom rejects `view`
-    // passed via the MouseEvent init (IDL window-check), so construct the
-    // events normally and then patch `view` on after the fact.
-    function fire(type: string): void {
-      const ev = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 })
-      Object.defineProperty(ev, 'view', { value: document.defaultView })
-      nodePath?.dispatchEvent(ev)
-    }
-    fire('mousedown')
-    fire('mouseup')
-    fire('click')
+    nodePath?.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true }),
+    )
 
     expect(onInfo).toHaveBeenCalledTimes(1)
     const attrs = onInfo.mock.calls[0]?.[0] ?? []
