@@ -15,7 +15,7 @@ const ZOOM_FACTOR = 2.0
 interface DataPositionFormRowProps {
   handleGoButton: () => void
   uploadInProgress: boolean
-  getCurrentViewTarget: () => ViewTarget
+  currentViewTarget: ViewTarget
   viewTargetHasChange: boolean
   canGo: boolean
   handleInputChange?: (event: KeyboardEvent<HTMLFormElement>) => void
@@ -24,7 +24,7 @@ interface DataPositionFormRowProps {
 function DataPositionFormRow({
   handleGoButton,
   uploadInProgress,
-  getCurrentViewTarget,
+  currentViewTarget,
   viewTargetHasChange,
   canGo,
   handleInputChange,
@@ -97,7 +97,7 @@ function DataPositionFormRow({
         <FontAwesomeIcon icon={faCamera} className="me-1" />
         Download Image
       </Button>
-      <CopyLink getCurrentViewTarget={getCurrentViewTarget} />
+      <CopyLink currentViewTarget={currentViewTarget} />
       {uploadInProgress && (
         <div className="spinner-grow upload-in-progress" role="status">
           <span className="sr-only">Loading...</span>

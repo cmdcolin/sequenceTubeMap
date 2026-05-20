@@ -10,7 +10,11 @@ interface StagedFile {
 }
 
 interface UploadPanelProps {
-  onUploaded: (tracks: Track[]) => void
+  // `displayNames` are the original filenames the user dropped (e.g.
+  // "hprc-chr20.gbz.db"), parallel to `tracks`. The corresponding `trackFile`
+  // values are opaque storage handles (numeric registry ids for LocalAPI), so
+  // callers should use `displayNames` for any UI label.
+  onUploaded: (tracks: Track[], displayNames: string[]) => void
   handleFileUpload: (
     fileType: FileType,
     file: File,
@@ -109,6 +113,7 @@ export const UploadPanel = ({
     setError(null)
     try {
       const tracks: Track[] = []
+      const displayNames: string[] = []
       for (const { file, type } of files) {
         if (!type) {
           continue
@@ -123,6 +128,7 @@ export const UploadPanel = ({
             trackType: type,
             trackColorSettings: defaultTrackColors(type),
           })
+          displayNames.push(file.name)
         }
       }
       if (tracks.length === 0) {
@@ -130,7 +136,7 @@ export const UploadPanel = ({
         setUploading(false)
         return
       }
-      onUploaded(tracks)
+      onUploaded(tracks, displayNames)
       setFiles([])
       setUploading(false)
     } catch (e) {

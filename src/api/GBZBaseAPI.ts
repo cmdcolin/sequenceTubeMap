@@ -20,7 +20,7 @@ import { convertSchema, removeNodeSequencesInPlace } from './wasm/schema.ts'
 import { clearProgress, report } from './downloadProgress.ts'
 import { readGbzDbPaths } from './wasm/gbzDbPaths.ts'
 import { readGam, readGamRegion } from './gam/gam.ts'
-import { UploadRegistry } from './local/fileRegistry.ts'
+import { UploadRegistry, isUploadId } from './local/fileRegistry.ts'
 
 import type {
   APIInterface,
@@ -481,7 +481,14 @@ export class GBZBaseAPI implements APIInterface {
     graphFile: string,
     _cancelSignal: AbortSignal | null,
   ): Promise<{ pathInfo: PathInfo[] }> {
-    if (!graphFile.endsWith('.gbz.db')) return { pathInfo: [] }
+    // For uploaded files `graphFile` is a numeric registry id like "0", so the
+    // extension check has to look at the original filename the registry kept.
+    const checkName = /^\d+$/.test(graphFile)
+      ? this.registry.getName(graphFile)
+      : graphFile
+    if (!checkName?.endsWith('.gbz.db')) {
+      return { pathInfo: [] }
+    }
     try {
       const blob = await this.resolveTrackFile(graphFile)
       const pathInfo = await readGbzDbPaths(blob)

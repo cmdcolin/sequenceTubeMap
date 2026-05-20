@@ -82,7 +82,7 @@ interface HeaderFormProps {
   ) => void
   setDataOrigin: (origin: string) => void
   setCurrentViewTarget: (viewTarget: ViewTarget) => void
-  getCurrentViewTarget: () => ViewTarget
+  currentViewTarget: ViewTarget
   defaultViewTarget?: ViewTarget
   APIInterface: APIInterface
   legendVisible?: boolean
@@ -164,7 +164,7 @@ function HeaderForm({
   setColorSetting,
   setDataOrigin,
   setCurrentViewTarget,
-  getCurrentViewTarget,
+  currentViewTarget,
   defaultViewTarget,
   APIInterface,
   legendVisible,
@@ -199,10 +199,13 @@ function HeaderForm({
     initialView.removeSequences ?? false,
   )
   // Filenames of files uploaded via the "Open custom files" dialog. Shown as a
-  // success banner so the user gets confirmation, and used to seed the paths
-  // panel auto-open behavior. Cleared when the user navigates away or commits
-  // a view target.
+  // success banner so the user gets confirmation. Cleared when the user
+  // navigates away or commits a view target.
   const [recentlyUploaded, setRecentlyUploaded] = useState<string[]>([])
+  // Whether the paths panel is expanded. Auto-opens when the graph file
+  // changes (see render-time adjustment below) so the user sees what paths
+  // are available without having to expand it.
+  const [pathsPanelOpen, setPathsPanelOpen] = useState(true)
 
   // SWR-managed fetches. Each key encodes the state it depends on, so changing
   // that state automatically triggers a new fetch and supersedes any in-flight
@@ -271,6 +274,15 @@ function HeaderForm({
   )
   const pathInfo: PathInfo[] = pathInfoData?.pathInfo ?? []
 
+  // Adjust state during render when the graph file changes — re-opens the
+  // paths panel for the new graph. See:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [lastGraphKey, setLastGraphKey] = useState(graphKey)
+  if (graphKey !== lastGraphKey) {
+    setLastGraphKey(graphKey)
+    setPathsPanelOpen(true)
+  }
+
   // Server explicitly reported no mounted files (vs network/parse failure).
   // LocalAPI starts with no files until the user uploads, so we only surface
   // the generic fallback when a real server returned an empty list.
@@ -337,9 +349,8 @@ function HeaderForm({
     }
     if (
       next.tracks.length > 0 &&
-      !viewTargetsEqual(getCurrentViewTarget(), next)
+      !viewTargetsEqual(currentViewTarget, next)
     ) {
-      console.warn('[HeaderForm] commitViewTarget', next)
       setCurrentViewTarget(next)
       setRecentlyUploaded([])
     }
@@ -428,22 +439,35 @@ function HeaderForm({
     await changeRegionAndGo(regionStringFromRegionIndex(current + offset, regionInfo))
   }
 
+  // Shared reset for the two entry points into custom-files mode (the File
+  // menu's Open… item, and an upload completing). Always clears the rendered
+  // tube map so the previous dataset's graph doesn't linger while the user
+  // picks new files.
+  function enterCustomFilesMode(opts: {
+    tracks: Tracks
+    uploaded: string[]
+  }) {
+    setBedSelect('none')
+    setBedFile('none')
+    setRegion('')
+    setName(undefined)
+    setTracks(opts.tracks)
+    setDataType(dataTypes.CUSTOM_FILES)
+    setFileSizeAlert(false)
+    setManualError(null)
+    setRecentlyUploaded(opts.uploaded)
+    setCurrentViewTarget({ tracks: [], region: '' })
+  }
+
   function handleDataSourceChange(value: string) {
     setManualError(null)
+    // Banner is upload-specific; clear it on any other navigation so a stale
+    // "Loaded N files: …" message can't persist across dataset switches.
+    setRecentlyUploaded([])
 
     if (value === dataTypes.CUSTOM_FILES) {
-      setBedSelect('none')
-      setTracks([])
-      setBedFile('none')
-      setRegion('')
-      setName(undefined)
-      setDataType(dataTypes.CUSTOM_FILES)
-      setFileSizeAlert(false)
+      enterCustomFilesMode({ tracks: [], uploaded: [] })
       setUploadInProgress(false)
-      setRecentlyUploaded([])
-      // Clear the rendered tube map so the previous dataset's graph isn't
-      // still visible while the user picks new files.
-      setCurrentViewTarget({ tracks: [], region: '' })
     } else if (value === dataTypes.EXAMPLES) {
       setDataType(dataTypes.EXAMPLES)
     } else {
@@ -474,20 +498,11 @@ function HeaderForm({
     }
   }
 
-  function handleQuickUploaded(uploadedTracks: Track[]) {
-    console.warn('[HeaderForm] handleQuickUploaded', uploadedTracks)
-    setBedSelect('none')
-    setBedFile('none')
-    setRegion('')
-    setName(undefined)
-    setTracks(uploadedTracks)
-    setDataType(dataTypes.CUSTOM_FILES)
-    setFileSizeAlert(false)
-    setManualError(null)
-    setRecentlyUploaded(uploadedTracks.map(t => t.trackFile ?? '(unnamed)'))
-    // Clear the previous dataset's tube map. Without this, the old graph
-    // would remain rendered until the user picks a region for the new files.
-    setCurrentViewTarget({ tracks: [], region: '' })
+  function handleQuickUploaded(uploadedTracks: Track[], displayNames: string[]) {
+    enterCustomFilesMode({
+      tracks: uploadedTracks,
+      uploaded: displayNames,
+    })
   }
 
   async function handleFileUpload(
@@ -534,7 +549,7 @@ function HeaderForm({
   const examplesFlag = dataType === dataTypes.EXAMPLES
   const viewTargetHasChange = !viewTargetsEqual(
     buildViewTarget(),
-    getCurrentViewTarget(),
+    currentViewTarget,
   )
   const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
 
@@ -852,9 +867,9 @@ function HeaderForm({
             )}
             {pathInfo.length > 0 && !examplesFlag && (
               <PathsPanel
-                key={graphKey ?? 'none'}
                 pathInfo={pathInfo}
-                defaultOpen={recentlyUploaded.length > 0}
+                isOpen={pathsPanelOpen}
+                onToggle={() => { setPathsPanelOpen(o => !o); }}
                 onLoadPath={region => { void changeRegionAndGo(region); }}
                 onCopyToRegion={region => { setRegion(region); }}
               />
@@ -865,7 +880,7 @@ function HeaderForm({
                   <DataPositionFormRow
                     handleGoButton={() => { handleGoButton(); }}
                     uploadInProgress={uploadInProgress}
-                    getCurrentViewTarget={getCurrentViewTarget}
+                    currentViewTarget={currentViewTarget}
                     viewTargetHasChange={viewTargetHasChange}
                     canGo={isValidRegion(region) && tracks.length > 0}
                   />
@@ -904,7 +919,7 @@ function HeaderForm({
                   <DataPositionFormRow
                     handleGoButton={() => { handleGoButton(); }}
                     uploadInProgress={uploadInProgress}
-                    getCurrentViewTarget={getCurrentViewTarget}
+                    currentViewTarget={currentViewTarget}
                     viewTargetHasChange={viewTargetHasChange}
                     canGo={isValidRegion(region) && tracks.length > 0}
                   />
@@ -931,8 +946,8 @@ function HeaderForm({
         <DialogTitle>Open custom files</DialogTitle>
         <DialogContent>
           <UploadPanel
-            onUploaded={uploadedTracks => {
-              handleQuickUploaded(uploadedTracks)
+            onUploaded={(uploadedTracks, displayNames) => {
+              handleQuickUploaded(uploadedTracks, displayNames)
               setUploadDialogOpen(false)
             }}
             handleFileUpload={async (fileType, file) =>

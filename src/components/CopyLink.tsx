@@ -23,17 +23,17 @@ export const setCopyCallback = (callback: (text: string) => void) =>
   (copyCallback = callback)
 
 interface CopyLinkProps {
-  getCurrentViewTarget: () => ViewTarget
+  currentViewTarget: ViewTarget
 }
 
-export function CopyLink(props: CopyLinkProps) {
+export function CopyLink({ currentViewTarget }: CopyLinkProps) {
   // Button to copy a link with viewTarget to the data selected
   const [text, setText] = useState(UNCLICKED_TEXT)
   const [dialogLink, setDialogLink] = useState<string>()
 
   const handleCopyLink = () => {
     // qs encodeValuesOnly=true keeps keys readable (see https://github.com/ljharb/qs#stringifying)
-    const params = qs.stringify(props.getCurrentViewTarget(), {
+    const params = qs.stringify(currentViewTarget, {
       encodeValuesOnly: true,
     })
     const url = new URL(window.location.toString())

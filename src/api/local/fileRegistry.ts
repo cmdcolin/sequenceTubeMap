@@ -14,6 +14,13 @@ export function isSiblingIndex(name: string): boolean {
   return SIBLING_INDEX_SUFFIXES.some(s => lower.endsWith(s))
 }
 
+// A trackFile string is an upload id when it's purely numeric (the registry
+// assigns ids via `files.length.toString()`). Anything else is treated as a
+// URL/path that goes through the URL fetch path in GBZBaseAPI.
+export function isUploadId(trackFile: string): boolean {
+  return /^\d+$/.test(trackFile)
+}
+
 export interface AddResult {
   // The id assigned to this upload — `String(index)` matching the existing
   // GBZBaseAPI scheme so external consumers see no behavior change.
@@ -47,6 +54,17 @@ export class UploadRegistry {
       return null
     }
     return this.files[idx] ?? null
+  }
+
+  // Original filename for an upload id, or null if the id is unknown / had no
+  // name. Callers use this for UI labels and for extension-based dispatch
+  // (e.g. is this .gbz.db?) since `id` is a registry index, not a path.
+  getName(id: string): string | null {
+    const idx = parseInt(id, 10)
+    if (Number.isNaN(idx)) {
+      return null
+    }
+    return this.fileNames[idx] ?? null
   }
 
   // Look up an upload's sibling at `originalName + suffix`. Returns null when

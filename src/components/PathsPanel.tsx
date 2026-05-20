@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Card, CardHeader, Collapse, CardBody, Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronRight, faChevronDown } from '@fortawesome/free-solid-svg-icons'
@@ -9,7 +8,8 @@ interface PathsPanelProps {
   pathInfo: PathInfo[]
   onLoadPath: (region: string) => void
   onCopyToRegion: (region: string) => void
-  defaultOpen?: boolean
+  isOpen: boolean
+  onToggle: () => void
 }
 
 // Loading paths much longer than this freezes the browser for many seconds
@@ -20,8 +20,7 @@ function regionFor(name: string, length: number) {
   return `${name}:0-${length - 1}`
 }
 
-function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion, defaultOpen = false }: PathsPanelProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen)
+function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion, isOpen, onToggle }: PathsPanelProps) {
 
   if (!pathInfo.length) return null
 
@@ -41,7 +40,7 @@ function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion, defaultOpen = false 
   return (
     <Card className="mt-2">
       <CardHeader
-        onClick={() => { setIsOpen(!isOpen); }}
+        onClick={() => { onToggle(); }}
         style={{ cursor: 'pointer', userSelect: 'none' }}
         className="d-flex justify-content-between align-items-center"
         role="button"

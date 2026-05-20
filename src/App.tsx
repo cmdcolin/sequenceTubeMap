@@ -115,7 +115,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     }
   }
 
-  const getCurrentViewTarget = () => removeUndefined(viewTarget)
+  const currentViewTarget = removeUndefined(viewTarget)
 
   const toggleVisOptionFlag = (flagName: string) => {
     setVisOptions(v => {
@@ -148,7 +148,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
         setDataOrigin={setDataOrigin}
         setColorSetting={setColorSetting}
         defaultViewTarget={defaultViewTarget}
-        getCurrentViewTarget={getCurrentViewTarget}
+        currentViewTarget={currentViewTarget}
         APIInterface={apiInterface}
         legendVisible={legendVisible}
         toggleLegend={() => { setLegendVisible(v => !v) }}
