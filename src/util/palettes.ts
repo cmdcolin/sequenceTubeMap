@@ -23,8 +23,6 @@ export const ygreys: readonly ColorHex[] = [
 ]
 
 export const blues: readonly ColorHex[] = [
-  '#c6dbef',
-  '#9ecae1',
   '#6baed6',
   '#4292c6',
   '#2171b5',
