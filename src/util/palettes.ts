@@ -33,8 +33,6 @@ export const blues: readonly ColorHex[] = [
 ]
 
 export const reds: readonly ColorHex[] = [
-  '#fcbba1',
-  '#fc9272',
   '#fb6a4a',
   '#ef3b2c',
   '#cb181d',

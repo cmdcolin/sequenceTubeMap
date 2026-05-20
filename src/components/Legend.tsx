@@ -1,7 +1,9 @@
+import { Fragment } from 'react'
 import { PALETTES } from '../util/palettes.ts'
 import type { PaletteInfo } from '../util/palettes.ts'
 import { truncateMiddle } from '../util/text.ts'
 import type { ColorScheme, FileType, Palette, Tracks } from '../Types.ts'
+import type { ReadGroup } from './ReadGroupsPanel.tsx'
 
 function gradientBackground(colors: readonly string[]): string {
   return `linear-gradient(to right, ${colors.join(', ')})`
@@ -121,11 +123,13 @@ function paletteRoles(
 interface LegendProps {
   tracks: Tracks
   colorSchemes: ColorScheme[]
+  readGroups?: ReadGroup[]
+  otherReadsColor?: string
   title?: string
   onClose?: () => void
 }
 
-function Legend({ tracks, colorSchemes, title = 'Color legend', onClose }: LegendProps) {
+function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, title = 'Color legend', onClose }: LegendProps) {
   if (tracks.length === 0) {
     return null
   }
@@ -207,12 +211,27 @@ function Legend({ tracks, colorSchemes, title = 'Color legend', onClose }: Legen
                     paddingLeft: 8,
                   }}
                 >
-                  <span>{roles.main}</span>
-                  <PaletteSwatch palette={scheme.mainPalette} />
-                  {roles.aux !== undefined && (
+                  {t.trackType === 'read' && readGroups && readGroups.length > 0 ? (
                     <>
-                      <span>{roles.aux}</span>
-                      <PaletteSwatch palette={scheme.auxPalette} />
+                      {readGroups.map(g => (
+                        <Fragment key={g.id}>
+                          <span>{g.name}</span>
+                          <PaletteSwatch palette={g.color as Palette} />
+                        </Fragment>
+                      ))}
+                      <span>Other reads</span>
+                      <PaletteSwatch palette={(otherReadsColor ?? 'greys') as Palette} />
+                    </>
+                  ) : (
+                    <>
+                      <span>{roles.main}</span>
+                      <PaletteSwatch palette={scheme.mainPalette} />
+                      {roles.aux !== undefined && (
+                        <>
+                          <span>{roles.aux}</span>
+                          <PaletteSwatch palette={scheme.auxPalette} />
+                        </>
+                      )}
                     </>
                   )}
                 </div>

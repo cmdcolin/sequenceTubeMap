@@ -12,9 +12,10 @@ import NodeContextMenu from './NodeContextMenu.tsx'
 import PendingPanel from './PendingPanel.tsx'
 import DownloadProgressPanel from './DownloadProgressPanel.tsx'
 import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel.tsx'
+import Legend from './Legend.tsx'
 import { computeExampleData } from './tubeMapData.ts'
 import type { APIInterface } from '../api/APIInterface.ts'
-import type { ViewTarget, VisOptions } from '../Types.ts'
+import type { Tracks, ViewTarget, VisOptions } from '../Types.ts'
 
 const GROUP_PALETTE_CYCLE = [
   'reds',
@@ -185,11 +186,18 @@ interface NodeContextMenuState {
   y: number
 }
 
+const EXAMPLE_TRACKS: Tracks = [
+  { trackType: 'graph', trackFile: 'fakeGraph' },
+  { trackType: 'read', trackFile: 'fakeReads' },
+]
+
 interface TubeMapContainerProps {
   viewTarget: ViewTarget
   dataOrigin: string
   visOptions: VisOptions
   APIInterface: APIInterface
+  legendVisible: boolean
+  onLegendClose: () => void
 }
 
 function TubeMapContainer({
@@ -197,6 +205,8 @@ function TubeMapContainer({
   dataOrigin,
   visOptions,
   APIInterface,
+  legendVisible,
+  onLegendClose,
 }: TubeMapContainerProps) {
   const [infoDialogContent, setInfoDialogContent] = useState<
     InfoAttribute[] | undefined
@@ -473,8 +483,11 @@ function TubeMapContainer({
 
   const isOpen = infoDialogContent !== undefined
 
+  const legendTracks =
+    dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
+
   return (
-    <div id="tubeMapContainer">
+    <div id="tubeMapContainer" style={{ position: 'relative' }}>
       <PopUpInfoDialog
         open={isOpen}
         attributes={infoDialogContent}
@@ -544,7 +557,9 @@ function TubeMapContainer({
           ]}
         />
       ) : null}
-      {reads !== undefined && reads.length > READ_LIMIT_PRESETS[0] ? (
+      {reads !== undefined &&
+      reads.length > READ_LIMIT_PRESETS[0] &&
+      !visOptions.coarsenedReadView ? (
         <ReadRenderLimitBanner
           totalReads={reads.length}
           limit={readRenderLimit}
@@ -557,7 +572,11 @@ function TubeMapContainer({
             nodes={nodes}
             tracks={tracks}
             reads={
-              reads !== undefined && readRenderLimit !== null
+              // Coarsened (Sankey) mode collapses reads to one band per edge,
+              // so the per-read render cap doesn't apply — pass the full set.
+              reads !== undefined &&
+              readRenderLimit !== null &&
+              !visOptions.coarsenedReadView
                 ? subsampleReads(reads, readRenderLimit)
                 : reads
             }
@@ -609,6 +628,26 @@ function TubeMapContainer({
           onClose={() => { setNodeContextMenu(null); }}
         />
       ) : null}
+      {legendVisible && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 10,
+            maxHeight: 'calc(100vh - 120px)',
+            overflowY: 'auto',
+          }}
+        >
+          <Legend
+            tracks={legendTracks}
+            colorSchemes={visOptions.colorSchemes}
+            readGroups={readGroups}
+            otherReadsColor={otherReadsColor}
+            onClose={onLegendClose}
+          />
+        </div>
+      )}
     </div>
   )
 }

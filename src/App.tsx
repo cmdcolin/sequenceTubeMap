@@ -4,7 +4,6 @@ import isEqual from 'react-fast-compare'
 import './App.css'
 import HeaderForm from './components/HeaderForm.tsx'
 import TubeMapContainer from './components/TubeMapContainer.tsx'
-import Legend from './components/Legend.tsx'
 import { urlParamsToViewTarget } from './urlViewTarget.ts'
 import CustomizationAccordion from './components/CustomizationAccordion.tsx'
 import Footer from './components/Footer.tsx'
@@ -23,11 +22,6 @@ import type {
   ViewTarget,
   VisOptions,
 } from './Types.ts'
-
-const EXAMPLE_TRACKS: Tracks = [
-  { trackType: 'graph', trackFile: 'fakeGraph' },
-  { trackType: 'read', trackFile: 'fakeReads' },
-]
 
 function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
   return tracks.map(t => t.trackColorSettings ?? defaultTrackColors(t.trackType))
@@ -72,6 +66,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     alphaReadsByMappingQuality: false,
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
     mappingQualityCutoff: 0,
+    coarsenedReadView: false,
   })
   const [apiInterface, setApiInterface] = useState<APIInterface>(
     () => (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),
@@ -157,33 +152,16 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
         handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
         compressedViewLocked={viewTarget.removeSequences}
       />
-      <div style={{ position: 'relative', margin: '8px 0' }}>
+      <div style={{ margin: '8px 0' }}>
         <TubeMapContainer
+          key={[viewTarget.region, ...viewTarget.tracks.map(t => t.trackFile ?? '')].join('|')}
           viewTarget={viewTarget}
           dataOrigin={dataOrigin}
           visOptions={visOptions}
           APIInterface={apiInterface}
+          legendVisible={legendVisible}
+          onLegendClose={() => { setLegendVisible(false) }}
         />
-        {legendVisible && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              zIndex: 10,
-              maxHeight: 'calc(100vh - 120px)',
-              overflowY: 'auto',
-            }}
-          >
-            <Legend
-              tracks={
-                dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
-              }
-              colorSchemes={visOptions.colorSchemes}
-              onClose={() => { setLegendVisible(false) }}
-            />
-          </div>
-        )}
       </div>
       <CustomizationAccordion
         currentAPIMode={apiInterface.mode}
