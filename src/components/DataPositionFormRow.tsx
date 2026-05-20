@@ -3,12 +3,10 @@ import { CopyLink } from './CopyLink.tsx'
 import { Form, Button } from 'reactstrap'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faStepBackward,
-  faStepForward,
   faSearchPlus,
   faSearchMinus,
+  faCamera,
 } from '@fortawesome/free-solid-svg-icons'
-import HelpButton from './HelpButton.tsx'
 import * as tubeMap from '../util/tubemap.ts'
 import type { ViewTarget } from '../Types.ts'
 
@@ -16,27 +14,19 @@ const ZOOM_FACTOR = 2.0
 
 interface DataPositionFormRowProps {
   handleGoButton: () => void
-  handleGoLeft: () => void
-  handleGoRight: () => void
   uploadInProgress: boolean
   getCurrentViewTarget: () => ViewTarget
   viewTargetHasChange: boolean
   canGo: boolean
-  canGoLeft: boolean
-  canGoRight: boolean
   handleInputChange?: (event: KeyboardEvent<HTMLFormElement>) => void
 }
 
 function DataPositionFormRow({
   handleGoButton,
-  handleGoLeft,
-  handleGoRight,
   uploadInProgress,
   getCurrentViewTarget,
   viewTargetHasChange,
   canGo,
-  canGoLeft,
-  canGoRight,
   handleInputChange,
 }: DataPositionFormRowProps) {
   const onKeyUp = (event: KeyboardEvent<HTMLFormElement>) => {
@@ -76,7 +66,6 @@ function DataPositionFormRow({
       {uploadInProgress && (
         <div className="smallLoader" id="fileUploadSpinner" />
       )}
-      <HelpButton file="./help/help.md" />
       <Button
         color={viewTargetHasChange ? 'alert' : 'primary'}
         title={goTitle}
@@ -85,14 +74,6 @@ function DataPositionFormRow({
         disabled={goDisabled}
       >
         Go
-      </Button>
-      <Button
-        color="primary"
-        id="goLeftButton"
-        onClick={() => { handleGoLeft(); }}
-        disabled={uploadInProgress || !canGoLeft}
-      >
-        <FontAwesomeIcon icon={faStepBackward} size="lg" />
       </Button>
       <Button
         color="primary"
@@ -110,17 +91,10 @@ function DataPositionFormRow({
       </Button>
       <Button
         color="primary"
-        id="goRightButton"
-        onClick={() => { handleGoRight(); }}
-        disabled={uploadInProgress || !canGoRight}
-      >
-        <FontAwesomeIcon icon={faStepForward} size="lg" />
-      </Button>
-      <Button
-        color="secondary"
         id="downloadButton"
         onClick={() => { handleDownloadButton(); }}
       >
+        <FontAwesomeIcon icon={faCamera} className="me-1" />
         Download Image
       </Button>
       <CopyLink getCurrentViewTarget={getCurrentViewTarget} />

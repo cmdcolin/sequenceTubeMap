@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { ImgHTMLAttributes } from 'react'
 import { Button } from 'reactstrap'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faQuestion } from '@fortawesome/free-solid-svg-icons'
 import Markdown from 'markdown-to-jsx'
 import PopupDialog from './PopupDialog.tsx'
 
@@ -53,11 +51,11 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
   return (
     <>
       <Button
-        aria-label="Help"
+        color="secondary"
         title="Help — region format, controls, and feature reference"
         onClick={() => { setOpen(!open); }}
       >
-        <FontAwesomeIcon icon={faQuestion} />
+        Help
       </Button>
       <PopupDialog open={open} close={() => { setOpen(false); }}>
         <div

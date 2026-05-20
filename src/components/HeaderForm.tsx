@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
-import { Container, Row, Col, Label, Alert } from 'reactstrap'
+import { Button, Container, Row, Col, Label, Alert } from 'reactstrap'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { LocalAPI } from '../api/LocalAPI.ts'
 import type { APIInterface } from '../api/APIInterface.ts'
 import DataPositionFormRow from './DataPositionFormRow.tsx'
+import HelpButton from './HelpButton.tsx'
 import ExampleSelectButtons from './ExampleSelectButtons.tsx'
 import RegionInput from './RegionInput.tsx'
 import PathsPanel from './PathsPanel.tsx'
@@ -21,8 +22,6 @@ import FormHelperText from '@mui/material/FormHelperText'
 import {
   isValidRegion,
   isLocalCompatibleDataSource,
-  parseRegion,
-  stringifyRegion,
   isEmpty,
 } from '../common.ts'
 import {
@@ -332,48 +331,9 @@ function HeaderForm({
     // to reset here.
   }
 
-  async function budgeRegion(fraction: number) {
-    const parsed = parseRegion(region)
-    const span =
-      'distance' in parsed ? parsed.distance : parsed.end - parsed.start
-    const shift = span * fraction
-    const nextStart = Math.max(0, Math.round(parsed.start + shift))
-    const shifted =
-      'distance' in parsed
-        ? { ...parsed, start: nextStart }
-        : {
-            ...parsed,
-            start: nextStart,
-            end: Math.max(0, Math.round(parsed.end + shift)),
-          }
-    await changeRegionAndGo(stringifyRegion(shifted))
-  }
-
   async function jumpRegion(offset: -1 | 1) {
     const current = determineRegionIndex(region, regionInfo) ?? 0
-    const canMove =
-      (offset === -1 && canGoLeft(current)) ||
-      (offset === 1 && canGoRight(current))
-    const next = canMove ? current + offset : current
-    await changeRegionAndGo(regionStringFromRegionIndex(next, regionInfo))
-  }
-
-  function canGoLeft(regionIndex: number) {
-    return isSet(bedFile) ? regionIndex > 0 : true
-  }
-
-  function canGoRight(regionIndex: number) {
-    return isSet(bedFile)
-      ? !!regionInfo.chr && regionIndex < regionInfo.chr.length - 1
-      : true
-  }
-
-  function move(dir: -1 | 1) {
-    if (isSet(bedFile)) {
-      void jumpRegion(dir)
-    } else {
-      void budgeRegion(dir * 0.5)
-    }
+    await changeRegionAndGo(regionStringFromRegionIndex(current + offset, regionInfo))
   }
 
   function handleDataSourceChange(event: SelectChangeEvent) {
@@ -528,15 +488,11 @@ function HeaderForm({
 
   const DataPositionFormRowComponent = (
     <DataPositionFormRow
-      handleGoLeft={() => { move(-1); }}
-      handleGoRight={() => { move(1); }}
       handleGoButton={() => { handleGoButton(); }}
       uploadInProgress={uploadInProgress}
       getCurrentViewTarget={getCurrentViewTarget}
       viewTargetHasChange={viewTargetHasChange}
       canGo={isValidRegion(region) && tracks.length > 0}
-      canGoLeft={canGoLeft(regionIndex)}
-      canGoRight={canGoRight(regionIndex)}
     />
   )
 
@@ -546,7 +502,7 @@ function HeaderForm({
         <Row>
           <Col>{errorDiv}</Col>
         </Row>
-        <Row>
+        <Row className="align-items-start">
           <Col md="auto">
             <img src="./logo.png" alt="Logo" />
             <a
@@ -617,7 +573,7 @@ function HeaderForm({
                   htmlFor="bedSelectInput"
                   className="customData tight-label mb-2 me-sm-2 mb-sm-0 ms-2"
                 >
-                  BED file (optional — list of bookmarked regions):
+                  BED file:
                 </Label>
                 &nbsp;
                 <BedFileDropdown
@@ -628,6 +584,28 @@ function HeaderForm({
                   onChange={(e) => { handleBedChange(e); }}
                   options={availableBeds}
                 />
+                {isSet(bedFile) && (
+                  <>
+                    &nbsp;
+                    <Button
+                      color="primary"
+                      size="sm"
+                      disabled={regionIndex === 0}
+                      onClick={() => { void jumpRegion(-1); }}
+                    >
+                      Prev
+                    </Button>
+                    &nbsp;
+                    <Button
+                      color="primary"
+                      size="sm"
+                      disabled={!regionInfo.chr || regionIndex >= regionInfo.chr.length - 1}
+                      onClick={() => { void jumpRegion(1); }}
+                    >
+                      Next
+                    </Button>
+                  </>
+                )}
                 &nbsp;
               </Fragment>
             ) : null}
@@ -690,6 +668,9 @@ function HeaderForm({
                 </FormHelperText>
               </div>
             ) : null}
+          </Col>
+          <Col md="auto">
+            <HelpButton file="./help/help.md" />
           </Col>
         </Row>
         {pathInfo.length > 0 && !examplesFlag && (
