@@ -86,7 +86,7 @@ function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion }: PathsPanelProps) {
         </span>
       </CardHeader>
       <Collapse isOpen={isOpen}>
-        <CardBody style={{ maxHeight: '300px', overflowY: 'auto', padding: 0 }}>
+        <CardBody style={{ maxHeight: '200px', overflowY: 'auto', padding: 0 }}>
           <table className="table table-sm table-hover mb-0">
             <thead>
               <tr>

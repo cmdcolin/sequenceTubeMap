@@ -108,6 +108,7 @@ function alignmentInRange(
  * uploads differently depending on where you put it.
  */
 export class GBZBaseAPI implements APIInterface {
+  readonly mode = 'local' as const
   // User-uploaded files, indexed by string id (the array index).
   private registry = new UploadRegistry()
   // Index of upload ids by track type.
@@ -287,11 +288,29 @@ export class GBZBaseAPI implements APIInterface {
       result = convertSchema(JSON.parse(stdout))
     } catch {
       const stderrTail = stderr.trim().split('\n').slice(-5).join('\n')
-      const stderrSuffix = stderrTail ? `\nWASM stderr:\n${stderrTail}` : ''
+      // Pull the first 'Error: ...' line out of stderr; that's the structured
+      // message the gbz-base CLI prints for both load failures and query
+      // failures, and it's the part the user actually needs.
+      const wasmErrorLine = stderr
+        .split('\n')
+        .map(l => l.trim())
+        .find(l => l.startsWith('Error:'))
+      const reason = wasmErrorLine ?? `WASM exited with code ${returnCode ?? 'undefined'}`
+      // Heuristic: load/parse failures mention the file or schema; query
+      // failures mention paths/intervals. Only surface the file-format hint
+      // when it's actually plausible the file is the wrong type.
+      const looksLikeFormatError =
+        wasmErrorLine === undefined ||
+        /unsupported|cannot open|not a database|schema|magic/i.test(wasmErrorLine)
+      const formatHint = looksLikeFormatError
+        ? `\nThe in-browser WASM backend only reads gbz-base SQLite (.gbz.db) files; .vg / .xg / .gbz are not supported.`
+        : ''
+      const stderrSuffix =
+        stderrTail && stderrTail !== wasmErrorLine
+          ? `\nWASM stderr:\n${stderrTail}`
+          : ''
       throw new Error(
-        `Could not parse "${graphTrack.trackFile}" as a GBZ .gbz.db file. ` +
-          `The in-browser WASM backend only reads gbz-base SQLite files; .vg / .xg / .gbz are not supported. ` +
-          `(WASM exit ${returnCode ?? 'undefined'})${stderrSuffix}`,
+        `Failed to query "${graphTrack.trackFile}" at ${region.contig}:${region.start}-${region.end}: ${reason}${formatHint}${stderrSuffix}`,
       )
     }
     const readTracks = viewTarget.tracks.filter(t => t.trackType === 'read')

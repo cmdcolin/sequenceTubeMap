@@ -24,14 +24,6 @@
       "dataType": "built-in"
     },
     {
-      "name": "vg \"small\" (WASM-compatible)",
-      "tracks": [
-        {"trackFile": "exampleData/x.gbz.db", "trackType": "graph"}
-      ],
-      "region": "x:1-100",
-      "dataType": "built-in"
-    },
-    {
       "name": "vg \"small\" example",
       "tracks": [
         {"trackFile": "exampleData/x.vg.xg", "trackType": "graph"},
@@ -48,6 +40,24 @@
       ],
       "bedFile": "exampleData/cactus.bed",
       "region": "ref:1-100",
+      "dataType": "built-in"
+    },
+    {
+      "name": "cactus (WASM-compatible)",
+      "tracks": [
+        {"trackFile": "exampleData/cactus.gbz.db", "trackType": "graph"},
+        {"trackFile": "exampleData/cactus-NA12879.sorted.gam", "trackType": "read"}
+      ],
+      "bedFile": "exampleData/cactus.bed",
+      "region": "ref:1-100",
+      "dataType": "built-in"
+    },
+    {
+      "name": "backward (WASM-compatible)",
+      "tracks": [
+        {"trackFile": "exampleData/backward.gbz.db", "trackType": "graph"}
+      ],
+      "region": "fwd:1-100",
       "dataType": "built-in"
     },
     {
