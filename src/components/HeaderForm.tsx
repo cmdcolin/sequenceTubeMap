@@ -16,9 +16,14 @@ import UploadPanel from './UploadPanel.tsx'
 import DataSourceSelect from './DataSourceSelect.tsx'
 import SimplifyButton from './SimplifyButton.tsx'
 import type { SelectChangeEvent } from '@mui/material/Select'
-import ToggleButton from '@mui/material/ToggleButton'
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import FormHelperText from '@mui/material/FormHelperText'
+import AppBar from '@mui/material/AppBar'
+import Toolbar from '@mui/material/Toolbar'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
+import MuiButton from '@mui/material/Button'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
 import {
   isValidRegion,
   isLocalCompatibleDataSource,
@@ -97,6 +102,7 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
+  const [fileMenuAnchor, setFileMenuAnchor] = useState<HTMLElement | null>(null)
   // Set true when a dataset with a BED but no preset region is picked; the
   // effect below applies the first BED entry as the default region once BED
   // data arrives, then clears the flag.
@@ -498,54 +504,61 @@ function HeaderForm({
 
   return (
     <div>
+      <AppBar
+        position="static"
+        color="primary"
+        elevation={2}
+        sx={{ background: 'linear-gradient(to right, #7d3c98, #1f618d)', mb: 1 }}
+      >
+        <Toolbar variant="dense">
+          <img src="./logo.png" alt="IVG" style={{ height: 32, marginRight: 8 }} />
+          <MuiButton
+            color="inherit"
+            data-testid="fileMenuButton"
+            onClick={(e) => { setFileMenuAnchor(e.currentTarget); }}
+          >
+            File
+          </MuiButton>
+          <Menu
+            anchorEl={fileMenuAnchor}
+            open={Boolean(fileMenuAnchor)}
+            onClose={() => { setFileMenuAnchor(null); }}
+          >
+            <MenuItem
+              selected={viewMode === 'sample'}
+              data-testid="dataModeSample"
+              onClick={() => { handleViewModeChange('sample'); setFileMenuAnchor(null); }}
+            >
+              Sample data
+            </MenuItem>
+            <MenuItem
+              selected={viewMode === 'upload'}
+              data-testid="dataModeUpload"
+              onClick={() => { handleViewModeChange('upload'); setFileMenuAnchor(null); }}
+            >
+              Open custom files…
+            </MenuItem>
+          </Menu>
+          <Box sx={{ flexGrow: 1 }} />
+          <Typography
+            variant="caption"
+            component="a"
+            href="https://github.com/cmdcolin/sequenceTubeMap"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{ color: 'inherit', textDecoration: 'none', mr: 2, opacity: 0.85 }}
+          >
+            MemPanG26 edition!
+          </Typography>
+          <HelpButton file="./help/help.md" />
+        </Toolbar>
+      </AppBar>
       <Container>
         <Row>
           <Col>{errorDiv}</Col>
         </Row>
         <Row className="align-items-start">
-          <Col md="auto">
-            <img src="./logo.png" alt="Logo" />
-            <a
-              href="https://github.com/cmdcolin/sequenceTubeMap"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'block', marginTop: '4px' }}
-            >
-              <img src="./mempang26-badge.svg" alt="MemPanG26 Edition" />
-            </a>
-            <a
-              href="https://github.com/cmdcolin/sequenceTubeMap#no-server-required"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'block',
-                marginTop: '2px',
-                fontSize: '0.7rem',
-                color: '#888',
-              }}
-            >
-              server-free — what does this mean?
-            </a>
-          </Col>
           <Col>
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={viewMode}
-              onChange={(_e, next: 'sample' | 'upload' | null) => {
-                if (next) { handleViewModeChange(next); }
-              }}
-              sx={{ mb: 1, ms: 2 }}
-              data-testid="dataModeToggle"
-            >
-              <ToggleButton value="sample" data-testid="dataModeSample">
-                Sample data
-              </ToggleButton>
-              <ToggleButton value="upload" data-testid="dataModeUpload">
-                Open custom data
-              </ToggleButton>
-            </ToggleButtonGroup>
-            &nbsp;
             {viewMode === 'sample' && (
               <>
                 <DataSourceSelect
@@ -668,9 +681,6 @@ function HeaderForm({
                 </FormHelperText>
               </div>
             ) : null}
-          </Col>
-          <Col md="auto">
-            <HelpButton file="./help/help.md" />
           </Col>
         </Row>
         {pathInfo.length > 0 && !examplesFlag && (

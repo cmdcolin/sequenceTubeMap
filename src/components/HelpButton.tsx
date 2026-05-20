@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import type { ImgHTMLAttributes } from 'react'
-import { Button } from 'reactstrap'
+import IconButton from '@mui/material/IconButton'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
 import Markdown from 'markdown-to-jsx'
 import PopupDialog from './PopupDialog.tsx'
 
@@ -28,40 +30,27 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
     />
   )
 
-  const options = {
-    overrides: {
-      img: { component: Image },
-    },
-  }
-
   useEffect(() => {
     fetch(file)
       .then(res => res.text())
-      .then(md => {
-        setContent(md)
-      })
-      .catch(() => {
-        // If the network drops or the front-end static server isn't available
-        // (like in the end to end tests), put something instead of having an
-        // unhandled rejection.
-        setContent('Could not fetch help')
-      })
+      .then(md => { setContent(md) })
+      .catch(() => { setContent('Could not fetch help') })
   }, [file])
 
   return (
     <>
-      <Button
-        color="secondary"
+      <IconButton
+        color="inherit"
         title="Help — region format, controls, and feature reference"
         onClick={() => { setOpen(!open); }}
       >
-        Help
-      </Button>
+        <FontAwesomeIcon icon={faCircleQuestion} />
+      </IconButton>
       <PopupDialog open={open} close={() => { setOpen(false); }}>
-        <div
-          style={{ height: '90vh', overflowY: 'scroll', overflowX: 'hidden' }}
-        >
-          <Markdown options={options}>{content}</Markdown>
+        <div style={{ height: '90vh', overflowY: 'scroll', overflowX: 'hidden' }}>
+          <Markdown options={{ overrides: { img: { component: Image } } }}>
+            {content}
+          </Markdown>
         </div>
       </PopupDialog>
     </>

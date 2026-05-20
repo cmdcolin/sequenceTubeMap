@@ -357,7 +357,10 @@ it('can retrieve the list of mounted graph files', async () => {
   // Wait for everything to settle so we don't stop the server while it is thinking
   await waitForLoadEnd()
 
-  // Swap over to the custom files mode via the data mode toggle
+  // Swap over to the custom files mode via the File menu
+  await act(async () => {
+    fireEvent.click(screen.getByTestId('fileMenuButton'))
+  })
   await act(async () => {
     fireEvent.click(screen.getByTestId('dataModeUpload'))
   })
@@ -397,7 +400,10 @@ it('can retrieve the list of mounted graph files', async () => {
 it('can accept uploaded files', async () => {
   await waitForLoadEnd()
 
-  // Swap over to the custom files mode via the data mode toggle
+  // Swap over to the custom files mode via the File menu
+  await act(async () => {
+    fireEvent.click(screen.getByTestId('fileMenuButton'))
+  })
   await act(async () => {
     fireEvent.click(screen.getByTestId('dataModeUpload'))
   })
