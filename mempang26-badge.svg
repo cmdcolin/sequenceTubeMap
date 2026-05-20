@@ -13,5 +13,5 @@
   <line x1="14" y1="15" x2="14" y2="31" stroke="white" stroke-width="1.5" opacity="0.4"/>
   <line x1="154" y1="15" x2="154" y2="31" stroke="white" stroke-width="1.5" opacity="0.4"/>
   <text x="84" y="19" font-family="monospace,courier,monospace" font-size="14" font-weight="bold" fill="white" text-anchor="middle">MemPanG26</text>
-  <text x="84" y="35" font-family="sans-serif,Arial" font-size="10" fill="#d2b4de" text-anchor="middle" font-style="italic">&#9733; Edition &#9733;</text>
+  <text x="84" y="35" font-family="sans-serif,Arial" font-size="10" fill="#d2b4de" text-anchor="middle" font-style="italic">&#9733; server-free edition &#9733;</text>
 </svg>
