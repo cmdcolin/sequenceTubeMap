@@ -11,23 +11,26 @@ on:
       - master
 
 jobs:
-  npmtest:
-    name: Run npm tests
+  test:
+    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
       - name: Read .nvmrc
         # See <https://remarkablemark.org/blog/2021/03/11/setup-nodejs-with-nvmrc-in-github-actions/>
-        # # And <https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-output-parameter>
+        # And <https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-output-parameter>
         run: echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_OUTPUT
         id: nvmrc
       - name: Use Node.js from .nvmrc
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ steps.nvmrc.outputs.NODE_VERSION }}
+          cache: pnpm
       - name: Install node modules as specified in lockfile
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Install latest vg release
         # See https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8 for how we pull out the right URL
         run: |
@@ -35,7 +38,7 @@ jobs:
           curl -sSL "$(curl -sSL https://api.github.com/repos/vgteam/vg/releases/latest | grep 'browser_download_url.*vg"' | cut -d ':' -f 2,3 | tr -d '"' | sed 's/^ *//g')" >bin/vg
           chmod +x bin/vg
       - name: Run tests
-        run: PATH=$PATH:$(pwd)/bin CI=true npm run test
+        run: PATH=$PATH:$(pwd)/bin CI=true pnpm test
       - name: Test build
-        run: npm run build
+        run: pnpm build
 

@@ -67,7 +67,7 @@ export const ColorPicker = ({
           <div style={cover} onClick={() => { togglePicker(); }} />
           <Container>
             <SketchPicker
-              color={nextColor || '#fff'}
+              color={nextColor ?? '#fff'}
               presetColors={presetColors}
               onChange={newColor => {
                 setNextColor(newColor.hex as ColorHex)

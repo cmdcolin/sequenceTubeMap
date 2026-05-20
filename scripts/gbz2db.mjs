@@ -41,20 +41,12 @@ const stdin = new WasiFile([])
 const stdout = new WasiFile([])
 const stderr = new WasiFile([])
 
-const preopen = new PreopenDirectory(
-  '.',
-  new Map([[inputName, gbzWasiFile]]),
-)
+const preopen = new PreopenDirectory('.', new Map([[inputName, gbzWasiFile]]))
 
 const wasi = new WASI(
   ['gbz2db', '--overwrite', '--output', outputName, inputName],
   ['RUST_BACKTRACE=full'],
-  [
-    new OpenFile(stdin),
-    new OpenFile(stdout),
-    new OpenFile(stderr),
-    preopen,
-  ],
+  [new OpenFile(stdin), new OpenFile(stdout), new OpenFile(stderr), preopen],
 )
 
 const wasiImport = process.env.GBZ2DB_STRACE
@@ -81,7 +73,9 @@ if (code !== undefined && code !== 0) {
 const outputFile = preopen.dir.contents.get(outputName)
 if (!outputFile || !outputFile.data) {
   console.error(`gbz2db did not produce ${outputName}`)
-  console.error(`Directory contents: ${[...preopen.dir.contents.keys()].join(', ')}`)
+  console.error(
+    `Directory contents: ${[...preopen.dir.contents.keys()].join(', ')}`,
+  )
   process.exit(1)
 }
 await writeFile(outputArg, outputFile.data)

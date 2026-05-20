@@ -28,7 +28,11 @@ const HAPLOTYPE_EXTS = ['.gbwt']
 // doesn't reject a user dragging both files at once. detectType marks it as
 // "skip" because the .gam itself is what gets registered as a read track.
 const INDEX_EXTS = ['.gai', '.tbi']
-const ACCEPT = [
+// Local/WASM mode only supports .gbz.db/.db graphs and .gam reads (+.gai index).
+// Server mode accepts all legacy vg formats.
+const LOCAL_EXTS = ['.gbz.db', '.db', '.gam', '.gai']
+const LOCAL_ACCEPT = LOCAL_EXTS.join(',')
+const SERVER_ACCEPT = [
   ...GRAPH_EXTS,
   ...READ_EXTS,
   ...HAPLOTYPE_EXTS,
@@ -73,11 +77,20 @@ export const UploadPanel = ({
   const inputRef = useRef<HTMLInputElement>(null)
 
   const addFiles = (list: FileList | File[]) => {
-    const next = Array.from(list).map(file => ({
-      file,
-      type: detectType(file.name),
-    }))
-    setFiles(prev => [...prev, ...next])
+    const arr = Array.from(list)
+    const accepted = isLocal
+      ? arr.filter(f => LOCAL_EXTS.some(e => f.name.toLowerCase().endsWith(e)))
+      : arr
+    const rejected = arr.length - accepted.length
+    if (rejected > 0) {
+      setError(
+        `${rejected} file(s) skipped — browser mode only accepts .gbz.db / .gam / .gai`,
+      )
+    }
+    setFiles(prev => [
+      ...prev,
+      ...accepted.map(file => ({ file, type: detectType(file.name) })),
+    ])
   }
 
   const removeFile = (idx: number) => {
@@ -150,19 +163,19 @@ export const UploadPanel = ({
           }}
         >
           <strong>Files stay on your machine.</strong> Nothing is uploaded — the
-          parser and rendering both run in your browser via WebAssembly.
+          parser and rendering both run in your browser via WebAssembly.{' '}
+          <a
+            href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md#browser-only-wasm-mode-npm-run-startlocal"
+            target="_blank"
+            rel="noreferrer"
+          >
+            How to prepare your files →
+          </a>
           <br />
-          <strong>Graph format:</strong> the in-browser backend reads{' '}
-          <code>.gbz.db</code> (a SQLite snapshot of a GBZ pangenome). If you
-          have a <code>.xg</code> / <code>.vg</code> / <code>.gbz</code> graph,
-          convert it once with vg:{' '}
-          <code>vg gbwt -G in.xg --gbz-format -g out.gbz</code> then{' '}
-          <code>vg gbz2db --gbz out.gbz --db out.gbz.db</code> (or run the
-          equivalent <code>gbz2db</code> WASM bundled with this app).
-          <br />
-          <strong>Reads:</strong> <code>.gam</code> works out of the box; drop a{' '}
-          <code>.sorted.gam</code> + matching <code>.sorted.gam.gai</code>{' '}
-          together to enable indexed region queries.
+          <strong>Graph:</strong> <code>.gbz.db</code> / <code>.db</code>.{' '}
+          <strong>Reads:</strong> <code>.gam</code> (drop a{' '}
+          <code>.sorted.gam</code> + <code>.sorted.gam.gai</code> together for
+          indexed queries).
         </div>
       ) : null}
       <div
@@ -212,7 +225,7 @@ export const UploadPanel = ({
         type="file"
         multiple
         style={{ display: 'none' }}
-        accept={ACCEPT}
+        accept={isLocal ? LOCAL_ACCEPT : SERVER_ACCEPT}
         onChange={e => {
           if (e.target.files) {
             addFiles(e.target.files)

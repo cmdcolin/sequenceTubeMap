@@ -63,9 +63,9 @@
     "start:local": "webpack serve --open '/#local'",
     "build": "webpack --mode production",
     "test": "vitest run",
-    "predeploy": "pnpm run build",
-    "deploy": "gh-pages -d build",
-    "postdeploy": "git push --follow-tags",
+    "predep": "pnpm run build",
+    "dep": "gh-pages -d build",
+    "postdep": "git push --follow-tags",
     "serve": "node --strip-types ./src/server.mjs",
     "format": "prettier --write \"**/*.+(mjs|js|css)\"",
     "lint": "eslint --cache"

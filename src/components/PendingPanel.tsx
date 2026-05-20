@@ -51,7 +51,7 @@ const VARIANT_STYLE: Record<PendingPanelVariant, CSSProperties> = {
 }
 
 export interface PendingPanelAction {
-  label: ReactNode
+  label: string
   hint?: string
   onClick: () => void
 }
@@ -76,9 +76,9 @@ const PendingPanel = ({
   <div style={{ ...PANEL_STYLE, ...VARIANT_STYLE[variant] }}>
     <div style={HEADER_STYLE}>
       <span title={titleHint}>{title}</span>
-      {actions.map((action, idx) => (
+      {actions.map(action => (
         <button
-          key={idx}
+          key={action.label}
           type="button"
           title={action.hint}
           onClick={() => { action.onClick(); }}

@@ -33,17 +33,45 @@ You can add your own data to the Sequence Tube Map, by placing it in the data pa
 
 ## Browser-only WASM mode (`npm run start:local`)
 
-No `vg` server — everything runs in the browser. Graphs must be `.gbz.db`,
-reads must be indexed `.gam` (`.gam.gai`).
+Everything runs in the browser — no server, no uploads. The in-browser backend
+only reads two file types:
 
-```
+| File | Format |
+|------|--------|
+| Graph | `.gbz.db` or `.db` (gbz-base SQLite) |
+| Reads | `.gam` (unsorted) or `.sorted.gam` + `.sorted.gam.gai` (indexed) |
+
+### Converting a graph to `.gbz.db`
+
+Starting from a `.xg` or `.vg`:
+
+```sh
+# 1. Build a GBZ with embedded paths
 vg gbwt --xg-name input.xg --index-paths --gbz-format -g input.gbz
+
+# 2. Convert to the SQLite format the browser backend reads
 node scripts/gbz2db.mjs input.gbz input.gbz.db
 ```
 
-Region syntax is `<contig>:<start>-<end>` (e.g. `Circ1:0-1320`). Open
-the "Paths in this graph" panel to discover contig names. More notes:
-[doc/wasm-build.md](wasm-build.md#caveats).
+If you already have a `.gbz`, skip step 1 and run `gbz2db.mjs` directly.
+
+### Indexing reads for region queries
+
+Drop an unsorted `.gam` to scan all alignments, or sort + index for fast
+region queries:
+
+```sh
+vg gamsort input.gam -i input.sorted.gam.gai > input.sorted.gam
+```
+
+Then drop both `.sorted.gam` and `.sorted.gam.gai` together into the dialog.
+
+### Finding contig names
+
+Open **Paths in this graph** in the sidebar. Region syntax:
+`<contig>:<start>-<end>` (e.g. `chr1:1000-2000`).
+
+More notes: [wasm-build.md](wasm-build.md#caveats).
 
 ## Adding Full Graphs
 

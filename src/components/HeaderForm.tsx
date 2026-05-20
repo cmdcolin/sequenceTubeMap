@@ -106,8 +106,7 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
-  const [examplesMenuAnchor, setExamplesMenuAnchor] = useState<HTMLElement | null>(null)
-  const [fileMenuAnchor, setFileMenuAnchor] = useState<HTMLElement | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<{ type: 'examples' | 'file'; el: HTMLElement } | null>(null)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   // Set true when a dataset with a BED but no preset region is picked; the
   // effect below applies the first BED entry as the default region once BED
@@ -190,11 +189,8 @@ function HeaderForm({
   // LocalAPI starts with no files until the user uploads, so we only surface
   // the generic fallback when a real server returned an empty list.
   const noFilesMessage =
-    filenamesData && (!filenamesData.files || filenamesData.files.length === 0)
-      ? (filenamesData.error ??
-          (APIInterface instanceof LocalAPI
-            ? null
-            : 'Server did not return a list of mounted filenames.'))
+    filenamesData && files.length === 0
+      ? (filenamesData.error ?? (isLocal ? null : 'Server did not return a list of mounted filenames.'))
       : null
 
   const error =
@@ -243,10 +239,6 @@ function HeaderForm({
     })
   }
 
-  function getNextViewTarget(): ViewTarget {
-    return buildViewTarget()
-  }
-
   function commitViewTarget(next: ViewTarget) {
     if (!isValidRegion(next.region)) {
       setManualError(
@@ -266,7 +258,7 @@ function HeaderForm({
   }
 
   function handleGoButton() {
-    commitViewTarget(getNextViewTarget())
+    commitViewTarget(buildViewTarget())
   }
 
   // Updates region (and tracks, if a BED-driven chunk requires it) and returns
@@ -444,7 +436,7 @@ function HeaderForm({
   const customFilesFlag = dataType === dataTypes.CUSTOM_FILES
   const examplesFlag = dataType === dataTypes.EXAMPLES
   const viewTargetHasChange = !viewTargetsEqual(
-    getNextViewTarget(),
+    buildViewTarget(),
     getCurrentViewTarget(),
   )
   const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
@@ -472,20 +464,20 @@ function HeaderForm({
           <MuiButton
             color="inherit"
             data-testid="examplesMenuButton"
-            onClick={(e) => { setExamplesMenuAnchor(e.currentTarget); }}
+            onClick={(e) => { setMenuAnchor({ type: 'examples', el: e.currentTarget }); }}
           >
             Examples
           </MuiButton>
           <Menu
-            anchorEl={examplesMenuAnchor}
-            open={Boolean(examplesMenuAnchor)}
-            onClose={() => { setExamplesMenuAnchor(null); }}
+            anchorEl={menuAnchor?.type === 'examples' ? menuAnchor.el : null}
+            open={menuAnchor?.type === 'examples'}
+            onClose={() => { setMenuAnchor(null); }}
           >
             {visibleDataSources.map(ds => (
               <MenuItem
                 key={ds.name}
                 selected={dataType === dataTypes.BUILT_IN && name === ds.name}
-                onClick={() => { handleDataSourceChange(ds.name!); setExamplesMenuAnchor(null); }}
+                onClick={() => { handleDataSourceChange(ds.name!); setMenuAnchor(null); }}
               >
                 {ds.name}
               </MenuItem>
@@ -497,7 +489,7 @@ function HeaderForm({
                   <MenuItem
                     key={ds.name}
                     selected={dataType === dataTypes.BUILT_IN && name === ds.name}
-                    onClick={() => { handleDataSourceChange(ds.name!); setExamplesMenuAnchor(null); }}
+                    onClick={() => { handleDataSourceChange(ds.name!); setMenuAnchor(null); }}
                   >
                     {ds.name}
                   </MenuItem>
@@ -507,7 +499,7 @@ function HeaderForm({
             <Divider />
             <MenuItem
               selected={examplesFlag}
-              onClick={() => { handleDataSourceChange(dataTypes.EXAMPLES); setExamplesMenuAnchor(null); }}
+              onClick={() => { handleDataSourceChange(dataTypes.EXAMPLES); setMenuAnchor(null); }}
             >
               Synthetic examples
             </MenuItem>
@@ -515,32 +507,24 @@ function HeaderForm({
           <MuiButton
             color="inherit"
             data-testid="fileMenuButton"
-            onClick={(e) => { setFileMenuAnchor(e.currentTarget); }}
+            onClick={(e) => { setMenuAnchor({ type: 'file', el: e.currentTarget }); }}
           >
             File
           </MuiButton>
           <Menu
-            anchorEl={fileMenuAnchor}
-            open={Boolean(fileMenuAnchor)}
-            onClose={() => { setFileMenuAnchor(null); }}
+            anchorEl={menuAnchor?.type === 'file' ? menuAnchor.el : null}
+            open={menuAnchor?.type === 'file'}
+            onClose={() => { setMenuAnchor(null); }}
           >
             <MenuItem
               data-testid="openCustomFiles"
               selected={customFilesFlag}
               onClick={() => {
                 if (!customFilesFlag) {
-                  setManualError(null)
-                  setBedSelect('none')
-                  setTracks([])
-                  setBedFile('none')
-                  setRegion('')
-                  setName(undefined)
-                  setDataType(dataTypes.CUSTOM_FILES)
-                  setFileSizeAlert(false)
-                  setUploadInProgress(false)
+                  handleDataSourceChange(dataTypes.CUSTOM_FILES)
                 }
                 setUploadDialogOpen(true)
-                setFileMenuAnchor(null)
+                setMenuAnchor(null)
               }}
             >
               Open…

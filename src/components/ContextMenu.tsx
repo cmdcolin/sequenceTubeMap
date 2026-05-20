@@ -42,13 +42,13 @@ const DISABLED_ITEM_STYLE: CSSProperties = {
 }
 
 export interface ContextMenuItem {
-  label: ReactNode
+  label: string
   disabled?: boolean
   onClick?: () => void
 }
 
 interface MenuItemProps {
-  label: ReactNode
+  label: string
   disabled?: boolean
   onClick?: () => void
 }
@@ -87,9 +87,9 @@ const ContextMenu = ({ header, items, x, y, onClose }: ContextMenuProps) => (
     />
     <div style={{ ...MENU_STYLE, left: x, top: y }}>
       <div style={HEADER_STYLE}>{header}</div>
-      {items.map((item, idx) => (
+      {items.map(item => (
         <MenuItem
-          key={idx}
+          key={item.label}
           label={item.label}
           disabled={item.disabled}
           onClick={item.onClick}
