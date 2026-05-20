@@ -9,13 +9,33 @@ export const Footer = () => {
     <Container tag="footer" fluid={true} style={{ marginTop: '1em' }}>
       <Row className="bg-light">
         <Col lg={{ offset: 2, size: 8 }} className="py-2 text-center">
-          <SafeLink
-            target="_blank"
-            href="https://github.com/cmdcolin/sequenceTubeMap"
-          >
-            <FontAwesomeIcon icon={faGithub} /> Click to see the list of
-            differences on this fork
-          </SafeLink>
+          <div>
+            <SafeLink
+              target="_blank"
+              href="https://github.com/cmdcolin/sequenceTubeMap"
+            >
+              <FontAwesomeIcon icon={faGithub} /> Click to see the list of
+              differences on this fork
+            </SafeLink>
+          </div>
+          <div style={{ fontSize: '0.85em', color: '#555', marginTop: 4 }}>
+            MemPanG26 Hackathon Team 2:{' '}
+            <SafeLink
+              href="https://github.com/cmdcolin"
+              target="_blank"
+              style={{ color: 'inherit' }}
+            >
+              Colin Diesh
+            </SafeLink>
+            {' & '}
+            <SafeLink
+              href="https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en"
+              target="_blank"
+              style={{ color: 'inherit' }}
+            >
+              Rafeed Rahman Turjya
+            </SafeLink>
+          </div>
         </Col>
       </Row>
     </Container>
