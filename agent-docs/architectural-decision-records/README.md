@@ -15,3 +15,9 @@ Conventions:
 Index:
 
 - [0001 — Drop react-router](0001-no-router.md)
+- [0002 — React Compiler is on; skip manual memoization](0002-react-compiler.md)
+- [0003 — MUI for inputs and dialogs; reactstrap only for layout](0003-mui-for-inputs.md)
+- [0004 — Two API backends selected by BACKEND_URL](0004-api-selection.md)
+- [0005 — Comlink for main↔worker IPC](0005-comlink-worker.md)
+- [0006 — Late-bind config through a Proxy](0006-config-proxy.md)
+- [0007 — SWR for all async data](0007-swr-for-async.md)
