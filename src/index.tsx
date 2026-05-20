@@ -7,8 +7,18 @@ import package_json from '../package.json'
 let basename = ''
 const homepage = (package_json as { homepage?: string }).homepage
 if (homepage) {
-  const homepage_url = new URL(homepage)
-  basename = homepage_url.pathname
+  const homepageBasename = new URL(homepage).pathname.replace(/\/$/, '')
+  // Only apply when the current URL actually lives under that prefix (i.e.
+  // we're on the gh-pages deploy). On a local dev server at "/" the basename
+  // would cause Router to refuse to render anything.
+  const currentPath = window.location.pathname
+  if (
+    homepageBasename &&
+    (currentPath === homepageBasename ||
+      currentPath.startsWith(`${homepageBasename}/`))
+  ) {
+    basename = homepageBasename
+  }
 }
 
 const rootElement = document.getElementById('root')
