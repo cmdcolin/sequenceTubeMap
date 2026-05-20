@@ -37,6 +37,16 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
       .catch(() => { setContent('Could not fetch help') })
   }, [file])
 
+  const options = {
+    overrides: {
+      img: { component: Image },
+      a: {
+        component: 'a' as const,
+        props: { target: '_blank', rel: 'noopener noreferrer' },
+      },
+    },
+  }
+
   return (
     <>
       <IconButton
@@ -48,9 +58,7 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
       </IconButton>
       <PopupDialog open={open} close={() => { setOpen(false); }}>
         <div style={{ height: '90vh', overflowY: 'scroll', overflowX: 'hidden' }}>
-          <Markdown options={{ overrides: { img: { component: Image } } }}>
-            {content}
-          </Markdown>
+          <Markdown options={options}>{content}</Markdown>
         </div>
       </PopupDialog>
     </>
