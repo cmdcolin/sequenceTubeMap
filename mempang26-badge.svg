@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="168" height="46" viewBox="0 0 168 46">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7d3c98"/>
+      <stop offset="100%" style="stop-color:#1f618d"/>
+    </linearGradient>
+  </defs>
+  <rect rx="9" ry="9" width="168" height="46" fill="url(#bg)"/>
+  <circle cx="14" cy="15" r="4" fill="#f0b27a" opacity="0.85"/>
+  <circle cx="14" cy="31" r="4" fill="#82e0aa" opacity="0.85"/>
+  <circle cx="154" cy="15" r="4" fill="#82e0aa" opacity="0.85"/>
+  <circle cx="154" cy="31" r="4" fill="#f0b27a" opacity="0.85"/>
+  <line x1="14" y1="15" x2="14" y2="31" stroke="white" stroke-width="1.5" opacity="0.4"/>
+  <line x1="154" y1="15" x2="154" y2="31" stroke="white" stroke-width="1.5" opacity="0.4"/>
+  <text x="84" y="19" font-family="monospace,courier,monospace" font-size="14" font-weight="bold" fill="white" text-anchor="middle">MemPanG26</text>
+  <text x="84" y="35" font-family="sans-serif,Arial" font-size="10" fill="#d2b4de" text-anchor="middle" font-style="italic">&#9733; Edition &#9733;</text>
+</svg>
