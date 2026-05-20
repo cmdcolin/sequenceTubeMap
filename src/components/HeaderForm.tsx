@@ -13,14 +13,18 @@ import PathsPanel from './PathsPanel.tsx'
 import TrackPicker from './TrackPicker.tsx'
 import BedFileDropdown from './BedFileDropdown.tsx'
 import UploadPanel from './UploadPanel.tsx'
-import DataSourceSelect from './DataSourceSelect.tsx'
 import SimplifyButton from './SimplifyButton.tsx'
-import type { SelectChangeEvent } from '@mui/material/Select'
 import FormHelperText from '@mui/material/FormHelperText'
 import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
+import ListSubheader from '@mui/material/ListSubheader'
+import Divider from '@mui/material/Divider'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 import MuiButton from '@mui/material/Button'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -102,7 +106,9 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
+  const [examplesMenuAnchor, setExamplesMenuAnchor] = useState<HTMLElement | null>(null)
   const [fileMenuAnchor, setFileMenuAnchor] = useState<HTMLElement | null>(null)
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   // Set true when a dataset with a BED but no preset region is picked; the
   // effect below applies the first BED entry as the default region once BED
   // data arrives, then clears the flag.
@@ -342,8 +348,7 @@ function HeaderForm({
     await changeRegionAndGo(regionStringFromRegionIndex(current + offset, regionInfo))
   }
 
-  function handleDataSourceChange(event: SelectChangeEvent) {
-    const value = event.target.value
+  function handleDataSourceChange(value: string) {
     setManualError(null)
 
     if (value === dataTypes.CUSTOM_FILES) {
@@ -367,8 +372,20 @@ function HeaderForm({
         setDataType(dataTypes.BUILT_IN)
         setName(ds.name)
         setPendingRegionDefault(isSet(ds.bedFile) && !ds.region)
-        // SWR keys for regionInfo + pathInfo update with the new bedFile /
-        // graph track and refetch automatically.
+        // Auto-commit so the tube map clears and loads the new source immediately.
+        // Skipped when skipAutoLoad is set (for data sources with large default
+        // regions) or when there's no valid region yet (pendingRegionDefault path).
+        if (!ds.skipAutoLoad && isValidRegion(ds.region) && ds.tracks.length > 0) {
+          setCurrentViewTarget(makeViewTarget({
+            tracks: ds.tracks,
+            bedFile: ds.bedFile,
+            name: ds.name,
+            region: ds.region,
+            dataType: dataTypes.BUILT_IN,
+            simplify,
+            removeSequences,
+          }))
+        }
       }
     }
   }
@@ -424,66 +441,6 @@ function HeaderForm({
     )
   }
 
-  // Group options for visual separation. Subheaders are only emitted when
-  // there's something to separate, so the dropdown stays flat in the common
-  // case (no discovered folders).
-  const dataSourceGroups: {
-    heading: string | null
-    options: { value: string; label: string }[]
-  }[] = []
-  const hasDiscovered = discoveredDataSources.length > 0
-  dataSourceGroups.push({
-    heading: hasDiscovered ? 'Built-in' : null,
-    options: visibleDataSources.map(ds => ({
-      value: ds.name!,
-      label: ds.name!,
-    })),
-  })
-  if (hasDiscovered) {
-    dataSourceGroups.push({
-      heading: 'Discovered folders',
-      options: discoveredDataSources.map(ds => ({
-        value: ds.name!,
-        label: ds.name!,
-      })),
-    })
-  }
-  dataSourceGroups.push({
-    heading: hasDiscovered ? 'Other' : null,
-    options: [{ value: dataTypes.EXAMPLES, label: 'synthetic data examples' }],
-  })
-  const dataSourceValue =
-    dataType === dataTypes.BUILT_IN ? (name ?? '') : dataType
-
-  const viewMode: 'sample' | 'upload' =
-    dataType === dataTypes.CUSTOM_FILES ? 'upload' : 'sample'
-
-  function handleViewModeChange(next: 'sample' | 'upload') {
-    if (next === viewMode) {
-      return
-    }
-    setManualError(null)
-    if (next === 'upload') {
-      setBedSelect('none')
-      setTracks([])
-      setBedFile('none')
-      setRegion('')
-      setName(undefined)
-      setDataType(dataTypes.CUSTOM_FILES)
-      setFileSizeAlert(false)
-      setUploadInProgress(false)
-    } else {
-      const first = visibleDataSources[0] ?? DATA_SOURCES[0]!
-      setTracks(first.tracks)
-      setBedFile(first.bedFile)
-      setBedSelect(isSet(first.bedFile) ? first.bedFile : 'none')
-      setRegion(first.region)
-      setName(first.name)
-      setDataType(dataTypes.BUILT_IN)
-      setPendingRegionDefault(isSet(first.bedFile) && !first.region)
-    }
-  }
-
   const customFilesFlag = dataType === dataTypes.CUSTOM_FILES
   const examplesFlag = dataType === dataTypes.EXAMPLES
   const viewTargetHasChange = !viewTargetsEqual(
@@ -511,7 +468,50 @@ function HeaderForm({
         sx={{ background: 'linear-gradient(to right, #7d3c98, #1f618d)', mb: 1 }}
       >
         <Toolbar variant="dense">
-          <img src="./logo.png" alt="IVG" style={{ height: 32, marginRight: 8 }} />
+          <img src="./logo.svg" alt="IVG" style={{ height: 32, marginRight: 8 }} />
+          <MuiButton
+            color="inherit"
+            data-testid="examplesMenuButton"
+            onClick={(e) => { setExamplesMenuAnchor(e.currentTarget); }}
+          >
+            Examples
+          </MuiButton>
+          <Menu
+            anchorEl={examplesMenuAnchor}
+            open={Boolean(examplesMenuAnchor)}
+            onClose={() => { setExamplesMenuAnchor(null); }}
+          >
+            {visibleDataSources.map(ds => (
+              <MenuItem
+                key={ds.name}
+                selected={dataType === dataTypes.BUILT_IN && name === ds.name}
+                onClick={() => { handleDataSourceChange(ds.name!); setExamplesMenuAnchor(null); }}
+              >
+                {ds.name}
+              </MenuItem>
+            ))}
+            {discoveredDataSources.length > 0 && (
+              <>
+                <ListSubheader>Discovered</ListSubheader>
+                {discoveredDataSources.map(ds => (
+                  <MenuItem
+                    key={ds.name}
+                    selected={dataType === dataTypes.BUILT_IN && name === ds.name}
+                    onClick={() => { handleDataSourceChange(ds.name!); setExamplesMenuAnchor(null); }}
+                  >
+                    {ds.name}
+                  </MenuItem>
+                ))}
+              </>
+            )}
+            <Divider />
+            <MenuItem
+              selected={examplesFlag}
+              onClick={() => { handleDataSourceChange(dataTypes.EXAMPLES); setExamplesMenuAnchor(null); }}
+            >
+              Synthetic examples
+            </MenuItem>
+          </Menu>
           <MuiButton
             color="inherit"
             data-testid="fileMenuButton"
@@ -525,18 +525,25 @@ function HeaderForm({
             onClose={() => { setFileMenuAnchor(null); }}
           >
             <MenuItem
-              selected={viewMode === 'sample'}
-              data-testid="dataModeSample"
-              onClick={() => { handleViewModeChange('sample'); setFileMenuAnchor(null); }}
+              data-testid="openCustomFiles"
+              selected={customFilesFlag}
+              onClick={() => {
+                if (!customFilesFlag) {
+                  setManualError(null)
+                  setBedSelect('none')
+                  setTracks([])
+                  setBedFile('none')
+                  setRegion('')
+                  setName(undefined)
+                  setDataType(dataTypes.CUSTOM_FILES)
+                  setFileSizeAlert(false)
+                  setUploadInProgress(false)
+                }
+                setUploadDialogOpen(true)
+                setFileMenuAnchor(null)
+              }}
             >
-              Sample data
-            </MenuItem>
-            <MenuItem
-              selected={viewMode === 'upload'}
-              data-testid="dataModeUpload"
-              onClick={() => { handleViewModeChange('upload'); setFileMenuAnchor(null); }}
-            >
-              Open custom files…
+              Open…
             </MenuItem>
           </Menu>
           <Box sx={{ flexGrow: 1 }} />
@@ -559,27 +566,6 @@ function HeaderForm({
         </Row>
         <Row className="align-items-start">
           <Col>
-            {viewMode === 'sample' && (
-              <>
-                <DataSourceSelect
-                  value={dataSourceValue}
-                  groups={dataSourceGroups}
-                  onChange={e => { handleDataSourceChange(e); }}
-                />
-                &nbsp;
-              </>
-            )}
-            {viewMode === 'upload' && (
-              <div style={{ marginTop: 8, marginBottom: 8 }}>
-                <UploadPanel
-                  onUploaded={tracks => { handleQuickUploaded(tracks); }}
-                  handleFileUpload={async (fileType, file) =>
-                    handleFileUpload(fileType, file)
-                  }
-                  isLocal={isLocal}
-                />
-              </div>
-            )}
             {customFilesFlag && filenamesData?.bedFiles?.length ? (
               <Fragment>
                 <Label
@@ -695,6 +681,29 @@ function HeaderForm({
           </Row>
         )}
       </Container>
+      <Dialog
+        open={uploadDialogOpen}
+        onClose={() => { setUploadDialogOpen(false); }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Open custom files</DialogTitle>
+        <DialogContent>
+          <UploadPanel
+            onUploaded={uploadedTracks => {
+              handleQuickUploaded(uploadedTracks)
+              setUploadDialogOpen(false)
+            }}
+            handleFileUpload={async (fileType, file) =>
+              handleFileUpload(fileType, file)
+            }
+            isLocal={isLocal}
+          />
+        </DialogContent>
+        <DialogActions>
+          <MuiButton onClick={() => { setUploadDialogOpen(false); }}>Close</MuiButton>
+        </DialogActions>
+      </Dialog>
     </div>
   )
 }

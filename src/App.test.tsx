@@ -4,7 +4,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import App from './App.tsx'
-import { selectMuiOption, muiSelectValue } from './testUtils.ts'
 import type { fetchAndParse as FetchAndParse } from './fetchAndParse.ts'
 import type * as FetchAndParseModule from './fetchAndParse.ts'
 
@@ -70,7 +69,7 @@ const getRegionInput = () =>
 
 it('renders without crashing', () => {
   renderApp()
-  expect(screen.getByAltText(/Logo/i)).toBeInTheDocument()
+  expect(screen.getByAltText('IVG')).toBeInTheDocument()
 })
 
 it('renders with error when api call to server throws', async () => {
@@ -97,14 +96,15 @@ it('renders without crashing when sent bad fetch data from server', async () => 
 
 it('allows the data source to be changed', async () => {
   renderApp()
-  const dataSelect = screen.getByTestId('dataSourceSelect')
-  expect(muiSelectValue(dataSelect)).toEqual('snp1kg-BRCA1')
+  expect(getRegionInput().value).toEqual('17:1-100')
 
-  await selectMuiOption(dataSelect, 'cactus')
-  expect(muiSelectValue(dataSelect)).toEqual('cactus')
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+  expect(getRegionInput().value).toEqual('ref:1-100')
 
-  await selectMuiOption(dataSelect, 'vg "small" example')
-  expect(muiSelectValue(dataSelect)).toEqual('vg "small" example')
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'vg "small" example' }))
+  expect(getRegionInput().value).toEqual('x:1-100')
 })
 
 it('allows the start to be cleared', async () => {

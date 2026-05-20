@@ -1,5 +1,34 @@
 # Adding Your Own Data
 
+## Built-in data sources (`src/config.json`)
+
+The `DATA_SOURCES` array in `src/config.json` defines the entries in the **Examples** menu. Each entry is a `ViewTarget` object:
+
+```json
+{
+  "name": "my example",
+  "tracks": [
+    { "trackFile": "exampleData/my.gbz.db", "trackType": "graph" },
+    { "trackFile": "exampleData/my.gam",    "trackType": "read"  }
+  ],
+  "region": "chr1:1-500",
+  "bedFile": "exampleData/my.bed",
+  "dataType": "built-in"
+}
+```
+
+Selecting a data source from the Examples menu auto-loads it immediately. For sources whose default region is large or slow to render, set `"skipAutoLoad": true` — the view will only load after the user presses Go:
+
+```json
+{
+  "name": "whole-chromosome view",
+  "skipAutoLoad": true,
+  ...
+}
+```
+
+
+
 You can add your own data to the Sequence Tube Map, by placing it in the data path (by default, the `sequenceTubeMap/exampleData/` directory) of a local copy, uploading it through the web interface, or hosting it online and providing a track or BED URL.
 
 ## Browser-only WASM mode (`npm run start:local`)

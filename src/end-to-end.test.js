@@ -19,7 +19,6 @@ import {
   screen,
   waitFor,
   act,
-  within,
 } from '@testing-library/react'
 import { setCopyCallback, writeToClipboard } from './components/CopyLink.tsx'
 import userEvent from '@testing-library/user-event'
@@ -29,6 +28,15 @@ import { selectMuiOption } from './testUtils.ts'
 const getRegionInput = () => {
   // Helper function to select the Region input box
   return screen.getByRole('combobox', { name: /Region/i })
+}
+
+async function selectExample(name) {
+  await act(async () => {
+    fireEvent.click(screen.getByTestId('examplesMenuButton'))
+  })
+  await act(async () => {
+    fireEvent.click(screen.getByRole('menuitem', { name }))
+  })
 }
 // This holds the running server for the duration of each test.
 let serverState = undefined
@@ -157,16 +165,17 @@ it('initially renders as loading', () => {
 })
 
 it('populates the available example dropdown', async () => {
-  const dataSelect = screen.getByTestId('dataSourceSelect')
-  // Default selected example should be present
-  expect(within(dataSelect).getByRole('combobox').textContent).toContain(
-    'snp1kg-BRCA1',
-  )
-  // Opening the menu reveals the option list
-  fireEvent.mouseDown(within(dataSelect).getByRole('combobox'))
+  // Default region reflects the default data source (snp1kg-BRCA1)
+  expect(getRegionInput().value).toContain('17:1-100')
+  // Opening the Examples menu reveals all data sources
+  await act(async () => {
+    fireEvent.click(screen.getByTestId('examplesMenuButton'))
+  })
   expect(
-    await screen.findByRole('option', { name: 'cactus' }),
+    await screen.findByRole('menuitem', { name: 'cactus' }),
   ).toBeInTheDocument()
+  // Close the menu
+  fireEvent.keyDown(document.activeElement, { key: 'Escape' })
 })
 
 describe('When we wait for it to load', () => {
@@ -203,11 +212,7 @@ describe('When we wait for it to load', () => {
     await screen.findByText('17:1-100 17_1_100')
   })
   it('the region options in autocomplete are cleared after selecting new data', async () => {
-    // Input data dropdown
-    await selectMuiOption(
-      screen.getByTestId('dataSourceSelect'),
-      'vg "small" example',
-    )
+    await selectExample('vg "small" example')
     const regionInput = getRegionInput()
     await act(async () => {
       userEvent.click(getRegionInput())
@@ -219,12 +224,7 @@ describe('When we wait for it to load', () => {
     })
   })
   it('draws an SVG for synthetic data example 1', async () => {
-    await act(async () => {
-      await selectMuiOption(
-        screen.getByTestId('dataSourceSelect'),
-        'synthetic data examples',
-      )
-    })
+    await selectExample('Synthetic examples')
 
     await act(async () => {
       const example1 = document.getElementById('example1')
@@ -241,11 +241,7 @@ describe('When we wait for it to load', () => {
   })
 
   it('draws the right SVG for vg "small"', async () => {
-    // Input data dropdown
-    await selectMuiOption(
-      screen.getByTestId('dataSourceSelect'),
-      'vg "small" example',
-    )
+    await selectExample('vg "small" example')
     const autocomplete = screen.getByTestId('autocomplete')
     const input = autocomplete.querySelector('input')
 
@@ -277,11 +273,7 @@ describe('When we wait for it to load', () => {
   })
 
   it('draws the right SVG for cactus multiple reads', async () => {
-    // Input data dropdown
-    await selectMuiOption(
-      screen.getByTestId('dataSourceSelect'),
-      'cactus multiple reads',
-    )
+    await selectExample('cactus multiple reads')
     const autocomplete = screen.getByTestId('autocomplete')
     const input = autocomplete.querySelector('input')
 
@@ -313,43 +305,20 @@ describe('When we wait for it to load', () => {
   })
 })
 
-it('produces correct link for view before & after go is pressed', async () => {
-  // First test that after pressing go, the link reflects the dat form
+it('produces correct link when data source is changed', async () => {
+  // Selecting a data source auto-commits; copy link updates immediately.
   const expectedLinkBRCA1 =
     'http://localhost/?name=snp1kg-BRCA1&tracks[0][trackFile]=exampleData%2Finternal%2Fsnp1kg-BRCA1.vg.xg&tracks[0][trackType]=graph&tracks[0][trackColorSettings][mainPalette]=greys&tracks[0][trackColorSettings][auxPalette]=ygreys&tracks[1][trackFile]=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks[1][trackType]=read&region=17%3A1-100&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&dataType=built-in&simplify=false&removeSequences=false'
-  // Set up dropdown
-  await act(async () => {
-    await selectMuiOption(
-      screen.getByTestId('dataSourceSelect'),
-      'snp1kg-BRCA1',
-    )
-  })
-  // Wait for server to load / avoid console yelling
+  await selectExample('snp1kg-BRCA1')
   await waitForLoadEnd()
-
-  clickGoButton()
-
   await clickCopyLink()
-  // Ensure link reflects our selected data
   expect(fakeClipboard).toEqual(expectedLinkBRCA1)
-
-  // Set up dropdown
-  await act(async () => {
-    await selectMuiOption(screen.getByTestId('dataSourceSelect'), 'cactus')
-  })
-  // Wait for server to load
-  await waitForLoadEnd()
-
-  await clickCopyLink()
-  // Make sure clipboard has not changed
-  expect(fakeClipboard).toEqual(expectedLinkBRCA1)
-  clickGoButton()
-  await waitForLoadEnd()
-  await clickCopyLink()
 
   const expectedLinkCactus =
     'http://localhost/?tracks[0][trackFile]=exampleData%2Fcactus.vg.xg&tracks[0][trackType]=graph&tracks[1][trackFile]=exampleData%2Fcactus-NA12879.sorted.gam&tracks[1][trackType]=read&bedFile=exampleData%2Fcactus.bed&name=cactus&region=ref%3A1-100&dataType=built-in&simplify=false&removeSequences=false'
-  // Make sure link has changed after pressing go
+  await selectExample('cactus')
+  await waitForLoadEnd()
+  await clickCopyLink()
   expect(fakeClipboard).toEqual(expectedLinkCactus)
 }, 20000)
 
@@ -362,7 +331,7 @@ it('can retrieve the list of mounted graph files', async () => {
     fireEvent.click(screen.getByTestId('fileMenuButton'))
   })
   await act(async () => {
-    fireEvent.click(screen.getByTestId('dataModeUpload'))
+    fireEvent.click(screen.getByTestId('openCustomFiles'))
   })
 
   // Find the select box's input
@@ -405,7 +374,7 @@ it('can accept uploaded files', async () => {
     fireEvent.click(screen.getByTestId('fileMenuButton'))
   })
   await act(async () => {
-    fireEvent.click(screen.getByTestId('dataModeUpload'))
+    fireEvent.click(screen.getByTestId('openCustomFiles'))
   })
 
   // Find the select box's input

@@ -48,6 +48,10 @@ export interface ViewTarget {
 
   // The HeaderForm tags view targets with the dataType used to build them.
   dataType?: string
+
+  // Set true in config for data sources whose default region is large enough
+  // that auto-loading on menu selection would be slow.
+  skipAutoLoad?: boolean
 }
 
 // Per-region data stored as parallel arrays keyed by a region index.
