@@ -762,6 +762,7 @@ function HeaderForm({
               <PathsPanel
                 pathInfo={pathInfo}
                 onLoadPath={region => { void changeRegionAndGo(region); }}
+                onCopyToRegion={region => { setRegion(region); }}
               />
             )}
             {customFilesFlag && (
