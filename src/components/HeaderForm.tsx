@@ -75,7 +75,6 @@ const dataTypes = {
 }
 
 interface HeaderFormProps {
-  dataOrigin: string
   setColorSetting: (
     key: PaletteField,
     index: number,
@@ -91,7 +90,7 @@ interface HeaderFormProps {
   visOptions?: VisOptions
   toggleVisOptionFlag?: (flag: string) => void
   handleMappingQualityCutoffChange?: (value: string | number) => void
-  enableCompressedNodes?: boolean
+  compressedViewLocked?: boolean
 }
 
 interface CoordsMetaData {
@@ -173,7 +172,7 @@ function HeaderForm({
   visOptions,
   toggleVisOptionFlag,
   handleMappingQualityCutoffChange,
-  enableCompressedNodes,
+  compressedViewLocked,
 }: HeaderFormProps) {
   const initialView = defaultViewTarget ?? DATA_SOURCES[0]!
   const [bedSelect, setBedSelect] = useState(
@@ -199,6 +198,11 @@ function HeaderForm({
   const [removeSequences, setRemoveSequences] = useState(
     initialView.removeSequences ?? false,
   )
+  // Filenames of files uploaded via the "Open custom files" dialog. Shown as a
+  // success banner so the user gets confirmation, and used to seed the paths
+  // panel auto-open behavior. Cleared when the user navigates away or commits
+  // a view target.
+  const [recentlyUploaded, setRecentlyUploaded] = useState<string[]>([])
 
   // SWR-managed fetches. Each key encodes the state it depends on, so changing
   // that state automatically triggers a new fetch and supersedes any in-flight
@@ -335,7 +339,9 @@ function HeaderForm({
       next.tracks.length > 0 &&
       !viewTargetsEqual(getCurrentViewTarget(), next)
     ) {
+      console.warn('[HeaderForm] commitViewTarget', next)
       setCurrentViewTarget(next)
+      setRecentlyUploaded([])
     }
   }
 
@@ -434,6 +440,10 @@ function HeaderForm({
       setDataType(dataTypes.CUSTOM_FILES)
       setFileSizeAlert(false)
       setUploadInProgress(false)
+      setRecentlyUploaded([])
+      // Clear the rendered tube map so the previous dataset's graph isn't
+      // still visible while the user picks new files.
+      setCurrentViewTarget({ tracks: [], region: '' })
     } else if (value === dataTypes.EXAMPLES) {
       setDataType(dataTypes.EXAMPLES)
     } else {
@@ -465,6 +475,7 @@ function HeaderForm({
   }
 
   function handleQuickUploaded(uploadedTracks: Track[]) {
+    console.warn('[HeaderForm] handleQuickUploaded', uploadedTracks)
     setBedSelect('none')
     setBedFile('none')
     setRegion('')
@@ -473,6 +484,10 @@ function HeaderForm({
     setDataType(dataTypes.CUSTOM_FILES)
     setFileSizeAlert(false)
     setManualError(null)
+    setRecentlyUploaded(uploadedTracks.map(t => t.trackFile ?? '(unnamed)'))
+    // Clear the previous dataset's tube map. Without this, the old graph
+    // would remain rendered until the user picks a region for the new files.
+    setCurrentViewTarget({ tracks: [], region: '' })
   }
 
   async function handleFileUpload(
@@ -522,16 +537,6 @@ function HeaderForm({
     getCurrentViewTarget(),
   )
   const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
-
-  const DataPositionFormRowComponent = (
-    <DataPositionFormRow
-      handleGoButton={() => { handleGoButton(); }}
-      uploadInProgress={uploadInProgress}
-      getCurrentViewTarget={getCurrentViewTarget}
-      viewTargetHasChange={viewTargetHasChange}
-      canGo={isValidRegion(region) && tracks.length > 0}
-    />
-  )
 
   return (
     <div>
@@ -643,7 +648,7 @@ function HeaderForm({
                 <CheckboxMenuItem
                   label="Compressed view"
                   checked={visOptions.compressedView}
-                  disabled={enableCompressedNodes}
+                  disabled={compressedViewLocked}
                   onToggle={() => { toggleVisOptionFlag('compressedView') }}
                   helpText="Uses a logarithmic scale for node width instead of a linear one, so very long nodes don't visually dominate short ones. Sequence bases are not rendered in this mode."
 
@@ -836,16 +841,35 @@ function HeaderForm({
                 onSubmit={() => { handleGoButton() }}
               />
             )}
+            {recentlyUploaded.length > 0 && (
+              <Alert color="success" className="mt-2 mb-2 py-2">
+                <strong>Loaded {recentlyUploaded.length} file{recentlyUploaded.length === 1 ? '' : 's'}:</strong>{' '}
+                {recentlyUploaded.join(', ')}.{' '}
+                {pathInfo.length > 0
+                  ? 'Pick a path below or type a region to view it.'
+                  : 'Type a region above to view it.'}
+              </Alert>
+            )}
             {pathInfo.length > 0 && !examplesFlag && (
               <PathsPanel
+                key={graphKey ?? 'none'}
                 pathInfo={pathInfo}
+                defaultOpen={recentlyUploaded.length > 0}
                 onLoadPath={region => { void changeRegionAndGo(region); }}
                 onCopyToRegion={region => { setRegion(region); }}
               />
             )}
             {customFilesFlag && (
               <div className="d-flex justify-content-between align-items-start">
-                <div>{DataPositionFormRowComponent}</div>
+                <div>
+                  <DataPositionFormRow
+                    handleGoButton={() => { handleGoButton(); }}
+                    uploadInProgress={uploadInProgress}
+                    getCurrentViewTarget={getCurrentViewTarget}
+                    viewTargetHasChange={viewTargetHasChange}
+                    canGo={isValidRegion(region) && tracks.length > 0}
+                  />
+                </div>
                 <div className="d-flex justify-content-end align-items-start flex-shrink-0">
                   <SimplifyButton
                     simplify={simplify}
@@ -876,7 +900,15 @@ function HeaderForm({
                   setColorSetting={setColorSetting}
                 />
               ) : (
-                !customFilesFlag && DataPositionFormRowComponent
+                !customFilesFlag && (
+                  <DataPositionFormRow
+                    handleGoButton={() => { handleGoButton(); }}
+                    uploadInProgress={uploadInProgress}
+                    getCurrentViewTarget={getCurrentViewTarget}
+                    viewTargetHasChange={viewTargetHasChange}
+                    canGo={isValidRegion(region) && tracks.length > 0}
+                  />
+                )
               )}
             </Row>
             {desc ? (

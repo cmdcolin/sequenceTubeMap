@@ -9,6 +9,7 @@ interface PathsPanelProps {
   pathInfo: PathInfo[]
   onLoadPath: (region: string) => void
   onCopyToRegion: (region: string) => void
+  defaultOpen?: boolean
 }
 
 // Loading paths much longer than this freezes the browser for many seconds
@@ -19,8 +20,8 @@ function regionFor(name: string, length: number) {
   return `${name}:0-${length - 1}`
 }
 
-function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion }: PathsPanelProps) {
-  const [isOpen, setIsOpen] = useState(false)
+function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion, defaultOpen = false }: PathsPanelProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
 
   if (!pathInfo.length) return null
 

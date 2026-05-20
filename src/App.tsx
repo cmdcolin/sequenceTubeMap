@@ -147,7 +147,6 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
         setCurrentViewTarget={setCurrentViewTarget}
         setDataOrigin={setDataOrigin}
         setColorSetting={setColorSetting}
-        dataOrigin={dataOrigin}
         defaultViewTarget={defaultViewTarget}
         getCurrentViewTarget={getCurrentViewTarget}
         APIInterface={apiInterface}
@@ -156,7 +155,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
         visOptions={visOptions}
         toggleVisOptionFlag={toggleVisOptionFlag}
         handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
-        enableCompressedNodes={viewTarget.removeSequences}
+        compressedViewLocked={viewTarget.removeSequences}
       />
       <div style={{ position: 'relative', margin: '8px 0' }}>
         <TubeMapContainer

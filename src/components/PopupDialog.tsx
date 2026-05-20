@@ -37,9 +37,10 @@ export const PopupDialog = ({
       open={open}
       onClose={handleClose}
       data-testid={testID}
+      maxWidth={width === null ? false : undefined}
       slotProps={{
         paper: {
-          sx: width !== null ? { width, maxWidth: 'none' } : {},
+          sx: width !== null ? { width, maxWidth: 'none' } : { maxWidth: 'none' },
         },
       }}
     >
