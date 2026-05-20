@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
-import { Container, Row, Col, Label, Alert, Button } from 'reactstrap'
+import { Container, Row, Col, Label, Alert } from 'reactstrap'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { LocalAPI } from '../api/LocalAPI.ts'
@@ -11,15 +11,13 @@ import RegionInput from './RegionInput.tsx'
 import PathsPanel from './PathsPanel.tsx'
 import TrackPicker from './TrackPicker.tsx'
 import BedFileDropdown from './BedFileDropdown.tsx'
-import QuickUploadButton from './QuickUploadButton.tsx'
-import MenuItem from '@mui/material/MenuItem'
-import ListSubheader from '@mui/material/ListSubheader'
-import MuiSelect, { type SelectChangeEvent } from '@mui/material/Select'
+import UploadPanel from './UploadPanel.tsx'
+import DataSourceSelect from './DataSourceSelect.tsx'
+import SimplifyButton from './SimplifyButton.tsx'
+import type { SelectChangeEvent } from '@mui/material/Select'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import FormHelperText from '@mui/material/FormHelperText'
-import PopupDialog from './PopupDialog.tsx'
-import Switch from 'react-switch'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGear } from '@fortawesome/free-solid-svg-icons'
 import {
   isValidRegion,
   parseRegion,
@@ -109,7 +107,6 @@ function HeaderForm({
   const [removeSequences, setRemoveSequences] = useState(
     initialView.removeSequences ?? false,
   )
-  const [popupOpen, setPopupOpen] = useState(false)
 
   // SWR-managed fetches. Each key encodes the state it depends on, so changing
   // that state automatically triggers a new fetch and supersedes any in-flight
@@ -477,13 +474,39 @@ function HeaderForm({
   }
   dataSourceGroups.push({
     heading: hasDiscovered ? 'Other' : null,
-    options: [
-      { value: dataTypes.EXAMPLES, label: 'synthetic data examples' },
-      { value: dataTypes.CUSTOM_FILES, label: 'custom' },
-    ],
+    options: [{ value: dataTypes.EXAMPLES, label: 'synthetic data examples' }],
   })
   const dataSourceValue =
     dataType === dataTypes.BUILT_IN ? (name ?? '') : dataType
+
+  const viewMode: 'sample' | 'upload' =
+    dataType === dataTypes.CUSTOM_FILES ? 'upload' : 'sample'
+
+  function handleViewModeChange(next: 'sample' | 'upload') {
+    if (next === viewMode) {
+      return
+    }
+    setManualError(null)
+    if (next === 'upload') {
+      setBedSelect('none')
+      setTracks([])
+      setBedFile('none')
+      setRegion('')
+      setName(undefined)
+      setDataType(dataTypes.CUSTOM_FILES)
+      setFileSizeAlert(false)
+      setUploadInProgress(false)
+    } else {
+      const first = DATA_SOURCES[0]!
+      setTracks(first.tracks)
+      setBedFile(first.bedFile)
+      setBedSelect(isSet(first.bedFile) ? first.bedFile : 'none')
+      setRegion(first.region)
+      setName(first.name)
+      setDataType(dataTypes.BUILT_IN)
+      setPendingRegionDefault(isSet(first.bedFile) && !first.region)
+    }
+  }
 
   const customFilesFlag = dataType === dataTypes.CUSTOM_FILES
   const examplesFlag = dataType === dataTypes.EXAMPLES
@@ -519,41 +542,44 @@ function HeaderForm({
             <img src="./mempang26-badge.svg" alt="MemPanG26 Edition" style={{ display: 'block', marginTop: '4px' }} />
           </Col>
           <Col>
-            <Label
-              className="tight-label mb-2 me-sm-2 mb-sm-0 ms-2"
-              htmlFor="dataSourceSelect"
-            >
-              Data:
-            </Label>
-            <MuiSelect
-              id="dataSourceSelect"
-              data-testid="dataSourceSelect"
+            <ToggleButtonGroup
               size="small"
-              fullWidth
-              value={dataSourceValue}
-              onChange={e => { handleDataSourceChange(e); }}
+              exclusive
+              value={viewMode}
+              onChange={(_e, next: 'sample' | 'upload' | null) => {
+                if (next) { handleViewModeChange(next); }
+              }}
+              sx={{ mb: 1, ms: 2 }}
+              data-testid="dataModeToggle"
             >
-              {dataSourceGroups.flatMap(group => [
-                group.heading ? (
-                  <ListSubheader key={`heading-${group.heading}`}>
-                    {group.heading}
-                  </ListSubheader>
-                ) : null,
-                ...group.options.map(opt => (
-                  <MenuItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
-                )),
-              ])}
-            </MuiSelect>
+              <ToggleButton value="sample" data-testid="dataModeSample">
+                Sample data
+              </ToggleButton>
+              <ToggleButton value="upload" data-testid="dataModeUpload">
+                Upload data
+              </ToggleButton>
+            </ToggleButtonGroup>
             &nbsp;
-            <QuickUploadButton
-              onUploaded={tracks => { handleQuickUploaded(tracks); }}
-              handleFileUpload={async (fileType, file) =>
-                handleFileUpload(fileType, file)
-              }
-            />
-            &nbsp;
+            {viewMode === 'sample' && (
+              <>
+                <DataSourceSelect
+                  value={dataSourceValue}
+                  groups={dataSourceGroups}
+                  onChange={e => { handleDataSourceChange(e); }}
+                />
+                &nbsp;
+              </>
+            )}
+            {viewMode === 'upload' && (
+              <div style={{ marginTop: 8, marginBottom: 8 }}>
+                <UploadPanel
+                  onUploaded={tracks => { handleQuickUploaded(tracks); }}
+                  handleFileUpload={async (fileType, file) =>
+                    handleFileUpload(fileType, file)
+                  }
+                />
+              </div>
+            )}
             {customFilesFlag && (
               <Fragment>
                 <Label
@@ -585,42 +611,12 @@ function HeaderForm({
               <div className="d-flex justify-content-between align-items-start">
                 <div>{DataPositionFormRowComponent}</div>
                 <div className="d-flex justify-content-end align-items-start flex-shrink-0">
-                  <>
-                    <Button
-                      onClick={() => { setPopupOpen(o => !o); }}
-                      outline
-                      active={simplify || removeSequences}
-                    >
-                      <FontAwesomeIcon icon={faGear} /> Simplify
-                    </Button>
-                    <PopupDialog
-                      open={popupOpen}
-                      close={() => { setPopupOpen(false); }}
-                      width="400px"
-                    >
-                      <div style={{ height: '10vh' }}>
-                        <label
-                          className="d-flex align-items-center justify-content-between"
-                          style={{ marginBottom: '10px' }}
-                        >
-                          <span>Remove Small Variants</span>
-                          <Switch
-                            onChange={() => { setSimplify(s => !s); }}
-                            checked={simplify}
-                          />
-                        </label>
-                        <label className="d-flex align-items-center justify-content-between">
-                          <span>Remove Node Sequences</span>
-                          <Switch
-                            onChange={() =>
-                              { setRemoveSequences(s => !s); }
-                            }
-                            checked={removeSequences}
-                          />
-                        </label>
-                      </div>
-                    </PopupDialog>
-                  </>
+                  <SimplifyButton
+                    simplify={simplify}
+                    removeSequences={removeSequences}
+                    setSimplify={(next) => { setSimplify(next); }}
+                    setRemoveSequences={(next) => { setRemoveSequences(next); }}
+                  />
                   <TrackPicker
                     tracks={tracks}
                     availableTracks={availableTracks}
