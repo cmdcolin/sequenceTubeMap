@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react'
+import useSWR from 'swr'
 import { Container, Row, Alert } from 'reactstrap'
 
 import TubeMap from './TubeMap.tsx'
 import * as tubeMap from '../util/tubemap.ts'
-import type {
-  InputNode,
-  InputRegion,
-  InputTrack,
-} from '../util/tubemap.ts'
+import type { InputNode, InputRegion, InputTrack } from '../util/tubemap.ts'
 import { dataOriginTypes } from '../enums.ts'
 import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog.tsx'
 import ReadContextMenu from './ReadContextMenu.tsx'
@@ -30,6 +27,19 @@ const GROUP_PALETTE_CYCLE = [
 function paletteForIndex(idx: number): string {
   return GROUP_PALETTE_CYCLE[idx % GROUP_PALETTE_CYCLE.length] ?? 'greys'
 }
+
+interface TubeMapData {
+  nodes: InputNode[]
+  tracks: InputTrack[]
+  reads: InputTrack[]
+  region: InputRegion | undefined
+  coloredNodes: string[] | undefined
+}
+
+// SWR key shape: tuple discriminated by the first element.
+type FetchKey =
+  | readonly ['tubeMapContainer.api', ViewTarget]
+  | readonly ['tubeMapContainer.example', string]
 
 interface ReadContextMenuState {
   readName: string
@@ -57,8 +67,6 @@ function TubeMapContainer({
   visOptions,
   APIInterface,
 }: TubeMapContainerProps) {
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | string | null>(null)
   const [infoDialogContent, setInfoDialogContent] = useState<
     InfoAttribute[] | undefined
   >(undefined)
@@ -73,98 +81,79 @@ function TubeMapContainer({
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [groupCounter, setGroupCounter] = useState(0)
   const [otherReadsColor, setOtherReadsColor] = useState('greys')
-  const [nodes, setNodes] = useState<InputNode[] | undefined>(undefined)
-  const [tracks, setTracks] = useState<InputTrack[] | undefined>(undefined)
-  const [reads, setReads] = useState<InputTrack[] | undefined>(undefined)
-  const [region, setRegion] = useState<InputRegion | undefined>(undefined)
-  const [coloredNodes, setColoredNodes] = useState<string[] | undefined>(
-    undefined,
-  )
 
-  useEffect(() => {
-    const abortController = new AbortController()
-    const cancelSignal = abortController.signal
+  // SWR key: null when there's nothing to fetch (no tracks selected). The
+  // viewTarget object is stable across re-renders thanks to App.tsx's equality
+  // guard, so SWR's default stable-hash keying works.
+  const fetchKey: FetchKey | null =
+    dataOrigin === dataOriginTypes.API
+      ? viewTarget.tracks.length === 0
+        ? null
+        : ['tubeMapContainer.api', viewTarget]
+      : ['tubeMapContainer.example', dataOrigin]
 
-    if (dataOrigin === dataOriginTypes.API) {
-      if (viewTarget.tracks.length === 0) {
-        // No-tracks case: clear previously-fetched data. setState in effect is
-        // intentional here — these values are populated only by this effect's
-        // fetches, so the effect is also the right place to clear them.
-        /* eslint-disable react-hooks/set-state-in-effect */
-        setNodes(undefined)
-        setTracks(undefined)
-        setReads(undefined)
-        setRegion(undefined)
-        setColoredNodes(undefined)
-        setIsLoading(false)
-        setError(null)
-        /* eslint-enable react-hooks/set-state-in-effect */
-        return
-      }
-      setIsLoading(true)
-      setError(null)
-      APIInterface.getChunkedData(viewTarget, cancelSignal)
-        .then(json => {
-          if (json.graph === undefined) {
-            throw new Error('Fetching remote data returned error')
-          }
-          const readTrackIDs: number[] = []
-          let graphTrackID = 0
-          let haplotypeTrackID = 0
-          viewTarget.tracks.forEach((track, i) => {
-            if (track.trackType === 'read') readTrackIDs.push(i)
-            else if (track.trackType === 'graph') graphTrackID = i
-            else if (track.trackType === 'haplotype') haplotypeTrackID = i
-          })
-          const newNodes = tubeMap.vgExtractNodes(json.graph, json.nameMap)
-          const newTracks = tubeMap.vgExtractTracks(
-            json.graph,
-            graphTrackID,
-            haplotypeTrackID,
+  const { data, error, isLoading } = useSWR<TubeMapData, Error, FetchKey | null>(
+    fetchKey,
+    async (key: FetchKey): Promise<TubeMapData> => {
+      if (key[0] === 'tubeMapContainer.api') {
+        const target = key[1]
+        const json = await APIInterface.getChunkedData(target, null)
+        if (json.graph === undefined) {
+          throw new Error('Fetching remote data returned error')
+        }
+        const readTrackIDs: number[] = []
+        let graphTrackID = 0
+        let haplotypeTrackID = 0
+        target.tracks.forEach((track, i) => {
+          if (track.trackType === 'read') readTrackIDs.push(i)
+          else if (track.trackType === 'graph') graphTrackID = i
+          else if (track.trackType === 'haplotype') haplotypeTrackID = i
+        })
+        const newNodes = tubeMap.vgExtractNodes(json.graph, json.nameMap)
+        const newTracks = tubeMap.vgExtractTracks(
+          json.graph,
+          graphTrackID,
+          haplotypeTrackID,
+        )
+        const readsArr: InputTrack[][] = []
+        let totalReads = 0
+        for (const gam of json.gam ?? []) {
+          const readSourceTrackID = readTrackIDs[readsArr.length] ?? 0
+          const newReads = tubeMap.vgExtractReads(
+            newNodes,
+            newTracks,
+            gam,
+            totalReads,
+            readSourceTrackID,
           )
-          const readsArr: InputTrack[][] = []
-          let totalReads = 0
-          for (const gam of json.gam ?? []) {
-            const readSourceTrackID = readTrackIDs[readsArr.length] ?? 0
-            const newReads = tubeMap.vgExtractReads(
-              newNodes,
-              newTracks,
-              gam,
-              totalReads,
-              readSourceTrackID,
-            )
-            readsArr.push(newReads)
-            totalReads += newReads.length
-          }
-          setNodes(newNodes)
-          setTracks(newTracks)
-          setReads(readsArr.flat())
-          setRegion(json.region)
-          setColoredNodes(json.coloredNodes)
-          setIsLoading(false)
-        })
-        .catch((err: unknown) => {
-          if (!cancelSignal.aborted) {
-            console.error('Fetching and parsing getChunkedData failed:', err)
-            setError(err instanceof Error ? err : String(err))
-            setIsLoading(false)
-          }
-        })
-    } else {
-      setIsLoading(true)
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      import('../util/demo-data.js').then(data => {
-        const result = computeExampleData(dataOrigin, data)
-        setNodes(result.nodes)
-        setTracks(result.tracks)
-        setReads(result.reads)
-        setRegion([])
-        setIsLoading(false)
-      })
-    }
-
-    return () => { abortController.abort(); }
-  }, [dataOrigin, viewTarget, APIInterface])
+          readsArr.push(newReads)
+          totalReads += newReads.length
+        }
+        return {
+          nodes: newNodes,
+          tracks: newTracks,
+          reads: readsArr.flat(),
+          region: json.region,
+          coloredNodes: json.coloredNodes,
+        }
+      }
+      const demo = await import('../util/demo-data.js')
+      const result = computeExampleData(key[1], demo)
+      return {
+        nodes: result.nodes,
+        tracks: result.tracks,
+        reads: result.reads,
+        region: undefined,
+        coloredNodes: undefined,
+      }
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    },
+  )
+  const { nodes, tracks, reads, region, coloredNodes } = data ?? {}
 
   useEffect(() => {
     tubeMap.setInfoCallback((text: InfoAttribute[]) =>
