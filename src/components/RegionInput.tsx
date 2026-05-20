@@ -107,21 +107,26 @@ export const RegionInput = ({
       <Dialog open={helpOpen} onClose={() => { setHelpOpen(false); }} maxWidth="sm" fullWidth>
         <DialogTitle>Region format</DialogTitle>
         <DialogContent>
-          <p>
-            <strong>Format:</strong> <code>path:start-end</code>
-            <br />
-            <em>e.g.</em> <code>GRCh38#chr1:10000-20000</code>
-          </p>
-          <p>
-            Paths assign linearly increasing coordinates to the nodes of a
-            pangenome graph. A range query returns every node the path visits
-            in that interval — even when the underlying graph is non-linear or
-            contains bubbles.
-          </p>
-          <p>
-            Use the <strong>Paths in this graph</strong> panel below to browse
-            available paths and copy a range into this field.
-          </p>
+          <table style={{ borderCollapse: 'collapse' }}>
+            <tbody>
+              <tr>
+                <td style={{ paddingRight: '1.5em', paddingBottom: '0.75em', whiteSpace: 'nowrap', verticalAlign: 'top' }}><strong>Path range</strong></td>
+                <td style={{ paddingBottom: '0.75em' }}>
+                  <code>path:start-end</code> &nbsp;<em>e.g.</em> <code>GRCh38#chr1:10000-20000</code>
+                  <br />
+                  Paths have linearly increasing coordinates over graph nodes; the query returns every node the path visits in that interval.
+                </td>
+              </tr>
+              <tr>
+                <td style={{ paddingRight: '1.5em', whiteSpace: 'nowrap', verticalAlign: 'top' }}><strong>Node ID range</strong></td>
+                <td>
+                  <code>node:first-last</code> &nbsp;<em>e.g.</em> <code>node:42-55</code>
+                  <br />
+                  Returns the subgraph spanned by nodes whose IDs fall in the given range.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </DialogContent>
       </Dialog>
     </>
