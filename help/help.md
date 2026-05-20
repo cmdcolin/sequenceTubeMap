@@ -4,7 +4,7 @@ Pangenome graph viewer. Runs in-browser via WebAssembly — no server needed, no
 
 **Opening data** — File → Sample data for built-ins, or File → Open custom files for your own `.gbz.db` / `.gam` / `.gbwt` files. Use the Track Picker to add tracks.
 
-[How to prepare your own files →](https://github.com/cmdcolin/sequenceTubeMap#quickstart)
+[How to prepare your own files →](https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md#browser-only-wasm-mode-npm-run-startlocal)
 
 ---
 
