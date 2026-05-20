@@ -21,10 +21,9 @@ export const Footer = () => (
     <div
       style={{
         background: '#f8f9fa',
-        padding: '0.5rem 1rem',
+        padding: '0.75rem 1rem',
         textAlign: 'center',
-        fontSize: '0.85em',
-        color: '#555',
+        fontSize: '0.95em',
       }}
     >
       <SafeLink target="_blank" href="https://github.com/cmdcolin/sequenceTubeMap">
@@ -32,24 +31,20 @@ export const Footer = () => (
       </SafeLink>
       <div style={{ marginTop: 4 }}>
         MemPanG26 Hackathon Team 2:{' '}
-        <SafeLink href="https://github.com/cmdcolin" target="_blank" style={{ color: 'inherit' }}>
+        <SafeLink href="https://github.com/cmdcolin" target="_blank">
           Colin Diesh
         </SafeLink>
         {' & '}
         <SafeLink
           href="https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en"
           target="_blank"
-          style={{ color: 'inherit' }}
         >
           Rafeed Rahman Turjya
         </SafeLink>
       </div>
-      <div style={{ marginTop: 4, color: '#999' }}>
+      <div style={{ marginTop: 4 }}>
         Thanks to the organizers for a great{' '}
-        <a href="https://pangenome.github.io/MemPanG26/" style={{ color: 'inherit' }}>
-          MemPanG26
-        </a>
-        !
+        <a href="https://pangenome.github.io/MemPanG26/">MemPanG26</a>!
       </div>
     </div>
   </footer>
