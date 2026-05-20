@@ -539,7 +539,14 @@ function HeaderForm({
         <Row>
           <Col md="auto">
             <img src="./logo.png" alt="Logo" />
-            <img src="./mempang26-badge.svg" alt="MemPanG26 Edition" style={{ display: 'block', marginTop: '4px' }} />
+            <a
+              href="https://github.com/cmdcolin/sequenceTubeMap"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'block', marginTop: '4px' }}
+            >
+              <img src="./mempang26-badge.svg" alt="MemPanG26 Edition" />
+            </a>
           </Col>
           <Col>
             <ToggleButtonGroup
