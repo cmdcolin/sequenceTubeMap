@@ -86,26 +86,26 @@ describe('determine regionIndex and corresponding region strings for various reg
 })
 
 // Reproduces the "Missing region" bug: when a discovered dataset has no preset
-// region (e.g. Toxo with no manifest.json), clicking "Load" on a path in
+// region (e.g. a dataset with no manifest.json), clicking "Load" on a path in
 // PathsPanel must build the view target with the freshly-supplied region —
 // reading region from React state would still see the empty initial value
 // because setRegion's update hasn't applied yet.
 describe('makeViewTarget — fresh values are honored', () => {
   const graphTracks: Tracks = [
-    { trackType: 'graph', trackFile: 'Toxo_SB_numeric.xg' },
+    { trackType: 'graph', trackFile: 'x.vg.xg' },
   ]
 
   it('emits the explicit region even when prior state had none', () => {
     const vt = makeViewTarget({
       tracks: graphTracks,
       bedFile: undefined,
-      name: 'Toxo',
-      region: 'Circ1:0-1000',
+      name: 'x',
+      region: 'x:0-1000',
       dataType: 'built-in',
       simplify: false,
       removeSequences: false,
     })
-    expect(vt.region).toBe('Circ1:0-1000')
+    expect(vt.region).toBe('x:0-1000')
     expect(vt.tracks).toEqual(graphTracks)
   })
 
@@ -117,8 +117,8 @@ describe('makeViewTarget — fresh values are honored', () => {
     const vt = makeViewTarget({
       tracks: tracksWithReads,
       bedFile: undefined,
-      name: 'Toxo',
-      region: 'Circ1:0-1000',
+      name: 'x',
+      region: 'x:0-1000',
       dataType: 'built-in',
       simplify: true,
       removeSequences: false,
@@ -130,8 +130,8 @@ describe('makeViewTarget — fresh values are honored', () => {
     const vt = makeViewTarget({
       tracks: graphTracks,
       bedFile: undefined,
-      name: 'Toxo',
-      region: 'Circ1:0-1000',
+      name: 'x',
+      region: 'x:0-1000',
       dataType: 'built-in',
       simplify: true,
       removeSequences: false,
