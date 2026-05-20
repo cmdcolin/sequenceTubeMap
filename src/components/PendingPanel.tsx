@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 
 const PANEL_STYLE: CSSProperties = {
@@ -14,6 +15,8 @@ const HEADER_STYLE: CSSProperties = {
   gap: '8px',
   marginBottom: '6px',
 }
+
+const COLLAPSE_THRESHOLD = 5
 
 const CHIP_LIST_STYLE: CSSProperties = {
   display: 'flex',
@@ -72,39 +75,56 @@ const PendingPanel = ({
   items,
   onRemove,
   actions,
-}: PendingPanelProps) => (
-  <div style={{ ...PANEL_STYLE, ...VARIANT_STYLE[variant] }}>
-    <div style={HEADER_STYLE}>
-      <span title={titleHint}>{title}</span>
-      {actions.map(action => (
-        <button
-          key={action.label}
-          type="button"
-          title={action.hint}
-          onClick={() => { action.onClick(); }}
-        >
-          {action.label}
-        </button>
-      ))}
+}: PendingPanelProps) => {
+  const [expanded, setExpanded] = useState(false)
+  const visibleItems =
+    expanded || items.length <= COLLAPSE_THRESHOLD
+      ? items
+      : items.slice(0, COLLAPSE_THRESHOLD)
+  const hiddenCount = items.length - visibleItems.length
+  return (
+    <div style={{ ...PANEL_STYLE, ...VARIANT_STYLE[variant] }}>
+      <div style={HEADER_STYLE}>
+        <span title={titleHint}>{title}</span>
+        {actions.map(action => (
+          <button
+            key={action.label}
+            type="button"
+            title={action.hint}
+            onClick={() => { action.onClick(); }}
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+      <div style={CHIP_LIST_STYLE}>
+        {visibleItems.map(name => (
+          <span key={name} style={CHIP_STYLE}>
+            {name}
+            {onRemove ? (
+              <button
+                type="button"
+                style={CHIP_REMOVE_STYLE}
+                onClick={() => { onRemove(name); }}
+                aria-label={`Remove ${name}`}
+              >
+                ×
+              </button>
+            ) : null}
+          </span>
+        ))}
+        {hiddenCount > 0 ? (
+          <button
+            type="button"
+            style={CHIP_STYLE}
+            onClick={() => { setExpanded(true); }}
+          >
+            +{hiddenCount} more…
+          </button>
+        ) : null}
+      </div>
     </div>
-    <div style={CHIP_LIST_STYLE}>
-      {items.map(name => (
-        <span key={name} style={CHIP_STYLE}>
-          {name}
-          {onRemove ? (
-            <button
-              type="button"
-              style={CHIP_REMOVE_STYLE}
-              onClick={() => { onRemove(name); }}
-              aria-label={`Remove ${name}`}
-            >
-              ×
-            </button>
-          ) : null}
-        </span>
-      ))}
-    </div>
-  </div>
-)
+  )
+}
 
 export default PendingPanel

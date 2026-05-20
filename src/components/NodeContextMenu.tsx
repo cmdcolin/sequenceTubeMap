@@ -10,6 +10,7 @@ interface NodeContextMenuProps {
   activeGroup?: ReadGroup | null
   onAddReadsToSet: (readNames: string[]) => void
   onAddReadsToActiveGroup: (readNames: string[]) => void
+  onAddReadsAsNewGroup: (readNames: string[]) => void
   onAddNodeToNodeSet: (nodeName: string) => void
   onClose: () => void
 }
@@ -23,19 +24,37 @@ const NodeContextMenu = ({
   activeGroup,
   onAddReadsToSet,
   onAddReadsToActiveGroup,
+  onAddReadsAsNewGroup,
   onAddNodeToNodeSet,
   onClose,
 }: NodeContextMenuProps) => {
   const count = readNames.length
+  const s = count === 1 ? '' : 's'
   const items: ContextMenuItem[] = [
     {
       label:
         count === 0
           ? 'No reads through this node'
-          : `Add ${count} read${count === 1 ? '' : 's'} through this node to read set`,
+          : `Add ${count} read${s} through this node to read set`,
       disabled: count === 0,
       onClick: () => { onAddReadsToSet(readNames); },
     },
+    ...(count > 0
+      ? [
+          ...(activeGroup
+            ? [
+                {
+                  label: `Add ${count} read${s} to "${activeGroup.name}"`,
+                  onClick: () => { onAddReadsToActiveGroup(readNames); },
+                },
+              ]
+            : []),
+          {
+            label: `Add ${count} read${s} as new group`,
+            onClick: () => { onAddReadsAsNewGroup(readNames); },
+          },
+        ]
+      : []),
     {
       label: alreadyInNodeSet
         ? 'Already in node set'
@@ -44,12 +63,6 @@ const NodeContextMenu = ({
       onClick: () => { onAddNodeToNodeSet(nodeName); },
     },
   ]
-  if (activeGroup && count > 0) {
-    items.push({
-      label: `Add ${count} read${count === 1 ? '' : 's'} to "${activeGroup.name}"`,
-      onClick: () => { onAddReadsToActiveGroup(readNames); },
-    })
-  }
   return (
     <ContextMenu
       header={`Node: ${nodeName}`}

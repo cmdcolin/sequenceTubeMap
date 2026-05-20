@@ -257,6 +257,24 @@ function TubeMapContainer({
     setNodeContextMenu(null)
   }
 
+  const addReadsAsNewGroup = (names: string[]) => {
+    if (names.length === 0) return
+    const n = groupCounter + 1
+    const id = `g${n}`
+    setReadGroups([
+      ...readGroups,
+      {
+        id,
+        name: `Group ${n}`,
+        color: paletteForIndex(groupCounter),
+        reads: names,
+      },
+    ])
+    setActiveGroupId(id)
+    setGroupCounter(n)
+    setNodeContextMenu(null)
+  }
+
   const renameGroup = (id: string, name: string) => {
     setReadGroups(readGroups.map(g => (g.id === id ? { ...g, name } : g)))
   }
@@ -426,6 +444,7 @@ function TubeMapContainer({
           activeGroup={activeGroup}
           onAddReadsToSet={names => { addNamesToPendingSet(names); }}
           onAddReadsToActiveGroup={names => { addNamesToActiveGroup(names); }}
+          onAddReadsAsNewGroup={names => { addReadsAsNewGroup(names); }}
           onAddNodeToNodeSet={name => { addNodeToNodeSet(name); }}
           onClose={() => { setNodeContextMenu(null); }}
         />
