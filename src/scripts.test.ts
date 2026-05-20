@@ -52,19 +52,12 @@ it('can run prepare_vg.sh', async () => {
     )
   ).stdout
   const graphPath = join(workDir, 'x.vg')
-  console.log('Save graph to ' + graphPath)
   const file = await open(graphPath, 'w')
   await file.writeFile(vgBuffer)
   await file.close()
 
   // We can't use expect here because await expect(...).resolves doesn't actually detect rejections.
-  console.log('Call script')
-  const { stdout, stderr } = await execFile(
-    join(SCRIPTS, 'prepare_vg.sh'),
-    [join(workDir, 'x.vg')],
-  )
-  console.log('stdout:', stdout)
-  console.log('stderr:', stderr)
+  await execFile(join(SCRIPTS, 'prepare_vg.sh'), [join(workDir, 'x.vg')])
   await access(join(workDir, 'x.vg.xg'))
   await access(join(workDir, 'x.vg.gbwt'))
 }, 30000)

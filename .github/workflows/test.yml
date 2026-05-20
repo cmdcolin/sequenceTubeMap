@@ -28,11 +28,17 @@ jobs:
           cache: pnpm
       - name: Install node modules as specified in lockfile
         run: pnpm install --frozen-lockfile
-      - name: Install latest vg release
-        # See https://gist.github.com/steinwaywhw/a4cd19cda655b8249d908261a62687f8 for how we pull out the right URL
+      - name: Cache vg binary
+        id: vg-cache
+        uses: actions/cache@v4
+        with:
+          path: bin/vg
+          key: vg-${{ runner.os }}-v1.74.1
+      - name: Install vg v1.74.1
+        if: steps.vg-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p bin
-          curl -sSL "$(curl -sSL https://api.github.com/repos/vgteam/vg/releases/latest | grep 'browser_download_url.*vg"' | cut -d ':' -f 2,3 | tr -d '"' | sed 's/^ *//g')" >bin/vg
+          curl -sSL https://github.com/vgteam/vg/releases/download/v1.74.1/vg >bin/vg
           chmod +x bin/vg
       - name: Run tests
         run: PATH=$PATH:$(pwd)/bin CI=true pnpm test
