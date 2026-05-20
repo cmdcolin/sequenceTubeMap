@@ -11,7 +11,7 @@ Live demo - https://cmdcolin.github.io/sequenceTubeMap/
 
 ## Screenshot
 
-![](img/2.png)
+![](doc/images/2.png)
 
 ## Quickstart
 
