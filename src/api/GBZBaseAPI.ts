@@ -95,10 +95,13 @@ export class GBZBaseAPI implements APIInterface {
       }
       return blob
     }
-    let cached = this.urlCache.get(trackFile)
+    const resolved = this.baseUrl
+      ? new URL(trackFile, this.baseUrl).href
+      : trackFile
+    let cached = this.urlCache.get(resolved)
     if (!cached) {
       cached = (async () => {
-        const response = await fetch(trackFile)
+        const response = await fetch(resolved)
         if (!response.ok) {
           throw new Error(
             `Could not load ${trackFile}: HTTP ${response.status}`,
@@ -106,7 +109,7 @@ export class GBZBaseAPI implements APIInterface {
         }
         return response.blob()
       })()
-      this.urlCache.set(trackFile, cached)
+      this.urlCache.set(resolved, cached)
     }
     return cached
   }

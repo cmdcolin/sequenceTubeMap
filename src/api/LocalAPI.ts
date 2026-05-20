@@ -19,6 +19,11 @@ export class LocalAPI implements APIInterface {
     this.worker = makeWorker()
     this.workerAPI = Comlink.wrap<WorkerProxy>(this.worker)
 
+    // The worker's self.location is the worker script URL, not the page; pass
+    // the page baseURI so relative trackFile paths resolve correctly.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.workerAPI.setBaseUrl(document.baseURI)
+
     // Forward filename changes from worker to local EventTarget.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.workerAPI.subscribeToFilenameChanges(

@@ -46,9 +46,11 @@ function getAPIMode(apiInterface: LocalAPI | ServerAPI): 'local' | 'server' {
   }
 }
 
-const isLocalMode = !config.BACKEND_URL
+// BACKEND_URL semantics: literal `false` selects the WASM LocalAPI; any string
+// (possibly empty for same-origin via the dev-server proxy) means ServerAPI.
+const isLocalMode = config.BACKEND_URL === false
 
-const defaultApiUrl = isLocalMode ? '' : config.BACKEND_URL + '/api/v0'
+const defaultApiUrl = isLocalMode ? '' : `${config.BACKEND_URL}/api/v0`
 
 const defaultViewTarget: ViewTarget =
   urlParamsToViewTarget(document.location) ??

@@ -36,6 +36,10 @@ class WorkerAPI {
     this.#abortControllers.get(cancelID)?.abort()
   }
 
+  setBaseUrl(url: string): void {
+    this.#api.setBaseUrl(url)
+  }
+
   async getChunkedData(
     viewTarget: ViewTarget,
     cancelID: number | undefined,
