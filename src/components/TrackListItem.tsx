@@ -93,7 +93,7 @@ export const TrackListItem = ({
             setTrackColorSetting={(key, value) =>
               { updateTrack({
                 trackColorSettings: {
-                  ...trackProps.trackColorSettings,
+                  ...(trackProps.trackColorSettings ?? defaultTrackColors(trackProps.trackType)),
                   [key]: value,
                 } as ColorScheme,
               }); }

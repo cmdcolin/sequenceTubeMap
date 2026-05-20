@@ -10,12 +10,13 @@ import {
   type ColorScheme,
   type FileType,
   type Palette,
+  type PaletteField,
 } from '../Types.ts'
 
 interface TrackSettingsButtonProps {
   fileType?: FileType | 'nodeLabel'
   trackColorSettings?: Partial<ColorScheme>
-  setTrackColorSetting: (key: keyof ColorScheme, value: Palette) => void
+  setTrackColorSetting: (key: PaletteField, value: Palette) => void
   label?: string
   availableColors?: ColorPaletteName[]
   testID?: string

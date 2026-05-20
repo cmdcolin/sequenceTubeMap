@@ -10,15 +10,16 @@ interface HelpButtonProps {
   file: string
 }
 
-export const HelpButton = ({ file }: HelpButtonProps) => {
-  const fileURL = new URL(file, document.baseURI)
-  const [open, setOpen] = useState(false)
-  const [content, setContent] = useState('')
+interface HelpImageProps extends ImgHTMLAttributes<HTMLImageElement> {
+  baseURL: URL
+}
 
-  const Image = ({ alt, src, ...props }: ImgHTMLAttributes<HTMLImageElement>) => (
+// Defined outside the component so React sees a stable component type.
+function HelpImage({ alt, src, baseURL, ...props }: HelpImageProps) {
+  return (
     <img
       alt={alt}
-      src={src ? new URL(src, fileURL).toString() : undefined}
+      src={src ? new URL(src, baseURL).toString() : undefined}
       {...props}
       style={{
         margin: '5px 0',
@@ -29,6 +30,12 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
       }}
     />
   )
+}
+
+export const HelpButton = ({ file }: HelpButtonProps) => {
+  const fileURL = new URL(file, document.baseURI)
+  const [open, setOpen] = useState(false)
+  const [content, setContent] = useState('')
 
   useEffect(() => {
     fetch(file)
@@ -39,7 +46,7 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
 
   const options = {
     overrides: {
-      img: { component: Image },
+      img: { component: HelpImage, props: { baseURL: fileURL } },
       a: {
         component: 'a' as const,
         props: { target: '_blank', rel: 'noopener noreferrer' },
