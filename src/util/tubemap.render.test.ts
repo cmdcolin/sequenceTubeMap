@@ -2,9 +2,9 @@
 // inspect the resulting SVG DOM. Complements tubemap.test.ts, which covers
 // pure functions (cigar_string, coverage, axisIntervals).
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tubeMap from './tubemap.ts'
-import type { InputNode, InputTrack } from './tubemap.ts'
+import type { InfoAttribute, InputNode, InputTrack } from './tubemap.ts'
 import { computeExampleData } from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
 import * as demo from './demo-data.js'
@@ -179,6 +179,46 @@ describe('tubemap.create — track visibility', () => {
     const after = tubeMap.getTrackVisibilitySnapshot()
     expect(after[0]!.hidden).toBe(!target.hidden)
     tubeMap.changeTrackVisibility(target.id) // restore
+  })
+})
+
+describe('tubemap.create — node click pops info dialog', () => {
+  beforeEach(() => {
+    setupSvg()
+  })
+
+  // Regression: d3-zoom's "start" event used to flip pointer-events:none on the
+  // content group before any movement, so by the time `click` was dispatched
+  // the node <path> couldn't receive it. We now defer the disable to the first
+  // real 'zoom' event. The full pointerdown→pointerup→click sequence is what
+  // surfaces the bug — a bare `click` dispatch wouldn't touch d3-zoom at all.
+  it('invokes setInfoCallback when a node <path> is clicked', () => {
+    const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
+    tubeMap.setInfoCallback(onInfo)
+
+    const { nodes, tracks } = dataForExample('1')
+    render(nodes, tracks)
+
+    // Nodes are rendered as <path id={nodeName}> inside the .node group.
+    const nodePath = document.querySelector('g.node path[id]') as SVGPathElement | null
+    expect(nodePath).not.toBeNull()
+    if (!nodePath) return
+
+    // d3-drag reads `event.view.document` on mousedown. jsdom's IDL check
+    // rejects the view unless the MouseEvent constructor itself comes from the
+    // same window — using `document.defaultView.MouseEvent` ensures both halves
+    // are the jsdom window.
+    const view = document.defaultView!
+    const Mouse = view.MouseEvent
+    const opts: MouseEventInit = { bubbles: true, cancelable: true, button: 0, view }
+    nodePath.dispatchEvent(new Mouse('mousedown', opts))
+    nodePath.dispatchEvent(new Mouse('mouseup', opts))
+    nodePath.dispatchEvent(new Mouse('click', opts))
+
+    expect(onInfo).toHaveBeenCalledTimes(1)
+    const attrs = onInfo.mock.calls[0]?.[0] ?? []
+    // First row is always the Node ID label/value pair.
+    expect(attrs[0]?.[0]).toBe('Node ID:')
   })
 })
 

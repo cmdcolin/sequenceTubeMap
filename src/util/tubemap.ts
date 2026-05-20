@@ -924,9 +924,10 @@ function createTubeMap(): void {
   drawNodes(dNodes, nodeGroup)
   if (config.nodeWidthOption === 'normal' && !config.showNodeLabels)
     drawLabels(dNodes)
-  if (config.showNodeLabels) drawNodeLabels(dNodes)
   if (trackForRuler !== undefined) drawRuler()
   if (config.nodeWidthOption === 'normal') drawMismatches() // TODO: call this before drawLabels and fix d3 data/append/enter stuff
+  // Drawn last so the labels paint above ruler/mismatches/reads
+  if (config.showNodeLabels) drawNodeLabels(dNodes)
   if (DEBUG) {
     console.log(`number of tracks: ${numberOfTracks}`)
     console.log(`number of nodes: ${numberOfNodes}`)
@@ -1821,35 +1822,36 @@ function alignSVG(): () => void {
       // Cap counter-scale so labels don't grow unboundedly when zoomed far out
       const labelScale = Math.min(1 / pendingK, 4)
       svg.selectAll<SVGGElement, Node>('.node-label-group').attr('transform', d => {
-        const cx = d.x + d.pixelWidth / 2
-        const cy = d.y - 14
+        const { cx, cy } = nodeLabelAnchor(d)
         return `translate(${cx},${cy}) scale(${labelScale})`
       })
       pendingTransform = null
     }
   }
+  // Track whether the current gesture has actually moved. We only want to
+  // disable hit-testing on the content for real pans/zooms — a plain click
+  // fires 'start' + 'end' with no 'zoom' in between, and if we'd disabled
+  // pointer-events on 'start' the resulting `click` event would never reach
+  // the node path (mouseup target would differ from mousedown target).
+  let gestureMoved = false
   function zoomed(event: d3.D3ZoomEvent<Element, unknown>): void {
     pendingTransform = String(event.transform)
     pendingK = event.transform.k
+    if (!gestureMoved) {
+      gestureMoved = true
+      // Disable hit-testing on the transformed content for the rest of this
+      // gesture. With ~600k SVG children, per-event hit-testing is what makes
+      // pan/zoom feel sticky; the outer SVG still receives pointer events
+      // (it's the zoom target), so the gesture itself keeps working.
+      svg.style('pointer-events', 'none')
+    }
     if (rafHandle === null) {
       rafHandle = requestAnimationFrame(flushTransform)
     }
   }
 
-  // Disable pointer events on the transformed content during an active zoom
-  // gesture. Hit-testing against ~600k child elements is what makes zoom feel
-  // sticky; the outer SVG still receives pointer events (it's the zoom target),
-  // so the gesture itself keeps working.
-  function setInteractive(on: boolean): void {
-    if (on) {
-      svg.style('pointer-events', null)
-    } else {
-      svg.style('pointer-events', 'none')
-    }
-  }
-
   zoom = d3.zoom()
-  zoom.on('start', () => { setInteractive(false) })
+  zoom.on('start', () => { gestureMoved = false })
   zoom.on('zoom', zoomed)
   zoom.on('end', () => {
     // Make sure the final transform is applied before re-enabling hit-testing,
@@ -1858,7 +1860,9 @@ function alignSVG(): () => void {
       cancelAnimationFrame(rafHandle)
       flushTransform()
     }
-    setInteractive(true)
+    if (gestureMoved) {
+      svg.style('pointer-events', null)
+    }
   })
 
   function configureZoomBounds(): void {
@@ -4063,6 +4067,14 @@ function drawLabels(dNodes: Node[]): void {
 
 const NODE_LABEL_FONT_SIZE = 12
 const NODE_LABEL_PADDING = 3
+const NODE_LABEL_Y_OFFSET = 14
+
+// Shared anchor for a node's label: horizontally centred over the node, with
+// a fixed gap above it. Used by drawNodeLabels (initial placement) and by the
+// zoom flush (re-applied with a counter-scale on every transform).
+function nodeLabelAnchor(d: Node): { cx: number, cy: number } {
+  return { cx: d.x + d.pixelWidth / 2, cy: d.y - NODE_LABEL_Y_OFFSET }
+}
 
 function drawNodeLabels(dNodes: Node[]): void {
   const groups = svg
@@ -4074,7 +4086,10 @@ function drawNodeLabels(dNodes: Node[]): void {
     .append('g')
     .attr('class', 'node-label-group')
     // Positioned at the label anchor; zoom handler applies counter-scale here
-    .attr('transform', d => `translate(${d.x + d.pixelWidth / 2},${d.y - 14})`)
+    .attr('transform', d => {
+      const { cx, cy } = nodeLabelAnchor(d)
+      return `translate(${cx},${cy})`
+    })
     .style('pointer-events', 'none')
 
   // Append rect first (sized after text is in DOM via getBBox)
