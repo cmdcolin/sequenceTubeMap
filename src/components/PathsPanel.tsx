@@ -8,13 +8,18 @@ import HelpDialog from './HelpDialog.tsx'
 interface PathsPanelProps {
   pathInfo: PathInfo[]
   onLoadPath: (region: string) => void
+  onCopyToRegion: (region: string) => void
 }
 
 // Loading paths much longer than this freezes the browser for many seconds
 // (the tube-map layout pipeline is O(N) in nodes/bases). Warn before loading.
 const SLOW_PATH_THRESHOLD = 10_000
 
-function PathsPanel({ pathInfo, onLoadPath }: PathsPanelProps) {
+function regionFor(name: string, length: number) {
+  return `${name}:0-${length - 1}`
+}
+
+function PathsPanel({ pathInfo, onLoadPath, onCopyToRegion }: PathsPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   if (!pathInfo.length) return null
@@ -24,11 +29,11 @@ function PathsPanel({ pathInfo, onLoadPath }: PathsPanelProps) {
       length < SLOW_PATH_THRESHOLD ||
       window.confirm(
         `Path "${name}" is ${length.toLocaleString()} bp. Rendering paths this large can freeze the browser for many seconds.\n\n` +
-          `Tip: instead of loading the whole path, you can cancel and type a subrange into the Region field above, e.g. "${name}:0-5000".\n\n` +
+          `Tip: instead of loading the whole path, use the "Copy to region" button and edit the range before loading.\n\n` +
           `Load the full path anyway?`,
       )
     if (proceed) {
-      onLoadPath(`${name}:0-${length - 1}`)
+      onLoadPath(regionFor(name, length))
     }
   }
 
@@ -56,13 +61,15 @@ function PathsPanel({ pathInfo, onLoadPath }: PathsPanelProps) {
             </p>
             <p>
               Click <strong>Load</strong> next to a path to navigate to its
-              full extent in the tube map.
+              full extent in the tube map, or <strong>Copy to region</strong>{' '}
+              to put the path into the Region field above so you can edit the
+              range before loading.
             </p>
             <p>
               Paths longer than{' '}
               {SLOW_PATH_THRESHOLD.toLocaleString()} bp are marked{' '}
-              <span className="badge bg-warning text-dark">slow</span> — loading
-              them can freeze the browser for several seconds, so you will be
+              <span className="badge bg-warning text-dark">slow to load whole path</span> —
+              loading them can freeze the browser for several seconds, so you will be
               asked to confirm before they render.
             </p>
             <p>
@@ -112,11 +119,22 @@ function PathsPanel({ pathInfo, onLoadPath }: PathsPanelProps) {
                           style={{ fontSize: '0.7em' }}
                           title="Loading this path may freeze the browser for several seconds"
                         >
-                          slow
+                          slow to load whole path
                         </span>
                       )}
                     </td>
-                    <td>
+                    <td className="text-nowrap">
+                      <Button
+                        size="sm"
+                        color="secondary"
+                        outline
+                        className="me-1"
+                        disabled={length === null}
+                        title="Copy region into the Region field above so you can edit the range before loading"
+                        onClick={() => { onCopyToRegion(regionFor(name, length!)); }}
+                      >
+                        Copy to region
+                      </Button>
                       <Button
                         size="sm"
                         disabled={length === null}

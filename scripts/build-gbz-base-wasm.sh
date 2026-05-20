@@ -3,35 +3,29 @@
 #
 # Why this script exists:
 #
-#   The npm package `gbz-base@0.1.0-alpha.1` we currently depend on bundles
-#   WASMs from a mid-2024 source snapshot. It rejects:
-#     - GBZ graphs written by current `vg gbwt --gbz-format`
-#       ("Bit length / word length mismatch" from gbz2db.wasm)
-#     - GBZ-base databases produced by `cargo install gbz-base` (v0.5)
-#       ("Unsupported database version: GBZ-base version 4 (expected 0.2.0)"
-#        from query.wasm)
-#
-#   Until upstream republishes the npm package, this script builds matching
-#   WASMs from a pinned gbz-base source and drops them in vendor/gbz-base/.
+#   The npm package `gbz-base@0.1.0-alpha.1` bundles WASMs from a mid-2024
+#   source snapshot and rejects both modern .gbz inputs and modern .gbz.db
+#   outputs. This script builds matching WASMs from a pinned gbz-base source
+#   and drops them in vendor/gbz-base/.
 #
 # Usage:
 #   ./scripts/build-gbz-base-wasm.sh [version]   # version defaults to v0.5
 #
 # Requires: rustup (script installs target + WASI SDK 20 locally).
 #
-# KNOWN LIMITATION (as of this writing):
+# Vendor patches applied at build time (see vendor/simple-sds-patch and
+# vendor/gbz-patch):
 #
-#   gbz-base v0.2..v0.5 use Rust edition 2024 (needs rustc >= 1.85), which
-#   only ships the `wasm32-wasip1` target — but transitive deps (`simple-sds`,
-#   `gbz`) call `libc::mmap` which the wasm-libc crate does not expose under
-#   wasip1. Building requires either:
-#     (a) patching `simple-sds` to compile without the `libc` feature, or
-#     (b) a forked toolchain where wasm-libc exposes mmap symbols.
+#   - simple-sds: default `libc` feature dropped (no mmap on wasi); `usize`
+#     serialized as platform-stable 8 bytes; `binaries.rs` 1024^4 constants
+#     use saturating arithmetic so they don't overflow 32-bit usize.
+#   - gbz: `usize` fields in `#[repr(C)]` Payload structs (GBWTPayload,
+#     MetadataPayload, SequencesPayload) changed to `u64` so the in-memory
+#     layout matches the on-disk 64-bit format on wasm32 (4-byte usize).
+#     Without this patch every header field after the first usize is read
+#     from wrong bytes.
 #
-#   The build invocation below is correct; whether it succeeds depends on
-#   upstream getting (a) sorted out. Track:
-#     https://github.com/jltsiren/gbz-base/issues  (request npm republish)
-#     https://github.com/jltsiren/simple-sds/      (wasi build path)
+# These patches are local-only; upstream issues/PRs would let us drop them.
 
 set -euo pipefail
 
@@ -39,6 +33,8 @@ VERSION="${1:-v0.5}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK_DIR="${REPO_ROOT}/tmp/gbz-base-build"
 VENDOR_DIR="${REPO_ROOT}/vendor/gbz-base"
+SIMPLE_SDS_PATCH="${REPO_ROOT}/vendor/simple-sds-patch"
+GBZ_PATCH="${REPO_ROOT}/vendor/gbz-patch"
 WASI_SDK_VERSION="20"
 RUST_TARGET="wasm32-wasip1"
 
@@ -53,6 +49,25 @@ if [[ ! -d "gbz-base-${VERSION#v}" ]]; then
 fi
 
 SRC_DIR="${WORK_DIR}/gbz-base-${VERSION#v}"
+
+# Upstream's .cargo/config.toml sets `-C target-cpu=native`, which is wrong
+# for the wasm target. Replace it (idempotent).
+mkdir -p "${SRC_DIR}/.cargo"
+cat >"${SRC_DIR}/.cargo/config.toml" <<EOF
+[build]
+rustflags = ""
+EOF
+
+# Patch simple-sds (drops libc default + fixes 32-bit usize overflow in
+# binaries.rs SUFFIXES table). See vendor/simple-sds-patch/README.md.
+if ! grep -q "patch.crates-io" "${SRC_DIR}/Cargo.toml"; then
+  cat >>"${SRC_DIR}/Cargo.toml" <<EOF
+
+[patch.crates-io]
+simple-sds = { path = "${SIMPLE_SDS_PATCH}" }
+gbz = { path = "${GBZ_PATCH}" }
+EOF
+fi
 
 if ! rustup target list --installed | grep -q "^${RUST_TARGET}$"; then
   rustup target add "${RUST_TARGET}"
@@ -70,12 +85,16 @@ if [[ ! -d "${SDK_DIR}" ]]; then
   tar -xf "${SDK_TARBALL}"
 fi
 
+export WASI_SDK_PATH="${SDK_DIR}"
+# cc-rs reads CC_<target> with `-` replaced by `_`. Our target is wasm32-wasip1
+# (rustc renamed wasm32-wasi -> wasm32-wasip1 in 1.84+). Keep both names so
+# the build works with older/newer toolchains.
 export CC_wasm32_wasi="${SDK_DIR}/bin/clang"
+export CC_wasm32_wasip1="${SDK_DIR}/bin/clang"
+export AR_wasm32_wasip1="${SDK_DIR}/bin/llvm-ar"
+export CFLAGS_wasm32_wasip1="--sysroot=${SDK_DIR}/share/wasi-sysroot"
 # Drop sqlite features that the wasi-libc doesn't support (long double, pthreads).
 export LIBSQLITE3_FLAGS="-DLONGDOUBLE_TYPE=double -DSQLITE_THREADSAFE=0"
-# upstream's .cargo/config.toml sets `-C target-cpu=native`, which is wrong
-# for the wasm target. Suppress with an empty RUSTFLAGS.
-export CARGO_BUILD_RUSTFLAGS=""
 
 cd "${SRC_DIR}"
 cargo build --release --target="${RUST_TARGET}"

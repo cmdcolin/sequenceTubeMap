@@ -34,7 +34,6 @@ import {
   makeViewTarget,
   regionDescByCoords,
   regionStringFromRegionIndex,
-  trackIsImplied,
   trackListWithImplied,
   viewTargetsEqual,
 } from './headerFormUtils.ts'
@@ -163,10 +162,11 @@ function HeaderForm({
   const regionInfo: RegionInfo = bedRegionsData?.bedRegions ?? {}
 
   const graphTrack = firstGraphTrack(tracks)
+  // Ask whenever we have a graph track that isn't a synthetic example.
+  // `getPathInfo` returns [] (and won't surface an error) when the API
+  // can't resolve the file, so we don't need a separate availability gate.
   const graphKey =
-    dataType !== dataTypes.EXAMPLES &&
-    graphTrack?.trackFile &&
-    !trackIsImplied(graphTrack, availableTrackSet)
+    dataType !== dataTypes.EXAMPLES && graphTrack?.trackFile
       ? graphTrack.trackFile
       : null
   const { data: pathInfoData, error: pathInfoError } = useSWR(
@@ -557,6 +557,19 @@ function HeaderForm({
             >
               <img src="./mempang26-badge.svg" alt="MemPanG26 Edition" />
             </a>
+            <a
+              href="https://github.com/cmdcolin/sequenceTubeMap#no-server-required"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                marginTop: '2px',
+                fontSize: '0.7rem',
+                color: '#888',
+              }}
+            >
+              server-free — what does this mean?
+            </a>
           </Col>
           <Col>
             <ToggleButtonGroup
@@ -685,6 +698,7 @@ function HeaderForm({
               <PathsPanel
                 pathInfo={pathInfo}
                 onLoadPath={region => { void changeRegionAndGo(region); }}
+                onCopyToRegion={region => { setRegion(region); }}
               />
             </Col>
           </Row>

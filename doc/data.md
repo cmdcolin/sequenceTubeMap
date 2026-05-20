@@ -2,6 +2,20 @@
 
 You can add your own data to the Sequence Tube Map, by placing it in the data path (by default, the `sequenceTubeMap/exampleData/` directory) of a local copy, uploading it through the web interface, or hosting it online and providing a track or BED URL.
 
+## Browser-only WASM mode (`npm run start:local`)
+
+No `vg` server — everything runs in the browser. Graphs must be `.gbz.db`,
+reads must be indexed `.gam` (`.gam.gai`).
+
+```
+vg gbwt --xg-name input.xg --index-paths --gbz-format -g input.gbz
+node scripts/gbz2db.mjs input.gbz input.gbz.db
+```
+
+Region syntax is `<contig>:<start>-<end>` (e.g. `Circ1:0-1320`). Open
+the "Paths in this graph" panel to discover contig names. More notes:
+[doc/wasm-build.md](wasm-build.md#caveats).
+
 ## Adding Full Graphs
 
 - The vg files you want to visualize need to contain haplotype or path info. Generating visualizations for a graph without any haplotypes or paths is not supported; only nodes covered by at least one haplotype or path will be displayed.

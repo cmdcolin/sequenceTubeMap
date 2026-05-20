@@ -14,11 +14,30 @@
       "removeSequences": false
     },
     {
+      "name": "snp1kg-BRCA1 (WASM-compatible)",
+      "tracks": [
+        {"trackFile": "exampleData/internal/snp1kg-BRCA1.gbz.db", "trackType": "graph", "trackColorSettings": {"mainPalette": "greys", "auxPalette": "ygreys"}},
+        {"trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam", "trackType": "read"}
+      ],
+      "region": "17:1-100",
+      "bedFile": "exampleData/internal/snp1kg-BRCA1.bed",
+      "dataType": "built-in"
+    },
+    {
       "name": "vg \"small\" (WASM-compatible)",
       "tracks": [
         {"trackFile": "exampleData/x.gbz.db", "trackType": "graph"}
       ],
       "region": "x:1-100",
+      "dataType": "built-in"
+    },
+    {
+      "name": "Toxoplasma (WASM-compatible)",
+      "tracks": [
+        {"trackFile": "exampleData/Toxo/Toxo_SB_numeric.gbz.db", "trackType": "graph"},
+        {"trackFile": "exampleData/Toxo/Tg_2015T_Tg_Hs_Fh_filtered_Tg_SB_triplet_mapped_graph_align_Tg_SB_graph_MEM_i95_Tg_2015T_Tg_Hs_Fi_filtered_Tg_SB_triplets_bwa_mem_k100_mapped_SRR32985080.sorted.gam", "trackType": "read"}
+      ],
+      "region": "Circ1:0-1320",
       "dataType": "built-in"
     },
     {

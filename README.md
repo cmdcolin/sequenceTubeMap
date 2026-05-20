@@ -6,7 +6,7 @@
 >
 > This is a modernized fork of the upstream [vgteam/sequenceTubeMap](https://github.com/vgteam/sequenceTubeMap). Key improvements over upstream:
 >
-> - **Browser-native WASM mode** — visualize GBZ graphs locally without a server, powered by [gbz-base](https://github.com/jltsiren/gbz-base) WASM
+> - **Browser-native WASM mode** — visualize GBZ graphs locally without a server, powered by [gbz-base](https://github.com/jltsiren/gbz-base) WASM (built locally; accepts modern `vg gbwt --gbz-format` output). See [TL;DR](#browser-only-wasm-mode-tldr) below.
 > - **Full TypeScript conversion** — frontend components and utilities converted to TypeScript with strict types
 > - **Read filtering by click** — interactive read group panel; click reads to filter, group, and color them independently
 > - **React 19 + React Compiler** — eliminates manual `useMemo`/`useCallback` boilerplate; components rebuilt as functions
@@ -19,6 +19,12 @@
 > *[MemPanG26 demo](https://cmdcolin.github.io/sequenceTubeMap/)* | *[Upstream demo](https://vgteam.github.io/sequenceTubeMap/)*
 >
 > Development assisted by [Claude Code](https://claude.ai/code).
+
+### No server required
+
+The upstream proxies all graph queries through a `vg` backend at `api.tubemap.graphs.vg`. This fork replaces it with in-browser WebAssembly ([gbz-base](https://github.com/jltsiren/gbz-base)): GBZ parsing and GAM extraction run entirely in your browser — the demo at `cmdcolin.github.io` is a static GitHub Pages site with no backend.
+
+Pre-process files once (see [TL;DR](#browser-only-wasm-mode-tldr)), then host statically or run locally with `npm run start:local`.
 
 ---
 
@@ -138,6 +144,24 @@ To set up a custom visualization of particular files, you will need to configure
 
 To load your own data into the Sequence Tube Map, see the guide to [Adding Your Own Data](doc/data.md).
 
+### Browser-only WASM mode (TL;DR)
+
+`npm run start:local` runs without a `vg` server. Graphs must be `.gbz.db`,
+reads must be indexed `.gam`. To prepare your own:
+
+```bash
+# .xg -> .gbz -> .gbz.db
+vg gbwt --xg-name input.xg --index-paths --gbz-format -g input.gbz
+node scripts/gbz2db.mjs input.gbz input.gbz.db
+
+# .gam -> .gam.gai (indexed)
+./scripts/prepare_gam.sh input.gam
+```
+
+Region syntax is `<contig>:<start>-<end>` (e.g. `Circ1:0-1320`); open the
+"Paths in this graph" panel in the UI to see available contig names.
+Details and caveats: [doc/wasm-build.md](doc/wasm-build.md).
+
 ## Docker
 
 Previously we provided a Docker image at [https://hub.docker.com/r/wolfib/sequencetubemap/](https://hub.docker.com/r/wolfib/sequencetubemap/), which contained the build of this repo as well as a vg executable for data preprocessing and extraction. We now recommend a different installation approach, either using the [online version](#online-version) or a full installation of the [local version](#local-version). However, if you would like to Dockerize the Sequence Tube Map, the repository includes a `Dockerfile`.
@@ -149,6 +173,8 @@ More information about using this faster alternative in [README.tabix.md](README
 ## Contributing
 
 For information on how to develop on the Sequence Tube Map codebase, pleas see the [Development Guide](doc/development.md).
+
+Rebuilding the in-browser WASM backend (only needed when bumping gbz-base): [doc/wasm-build.md](doc/wasm-build.md).
 
 ## License
 

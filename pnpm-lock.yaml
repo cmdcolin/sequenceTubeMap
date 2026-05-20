@@ -77,9 +77,6 @@ importers:
       fs-extra:
         specifier: ^11.3.5
         version: 11.3.5
-      gbz-base:
-        specifier: ^0.1.0-alpha.1
-        version: 0.1.0-alpha.1
       generic-filehandle2:
         specifier: ^2.1.9
         version: 2.1.9
@@ -131,6 +128,9 @@ importers:
       sanitize-filename:
         specifier: ^1.6.4
         version: 1.6.4
+      sql.js:
+        specifier: ^1.14.1
+        version: 1.14.1
       swr:
         specifier: ^2.4.1
         version: 2.4.1(react@19.2.6)
@@ -171,6 +171,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.14)
+      '@types/sql.js':
+        specifier: ^1.4.11
+        version: 1.4.11
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0
@@ -1502,6 +1505,9 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
+  '@types/emscripten@1.41.5':
+    resolution: {integrity: sha512-cMQm7pxu6BxtHyqJ7mQZ2kXWV5SLmugybFdHCBbJ5eHzOo6VhBckEgAT3//rP5FwPHNPeEiq4SmQ5ucBwsOo4Q==}
+
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
 
@@ -1599,6 +1605,9 @@ packages:
 
   '@types/sockjs@0.3.36':
     resolution: {integrity: sha512-MK9V6NzAS1+Ud7JV9lJLFqW85VbC9dq3LmwZCuBe4wBDgKC0Kj/jd8Xl+nSviU+Qc3+m7umHHyHg//2KSa0a0Q==}
+
+  '@types/sql.js@1.4.11':
+    resolution: {integrity: sha512-QXIx38p2ZThJaK9vP5ZdqdlRe1FG9I8SmCZOS7FHfB/2qPAjZwkL7/vlfPg6N/oWHuuOaGg/P/IRwfP2W0kWVQ==}
 
   '@types/uuid@10.0.0':
     resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
@@ -2830,9 +2839,6 @@ packages:
 
   functions-have-names@1.2.3:
     resolution: {integrity: sha512-xckBUXyTIqT97tq2x2AMb+g163b5JFysYk0x4qxNFwbfQkmNZoiRHb6sPzI9/QV33WeuvVYBUIiD4NzNIyqaRQ==}
-
-  gbz-base@0.1.0-alpha.1:
-    resolution: {integrity: sha512-ULedBstK4T9geErTMrkLfeMf/rtMYZ1SabIx+5GAcdq2gZDxFrtzrodtcsP21pqDiNj0VOy/ODo2mZtWlVSwGg==}
 
   generator-function@2.0.1:
     resolution: {integrity: sha512-SFdFmIJi+ybC0vjlHN0ZGVGHc3lgE0DxPAT0djjVg+kjOnSqclqmj0KQ7ykTOLP6YxoqOvuAODGdcHJn+43q3g==}
@@ -4180,6 +4186,9 @@ packages:
   spdy@4.0.2:
     resolution: {integrity: sha512-r46gZQZQV+Kl9oItvl1JZZqJKGr+oEkB08A6BzkiR7593/7IbtuncXHd2YoYeTsG4157ZssMu9KYvUHLcjcDoA==}
     engines: {node: '>=6.0.0'}
+
+  sql.js@1.14.1:
+    resolution: {integrity: sha512-gcj8zBWU5cFsi9WUP+4bFNXAyF1iRpA3LLyS/DP5xlrNzGmPIizUeBggKa8DbDwdqaKwUcTEnChtd2grWo/x/A==}
 
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
@@ -6062,6 +6071,8 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
+  '@types/emscripten@1.41.5': {}
+
   '@types/eslint-scope@3.7.7':
     dependencies:
       '@types/eslint': 9.6.1
@@ -6164,6 +6175,11 @@ snapshots:
 
   '@types/sockjs@0.3.36':
     dependencies:
+      '@types/node': 25.8.0
+
+  '@types/sql.js@1.4.11':
+    dependencies:
+      '@types/emscripten': 1.41.5
       '@types/node': 25.8.0
 
   '@types/uuid@10.0.0': {}
@@ -7724,8 +7740,6 @@ snapshots:
 
   functions-have-names@1.2.3: {}
 
-  gbz-base@0.1.0-alpha.1: {}
-
   generator-function@2.0.1: {}
 
   generic-filehandle2@2.1.9: {}
@@ -9179,6 +9193,8 @@ snapshots:
       spdy-transport: 3.0.0
     transitivePeerDependencies:
       - supports-color
+
+  sql.js@1.14.1: {}
 
   stackback@0.0.2: {}
 

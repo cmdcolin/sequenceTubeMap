@@ -17,6 +17,7 @@ import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
 import { getCompiledWasm } from '#wasm-loader'
 import { makeWasiFile } from './wasm/blobWasiFile.ts'
 import { convertSchema, removeNodeSequencesInPlace } from './wasm/schema.ts'
+import { readGbzDbPaths } from './wasm/gbzDbPaths.ts'
 import { readGam, readGamRegion } from './gam/gam.ts'
 import { UploadRegistry } from './local/fileRegistry.ts'
 
@@ -421,17 +422,26 @@ export class GBZBaseAPI implements APIInterface {
   }
 
   async getPathNames(
-    _graphFile: string,
+    graphFile: string,
     _cancelSignal: AbortSignal | null,
   ): Promise<{ pathNames: string[] }> {
-    return { pathNames: [] }
+    const { pathInfo } = await this.getPathInfo(graphFile, null)
+    return { pathNames: pathInfo.map(p => p.name) }
   }
 
   async getPathInfo(
-    _graphFile: string,
+    graphFile: string,
     _cancelSignal: AbortSignal | null,
   ): Promise<{ pathInfo: PathInfo[] }> {
-    return { pathInfo: [] }
+    if (!graphFile.endsWith('.gbz.db')) return { pathInfo: [] }
+    try {
+      const blob = await this.resolveTrackFile(graphFile)
+      const pathInfo = await readGbzDbPaths(blob)
+      return { pathInfo }
+    } catch (e) {
+      debugLog('getPathInfo failed:', e)
+      return { pathInfo: [] }
+    }
   }
 
   async getChunkTracks(
