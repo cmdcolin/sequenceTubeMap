@@ -1825,20 +1825,18 @@ function alignSVG(): () => void {
         const { cx, cy } = nodeLabelAnchor(d)
         return `translate(${cx},${cy}) scale(${labelScale})`
       })
-      // Hide mismatches when the zoom is too far out for them to be readable.
-      // Only touch the style when crossing the threshold so we're not writing
-      // attrs every frame, and log the crossing so it's visible during tuning.
+      // Hide per-base detail (mismatches, sequence text) when the zoom is too
+      // far out for the glyphs to be readable. Only touch the styles when
+      // crossing the threshold so we're not writing attrs every frame, and
+      // log the crossing so it's visible during tuning.
       const shouldHide = pendingK < MISMATCH_HIDE_BELOW_K
-      if (shouldHide !== mismatchesHidden) {
-        mismatchesHidden = shouldHide
-        const layer = svg.select<SVGGElement>('g.mismatches-layer')
-        if (shouldHide) {
-          layer.style('display', 'none')
-        } else {
-          layer.style('display', null)
-        }
+      if (shouldHide !== detailHidden) {
+        detailHidden = shouldHide
+        const display = shouldHide ? 'none' : null
+        svg.select<SVGGElement>('g.mismatches-layer').style('display', display)
+        svg.select<SVGGElement>('g.sequence-labels-layer').style('display', display)
         console.log(
-          `mismatches ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
+          `detail layers ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
         )
       }
       pendingTransform = null
@@ -4066,7 +4064,11 @@ export function coverage(
 // draw sequence labels for nodes
 function drawLabels(dNodes: Node[]): void {
   if (config.nodeWidthOption === 'normal') {
+    // Wrap in a layer so the zoom flush can hide the per-base sequence text
+    // (and only it, not other top-level <text> elements) when zoomed out.
     svg
+      .append('g')
+      .attr('class', 'sequence-labels-layer')
       .selectAll('text')
       .data(dNodes)
       .enter()
@@ -5754,15 +5756,16 @@ function mergeableWithSucc(
 // so they reappear instantly when the user zooms back in.
 const MISMATCH_HIDE_BELOW_K = 0.5
 
-// Tracks the current display state so the flush only writes a style attr
-// (and logs) when the threshold is actually crossed.
-let mismatchesHidden = false
+// Tracks the current display state of the per-base detail layers
+// (mismatches + sequence text) so the flush only writes style attrs (and
+// logs) when the shared threshold is actually crossed.
+let detailHidden = false
 
 function drawMismatches(): void {
   const layer = svg.append('g').attr('class', 'mismatches-layer')
   // Fresh layer starts visible — reset so the next flush will (re-)hide it
   // if the user is currently zoomed out below the threshold.
-  mismatchesHidden = false
+  detailHidden = false
   tracks.forEach(read => {
     if (read.type === 'read') {
       read.sequenceNew!.forEach((element, i) => {
