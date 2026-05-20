@@ -1,0 +1,28 @@
+name: Build gbz-base WASMs
+
+# Builds query.wasm + gbz2db.wasm from the pinned gbz-base source and uploads
+# them as an artifact. Run manually when the bundled WASMs need refreshing —
+# e.g. when upstream vg starts writing a graph format the current WASMs can't
+# read. See vendor/gbz-base/README.md for context.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'gbz-base git tag to build (e.g. v0.5)'
+        required: true
+        default: 'v0.5'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build WASMs
+        run: ./scripts/build-gbz-base-wasm.sh ${{ github.event.inputs.version }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gbz-base-wasm-${{ github.event.inputs.version }}
+          path: vendor/gbz-base/*.wasm
