@@ -69,14 +69,6 @@
       "dataType": "built-in"
     },
     {
-      "name": "HPRC chr20 (URL-hosted, full PanSN)",
-      "tracks": [
-        {"trackFile": "https://jbrowse.org/demos/ivg/hprc/hprc-chr20.gbz.db", "trackType": "graph"}
-      ],
-      "region": "GRCh38#chr20:30000000-30000500",
-      "dataType": "built-in"
-    },
-    {
       "name": "cactus multiple reads",
       "tracks": [
         {"trackFile": "exampleData/cactus.vg.xg", "trackType": "graph"},
