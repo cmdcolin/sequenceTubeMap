@@ -54,7 +54,7 @@ Claude Code AI was used during this work. Note that the code has significantly
 diverged from upstream at this point due to being insane hackathon quality
 agentic coding but could be upstreamed piecewise or in whole with effort
 
-## Features vs upstream
+## Features added on this fork compared to upstream
 
 - **Serverless/static** — runs entirely in-browser via gbz-base WASM; upload
   `.gbz.db` and `.gam.gai` files directly, nothing leaves your machine
@@ -63,10 +63,8 @@ agentic coding but could be upstreamed piecewise or in whole with effort
 - **Node labels** — configurable color palette per node, track legend panel
 - **Fit-to-height zoom** preserved across re-renders; performance improvements
   for large graphs
-- **Deep-link URLs** — shareable links encoding region + dataset
-  ([doc/linking.md](doc/linking.md))
-- **Modernized stack** — CRA → Vite/Vitest, class → function components, React
-  Compiler, full TypeScript, MUI AppBar header, SWR
+- **Modernized stack** — CRA → custom webpack setup, class → function
+  components, React Compiler, full TypeScript, MUI AppBar header, SWR
 
 ## Thanks!
 
