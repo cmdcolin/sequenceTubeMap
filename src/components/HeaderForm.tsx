@@ -33,6 +33,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import MuiButton from '@mui/material/Button'
+import Backdrop from '@mui/material/Backdrop'
 import Popover from '@mui/material/Popover'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -574,6 +575,21 @@ function HeaderForm({
 
   return (
     <div>
+      <Backdrop
+        open={menuAnchor !== null}
+        sx={{
+          zIndex: 1200,
+          backgroundColor: 'rgba(0,0,0,0.35)',
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+          pb: 6,
+        }}
+      >
+        <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.75)' }}>
+          Click away to close menu
+        </Typography>
+      </Backdrop>
       <AppBar
         position="static"
         color="primary"
@@ -721,9 +737,16 @@ function HeaderForm({
                   onToggle={() => { toggleVisOptionFlag('showReads') }}
                 />
                 <CheckboxMenuItem
+                  label="Coarsened (Sankey) view"
+                  checked={visOptions.coarsenedReadView}
+                  disabled={!visOptions.showReads}
+                  onToggle={() => { toggleVisOptionFlag('coarsenedReadView') }}
+                  helpText="Aggregates reads into one thick band per node→node edge, with band thickness proportional to the number of reads traversing it. Trades per-read detail for the ability to browse much higher-coverage regions."
+                />
+                <CheckboxMenuItem
                   label="Show soft clips"
                   checked={visOptions.showSoftClips}
-                  disabled={!visOptions.showReads}
+                  disabled={!visOptions.showReads || visOptions.coarsenedReadView}
                   onToggle={() => { toggleVisOptionFlag('showSoftClips') }}
                   helpText="Renders the soft-clipped portions of reads — bases that were not aligned to the reference — as colored extensions beyond the aligned segment."
 
@@ -731,7 +754,7 @@ function HeaderForm({
                 <CheckboxMenuItem
                   label="Color by mapping quality"
                   checked={visOptions.colorReadsByMappingQuality}
-                  disabled={!visOptions.showReads}
+                  disabled={!visOptions.showReads || visOptions.coarsenedReadView}
                   onToggle={() => { toggleVisOptionFlag('colorReadsByMappingQuality') }}
                   helpText="Colors each read by its mapping quality (MAPQ) score. Higher scores (more confident placements) appear darker; lower scores appear lighter."
 
@@ -739,7 +762,7 @@ function HeaderForm({
                 <CheckboxMenuItem
                   label="Transparency by mapping quality"
                   checked={visOptions.alphaReadsByMappingQuality}
-                  disabled={!visOptions.showReads}
+                  disabled={!visOptions.showReads || visOptions.coarsenedReadView}
                   onToggle={() => { toggleVisOptionFlag('alphaReadsByMappingQuality') }}
                   helpText="Makes reads with lower mapping quality more transparent, so high-confidence alignments stand out visually."
 
@@ -755,7 +778,7 @@ function HeaderForm({
                       helpText="Hides reads whose mapping quality (MAPQ) score falls below this value (0–60). Higher values show only the most confidently placed reads."
                     />
                     <select
-                      disabled={!visOptions.showReads}
+                      disabled={!visOptions.showReads || visOptions.coarsenedReadView}
                       value={visOptions.mappingQualityCutoff}
                       onChange={(e) => { handleMappingQualityCutoffChange(e.target.value) }}
                     >

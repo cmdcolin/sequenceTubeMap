@@ -38,7 +38,7 @@ export const reds: readonly ColorHex[] = [
   '#67000d',
 ]
 
-// d3 category10
+// d3 category10, with grey replaced by teal (grey is indistinct from read backgrounds)
 export const plainColors: readonly ColorHex[] = [
   '#1f77b4',
   '#ff7f0e',
@@ -47,12 +47,12 @@ export const plainColors: readonly ColorHex[] = [
   '#9467bd',
   '#8c564b',
   '#e377c2',
-  '#7f7f7f',
+  '#1a9e77',
   '#bcbd22',
   '#17becf',
 ]
 
-// d3 category10, lighter
+// d3 category10, lighter, with grey replaced by light teal
 export const lightColors: readonly ColorHex[] = [
   '#ABCCE3',
   '#FFCFA5',
@@ -61,7 +61,7 @@ export const lightColors: readonly ColorHex[] = [
   '#D7C6E6',
   '#C6ABA5',
   '#F4CCE8',
-  '#CFCFCF',
+  '#A0D4C0',
   '#E6E6AC',
   '#A8E7ED',
 ]

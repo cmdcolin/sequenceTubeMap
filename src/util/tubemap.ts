@@ -240,6 +240,7 @@ interface TubeMapConfig {
   showNodeLabels: boolean
   showReads: boolean
   showSoftClips: boolean
+  coarsenedReadView: boolean
   colorSchemes: Record<number, ColorScheme>
   coloredNodes: string[]
   exonColors: string
@@ -367,6 +368,7 @@ const config: TubeMapConfig = {
   showNodeLabels: false,
   showReads: true,
   showSoftClips: true,
+  coarsenedReadView: false,
   colorSchemes: {},
   // colors corresponds with tracks(input files), [haplotype, read1, read2, ...]
   exonColors: 'lightColors',
@@ -612,6 +614,16 @@ export function setSoftClipsFlag(value: boolean): void {
 export function setShowReadsFlag(value: boolean): void {
   if (config.showReads !== value) {
     config.showReads = value
+    svg = d3.select(svgID)
+    createTubeMap()
+  }
+}
+
+// Toggles the Sankey-style coarsened read view: one aggregated band per edge
+// instead of per-read ribbons.
+export function setCoarsenedReadViewFlag(value: boolean): void {
+  if (config.coarsenedReadView !== value) {
+    config.coarsenedReadView = value
     svg = d3.select(svgID)
     createTubeMap()
   }
@@ -864,13 +876,27 @@ function createTubeMap(): void {
 
   if (config.showExonsFlag && bed !== null) addTrackFeatures()
 
+  // Coarsened (Sankey) mode: collapse the read list to one synthetic "read"
+  // per (srcSigned → dstSigned) edge BEFORE the normal read placement runs.
+  // Each synthetic read traverses exactly two nodes, so the rest of the
+  // pipeline (placeReads, generateSVGShapesFromPath, drawTrackCurves) handles
+  // it like any normal read: it gets a lane, picks up the "right-down-left-
+  // up-right" topology for loops automatically, and uses the same elegant
+  // bezier. Node heights end up proportional to *edge* count (typically tens)
+  // rather than *read* count (potentially thousands).
+  const drawCoarsened =
+    config.showReads && config.coarsenedReadView && reads.length > 0
   if (config.showReads && reads.length > 0) {
     generateReadOnlyNodeAttributes()
     reverseReversedReads()
     generateTrackIndexSequences(reads)
+    if (drawCoarsened) {
+      reads = buildCoarsenedSyntheticReads()
+      reverseReversedReads()
+      generateTrackIndexSequences(reads)
+    }
     placeReads()
     tracks = tracks.concat(reads)
-    // we do not have any reads to display
   } else {
     nodes.forEach(node => {
       if (node) {
@@ -884,6 +910,9 @@ function createTubeMap(): void {
   generateNodeXCoords()
 
   generateSVGShapesFromPath()
+  if (drawCoarsened) {
+    recolorCoarsenedCurves()
+  }
   if (DEBUG) {
     console.log('Tracks:')
     console.log(tracks)
@@ -3512,6 +3541,183 @@ function generateSVGShapesFromPath(): void {
   })
 }
 
+// Sankey-mode synthesis: one synthetic "read" per (srcSigned → dstSigned) edge,
+// fed through the normal placeReads/generateSVGShapesFromPath pipeline so the
+// band gets the same lane assignment, loop topology, and bezier as a real read.
+//
+// Synthetic-track ids live above this base so they never collide with the
+// real track id space and so we can tell them apart in mouse handlers and the
+// post-render recolor pass.
+const COARSENED_ID_BASE = 1_000_000_000
+const isCoarsenedId = (id: number) => id >= COARSENED_ID_BASE
+
+// Distinct, mid-saturation palette for Sankey bands. Chosen for readability
+// against a white background and visible difference between adjacent bands.
+const COARSENED_PALETTE = [
+  '#4e79a7', '#f28e2b', '#59a14f', '#e15759', '#76b7b2',
+  '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac',
+  '#1f77b4', '#d62728', '#2ca02c', '#9467bd', '#8c564b',
+  '#17becf', '#e377c2', '#bcbd22', '#7f7f7f', '#ff7f0e',
+]
+
+// Deterministic color from an edge key — same edge always gets the same color
+// across re-renders. djb2-ish hash keeps neighbors visually unrelated.
+function coarsenedColor(key: string): string {
+  let h = 5381
+  for (let i = 0; i < key.length; i += 1) {
+    h = ((h << 5) + h + key.charCodeAt(i)) | 0
+  }
+  const idx = Math.abs(h) % COARSENED_PALETTE.length
+  return COARSENED_PALETTE[idx]!
+}
+
+// Side table keyed by synthetic track id: count of contributing reads and
+// edge key (for color lookup). Populated by buildCoarsenedSyntheticReads,
+// consumed by recolorCoarsenedCurves and the mouseover/click handlers.
+interface CoarsenedEdgeMeta {
+  count: number
+  key: string
+  label: string
+}
+let coarsenedEdgeMeta: Map<number, CoarsenedEdgeMeta> = new Map()
+
+// Build one synthetic read per (srcSigned → dstSigned) edge in `reads`. The
+// synthetic reads replace the real ones BEFORE placeReads runs, so:
+//   • placeReads sees N_edges reads instead of N_reads (huge node-height win),
+//   • each band gets a lane and an "right-down-left-up-right" loop topology
+//     for free (placeReads handles reversals and out-of-order jumps),
+//   • generateSVGShapesFromPath emits exactly one TrackCurve per band using
+//     the same bezier as a real read — no special draw path needed.
+//
+// The synthetic track's `sequence` is just the two signed node names. After
+// generateTrackIndexSequences runs, indexSequence is set and the rest of the
+// layout follows.
+function buildCoarsenedSyntheticReads(): Track[] {
+  coarsenedEdgeMeta = new Map()
+
+  // Aggregate by signed-edge key. Preserve orientation so e.g. (+A→+B) and
+  // (-B→-A) stack as separate bands — they're different visual flows.
+  interface EdgeAgg {
+    sSigned: number
+    dSigned: number
+    sName: string
+    dName: string
+    count: number
+    sourceTrackID: number
+  }
+  const edges = new Map<string, EdgeAgg>()
+  for (const read of reads) {
+    const seq = read.indexSequence
+    if (!seq || seq.length < 2) continue
+    for (let i = 0; i < seq.length - 1; i += 1) {
+      const sSigned = seq[i]!
+      const dSigned = seq[i + 1]!
+      const sIdx = Math.abs(sSigned)
+      const dIdx = Math.abs(dSigned)
+      const srcNode = nodes[sIdx]
+      const dstNode = nodes[dIdx]
+      if (!srcNode || !dstNode) continue
+      const key = `${sSigned}>${dSigned}`
+      const existing = edges.get(key)
+      if (existing === undefined) {
+        edges.set(key, {
+          sSigned,
+          dSigned,
+          sName: sSigned < 0 ? `-${srcNode.name}` : srcNode.name,
+          dName: dSigned < 0 ? `-${dstNode.name}` : dstNode.name,
+          count: 1,
+          sourceTrackID: read.sourceTrackID,
+        })
+      } else {
+        existing.count += 1
+      }
+    }
+  }
+
+  const synthetic: Track[] = []
+  let i = 0
+  for (const edge of edges.values()) {
+    const id = COARSENED_ID_BASE + i
+    const label = `${edge.count.toLocaleString()} read${edge.count === 1 ? '' : 's'}: Node ${edge.sName} → Node ${edge.dName}`
+    coarsenedEdgeMeta.set(id, {
+      count: edge.count,
+      key: edge.sName + '>' + edge.dName,
+      label,
+    })
+    // Minimum read fields needed downstream. sequence is the two signed node
+    // names; generateTrackIndexSequences will fill indexSequence; placeReads
+    // will fill path[] (including the loop topology); assignReadsToNodes will
+    // set width to READ_WIDTH. firstNodeOffset=0 + finalNodeCoverLength=full
+    // dst length make the band span both nodes edge-to-edge.
+    const dstLen = nodes[Math.abs(edge.dSigned)]?.sequenceLength ?? 0
+    synthetic.push({
+      id,
+      sourceTrackID: edge.sourceTrackID,
+      type: 'read',
+      // Sentinel name; will never match a real read so it won't collide with
+      // focus / group filters that key off read names.
+      name: `__coarsened_${edge.sSigned}_${edge.dSigned}`,
+      sequence: [edge.sName, edge.dName],
+      indexSequence: [],
+      path: [],
+      width: 0,
+      firstNodeOffset: 0,
+      finalNodeCoverLength: dstLen,
+      sequenceNew: [
+        { nodeName: edge.sName, mismatches: [] },
+        { nodeName: edge.dName, mismatches: [] },
+      ],
+      mapping_quality: 0,
+      is_secondary: false,
+      sample_name: null,
+      read_group: null,
+      score: edge.count,
+    } as Track)
+    i += 1
+  }
+
+  // Single-line debug summary so the user can verify node sizing.
+  let tallestName = '?'
+  let tallestH = 0
+  for (const n of nodes) {
+    if (!n) continue
+    const h = n.contentHeight ?? 0
+    if (h > tallestH) {
+      tallestH = h
+      tallestName = n.name
+    }
+  }
+  console.log(
+    `[coarsened] reads_in=${reads.length} edges_out=${synthetic.length} ` +
+      `tallestNodeBeforePlace=${tallestName}(${tallestH.toFixed(1)})`,
+  )
+  return synthetic
+}
+
+// After generateSVGShapesFromPath has emitted curves and rectangles using the
+// default per-track color, replace the color of every coarsened-edge shape
+// with a palette color hashed from its edge key. This sidesteps having to
+// teach generateTrackColor about synthetic tracks.
+function recolorCoarsenedCurves(): void {
+  if (coarsenedEdgeMeta.size === 0) return
+  for (const c of trackCurves) {
+    if (!isCoarsenedId(c.id)) continue
+    const meta = coarsenedEdgeMeta.get(c.id)
+    if (meta === undefined) continue
+    c.color = coarsenedColor(meta.key)
+    c.alpha = 0.85
+    c.name = meta.label
+  }
+  for (const r of trackRectangles) {
+    if (!isCoarsenedId(r.id)) continue
+    const meta = coarsenedEdgeMeta.get(r.id)
+    if (meta === undefined) continue
+    r.color = coarsenedColor(meta.key)
+    r.alpha = 0.85
+    r.name = meta.label
+  }
+}
+
 function createFeatureRectangle(
   node: Segment,
   nodeXStart: number,
@@ -4939,7 +5145,13 @@ function trackMouseOver(this: SVGElement, event: MouseEvent): void {
   d3.selectAll(`.track${trackID}`).style('fill', 'url(#patternA)')
 
   const el = ensureHoverTooltip()
-  el.textContent = trackTooltipText(Number(trackID))
+  const id = Number(trackID)
+  if (isCoarsenedId(id)) {
+    const meta = coarsenedEdgeMeta.get(id)
+    el.textContent = meta?.label ?? ''
+  } else {
+    el.textContent = trackTooltipText(id)
+  }
   el.style.display = 'block'
   positionHoverTooltip(event)
 }
@@ -5006,6 +5218,11 @@ function trackSingleClick(this: SVGElement): void {
   /* jshint validthis: true */
   // Get the track ID as a number
   const trackID = Number(d3.select(this).attr('trackID'))
+  if (isCoarsenedId(trackID)) {
+    // Coarsened band: the hover tooltip already shows the count + endpoints;
+    // skip the info dialog so a heavy edge doesn't overload on click.
+    return
+  }
   const current_track = getTrackByID(trackID)
   if (current_track === undefined) {
     console.error('Missing track: ', trackID)

@@ -134,6 +134,10 @@ export interface VisOptions {
   alphaReadsByMappingQuality: boolean
   colorSchemes: ColorSchemes
   mappingQualityCutoff: number
+  // Sankey-style coarsened view: collapse per-read ribbons into one
+  // edge-count-weighted band per node→node transition. Trades per-read detail
+  // for the ability to browse much higher-coverage regions.
+  coarsenedReadView: boolean
 }
 
 // A path entry returned by the API for a graph track.
