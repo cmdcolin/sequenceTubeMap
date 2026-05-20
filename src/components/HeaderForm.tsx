@@ -11,6 +11,7 @@ import RegionInput from './RegionInput.tsx'
 import PathsPanel from './PathsPanel.tsx'
 import TrackPicker from './TrackPicker.tsx'
 import BedFileDropdown from './BedFileDropdown.tsx'
+import QuickUploadButton from './QuickUploadButton.tsx'
 import MenuItem from '@mui/material/MenuItem'
 import ListSubheader from '@mui/material/ListSubheader'
 import MuiSelect, { type SelectChangeEvent } from '@mui/material/Select'
@@ -398,6 +399,17 @@ function HeaderForm({
     }
   }
 
+  function handleQuickUploaded(uploadedTracks: Track[]) {
+    setBedSelect('none')
+    setBedFile('none')
+    setRegion('')
+    setName(undefined)
+    setTracks(uploadedTracks)
+    setDataType(dataTypes.CUSTOM_FILES)
+    setFileSizeAlert(false)
+    setManualError(null)
+  }
+
   async function handleFileUpload(
     fileType: FileType,
     file: File,
@@ -530,6 +542,13 @@ function HeaderForm({
                 )),
               ])}
             </MuiSelect>
+            &nbsp;
+            <QuickUploadButton
+              onUploaded={tracks => { handleQuickUploaded(tracks); }}
+              handleFileUpload={async (fileType, file) =>
+                handleFileUpload(fileType, file)
+              }
+            />
             &nbsp;
             {customFilesFlag && (
               <Fragment>
