@@ -42,8 +42,6 @@ import { createHash } from 'node:crypto'
 import cron from 'node-cron'
 import { RWLock } from 'readers-writer-lock'
 
-
-
 /// Return the python script chunkix.py
 /// Checks config.chunkixPath.
 /// An entry of "" in config.chunkixPath means to check current working

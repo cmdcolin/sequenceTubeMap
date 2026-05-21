@@ -20,7 +20,7 @@ function HelpDialog({ title, children }: HelpDialogProps) {
       >
         What is this?
       </button>
-      <Dialog open={open} onClose={() => setOpen(false)}>
+      <Dialog open={open} onClose={() => { setOpen(false); }} onClick={(e) => { e.stopPropagation(); }}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>{children}</DialogContent>
       </Dialog>

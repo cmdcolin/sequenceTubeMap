@@ -196,7 +196,7 @@ describe('tubemap.create — node click pops info dialog', () => {
     const { nodes, tracks } = dataForExample('1')
     render(nodes, tracks)
 
-    const nodePath = document.querySelector('g.node path[id]') as SVGPathElement | null
+    const nodePath = document.querySelector('g.node path[id]')
     expect(nodePath).not.toBeNull()
     nodePath?.dispatchEvent(
       new MouseEvent('click', { bubbles: true, cancelable: true }),

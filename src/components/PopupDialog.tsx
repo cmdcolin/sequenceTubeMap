@@ -25,8 +25,8 @@ export const PopupDialog = ({
   return (
     <Dialog
       open={open}
-      onClose={() => close()}
-      onBackdropClick={closeOnDocumentClick ? () => close() : undefined}
+      onClose={() => { close(); }}
+      onBackdropClick={closeOnDocumentClick ? () => { close(); } : undefined}
       onClick={(e) => { e.stopPropagation(); }}
       data-testid={testID}
       maxWidth={width === null ? false : undefined}
@@ -38,7 +38,7 @@ export const PopupDialog = ({
       }}
     >
       <IconButton
-        onClick={() => close()}
+        onClick={() => { close(); }}
         data-testid={testID.concat('CloseButton')}
         size="small"
         sx={{ position: 'absolute', top: 8, right: 8 }}
