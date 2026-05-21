@@ -99,4 +99,6 @@ Big thanks to the MemPanG26 organizers and group!
 
 ![MemPanG26 Edition](https://pangenome.github.io/MemPanG26/images/trippy-bridge.png)
 
+Art from the MemPanG26 flyer :)
+
 https://pangenome.github.io/MemPanG26/

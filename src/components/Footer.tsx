@@ -27,36 +27,16 @@ export const Footer = () => (
       }}
     >
       <div>
-        <strong>vgv</strong> is a fork of the excellent{' '}
-        <SafeLink
-          target="_blank"
-          href="https://github.com/vgteam/sequenceTubeMap"
-        >
-          sequenceTubeMap / IVG
-        </SafeLink>
-        {' '}by the vgteam.
-      </div>
-      <div style={{ marginTop: 4 }}>
-        <SafeLink
-          target="_blank"
-          href="https://github.com/cmdcolin/sequenceTubeMap"
-        >
-          <FontAwesomeIcon icon={faGithub} /> Source for this fork
-        </SafeLink>
-      </div>
-      <div style={{ marginTop: 4 }}>
-        MemPanG26 Hackathon Team 2:{' '}
-        <SafeLink href="https://github.com/cmdcolin" target="_blank">
-          Colin Diesh
-        </SafeLink>
-        {' & '}
-        <SafeLink
-          href="https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en"
-          target="_blank"
-        >
-          Rafeed Rahman Turjya
-        </SafeLink>{' '}
-        et al.
+        <strong>
+          <SafeLink
+            target="_blank"
+            href="https://github.com/cmdcolin/sequenceTubeMap"
+          >
+            <FontAwesomeIcon icon={faGithub} /> seqTubeMaps
+          </SafeLink>
+        </strong>{' '}
+        is a fork of the excellent sequenceTubeMap / IVG by the vgteam created
+        for hackathon purposes (could be upstreamed potentially).
       </div>
       <div style={{ marginTop: 4 }}>
         Thanks to the organizers for a great{' '}
