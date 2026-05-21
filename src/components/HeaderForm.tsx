@@ -602,7 +602,7 @@ function HeaderForm({
         sx={{ background: '#1a5276', mb: 1 }}
       >
         <Toolbar variant="dense">
-          <img src="./logo.svg" alt="IVG" style={{ height: 32, marginRight: 8 }} />
+          <img src="./logo.svg" alt="vgv" style={{ height: 32, marginRight: 8 }} />
           <MuiButton
             color="inherit"
             data-testid="examplesMenuButton"

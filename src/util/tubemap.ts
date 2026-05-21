@@ -1823,7 +1823,7 @@ function minZoom(): number {
   return Math.min(
     1,
     parentElement.clientWidth / maxXCoordinate,
-    parentElement.clientHeight / (maxYCoordinate + RAIL_SPACE),
+    parentElement.clientHeight / (maxYCoordinate - minYCoordinate + RAIL_SPACE),
   )
 }
 

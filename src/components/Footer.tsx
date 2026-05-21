@@ -26,12 +26,24 @@ export const Footer = () => (
         fontSize: '0.95em',
       }}
     >
-      <SafeLink
-        target="_blank"
-        href="https://github.com/cmdcolin/sequenceTubeMap"
-      >
-        <FontAwesomeIcon icon={faGithub} /> More info on this fork
-      </SafeLink>
+      <div>
+        <strong>vgv</strong> is a fork of the excellent{' '}
+        <SafeLink
+          target="_blank"
+          href="https://github.com/vgteam/sequenceTubeMap"
+        >
+          sequenceTubeMap / IVG
+        </SafeLink>
+        {' '}by the vgteam.
+      </div>
+      <div style={{ marginTop: 4 }}>
+        <SafeLink
+          target="_blank"
+          href="https://github.com/cmdcolin/sequenceTubeMap"
+        >
+          <FontAwesomeIcon icon={faGithub} /> Source for this fork
+        </SafeLink>
+      </div>
       <div style={{ marginTop: 4 }}>
         MemPanG26 Hackathon Team 2:{' '}
         <SafeLink href="https://github.com/cmdcolin" target="_blank">

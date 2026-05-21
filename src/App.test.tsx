@@ -69,7 +69,7 @@ const getRegionInput = () =>
 
 it('renders without crashing', () => {
   renderApp()
-  expect(screen.getByAltText('IVG')).toBeInTheDocument()
+  expect(screen.getByAltText('vgv')).toBeInTheDocument()
 })
 
 it('renders with error when api call to server throws', async () => {
