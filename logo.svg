@@ -9,5 +9,5 @@
     <path d="M 0 16 L 14 16 C 22 16 38 9  56 12 L 56 21 C 38 16 22 22 14 22 L 0 22 Z" fill="#2778C4" />
     <path d="M 0 10 L 14 10 C 22 10 38 2  56 3  L 56 12 C 38 9  22 16 14 16 L 0 16 Z" fill="#1a5276" />
   </g>
-  <text x="64" y="37" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="34" fill="#1a5276" letter-spacing="-1">vgv</text>
+  <text x="64" y="37" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="34" fill="#ffffff" letter-spacing="-1">vgv</text>
 </svg>
