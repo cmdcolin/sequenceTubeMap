@@ -67,10 +67,6 @@ For WASM build details and caveats: [doc/wasm-build.md](doc/wasm-build.md).
 
 For constructing deep-link URLs: [doc/linking.md](doc/linking.md).
 
-## License
-
-Copyright (c) 2018 Wolfgang Beyer, 2026 Colin Diesh, MIT License.
-
 ## Features added on this fork compared to upstream
 
 - Serverless — graph + GAM parsing runs entirely in the browser; no express
