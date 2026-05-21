@@ -30,7 +30,7 @@ export function UploadDialog({
             onUploaded(uploadedTracks)
             onClose()
           }}
-          handleFileUpload={async (fileType, file) => handleFileUpload(fileType, file)}
+          handleFileUpload={handleFileUpload}
           isLocal={isLocal}
         />
       </DialogContent>

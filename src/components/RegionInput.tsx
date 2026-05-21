@@ -57,8 +57,6 @@ export const RegionInput = ({
     }
   }
 
-  const displayRegions = pathsWithRegion
-
   let descLabel = 'Region'
   const matched = regionToDesc.get(region)
   if (matched) {
@@ -83,7 +81,7 @@ export const RegionInput = ({
             id="regionInput"
             onInputChange={(_event, newInput) => {
               let regionValue = newInput
-              const regionObject = displayRegions.find(
+              const regionObject = pathsWithRegion.find(
                 option => option.label === newInput,
               )
               if (regionObject) {
@@ -91,7 +89,7 @@ export const RegionInput = ({
               }
               handleRegionChange(regionValue)
             }}
-            options={displayRegions}
+            options={pathsWithRegion}
             renderInput={params => (
               <TextField
                 {...params}

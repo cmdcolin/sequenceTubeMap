@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import isEqual from 'react-fast-compare'
 import { Row, Col } from 'reactstrap'
 import { TrackList } from './TrackList.tsx'
 import { TrackAddButton } from './TrackAddButton.tsx'
@@ -66,7 +67,7 @@ export const TrackPickerDisplay = ({
   const stage = (extra: TrackChanges) => {
     const merged = { ...pending, ...extra }
     const next = applyChanges(tracks, merged)
-    if (allFilesSet(next) && JSON.stringify(next) !== JSON.stringify(tracks)) {
+    if (allFilesSet(next) && !isEqual(next, tracks)) {
       onChange(next)
       setPending({})
     } else {
