@@ -644,6 +644,7 @@ function TubeMapContainer({
             colorSchemes={visOptions.colorSchemes}
             readGroups={readGroups}
             otherReadsColor={otherReadsColor}
+            ignoreStrand={visOptions.ignoreStrand}
             onClose={onLegendClose}
           />
         </div>

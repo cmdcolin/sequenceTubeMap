@@ -348,14 +348,12 @@ it('can retrieve the list of mounted graph files', async () => {
     fireEvent.click(screen.getByTestId('openCustomFiles'))
   })
 
-  // Find the select box's input
-  const trackSelectButton = screen.queryByTestId('TrackPickerButton')
-  expect(trackSelectButton).toBeTruthy()
-
-  // open track selection
+  // Open "Manage tracks…" from the File menu (the former AppBar "Tracks" button)
   await act(async () => {
-    //fireEvent.click(trackSelectButton);
-    userEvent.click(trackSelectButton)
+    fireEvent.click(screen.getByTestId('fileMenuButton'))
+  })
+  await act(async () => {
+    fireEvent.click(screen.getByTestId('manageTracks'))
   })
 
   // add a new track
@@ -391,13 +389,12 @@ it('can accept uploaded files', async () => {
     fireEvent.click(screen.getByTestId('openCustomFiles'))
   })
 
-  // Find the select box's input
-  const trackSelectButton = screen.queryByTestId('TrackPickerButton')
-  expect(trackSelectButton).toBeTruthy()
-
-  // open track selection
+  // Open "Manage tracks…" from the File menu (the former AppBar "Tracks" button)
   await act(async () => {
-    userEvent.click(trackSelectButton)
+    fireEvent.click(screen.getByTestId('fileMenuButton'))
+  })
+  await act(async () => {
+    fireEvent.click(screen.getByTestId('manageTracks'))
   })
 
   // add a new track

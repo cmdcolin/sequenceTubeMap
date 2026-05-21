@@ -48,7 +48,6 @@
     "react-fast-compare": "^3.2.2",
     "react-select": "^5.10.2",
     "react-switch": "^7.1.0",
-    "reactjs-popup": "^2.0.6",
     "reactstrap": "^9.2.3",
     "readers-writer-lock": "^1.0.0",
     "sanitize-filename": "^1.6.4",

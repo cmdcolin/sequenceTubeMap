@@ -13,7 +13,8 @@ import HelpButton from './HelpButton.tsx'
 import ExampleSelectButtons from './ExampleSelectButtons.tsx'
 import RegionInput from './RegionInput.tsx'
 import PathsPanel from './PathsPanel.tsx'
-import TrackPicker from './TrackPicker.tsx'
+import TrackPickerDisplay from './TrackPickerDisplay.tsx'
+import PopupDialog from './PopupDialog.tsx'
 import BedFileDropdown from './BedFileDropdown.tsx'
 import UploadPanel from './UploadPanel.tsx'
 import SimplifyButton from './SimplifyButton.tsx'
@@ -191,6 +192,10 @@ function HeaderForm({
   const [uploadInProgress, setUploadInProgress] = useState(false)
   const [menuAnchor, setMenuAnchor] = useState<{ type: 'examples' | 'file' | 'view' | 'reads' | 'visibility'; el: HTMLElement } | null>(null)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  // The "Manage tracks…" dialog (formerly the standalone Tracks button in the
+  // AppBar). Tucked behind File since it's only useful in custom-files mode
+  // and most users will never touch per-track palettes.
+  const [tracksDialogOpen, setTracksDialogOpen] = useState(false)
   // Set true when a dataset with a BED but no preset region is picked; the
   // effect below applies the first BED entry as the default region once BED
   // data arrives, then clears the flag.
@@ -666,6 +671,16 @@ function HeaderForm({
             >
               Open…
             </MenuItem>
+            <MenuItem
+              data-testid="manageTracks"
+              disabled={!customFilesFlag}
+              onClick={() => {
+                setTracksDialogOpen(true)
+                setMenuAnchor(null)
+              }}
+            >
+              Manage tracks…
+            </MenuItem>
           </Menu>
           {toggleLegend && visOptions && toggleVisOptionFlag && (
             <>
@@ -799,14 +814,22 @@ function HeaderForm({
             </>
           )}
           {customFilesFlag && (
-            <TrackPicker
-              tracks={tracks}
-              availableTracks={availableTracks}
-              onChange={newTracks => { handleInputChange(newTracks); }}
-              handleFileUpload={async (fileType, file) =>
-                handleFileUpload(fileType, file)
-              }
-            />
+            <PopupDialog
+              open={tracksDialogOpen}
+              close={() => { setTracksDialogOpen(false); }}
+              closeOnDocumentClick={false}
+              width={null}
+              testID="TrackPicker"
+            >
+              <TrackPickerDisplay
+                tracks={tracks}
+                availableTracks={availableTracks}
+                onChange={newTracks => { handleInputChange(newTracks); }}
+                handleFileUpload={async (fileType, file) =>
+                  handleFileUpload(fileType, file)
+                }
+              />
+            </PopupDialog>
           )}
           <MuiButton
             color="inherit"

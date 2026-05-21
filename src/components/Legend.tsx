@@ -104,8 +104,11 @@ function trackLabel(
 function paletteRoles(
   type: FileType,
   hasHaplotype: boolean,
+  ignoreStrand: boolean,
 ): { main: string; aux?: string } {
   if (type === 'read') {
+    // ignoreStrand collapses the aux/reverse palette; show one Reads row.
+    if (ignoreStrand) return { main: 'Reads' }
     return { main: 'Forward reads', aux: 'Reverse reads' }
   } else if (type === 'graph') {
     if (hasHaplotype) {
@@ -125,11 +128,12 @@ interface LegendProps {
   colorSchemes: ColorScheme[]
   readGroups?: ReadGroup[]
   otherReadsColor?: string
+  ignoreStrand?: boolean
   title?: string
   onClose?: () => void
 }
 
-function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, title = 'Color legend', onClose }: LegendProps) {
+function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, ignoreStrand = false, title = 'Color legend', onClose }: LegendProps) {
   if (tracks.length === 0) {
     return null
   }
@@ -179,7 +183,7 @@ function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, title = 'Co
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {tracks.map((t, i) => {
           const scheme = colorSchemes[i]
-          const roles = paletteRoles(t.trackType, hasHaplotype)
+          const roles = paletteRoles(t.trackType, hasHaplotype, ignoreStrand)
           return (
             <div key={`${i}-${t.trackFile ?? ''}`}>
               {(() => {

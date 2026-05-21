@@ -116,9 +116,6 @@ importers:
       react-switch:
         specifier: ^7.1.0
         version: 7.1.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      reactjs-popup:
-        specifier: ^2.0.6
-        version: 2.0.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       reactstrap:
         specifier: ^9.2.3
         version: 9.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -3908,13 +3905,6 @@ packages:
     resolution: {integrity: sha512-KiwVUcFu1RErkI97ywr8nvx8dNOpT03rbnma0SSalTYjkrPYaEajR4a/MRt6DZ46K6arDRbWMNHF+xH7G7n/8A==}
     peerDependencies:
       react: '*'
-
-  reactjs-popup@2.0.6:
-    resolution: {integrity: sha512-A+tt+x9wdgZiZjv0e2WzYLD3IfFwJALaRaqwrCSXGjo0iQdsry/EtBEbQXRSmQs7cHmOi5eytCiSlOm8k4C+dg==}
-    engines: {node: '>=10'}
-    peerDependencies:
-      react: '>=16'
-      react-dom: '>=16'
 
   reactstrap@9.2.3:
     resolution: {integrity: sha512-1nXy7FIBIoOgXr3AIHOpgzcZXdj6rZE5YvNSPd1hYgwv8X64m6TAJsU0ExlieJdlRXhaRfTYRSZoTWa127b0gw==}
@@ -8779,11 +8769,6 @@ snapshots:
     dependencies:
       lodash: 4.18.1
       react: 19.2.6
-
-  reactjs-popup@2.0.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
 
   reactstrap@9.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
