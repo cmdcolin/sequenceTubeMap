@@ -28,6 +28,7 @@ interface HeaderFormAppBarProps {
   onUploaded: (tracks: Track[]) => void
   onOpenCustomFiles: () => void
   apiMode: 'local' | 'server' | 'upstream'
+  serverModeId?: 'server' | 'upstream'
   onDestChange?: (mode: string) => void
   legendVisible?: boolean
   toggleLegend?: () => void
@@ -51,6 +52,7 @@ export function HeaderFormAppBar({
   onUploaded,
   onOpenCustomFiles,
   apiMode,
+  serverModeId,
   onDestChange,
   legendVisible,
   toggleLegend,
@@ -106,6 +108,7 @@ export function HeaderFormAppBar({
             onUploaded={onUploaded}
             onOpenCustomFiles={onOpenCustomFiles}
             apiMode={apiMode}
+            serverModeId={serverModeId}
             onDestChange={onDestChange}
           />
           {toggleLegend && visOptions && toggleVisOptionFlag && (

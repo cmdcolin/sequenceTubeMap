@@ -157,6 +157,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
         currentViewTarget={currentViewTarget}
         APIInterface={apiInterface}
         onAPIMode={setAPIMode}
+        serverModeId={isLocalMode ? 'upstream' : 'server'}
         legendVisible={legendVisible}
         toggleLegend={() => { setLegendVisible(v => !v) }}
         visOptions={visOptions}

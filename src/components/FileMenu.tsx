@@ -20,6 +20,7 @@ interface FileMenuProps {
   onUploaded: (tracks: Track[]) => void
   onOpenCustomFiles: () => void
   apiMode: 'local' | 'server' | 'upstream'
+  serverModeId?: 'server' | 'upstream'
   onDestChange?: (mode: string) => void
 }
 
@@ -36,6 +37,7 @@ export function FileMenu({
   onUploaded,
   onOpenCustomFiles,
   apiMode,
+  serverModeId,
   onDestChange,
 }: FileMenuProps) {
   const [tracksDialogOpen, setTracksDialogOpen] = useState(false)
@@ -57,10 +59,10 @@ export function FileMenu({
             if (!customFilesFlag) {
               onOpenCustomFiles()
             }
-            // Default to vgteam server when opening from pure local (WASM) mode
+            // Default to server upload when opening from pure local (WASM) mode
             // so the primary upload path is front-and-centre.
-            if (apiMode === 'local') {
-              onDestChange?.('upstream')
+            if (apiMode === 'local' && serverModeId) {
+              onDestChange?.(serverModeId)
             }
             setUploadDialogOpen(true)
             onClose()
@@ -101,6 +103,7 @@ export function FileMenu({
         onUploaded={onUploaded}
         handleFileUpload={handleFileUpload}
         apiMode={apiMode}
+        serverModeId={serverModeId}
         onDestChange={onDestChange}
       />
     </>

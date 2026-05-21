@@ -60,6 +60,7 @@ interface HeaderFormProps {
   defaultViewTarget?: ViewTarget
   APIInterface: APIInterface
   onAPIMode?: (mode: string) => void
+  serverModeId?: 'server' | 'upstream'
   legendVisible?: boolean
   toggleLegend?: () => void
   visOptions?: VisOptions
@@ -81,6 +82,7 @@ function HeaderForm({
   defaultViewTarget,
   APIInterface,
   onAPIMode,
+  serverModeId,
   legendVisible,
   toggleLegend,
   visOptions,
@@ -503,6 +505,7 @@ function HeaderForm({
         onUploaded={handleQuickUploaded}
         onOpenCustomFiles={() => { handleDataSourceChange(dataTypes.CUSTOM_FILES); }}
         apiMode={apiMode}
+        serverModeId={serverModeId}
         onDestChange={onAPIMode}
         legendVisible={legendVisible}
         toggleLegend={toggleLegend}

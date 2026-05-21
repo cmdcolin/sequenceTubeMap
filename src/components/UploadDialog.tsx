@@ -12,6 +12,7 @@ interface UploadDialogProps {
   onUploaded: (tracks: Track[]) => void
   handleFileUpload: (fileType: FileType, file: File) => Promise<string | undefined>
   apiMode: 'local' | 'server' | 'upstream'
+  serverModeId?: 'server' | 'upstream'
   onDestChange?: (mode: string) => void
 }
 
@@ -21,6 +22,7 @@ export function UploadDialog({
   onUploaded,
   handleFileUpload,
   apiMode,
+  serverModeId,
   onDestChange,
 }: UploadDialogProps) {
   return (
@@ -34,6 +36,7 @@ export function UploadDialog({
           }}
           handleFileUpload={handleFileUpload}
           apiMode={apiMode}
+          serverModeId={serverModeId}
           onDestChange={onDestChange}
         />
       </DialogContent>
