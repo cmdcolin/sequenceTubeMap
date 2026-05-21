@@ -1,4 +1,10 @@
 import { convertRegionToRangeRegion, parseRegion } from '../common.ts'
+
+export const dataTypes = {
+  BUILT_IN: 'built-in',
+  CUSTOM_FILES: 'mounted files',
+  EXAMPLES: 'examples',
+}
 import type {
   AvailableTrack,
   FolderManifest,

@@ -1,7 +1,4 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCircleInfo } from '@fortawesome/free-solid-svg-icons'
-import IconButton from '@mui/material/IconButton'
 import useSWR from 'swr'
 import { Button, Container, Row, Col, Label, Alert } from 'reactstrap'
 import '../config-client.js'
@@ -9,41 +6,20 @@ import { config } from '../config-global.mjs'
 import type { APIInterface } from '../api/APIInterface.ts'
 import { truncateMiddle } from '../util/text.ts'
 import DataPositionFormRow from './DataPositionFormRow.tsx'
-import HelpButton from './HelpButton.tsx'
 import ExampleSelectButtons from './ExampleSelectButtons.tsx'
 import RegionInput from './RegionInput.tsx'
 import PathsPanel from './PathsPanel.tsx'
-import TrackPickerDisplay from './TrackPickerDisplay.tsx'
-import PopupDialog from './PopupDialog.tsx'
 import BedFileDropdown from './BedFileDropdown.tsx'
-import UploadPanel from './UploadPanel.tsx'
 import SimplifyButton from './SimplifyButton.tsx'
-import TrackVisibilityPanel from './TrackVisibilityPanel.tsx'
 import FormHelperText from '@mui/material/FormHelperText'
-import AppBar from '@mui/material/AppBar'
-import Toolbar from '@mui/material/Toolbar'
-import Menu from '@mui/material/Menu'
-import MenuItem from '@mui/material/MenuItem'
-import Checkbox from '@mui/material/Checkbox'
-import ListItemIcon from '@mui/material/ListItemIcon'
-import ListItemText from '@mui/material/ListItemText'
-import ListSubheader from '@mui/material/ListSubheader'
-import Divider from '@mui/material/Divider'
-import Dialog from '@mui/material/Dialog'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
-import MuiButton from '@mui/material/Button'
-import Backdrop from '@mui/material/Backdrop'
-import Popover from '@mui/material/Popover'
-import Box from '@mui/material/Box'
-import Typography from '@mui/material/Typography'
+import { HeaderFormAppBar } from './HeaderFormAppBar.tsx'
 import {
   isValidRegion,
   isLocalCompatibleDataSource,
   isEmpty,
 } from '../common.ts'
 import {
+  dataTypes,
   determineRegionIndex,
   discoverDataSources,
   firstGraphTrack,
@@ -69,15 +45,8 @@ import type {
 
 export { determineRegionIndex, regionStringFromRegionIndex }
 
-type MenuType = 'examples' | 'file' | 'view' | 'reads' | 'visibility'
-
 const DATA_SOURCES: ViewTarget[] = config.DATA_SOURCES
 const MAX_UPLOAD_SIZE_DESCRIPTION = '5 MB'
-const dataTypes = {
-  BUILT_IN: 'built-in',
-  CUSTOM_FILES: 'mounted files',
-  EXAMPLES: 'examples',
-}
 
 interface HeaderFormProps {
   setColorSetting: (
@@ -101,68 +70,6 @@ interface HeaderFormProps {
 interface CoordsMetaData {
   tracks: Track[] | null
   chunk: string
-}
-
-function HelpIcon({ label, helpText }: { label: string; helpText: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <IconButton
-        size="small"
-        sx={{ ml: 0.5, color: 'action.active' }}
-        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-      >
-        <FontAwesomeIcon icon={faCircleInfo} size="xs" />
-      </IconButton>
-      <Dialog open={open} onClose={() => { setOpen(false); }} maxWidth="xs" fullWidth>
-        <DialogTitle>{label}</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">{helpText}</Typography>
-        </DialogContent>
-        <DialogActions>
-          <MuiButton onClick={() => { setOpen(false); }}>Close</MuiButton>
-        </DialogActions>
-      </Dialog>
-    </>
-  )
-}
-
-function CheckboxMenuItem({
-  label,
-  checked,
-  onToggle,
-  disabled,
-  testid,
-  helpText,
-}: {
-  label: string
-  checked: boolean
-  onToggle: () => void
-  disabled?: boolean
-  testid?: string
-  helpText?: string
-}) {
-  return (
-    <MenuItem
-      dense
-      data-testid={testid}
-      disabled={disabled}
-      onClick={() => { onToggle() }}
-    >
-      <ListItemIcon>
-        <Checkbox
-          edge="start"
-          size="small"
-          checked={checked}
-          disabled={disabled}
-          tabIndex={-1}
-          disableRipple
-        />
-      </ListItemIcon>
-      <ListItemText primary={label} />
-      {helpText && <HelpIcon label={label} helpText={helpText} />}
-    </MenuItem>
-  )
 }
 
 function HeaderForm({
@@ -192,15 +99,9 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
-  const [menuAnchor, setMenuAnchor] = useState<{ type: MenuType; el: HTMLElement } | null>(null)
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
-  // The "Manage tracks…" dialog (formerly the standalone Tracks button in the
-  // AppBar). Tucked behind File since it's only useful in custom-files mode
-  // and most users will never touch per-track palettes.
-  const [tracksDialogOpen, setTracksDialogOpen] = useState(false)
   // Set true when a dataset with a BED but no preset region is picked; the
-  // effect below applies the first BED entry as the default region once BED
-  // data arrives, then clears the flag.
+  // onSuccess callback below applies the first BED entry as the default region
+  // once BED data arrives, then clears the flag.
   const [pendingRegionDefault, setPendingRegionDefault] = useState(false)
   const [manualError, setManualError] = useState<Error | string | null>(null)
   const [simplify, setSimplify] = useState(initialView.simplify ?? false)
@@ -344,7 +245,6 @@ function HeaderForm({
       controller.abort()
     }
   }, [APIInterface, refetchFilenames])
-
 
   // Per-invocation AbortController for getChunkTracks (event-driven, not
   // SWR-cached). We abort the prior in-flight call when a new region change
@@ -558,26 +458,6 @@ function HeaderForm({
     }
   }
 
-  let errorDiv = null
-  if (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    errorDiv = (
-      <div>
-        <Container fluid={true}>
-          <Row>
-            <Alert color="danger">{message}</Alert>
-          </Row>
-        </Container>
-      </div>
-    )
-  }
-
-  const menuFor = (type: MenuType) => ({
-    anchorEl: menuAnchor?.type === type ? menuAnchor.el : null,
-    open: menuAnchor?.type === type,
-    onClose: () => { setMenuAnchor(null); },
-  })
-
   const customFilesFlag = dataType === dataTypes.CUSTOM_FILES
   const examplesFlag = dataType === dataTypes.EXAMPLES
   const viewTargetHasChange = !viewTargetsEqual(
@@ -586,280 +466,41 @@ function HeaderForm({
   )
   const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
 
+  const errorDiv = error ? (
+    <div>
+      <Container fluid={true}>
+        <Row>
+          <Alert color="danger">
+            {error instanceof Error ? error.message : String(error)}
+          </Alert>
+        </Row>
+      </Container>
+    </div>
+  ) : null
+
   return (
     <div>
-      <Backdrop
-        open={menuAnchor !== null}
-        sx={{
-          zIndex: 1200,
-          backgroundColor: 'rgba(0,0,0,0.35)',
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'center',
-          pb: 6,
-        }}
-      >
-        <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.75)' }}>
-          Click away to close menu
-        </Typography>
-      </Backdrop>
-      <AppBar
-        position="static"
-        color="primary"
-        elevation={2}
-        sx={{ background: '#1a5276', mb: 1 }}
-      >
-        <Toolbar variant="dense">
-          <img src="./logo.svg" alt="vgv" style={{ height: 32, marginRight: 8 }} />
-          <MuiButton
-            color="inherit"
-            data-testid="examplesMenuButton"
-            onClick={(e) => { setMenuAnchor({ type: 'examples', el: e.currentTarget }); }}
-          >
-            Examples
-          </MuiButton>
-          <Menu {...menuFor('examples')}>
-            {visibleDataSources.map(ds => (
-              <MenuItem
-                key={ds.name}
-                selected={dataType === dataTypes.BUILT_IN && name === ds.name}
-                onClick={() => { handleDataSourceChange(ds.name!); setMenuAnchor(null); }}
-              >
-                {ds.name}
-              </MenuItem>
-            ))}
-            {discoveredDataSources.length > 0 && (
-              <>
-                <ListSubheader>Discovered</ListSubheader>
-                {discoveredDataSources.map(ds => (
-                  <MenuItem
-                    key={ds.name}
-                    selected={dataType === dataTypes.BUILT_IN && name === ds.name}
-                    onClick={() => { handleDataSourceChange(ds.name!); setMenuAnchor(null); }}
-                  >
-                    {ds.name}
-                  </MenuItem>
-                ))}
-              </>
-            )}
-            <Divider />
-            <MenuItem
-              selected={examplesFlag}
-              onClick={() => { handleDataSourceChange(dataTypes.EXAMPLES); setMenuAnchor(null); }}
-            >
-              Synthetic examples
-            </MenuItem>
-          </Menu>
-          <MuiButton
-            color="inherit"
-            data-testid="fileMenuButton"
-            onClick={(e) => { setMenuAnchor({ type: 'file', el: e.currentTarget }); }}
-          >
-            File
-          </MuiButton>
-          <Menu {...menuFor('file')}>
-            <MenuItem
-              data-testid="openCustomFiles"
-              selected={customFilesFlag}
-              onClick={() => {
-                if (!customFilesFlag) {
-                  handleDataSourceChange(dataTypes.CUSTOM_FILES)
-                }
-                setUploadDialogOpen(true)
-                setMenuAnchor(null)
-              }}
-            >
-              Open…
-            </MenuItem>
-            <MenuItem
-              data-testid="manageTracks"
-              disabled={!customFilesFlag}
-              onClick={() => {
-                setTracksDialogOpen(true)
-                setMenuAnchor(null)
-              }}
-            >
-              Manage tracks…
-            </MenuItem>
-          </Menu>
-          {toggleLegend && visOptions && toggleVisOptionFlag && (
-            <>
-              <MuiButton
-                color="inherit"
-                data-testid="viewMenuButton"
-                onClick={(e) => { setMenuAnchor({ type: 'view', el: e.currentTarget }); }}
-              >
-                View
-              </MuiButton>
-              <Menu {...menuFor('view')} slotProps={{ list: { dense: true } }}>
-                <CheckboxMenuItem
-                  label="Show legend"
-                  checked={!!legendVisible}
-                  onToggle={() => { toggleLegend() }}
-                  testid="legendToggleMenuItem"
-                />
-                <CheckboxMenuItem
-                  label="Merge node chains"
-                  checked={visOptions.removeRedundantNodes}
-                  onToggle={() => { toggleVisOptionFlag('removeRedundantNodes') }}
-                  helpText="Merges consecutive nodes that only ever connect to each other with no branching, collapsing simple linear paths into single nodes for a cleaner layout."
-
-                />
-                <CheckboxMenuItem
-                  label="Compressed view"
-                  checked={visOptions.compressedView}
-                  disabled={compressedViewLocked}
-                  onToggle={() => { toggleVisOptionFlag('compressedView') }}
-                  helpText="Uses a logarithmic scale for node width instead of a linear one, so very long nodes don't visually dominate short ones. Sequence bases are not rendered in this mode."
-
-                />
-                <CheckboxMenuItem
-                  label="Fully transparent nodes"
-                  checked={visOptions.transparentNodes}
-                  onToggle={() => { toggleVisOptionFlag('transparentNodes') }}
-                  helpText="Makes graph nodes fully transparent so only the colored read paths passing through them are visible, giving an unobstructed view of alignment patterns."
-
-                />
-                <CheckboxMenuItem
-                  label="Show node labels"
-                  checked={visOptions.showNodeLabels}
-                  onToggle={() => { toggleVisOptionFlag('showNodeLabels') }}
-                  helpText="Displays the numeric node ID on each graph node."
-
-                />
-              </Menu>
-              <MuiButton
-                color="inherit"
-                data-testid="readsMenuButton"
-                onClick={(e) => { setMenuAnchor({ type: 'reads', el: e.currentTarget }); }}
-              >
-                Reads
-              </MuiButton>
-              <Menu {...menuFor('reads')} slotProps={{ list: { dense: true } }}>
-                <CheckboxMenuItem
-                  label="Show sequence reads"
-                  checked={visOptions.showReads}
-                  onToggle={() => { toggleVisOptionFlag('showReads') }}
-                />
-                <CheckboxMenuItem
-                  label="Coarsened (Sankey) view"
-                  checked={visOptions.coarsenedReadView}
-                  disabled={!visOptions.showReads}
-                  onToggle={() => { toggleVisOptionFlag('coarsenedReadView') }}
-                  helpText="Aggregates reads into one thick band per node→node edge, with band thickness proportional to the number of reads traversing it. Trades per-read detail for the ability to browse much higher-coverage regions."
-                />
-                <CheckboxMenuItem
-                  label="Ignore strand"
-                  checked={visOptions.ignoreStrand}
-                  disabled={!visOptions.showReads}
-                  onToggle={() => { toggleVisOptionFlag('ignoreStrand') }}
-                  helpText="Treat forward and reverse strands as equivalent. Normal reads stop being colored by their auxPalette for reverse, and the Sankey view merges (+A→+B) with (-B→-A) into one band."
-                />
-                <CheckboxMenuItem
-                  label="Show soft clips"
-                  checked={visOptions.showSoftClips}
-                  disabled={!visOptions.showReads || visOptions.coarsenedReadView}
-                  onToggle={() => { toggleVisOptionFlag('showSoftClips') }}
-                  helpText="Renders the soft-clipped portions of reads — bases that were not aligned to the reference — as colored extensions beyond the aligned segment."
-
-                />
-                <CheckboxMenuItem
-                  label="Color by mapping quality"
-                  checked={visOptions.colorReadsByMappingQuality}
-                  disabled={!visOptions.showReads || visOptions.coarsenedReadView}
-                  onToggle={() => { toggleVisOptionFlag('colorReadsByMappingQuality') }}
-                  helpText="Colors each read by its mapping quality (MAPQ) score. Higher scores (more confident placements) appear darker; lower scores appear lighter."
-
-                />
-                <CheckboxMenuItem
-                  label="Transparency by mapping quality"
-                  checked={visOptions.alphaReadsByMappingQuality}
-                  disabled={!visOptions.showReads || visOptions.coarsenedReadView}
-                  onToggle={() => { toggleVisOptionFlag('alphaReadsByMappingQuality') }}
-                  helpText="Makes reads with lower mapping quality more transparent, so high-confidence alignments stand out visually."
-
-                />
-                {handleMappingQualityCutoffChange && (
-                  <Box
-                    sx={{ px: 2, py: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
-                    onClick={(e) => { e.stopPropagation() }}
-                  >
-                    <Typography variant="body2">Mapping quality cutoff:</Typography>
-                    <HelpIcon
-                      label="Mapping quality cutoff"
-                      helpText="Hides reads whose mapping quality (MAPQ) score falls below this value (0–60). Higher values show only the most confidently placed reads."
-                    />
-                    <select
-                      disabled={!visOptions.showReads || visOptions.coarsenedReadView}
-                      value={visOptions.mappingQualityCutoff}
-                      onChange={(e) => { handleMappingQualityCutoffChange(e.target.value) }}
-                    >
-                      {Array.from({ length: 61 }, (_, i) => (
-                        <option value={i} key={i}>{i}</option>
-                      ))}
-                    </select>
-                  </Box>
-                )}
-              </Menu>
-            </>
-          )}
-          {customFilesFlag && (
-            <PopupDialog
-              open={tracksDialogOpen}
-              close={() => { setTracksDialogOpen(false); }}
-              closeOnDocumentClick={false}
-              width={null}
-              testID="TrackPicker"
-            >
-              <TrackPickerDisplay
-                tracks={tracks}
-                availableTracks={availableTracks}
-                onChange={newTracks => { handleInputChange(newTracks); }}
-                handleFileUpload={async (fileType, file) =>
-                  handleFileUpload(fileType, file)
-                }
-              />
-            </PopupDialog>
-          )}
-          <MuiButton
-            color="inherit"
-            onClick={(e) => { setMenuAnchor({ type: 'visibility', el: e.currentTarget }); }}
-          >
-            Visibility
-          </MuiButton>
-          <Popover
-            keepMounted
-            {...menuFor('visibility')}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          >
-            <Box sx={{ p: 1 }}>
-              <TrackVisibilityPanel />
-            </Box>
-          </Popover>
-          <Box sx={{ flexGrow: 1 }} />
-          <Typography
-            variant="body2"
-            component="a"
-            href="https://github.com/cmdcolin/sequenceTubeMap"
-            target="_blank"
-            rel="noopener noreferrer"
-            sx={{
-              textDecoration: 'none',
-              mr: 2,
-              fontWeight: 900,
-              background:
-                'linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff6b6b)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent',
-              display: 'inline-block',
-            }}
-          >
-            ✨ MemPanG26 edition! ✨
-          </Typography>
-          <HelpButton file="./help/help.md" />
-        </Toolbar>
-      </AppBar>
+      <HeaderFormAppBar
+        visibleDataSources={visibleDataSources}
+        discoveredDataSources={discoveredDataSources}
+        dataType={dataType}
+        name={name}
+        onSelectDataSource={handleDataSourceChange}
+        customFilesFlag={customFilesFlag}
+        tracks={tracks}
+        availableTracks={availableTracks}
+        onTracksChange={handleInputChange}
+        handleFileUpload={handleFileUpload}
+        onUploaded={handleQuickUploaded}
+        onOpenCustomFiles={() => { handleDataSourceChange(dataTypes.CUSTOM_FILES); }}
+        isLocal={isLocal}
+        legendVisible={legendVisible}
+        toggleLegend={toggleLegend}
+        visOptions={visOptions}
+        toggleVisOptionFlag={toggleVisOptionFlag}
+        compressedViewLocked={compressedViewLocked}
+        handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
+      />
       <Container>
         <Row>
           <Col>{errorDiv}</Col>
@@ -913,7 +554,7 @@ function HeaderForm({
                 regionInfo={regionInfo}
                 handleRegionChange={coords => { void handleRegionChange(coords); }}
                 region={region}
-                onSubmit={() => { handleGoButton() }}
+                onSubmit={() => { handleGoButton(); }}
               />
             )}
             {recentlyUploaded.length > 0 && (
@@ -960,9 +601,7 @@ function HeaderForm({
               <Alert
                 color="danger"
                 isOpen={fileSizeAlert}
-                toggle={() => {
-                  setFileSizeAlert(false)
-                }}
+                toggle={() => { setFileSizeAlert(false); }}
                 className="mt-3"
               >
                 <strong>File size too big! </strong>
@@ -998,29 +637,6 @@ function HeaderForm({
           </Col>
         </Row>
       </Container>
-      <Dialog
-        open={uploadDialogOpen}
-        onClose={() => { setUploadDialogOpen(false); }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Open custom files</DialogTitle>
-        <DialogContent>
-          <UploadPanel
-            onUploaded={uploadedTracks => {
-              handleQuickUploaded(uploadedTracks)
-              setUploadDialogOpen(false)
-            }}
-            handleFileUpload={async (fileType, file) =>
-              handleFileUpload(fileType, file)
-            }
-            isLocal={isLocal}
-          />
-        </DialogContent>
-        <DialogActions>
-          <MuiButton onClick={() => { setUploadDialogOpen(false); }}>Close</MuiButton>
-        </DialogActions>
-      </Dialog>
     </div>
   )
 }

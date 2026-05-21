@@ -69,7 +69,7 @@ const getRegionInput = () =>
 
 it('renders without crashing', () => {
   renderApp()
-  expect(screen.getByAltText('vgv')).toBeInTheDocument()
+  expect(screen.getByAltText('seqTubeMaps')).toBeInTheDocument()
 })
 
 it('renders with error when api call to server throws', async () => {
@@ -103,7 +103,9 @@ it('allows the data source to be changed', async () => {
   expect(getRegionInput().value).toEqual('ref:1-100')
 
   await userEvent.click(screen.getByTestId('examplesMenuButton'))
-  await userEvent.click(screen.getByRole('menuitem', { name: 'vg "small" example' }))
+  await userEvent.click(
+    screen.getByRole('menuitem', { name: 'vg "small" example' }),
+  )
   expect(getRegionInput().value).toEqual('x:1-100')
 })
 
