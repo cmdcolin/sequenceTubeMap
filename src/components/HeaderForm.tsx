@@ -69,6 +69,8 @@ import type {
 
 export { determineRegionIndex, regionStringFromRegionIndex }
 
+type MenuType = 'examples' | 'file' | 'view' | 'reads' | 'visibility'
+
 const DATA_SOURCES: ViewTarget[] = config.DATA_SOURCES
 const MAX_UPLOAD_SIZE_DESCRIPTION = '5 MB'
 const dataTypes = {
@@ -190,7 +192,7 @@ function HeaderForm({
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [uploadInProgress, setUploadInProgress] = useState(false)
-  const [menuAnchor, setMenuAnchor] = useState<{ type: 'examples' | 'file' | 'view' | 'reads' | 'visibility'; el: HTMLElement } | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<{ type: MenuType; el: HTMLElement } | null>(null)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   // The "Manage tracks…" dialog (formerly the standalone Tracks button in the
   // AppBar). Tucked behind File since it's only useful in custom-files mode
@@ -570,6 +572,12 @@ function HeaderForm({
     )
   }
 
+  const menuFor = (type: MenuType) => ({
+    anchorEl: menuAnchor?.type === type ? menuAnchor.el : null,
+    open: menuAnchor?.type === type,
+    onClose: () => { setMenuAnchor(null); },
+  })
+
   const customFilesFlag = dataType === dataTypes.CUSTOM_FILES
   const examplesFlag = dataType === dataTypes.EXAMPLES
   const viewTargetHasChange = !viewTargetsEqual(
@@ -610,11 +618,7 @@ function HeaderForm({
           >
             Examples
           </MuiButton>
-          <Menu
-            anchorEl={menuAnchor?.type === 'examples' ? menuAnchor.el : null}
-            open={menuAnchor?.type === 'examples'}
-            onClose={() => { setMenuAnchor(null); }}
-          >
+          <Menu {...menuFor('examples')}>
             {visibleDataSources.map(ds => (
               <MenuItem
                 key={ds.name}
@@ -653,11 +657,7 @@ function HeaderForm({
           >
             File
           </MuiButton>
-          <Menu
-            anchorEl={menuAnchor?.type === 'file' ? menuAnchor.el : null}
-            open={menuAnchor?.type === 'file'}
-            onClose={() => { setMenuAnchor(null); }}
-          >
+          <Menu {...menuFor('file')}>
             <MenuItem
               data-testid="openCustomFiles"
               selected={customFilesFlag}
@@ -691,12 +691,7 @@ function HeaderForm({
               >
                 View
               </MuiButton>
-              <Menu
-                anchorEl={menuAnchor?.type === 'view' ? menuAnchor.el : null}
-                open={menuAnchor?.type === 'view'}
-                onClose={() => { setMenuAnchor(null); }}
-                slotProps={{ list: { dense: true } }}
-              >
+              <Menu {...menuFor('view')} slotProps={{ list: { dense: true } }}>
                 <CheckboxMenuItem
                   label="Show legend"
                   checked={!!legendVisible}
@@ -740,12 +735,7 @@ function HeaderForm({
               >
                 Reads
               </MuiButton>
-              <Menu
-                anchorEl={menuAnchor?.type === 'reads' ? menuAnchor.el : null}
-                open={menuAnchor?.type === 'reads'}
-                onClose={() => { setMenuAnchor(null); }}
-                slotProps={{ list: { dense: true } }}
-              >
+              <Menu {...menuFor('reads')} slotProps={{ list: { dense: true } }}>
                 <CheckboxMenuItem
                   label="Show sequence reads"
                   checked={visOptions.showReads}
@@ -839,9 +829,7 @@ function HeaderForm({
           </MuiButton>
           <Popover
             keepMounted
-            open={menuAnchor?.type === 'visibility'}
-            anchorEl={menuAnchor?.type === 'visibility' ? menuAnchor.el : null}
-            onClose={() => { setMenuAnchor(null); }}
+            {...menuFor('visibility')}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
           >
             <Box sx={{ p: 1 }}>

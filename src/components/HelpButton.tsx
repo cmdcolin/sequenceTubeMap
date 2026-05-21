@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import type { ImgHTMLAttributes } from 'react'
 import IconButton from '@mui/material/IconButton'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
 import Markdown from 'markdown-to-jsx'
+import useSWR from 'swr'
 import PopupDialog from './PopupDialog.tsx'
 
 interface HelpButtonProps {
@@ -35,14 +36,12 @@ function HelpImage({ alt, src, baseURL, ...props }: HelpImageProps) {
 export const HelpButton = ({ file }: HelpButtonProps) => {
   const fileURL = new URL(file, document.baseURI)
   const [open, setOpen] = useState(false)
-  const [content, setContent] = useState('')
-
-  useEffect(() => {
-    fetch(file)
-      .then(res => res.text())
-      .then(md => { setContent(md) })
-      .catch(() => { setContent('Could not fetch help') })
-  }, [file])
+  const { data, error } = useSWR(file, (f: string) => fetch(f).then(r => r.text()), {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    shouldRetryOnError: false,
+  })
+  const content = error ? 'Could not fetch help' : (data ?? '')
 
   const options = {
     overrides: {

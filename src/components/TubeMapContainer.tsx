@@ -16,6 +16,7 @@ import Legend from './Legend.tsx'
 import { computeExampleData } from './tubeMapData.ts'
 import type { APIInterface } from '../api/APIInterface.ts'
 import type { Tracks, ViewTarget, VisOptions } from '../Types.ts'
+import { mergeUnique } from '../util/array.ts'
 
 const GROUP_PALETTE_CYCLE = [
   'reds',
@@ -361,11 +362,6 @@ function TubeMapContainer({
       ? focusReadNames
       : pendingReadSet
 
-  const mergeUnique = (a: string[], b: string[]) => [
-    ...a,
-    ...b.filter(x => !a.includes(x)),
-  ]
-
   const addNamesToPendingSet = (names: string[]) => {
     setPendingReadSet(mergeUnique(editingBase, names))
     setReadContextMenu(null)
@@ -373,7 +369,7 @@ function TubeMapContainer({
   }
 
   const addNodeToNodeSet = (nodeName: string) => {
-    setPendingNodeSet(mergeUnique(pendingNodeSet, [nodeName]))
+    setPendingNodeSet(prev => mergeUnique(prev, [nodeName]))
     setNodeContextMenu(null)
   }
 
@@ -384,66 +380,53 @@ function TubeMapContainer({
   }
 
   const addReadsToGroup = (groupId: string, names: string[]) => {
-    setReadGroups(
-      readGroups.map(g =>
+    setReadGroups(prev =>
+      prev.map(g =>
         g.id === groupId ? { ...g, reads: mergeUnique(g.reads, names) } : g,
       ),
     )
   }
 
-  const saveSetAsNewGroup = () => {
-    if (pendingReadSet.length === 0) return
+  function appendNewGroup(reads: string[]) {
     const n = groupCounter + 1
     const id = `g${n}`
-    setReadGroups([
-      ...readGroups,
-      {
-        id,
-        name: `Group ${n}`,
-        color: paletteForIndex(groupCounter),
-        reads: pendingReadSet,
-      },
-    ])
+    setReadGroups(prev => [...prev, { id, name: `Group ${n}`, color: paletteForIndex(groupCounter), reads }])
     setActiveGroupId(id)
     setGroupCounter(n)
-    setPendingReadSet([])
+  }
+
+  const saveSetAsNewGroup = () => {
+    if (pendingReadSet.length > 0) {
+      appendNewGroup(pendingReadSet)
+      setPendingReadSet([])
+    }
   }
 
   const addNamesToActiveGroup = (names: string[]) => {
-    if (activeGroupId === null || names.length === 0) return
-    addReadsToGroup(activeGroupId, names)
-    setReadContextMenu(null)
-    setNodeContextMenu(null)
+    if (activeGroupId !== null && names.length > 0) {
+      addReadsToGroup(activeGroupId, names)
+      setReadContextMenu(null)
+      setNodeContextMenu(null)
+    }
   }
 
   const addReadsAsNewGroup = (names: string[]) => {
-    if (names.length === 0) return
-    const n = groupCounter + 1
-    const id = `g${n}`
-    setReadGroups([
-      ...readGroups,
-      {
-        id,
-        name: `Group ${n}`,
-        color: paletteForIndex(groupCounter),
-        reads: names,
-      },
-    ])
-    setActiveGroupId(id)
-    setGroupCounter(n)
-    setNodeContextMenu(null)
+    if (names.length > 0) {
+      appendNewGroup(names)
+      setNodeContextMenu(null)
+    }
   }
 
   const renameGroup = (id: string, name: string) => {
-    setReadGroups(readGroups.map(g => (g.id === id ? { ...g, name } : g)))
+    setReadGroups(prev => prev.map(g => (g.id === id ? { ...g, name } : g)))
   }
 
   const recolorGroup = (id: string, color: string) => {
-    setReadGroups(readGroups.map(g => (g.id === id ? { ...g, color } : g)))
+    setReadGroups(prev => prev.map(g => (g.id === id ? { ...g, color } : g)))
   }
 
   const deleteGroup = (id: string) => {
-    setReadGroups(readGroups.filter(g => g.id !== id))
+    setReadGroups(prev => prev.filter(g => g.id !== id))
     if (activeGroupId === id) setActiveGroupId(null)
   }
 
@@ -481,15 +464,13 @@ function TubeMapContainer({
     },
   ]
 
-  const isOpen = infoDialogContent !== undefined
-
   const legendTracks =
     dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
 
   return (
     <div id="tubeMapContainer" style={{ position: 'relative' }}>
       <PopUpInfoDialog
-        open={isOpen}
+        open={infoDialogContent !== undefined}
         attributes={infoDialogContent}
         close={() => { setInfoDialogContent(undefined); }}
       />
@@ -500,7 +481,7 @@ function TubeMapContainer({
           titleHint="Nodes you've selected; use the actions below to stage reads that travel through them."
           items={pendingNodeSet}
           onRemove={nodeName =>
-            { setPendingNodeSet(pendingNodeSet.filter(n => n !== nodeName)); }
+            { setPendingNodeSet(prev => prev.filter(n => n !== nodeName)); }
           }
           actions={[
             {
@@ -527,7 +508,7 @@ function TubeMapContainer({
           titleHint="Reads staged for an action: filter to only these, save as a color group, or merge into the active group."
           items={pendingReadSet}
           onRemove={name =>
-            { setPendingReadSet(pendingReadSet.filter(n => n !== name)); }
+            { setPendingReadSet(prev => prev.filter(n => n !== name)); }
           }
           actions={pendingReadActions}
         />
