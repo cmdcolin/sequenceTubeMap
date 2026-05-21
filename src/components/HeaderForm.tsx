@@ -744,6 +744,13 @@ function HeaderForm({
                   helpText="Aggregates reads into one thick band per node→node edge, with band thickness proportional to the number of reads traversing it. Trades per-read detail for the ability to browse much higher-coverage regions."
                 />
                 <CheckboxMenuItem
+                  label="Ignore strand"
+                  checked={visOptions.ignoreStrand}
+                  disabled={!visOptions.showReads}
+                  onToggle={() => { toggleVisOptionFlag('ignoreStrand') }}
+                  helpText="Treat forward and reverse strands as equivalent. Normal reads stop being colored by their auxPalette for reverse, and the Sankey view merges (+A→+B) with (-B→-A) into one band."
+                />
+                <CheckboxMenuItem
                   label="Show soft clips"
                   checked={visOptions.showSoftClips}
                   disabled={!visOptions.showReads || visOptions.coarsenedReadView}

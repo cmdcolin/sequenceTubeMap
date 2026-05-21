@@ -67,6 +67,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
     mappingQualityCutoff: 0,
     coarsenedReadView: false,
+    ignoreStrand: false,
   })
   const [apiInterface, setApiInterface] = useState<APIInterface>(
     () => (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),

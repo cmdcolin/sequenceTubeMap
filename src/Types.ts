@@ -138,6 +138,10 @@ export interface VisOptions {
   // edge-count-weighted band per node→node transition. Trades per-read detail
   // for the ability to browse much higher-coverage regions.
   coarsenedReadView: boolean
+  // Treat forward and reverse strands as equivalent: normal reads stop using
+  // the reverse-strand auxPalette, and the Sankey view merges (+A→+B) and
+  // (-B→-A) into a single band. Useful when strand isn't relevant.
+  ignoreStrand: boolean
 }
 
 // A path entry returned by the API for a graph track.

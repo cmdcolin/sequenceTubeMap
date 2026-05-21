@@ -241,6 +241,7 @@ interface TubeMapConfig {
   showReads: boolean
   showSoftClips: boolean
   coarsenedReadView: boolean
+  ignoreStrand: boolean
   colorSchemes: Record<number, ColorScheme>
   coloredNodes: string[]
   exonColors: string
@@ -369,6 +370,7 @@ const config: TubeMapConfig = {
   showReads: true,
   showSoftClips: true,
   coarsenedReadView: false,
+  ignoreStrand: false,
   colorSchemes: {},
   // colors corresponds with tracks(input files), [haplotype, read1, read2, ...]
   exonColors: 'lightColors',
@@ -624,6 +626,17 @@ export function setShowReadsFlag(value: boolean): void {
 export function setCoarsenedReadViewFlag(value: boolean): void {
   if (config.coarsenedReadView !== value) {
     config.coarsenedReadView = value
+    svg = d3.select(svgID)
+    createTubeMap()
+  }
+}
+
+// Treat forward and reverse strands as equivalent. In normal mode this drops
+// the auxPalette branch in generateTrackColor; in coarsened mode this merges
+// (+A→+B) and (-B→-A) into one band.
+export function setIgnoreStrandFlag(value: boolean): void {
+  if (config.ignoreStrand !== value) {
+    config.ignoreStrand = value
     svg = d3.select(svgID)
     createTubeMap()
   }
@@ -910,9 +923,6 @@ function createTubeMap(): void {
   generateNodeXCoords()
 
   generateSVGShapesFromPath()
-  if (drawCoarsened) {
-    recolorCoarsenedCurves()
-  }
   if (DEBUG) {
     console.log('Tracks:')
     console.log(tracks)
@@ -1021,7 +1031,12 @@ function assignReadsToNodes(): void {
     }
   })
   reads.forEach((read, idx) => {
-    read.width = READ_WIDTH
+    // Honor a pre-set width (e.g. coarsened Sankey bands pre-size themselves
+    // by traversing-read count) — only fall back to the default for normal
+    // reads which leave width unset.
+    if (read.width === undefined || read.width === 0) {
+      read.width = READ_WIDTH
+    }
     if (read.path.length === 1) {
       const firstNode = read.path[0]!.node
       if (firstNode !== null) {
@@ -1247,7 +1262,7 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
     const read = reads[readElement[0]]!
     read.path[readElement[1]]!.y = currentY
     setOccupiedUntil(occupiedUntil, read, readElement[1], currentY, node)
-    currentY += READ_WIDTH
+    currentY += read.width
   })
   let maxY = currentY
 
@@ -1263,10 +1278,15 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
     // place in next lane
     read.path[readElement[1]]!.y = currentY
     occupiedFrom.set(currentY, firstNodeOffset)
-    // if no conflicts
+    // if no conflicts. The original predicate was strict-less-than, which
+    // treats two reads that exactly touch (incoming ends at base K, outgoing
+    // starts at base K+1) as conflicting. They don't overlap, so they can
+    // share a lane — relax to <=. This also matters for coarsened Sankey
+    // bands at single-base nodes (e.g. a 1bp "G" node): with edge-only offsets
+    // the math becomes 0+1 < 1 (conflict, wrong) vs. 0+1 <= 1 (no conflict).
     const occUntil = occupiedUntil.get(currentY)
-    if (occUntil === undefined || occUntil + 1 < firstNodeOffset) {
-      currentY += READ_WIDTH
+    if (occUntil === undefined || occUntil + 1 <= firstNodeOffset) {
+      currentY += read.width
       maxY = Math.max(maxY, currentY)
     } else {
       // otherwise push down incoming reads to make place for outgoing Read
@@ -1275,7 +1295,7 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
         const incRead = reads[incReadElementIndices[0]]!
         const incReadPathElement = incRead.path[incReadElementIndices[1]]!
         if (incReadPathElement.y !== undefined && incReadPathElement.y >= currentY) {
-          incReadPathElement.y += READ_WIDTH
+          incReadPathElement.y += read.width
           setOccupiedUntil(
             occupiedUntil,
             incRead,
@@ -1285,8 +1305,8 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
           )
         }
       })
-      currentY += READ_WIDTH
-      maxY += READ_WIDTH
+      currentY += read.width
+      maxY += read.width
     }
   })
 
@@ -1303,7 +1323,7 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
       firstNodeOffset < (occupiedUntil.get(currentY) ?? -Infinity) + 2 ||
       finalNodeCoverLength > (occupiedFrom.get(currentY) ?? Infinity) - 3
     ) {
-      currentY += READ_WIDTH
+      currentY += currentRead.width || READ_WIDTH
     }
     currentRead.path[0]!.y = currentY
     occupiedUntil.set(currentY, finalNodeCoverLength)
@@ -3233,7 +3253,11 @@ function generateTrackColor(track: Track, highlight?: string): string {
         Math.min(60, track.mapping_quality!) / 60,
       )
     } else {
-      if (track.is_reverse !== undefined && track.is_reverse) {
+      if (
+        track.is_reverse !== undefined &&
+        track.is_reverse &&
+        !config.ignoreStrand
+      ) {
         // get the color currently stored for this read source file, and stagger color using modulo
         const colorSet = getColorSet(config.colorSchemes[sourceID].auxPalette)
         trackColor = colorSet[track.id % colorSet.length]!
@@ -3543,40 +3567,21 @@ function generateSVGShapesFromPath(): void {
 
 // Sankey-mode synthesis: one synthetic "read" per (srcSigned → dstSigned) edge,
 // fed through the normal placeReads/generateSVGShapesFromPath pipeline so the
-// band gets the same lane assignment, loop topology, and bezier as a real read.
+// band gets the same lane assignment, loop topology, bezier shape, AND color
+// scheme as a real read — colors come from generateTrackColor's natural
+// `id % palette.length` rotation, no custom palette needed.
 //
-// Synthetic-track ids live above this base so they never collide with the
-// real track id space and so we can tell them apart in mouse handlers and the
-// post-render recolor pass.
+// Synthetic-track ids live above this base so they don't collide with real
+// track ids and so click/hover handlers can show count info instead of the
+// per-read info dialog.
 const COARSENED_ID_BASE = 1_000_000_000
 const isCoarsenedId = (id: number) => id >= COARSENED_ID_BASE
 
-// Distinct, mid-saturation palette for Sankey bands. Chosen for readability
-// against a white background and visible difference between adjacent bands.
-const COARSENED_PALETTE = [
-  '#4e79a7', '#f28e2b', '#59a14f', '#e15759', '#76b7b2',
-  '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac',
-  '#1f77b4', '#d62728', '#2ca02c', '#9467bd', '#8c564b',
-  '#17becf', '#e377c2', '#bcbd22', '#7f7f7f', '#ff7f0e',
-]
-
-// Deterministic color from an edge key — same edge always gets the same color
-// across re-renders. djb2-ish hash keeps neighbors visually unrelated.
-function coarsenedColor(key: string): string {
-  let h = 5381
-  for (let i = 0; i < key.length; i += 1) {
-    h = ((h << 5) + h + key.charCodeAt(i)) | 0
-  }
-  const idx = Math.abs(h) % COARSENED_PALETTE.length
-  return COARSENED_PALETTE[idx]!
-}
-
-// Side table keyed by synthetic track id: count of contributing reads and
-// edge key (for color lookup). Populated by buildCoarsenedSyntheticReads,
-// consumed by recolorCoarsenedCurves and the mouseover/click handlers.
+// Side table keyed by synthetic track id: count of contributing reads and the
+// human-readable label. Populated by buildCoarsenedSyntheticReads, consumed
+// by the mouseover/click handlers.
 interface CoarsenedEdgeMeta {
   count: number
-  key: string
   label: string
 }
 let coarsenedEdgeMeta: Map<number, CoarsenedEdgeMeta> = new Map()
@@ -3606,6 +3611,12 @@ function buildCoarsenedSyntheticReads(): Track[] {
     sourceTrackID: number
   }
   const edges = new Map<string, EdgeAgg>()
+  // When ignoring strand, (+A→+B) and (-B→-A) refer to the same underlying
+  // graph connection — collapse both into one canonical key. We pick the
+  // lexicographically smaller of the two orientations so a stable canonical
+  // form is chosen; whichever orientation is seen first determines the
+  // visual band direction.
+  const ignoreStrand = config.ignoreStrand
   for (const read of reads) {
     const seq = read.indexSequence
     if (!seq || seq.length < 2) continue
@@ -3617,7 +3628,14 @@ function buildCoarsenedSyntheticReads(): Track[] {
       const srcNode = nodes[sIdx]
       const dstNode = nodes[dIdx]
       if (!srcNode || !dstNode) continue
-      const key = `${sSigned}>${dSigned}`
+      let key: string
+      if (ignoreStrand) {
+        const a = `${sSigned}>${dSigned}`
+        const b = `${-dSigned}>${-sSigned}`
+        key = a < b ? a : b
+      } else {
+        key = `${sSigned}>${dSigned}`
+      }
       const existing = edges.get(key)
       if (existing === undefined) {
         edges.set(key, {
@@ -3634,35 +3652,64 @@ function buildCoarsenedSyntheticReads(): Track[] {
     }
   }
 
+  // Square-root scaling on count gives heavy edges visible weight without
+  // letting one massive edge dwarf everything else. Min stays near READ_WIDTH
+  // so single-read edges still look like a normal read; max is generous so
+  // hot edges read as obvious "highways."
+  let maxEdgeCount = 0
+  for (const e of edges.values()) {
+    if (e.count > maxEdgeCount) maxEdgeCount = e.count
+  }
+  const BAND_MIN_WIDTH = READ_WIDTH
+  const BAND_MAX_WIDTH = 60
+  const widthForCount = (c: number): number => {
+    if (maxEdgeCount <= 1) return BAND_MIN_WIDTH
+    return (
+      BAND_MIN_WIDTH +
+      (BAND_MAX_WIDTH - BAND_MIN_WIDTH) * Math.sqrt(c / maxEdgeCount)
+    )
+  }
+
   const synthetic: Track[] = []
   let i = 0
   for (const edge of edges.values()) {
     const id = COARSENED_ID_BASE + i
     const label = `${edge.count.toLocaleString()} read${edge.count === 1 ? '' : 's'}: Node ${edge.sName} → Node ${edge.dName}`
-    coarsenedEdgeMeta.set(id, {
-      count: edge.count,
-      key: edge.sName + '>' + edge.dName,
-      label,
-    })
-    // Minimum read fields needed downstream. sequence is the two signed node
-    // names; generateTrackIndexSequences will fill indexSequence; placeReads
-    // will fill path[] (including the loop topology); assignReadsToNodes will
-    // set width to READ_WIDTH. firstNodeOffset=0 + finalNodeCoverLength=full
-    // dst length make the band span both nodes edge-to-edge.
-    const dstLen = nodes[Math.abs(edge.dSigned)]?.sequenceLength ?? 0
+    coarsenedEdgeMeta.set(id, { count: edge.count, label })
+    // Place each synthetic band so it touches *only* its endpoint nodes' edges:
+    //   • firstNodeOffset = src.sequenceLength → curve exits at src's right
+    //     pixel edge, no rectangle drawn inside src.
+    //   • finalNodeCoverLength = 0 → curve enters at dst's left pixel edge,
+    //     no rectangle drawn inside dst.
+    // The crucial side effect is in placeReadSet's conflict check: at any
+    // node B with an incoming edge (A→B) and an outgoing edge (B→C), the
+    // incoming's finalNodeCoverLength=0 and the outgoing's firstNodeOffset=
+    // B.length leave them with no horizontal overlap, so they share a single
+    // lane. Node heights collapse from ~(N_in + N_out) lanes down to
+    // ~max(N_in, N_out) lanes.
+    //
+    // Note: reverseReversedReads will swap firstNodeOffset/finalNodeCoverLength
+    // for fully-reverse synthetics. The math works out: pre-flip values of
+    // (srcLen, 0) become post-flip (newSrcLen, 0), which is the same pattern
+    // — bands stay edge-only regardless of orientation.
+    const srcLen = nodes[Math.abs(edge.sSigned)]?.sequenceLength ?? 0
     synthetic.push({
       id,
       sourceTrackID: edge.sourceTrackID,
       type: 'read',
-      // Sentinel name; will never match a real read so it won't collide with
-      // focus / group filters that key off read names.
-      name: `__coarsened_${edge.sSigned}_${edge.dSigned}`,
+      // Human-readable so the name surfaces sensibly in any UI that uses it
+      // (right-click → add to group, etc.) — and so trackTooltipText fallback
+      // shows something meaningful.
+      name: label,
       sequence: [edge.sName, edge.dName],
       indexSequence: [],
       path: [],
-      width: 0,
-      firstNodeOffset: 0,
-      finalNodeCoverLength: dstLen,
+      // Pre-set width so placeReads / placeReadSet allocate the right vertical
+      // space and assignReadsToNodes (patched to honor pre-set widths) leaves
+      // it alone.
+      width: widthForCount(edge.count),
+      firstNodeOffset: srcLen,
+      finalNodeCoverLength: 0,
       sequenceNew: [
         { nodeName: edge.sName, mismatches: [] },
         { nodeName: edge.dName, mismatches: [] },
@@ -3692,30 +3739,6 @@ function buildCoarsenedSyntheticReads(): Track[] {
       `tallestNodeBeforePlace=${tallestName}(${tallestH.toFixed(1)})`,
   )
   return synthetic
-}
-
-// After generateSVGShapesFromPath has emitted curves and rectangles using the
-// default per-track color, replace the color of every coarsened-edge shape
-// with a palette color hashed from its edge key. This sidesteps having to
-// teach generateTrackColor about synthetic tracks.
-function recolorCoarsenedCurves(): void {
-  if (coarsenedEdgeMeta.size === 0) return
-  for (const c of trackCurves) {
-    if (!isCoarsenedId(c.id)) continue
-    const meta = coarsenedEdgeMeta.get(c.id)
-    if (meta === undefined) continue
-    c.color = coarsenedColor(meta.key)
-    c.alpha = 0.85
-    c.name = meta.label
-  }
-  for (const r of trackRectangles) {
-    if (!isCoarsenedId(r.id)) continue
-    const meta = coarsenedEdgeMeta.get(r.id)
-    if (meta === undefined) continue
-    r.color = coarsenedColor(meta.key)
-    r.alpha = 0.85
-    r.name = meta.label
-  }
 }
 
 function createFeatureRectangle(

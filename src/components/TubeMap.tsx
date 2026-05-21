@@ -38,6 +38,7 @@ function updateVisOptions(
   tubeMap.setShowReadsFlag(visOptions.showReads)
   tubeMap.setSoftClipsFlag(visOptions.showSoftClips)
   tubeMap.setCoarsenedReadViewFlag(visOptions.coarsenedReadView)
+  tubeMap.setIgnoreStrandFlag(visOptions.ignoreStrand)
   tubeMap.setColoredNodes(visOptions.coloredNodes)
   tubeMap.setShowNodeLabels(visOptions.showNodeLabels)
 
