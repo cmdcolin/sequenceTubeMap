@@ -2,7 +2,6 @@ import { useState } from 'react'
 import AppBar from '@mui/material/AppBar'
 import Backdrop from '@mui/material/Backdrop'
 import Box from '@mui/material/Box'
-import MuiButton from '@mui/material/Button'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import type { AvailableTrack, FileType, Track, Tracks, ViewTarget, VisOptions } from '../Types.ts'
@@ -28,7 +27,8 @@ interface HeaderFormAppBarProps {
   handleFileUpload: (fileType: FileType, file: File) => Promise<string | undefined>
   onUploaded: (tracks: Track[]) => void
   onOpenCustomFiles: () => void
-  isLocal: boolean
+  apiMode: 'local' | 'server' | 'upstream'
+  onDestChange?: (mode: string) => void
   legendVisible?: boolean
   toggleLegend?: () => void
   visOptions?: VisOptions
@@ -50,7 +50,8 @@ export function HeaderFormAppBar({
   handleFileUpload,
   onUploaded,
   onOpenCustomFiles,
-  isLocal,
+  apiMode,
+  onDestChange,
   legendVisible,
   toggleLegend,
   visOptions,
@@ -104,7 +105,8 @@ export function HeaderFormAppBar({
             handleFileUpload={handleFileUpload}
             onUploaded={onUploaded}
             onOpenCustomFiles={onOpenCustomFiles}
-            isLocal={isLocal}
+            apiMode={apiMode}
+            onDestChange={onDestChange}
           />
           {toggleLegend && visOptions && toggleVisOptionFlag && (
             <>

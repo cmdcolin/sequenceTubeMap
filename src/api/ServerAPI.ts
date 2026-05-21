@@ -13,9 +13,14 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' }
  * API implementation that uses vg running on the server to manipulate files.
  */
 export class ServerAPI implements APIInterface {
-  readonly mode = 'server' as const
+  readonly mode: 'server' | 'upstream'
 
-  constructor(private readonly apiUrl: string) {}
+  constructor(
+    private readonly apiUrl: string,
+    mode: 'server' | 'upstream' = 'server',
+  ) {
+    this.mode = mode
+  }
 
   private async postJSON<T>(
     path: string,

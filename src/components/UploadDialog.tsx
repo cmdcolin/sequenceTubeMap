@@ -11,7 +11,8 @@ interface UploadDialogProps {
   onClose: () => void
   onUploaded: (tracks: Track[]) => void
   handleFileUpload: (fileType: FileType, file: File) => Promise<string | undefined>
-  isLocal: boolean
+  apiMode: 'local' | 'server' | 'upstream'
+  onDestChange?: (mode: string) => void
 }
 
 export function UploadDialog({
@@ -19,7 +20,8 @@ export function UploadDialog({
   onClose,
   onUploaded,
   handleFileUpload,
-  isLocal,
+  apiMode,
+  onDestChange,
 }: UploadDialogProps) {
   return (
     <Dialog open={open} onClose={() => { onClose(); }} maxWidth="sm" fullWidth>
@@ -31,7 +33,8 @@ export function UploadDialog({
             onClose()
           }}
           handleFileUpload={handleFileUpload}
-          isLocal={isLocal}
+          apiMode={apiMode}
+          onDestChange={onDestChange}
         />
       </DialogContent>
       <DialogActions>

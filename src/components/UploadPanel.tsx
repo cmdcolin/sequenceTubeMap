@@ -17,10 +17,10 @@ interface UploadPanelProps {
     fileType: FileType,
     file: File,
   ) => Promise<string | undefined>
-  // True when the active API is the in-browser LocalAPI. Controls the privacy
-  // copy ("files stay on your machine") and the LocalAPI-only graph format
-  // note.
-  isLocal?: boolean
+  apiMode?: 'local' | 'server' | 'upstream'
+  // Called when the user switches the upload destination within the panel.
+  // Allows the parent to switch the global API mode so uploads use the right backend.
+  onDestChange?: (mode: string) => void
 }
 
 const GRAPH_EXTS = ['.xg', '.vg', '.hg', '.pg', '.gbz', '.gbz.db', '.db']
@@ -49,10 +49,6 @@ function isIndexSibling(name: string): boolean {
 function detectType(name: string): FileType | null {
   const lower = name.toLowerCase()
   if (INDEX_EXTS.some(e => lower.endsWith(e))) {
-    // Index files ride along with their data file. We classify them as 'read'
-    // so they get uploaded through the same path; the backend recognizes the
-    // suffix and stores them as a sibling instead of registering them as
-    // their own read track.
     return 'read'
   }
   if (GRAPH_EXTS.some(e => lower.endsWith(e))) {
@@ -70,7 +66,8 @@ function detectType(name: string): FileType | null {
 export const UploadPanel = ({
   onUploaded,
   handleFileUpload,
-  isLocal,
+  apiMode = 'local',
+  onDestChange,
 }: UploadPanelProps) => {
   const [files, setFiles] = useState<StagedFile[]>([])
   const [uploading, setUploading] = useState(false)
@@ -80,7 +77,7 @@ export const UploadPanel = ({
 
   const addFiles = (list: FileList | File[]) => {
     const arr = Array.from(list)
-    const accepted = isLocal
+    const accepted = apiMode === 'local'
       ? arr.filter(f => LOCAL_EXTS.some(e => f.name.toLowerCase().endsWith(e)))
       : arr
     const rejected = arr.length - accepted.length
@@ -116,9 +113,6 @@ export const UploadPanel = ({
           continue
         }
         const uploadedName = await handleFileUpload(type, file)
-        // Index siblings (.gai, .tbi) are uploaded so the backend can pair
-        // them with their data file, but they aren't tracks in their own
-        // right.
         if (uploadedName !== undefined && !isIndexSibling(file.name)) {
           tracks.push({
             trackFile: uploadedName,
@@ -150,51 +144,48 @@ export const UploadPanel = ({
     }
   }
 
+  const isLocal = apiMode === 'local'
+  const isServer = apiMode === 'server'
+
   return (
     <div data-testid="UploadPanel">
-      {isLocal ? (
-        <div
-          style={{
-            fontSize: 12,
-            color: '#555',
-            background: '#f4f7ff',
-            border: '1px solid #d0dbf2',
-            borderRadius: 4,
-            padding: 8,
-            marginBottom: 8,
-            lineHeight: 1.5,
-          }}
-        >
-          <strong>Files stay on your machine.</strong> Nothing is uploaded — the
-          parser and rendering both run in your browser via WebAssembly.{' '}
-          <a
-            href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md#browser-only-wasm-mode-npm-run-startlocal"
-            target="_blank"
-            rel="noreferrer"
-          >
-            How to prepare your files →
-          </a>
-          <br />
-          <strong>Graph:</strong> <code>.gbz.db</code> / <code>.db</code>.{' '}
-          <strong>Reads:</strong> <code>.gam</code> (drop a{' '}
-          <code>.sorted.gam</code> + <code>.sorted.gam.gai</code> together for
-          indexed queries).
-        </div>
-      ) : null}
+      {/* Mode-specific description — one compact line at the top */}
+      <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>
+        {isLocal ? (
+          <>
+            <strong>In-browser (WASM)</strong> — files stay on your machine.{' '}
+            Accepts <code>.gbz.db</code> graphs and <code>.gam</code> reads.{' '}
+            <a
+              href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              How to prepare →
+            </a>
+          </>
+        ) : isServer ? (
+          <>
+            <strong>Self-hosted server</strong> — drop any vg-supported graph or read file.
+          </>
+        ) : (
+          <>
+            <strong>Upload to <code>api.tubemap.graphs.vg</code></strong> (vgteam
+            public server). Drop your <code>.xg</code>, <code>.vg</code>, or{' '}
+            <code>.gbz</code> graph and <code>.gam</code> / <code>.gaf</code> reads.
+            5 MB limit — files deleted after 24 h.
+          </>
+        )}
+      </div>
+
+      {/* Drop zone */}
       <div
-        onDrop={e => {
-          onDrop(e)
-        }}
+        onDrop={e => { onDrop(e) }}
         onDragOver={e => {
           e.preventDefault()
           setDragging(true)
         }}
-        onDragLeave={() => {
-          setDragging(false)
-        }}
-        onClick={() => {
-          inputRef.current?.click()
-        }}
+        onDragLeave={() => { setDragging(false) }}
+        onClick={() => { inputRef.current?.click() }}
         role="button"
         tabIndex={0}
         style={{
@@ -208,21 +199,16 @@ export const UploadPanel = ({
           color: '#555',
         }}
       >
-        <div style={{ fontWeight: 500 }}>
-          Drop files here or click to choose
-        </div>
-        <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.4 }}>
-          <div>
-            <strong>Graph:</strong> {GRAPH_EXTS.join(', ')}
-          </div>
-          <div>
-            <strong>Reads:</strong> {READ_EXTS.join(', ')}
-          </div>
-          <div>
-            <strong>Haplotype:</strong> {HAPLOTYPE_EXTS.join(', ')}
-          </div>
+        <div style={{ fontWeight: 500 }}>Drop files here or click to choose</div>
+        <div style={{ fontSize: 11, marginTop: 4, color: '#888' }}>
+          {isLocal
+            ? 'Graph: .gbz.db   •   Reads: .sorted.gam + .sorted.gam.gai'
+            : isServer
+              ? `Graph: ${GRAPH_EXTS.join(' ')}   •   Reads: ${READ_EXTS.join(' ')}`
+              : 'Graph: .xg .vg .gbz   •   Reads: .gam .gaf'}
         </div>
       </div>
+
       <input
         ref={inputRef}
         type="file"
@@ -236,6 +222,7 @@ export const UploadPanel = ({
           e.target.value = ''
         }}
       />
+
       {files.length > 0 && (
         <ul
           style={{
@@ -258,53 +245,62 @@ export const UploadPanel = ({
                 borderBottom: '1px solid #eee',
               }}
             >
-              <span style={{ flex: 1, wordBreak: 'break-all' }}>
-                {f.file.name}
-              </span>
+              <span style={{ flex: 1, wordBreak: 'break-all' }}>{f.file.name}</span>
               <select
                 value={f.type ?? ''}
-                onChange={e => {
-                  changeType(i, e.target.value as FileType)
-                }}
+                onChange={e => { changeType(i, e.target.value as FileType) }}
                 style={{ fontSize: 12 }}
               >
-                <option value="" disabled>
-                  (skip)
-                </option>
+                <option value="" disabled>(skip)</option>
                 <option value="graph">graph</option>
                 <option value="read">read</option>
                 <option value="haplotype">haplotype</option>
               </select>
-              <Button
-                size="sm"
-                color="link"
-                onClick={() => {
-                  removeFile(i)
-                }}
-              >
+              <Button size="sm" color="link" onClick={() => { removeFile(i) }}>
                 remove
               </Button>
             </li>
           ))}
         </ul>
       )}
+
       {error ? (
         <div style={{ color: '#c00', marginBottom: 8 }}>{error}</div>
       ) : null}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Secondary mode switch link — only shown when toggle is meaningful */}
+        {!isServer && onDestChange ? (
+          <button
+            type="button"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              fontSize: 11,
+              color: '#888',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+            onClick={() => { onDestChange(isLocal ? 'upstream' : 'local') }}
+          >
+            {isLocal ? 'Switch to vgteam server →' : 'Switch to in-browser (WASM) →'}
+          </button>
+        ) : <span />}
+
         <Button
           color="primary"
           size="sm"
-          onClick={() => {
-            void upload()
-          }}
+          onClick={() => { void upload() }}
           disabled={
             files.length === 0 ||
             uploading ||
             files.every(f => f.type === null)
           }
         >
-          {uploading ? 'Uploading…' : 'Upload & use'}
+          {uploading
+            ? (isLocal ? 'Loading…' : 'Uploading…')
+            : (isLocal ? 'Load files' : 'Upload & use')}
         </Button>
       </div>
     </div>

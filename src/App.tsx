@@ -39,6 +39,8 @@ const isLocalMode = config.BACKEND_URL === false
 
 const defaultApiUrl = isLocalMode ? '' : `${config.BACKEND_URL}/api/v0`
 
+const UPSTREAM_API_URL = 'https://api.tubemap.graphs.vg/api/v0'
+
 const localDefaultViewTarget: ViewTarget =
   config.DATA_SOURCES.find(isLocalCompatibleDataSource) ??
   { tracks: [], region: '' }
@@ -87,6 +89,14 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
       }))
     } else if (mode === 'server') {
       setApiInterface(new ServerAPI(apiUrl))
+      setDataOrigin(dataOriginTypes.API)
+      setViewTarget(defaultViewTarget)
+      setVisOptions(v => ({
+        ...v,
+        colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
+      }))
+    } else if (mode === 'upstream') {
+      setApiInterface(new ServerAPI(UPSTREAM_API_URL, 'upstream'))
       setDataOrigin(dataOriginTypes.API)
       setViewTarget(defaultViewTarget)
       setVisOptions(v => ({
@@ -146,6 +156,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
         defaultViewTarget={defaultViewTarget}
         currentViewTarget={currentViewTarget}
         APIInterface={apiInterface}
+        onAPIMode={setAPIMode}
         legendVisible={legendVisible}
         toggleLegend={() => { setLegendVisible(v => !v) }}
         visOptions={visOptions}
@@ -167,7 +178,7 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
       <CustomizationAccordion
         currentAPIMode={apiInterface.mode}
         setAPIMode={setAPIMode}
-        showBackendConfig={!isLocalMode}
+        showServerOption={!isLocalMode}
       />
       <Footer />
     </div>

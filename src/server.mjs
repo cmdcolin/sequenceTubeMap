@@ -26,7 +26,6 @@ import pathIsInside from 'path-is-inside'
 import rl from 'readline'
 import compression from 'compression'
 import { server as WebSocketServer } from 'websocket'
-import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import {
   parseRegion,
@@ -43,10 +42,7 @@ import { createHash } from 'node:crypto'
 import cron from 'node-cron'
 import { RWLock } from 'readers-writer-lock'
 
-if (process.env.NODE_ENV !== 'production') {
-  // Load any .env file config
-  dotenv.config()
-}
+
 
 /// Return the python script chunkix.py
 /// Checks config.chunkixPath.

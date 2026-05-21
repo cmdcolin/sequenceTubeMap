@@ -25,7 +25,7 @@ export type FilenameSubscription = unknown
 // Contract implemented by LocalAPI and ServerAPI. All methods take an optional
 // AbortSignal that cancels the underlying request.
 export interface APIInterface {
-  readonly mode: 'local' | 'server'
+  readonly mode: 'local' | 'server' | 'upstream'
 
   getChunkedData(
     viewTarget: ViewTarget,

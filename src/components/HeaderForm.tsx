@@ -59,6 +59,7 @@ interface HeaderFormProps {
   currentViewTarget: ViewTarget
   defaultViewTarget?: ViewTarget
   APIInterface: APIInterface
+  onAPIMode?: (mode: string) => void
   legendVisible?: boolean
   toggleLegend?: () => void
   visOptions?: VisOptions
@@ -79,6 +80,7 @@ function HeaderForm({
   currentViewTarget,
   defaultViewTarget,
   APIInterface,
+  onAPIMode,
   legendVisible,
   toggleLegend,
   visOptions,
@@ -136,8 +138,8 @@ function HeaderForm({
   const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
   // In WASM/local mode the gbz-base query.wasm only understands .gbz.db files,
   // so .vg.xg-based built-ins would silently fail. Hide them from the dropdown.
-  const isLocal = APIInterface.mode === 'local'
-  const visibleDataSources = isLocal
+  const apiMode = APIInterface.mode
+  const visibleDataSources = apiMode === 'local'
     ? DATA_SOURCES.filter(isLocalCompatibleDataSource)
     : DATA_SOURCES
   const discoveredDataSources = discoverDataSources(
@@ -219,7 +221,7 @@ function HeaderForm({
   // the generic fallback when a real server returned an empty list.
   const noFilesMessage =
     filenamesData && files.length === 0
-      ? (filenamesData.error ?? (isLocal ? null : 'Server did not return a list of mounted filenames.'))
+      ? (filenamesData.error ?? (apiMode === 'local' ? null : 'Server did not return a list of mounted filenames.'))
       : null
 
   const error =
@@ -437,7 +439,7 @@ function HeaderForm({
     file: File,
   ): Promise<string | undefined> {
     if (
-      APIInterface.mode !== 'local' &&
+      apiMode !== 'local' &&
       file.size > config.MAXUPLOADSIZE
     ) {
       setFileSizeAlert(true)
@@ -500,7 +502,8 @@ function HeaderForm({
         handleFileUpload={handleFileUpload}
         onUploaded={handleQuickUploaded}
         onOpenCustomFiles={() => { handleDataSourceChange(dataTypes.CUSTOM_FILES); }}
-        isLocal={isLocal}
+        apiMode={apiMode}
+        onDestChange={onAPIMode}
         legendVisible={legendVisible}
         toggleLegend={toggleLegend}
         visOptions={visOptions}
