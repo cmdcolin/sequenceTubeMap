@@ -112,6 +112,11 @@ export const UploadPanel = ({
         if (!type) {
           continue
         }
+        // In server/upstream mode the server creates the .gai itself via vg gamsort —
+        // uploading the index separately would cause a "not a GAF or GAM" error.
+        if (apiMode !== 'local' && isIndexSibling(file.name)) {
+          continue
+        }
         const uploadedName = await handleFileUpload(type, file)
         if (uploadedName !== undefined && !isIndexSibling(file.name)) {
           tracks.push({
