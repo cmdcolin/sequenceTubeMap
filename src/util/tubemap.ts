@@ -2025,15 +2025,18 @@ function alignSVG(): () => void {
     totalHeight > 0 ? parentElement.clientHeight / totalHeight : 1,
   )
   const containerWidth = parentElement.clientWidth
-  const scaledWidth = maxXCoordinate * initialScale
-  const xOffset =
+  const scaledWidth = (maxXCoordinate - minXCoordinate) * initialScale
+  const leftMargin =
     scaledWidth + 10 < containerWidth
       ? (containerWidth - scaledWidth - 10) / 2
       : 0
   const initialTransform =
     previousTransform ??
     d3.zoomIdentity
-      .translate(xOffset, RAIL_SPACE - minYCoordinate * initialScale)
+      .translate(
+        leftMargin - minXCoordinate * initialScale,
+        RAIL_SPACE - minYCoordinate * initialScale,
+      )
       .scale(initialScale)
   return () => {
     zoom.transform(d3.select<Element, unknown>(svgID), initialTransform)
