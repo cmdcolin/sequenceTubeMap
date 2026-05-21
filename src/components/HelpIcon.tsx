@@ -20,7 +20,7 @@ export function HelpIcon({ label, helpText }: { label: string; helpText: string 
       >
         <FontAwesomeIcon icon={faCircleInfo} size="xs" />
       </IconButton>
-      <Dialog open={open} onClose={() => { setOpen(false); }} maxWidth="xs" fullWidth>
+      <Dialog open={open} onClose={() => { setOpen(false); }} maxWidth="xs" fullWidth onClick={(e) => { e.stopPropagation(); }}>
         <DialogTitle>{label}</DialogTitle>
         <DialogContent>
           <Typography variant="body2">{helpText}</Typography>

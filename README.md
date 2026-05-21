@@ -1,10 +1,10 @@
-# Sequence Tube Map — MemPanG26 Edition
+# seqTubeMaps — MemPanG26 Edition
 
 MemPanG26 Hackathon Team 2 — [Colin Diesh](https://github.com/cmdcolin) &
 [Rafeed Rahman Turjya](https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en)
 et al.
 
-Updated fork of https://github.com/vgteam/sequenceTubeMap with a variety of
+This is fork of https://github.com/vgteam/sequenceTubeMap with a variety of
 improvements including the ability to upload custom data in the browser
 
 Live demo - https://cmdcolin.github.io/sequenceTubeMap/
@@ -71,12 +71,6 @@ For constructing deep-link URLs: [doc/linking.md](doc/linking.md).
 
 Copyright (c) 2018 Wolfgang Beyer, 2026 Colin Diesh, MIT License.
 
-## Footnote
-
-Claude Code AI was used during this work. Note that the code has significantly
-diverged from upstream at this point but could be upstreamed piecewise or
-in-whole with dedicated effort
-
 ## Features added on this fork compared to upstream
 
 - Serverless — graph + GAM parsing runs entirely in the browser; no express
@@ -92,6 +86,7 @@ in-whole with dedicated effort
   ([doc/headless-rendering.md](doc/headless-rendering.md)).
 - Modernized devtooling — React + TypeScript, React Compiler, MUI AppBar, SWR.
 - Ongoing: methods + docs for loading HPRC-scale pangenome subgraphs.
+- And more
 
 ## Thanks!
 
@@ -102,3 +97,18 @@ Big thanks to the MemPanG26 organizers and group!
 Art from the MemPanG26 flyer :)
 
 https://pangenome.github.io/MemPanG26/
+
+And the original sequenceTubeMap developers!
+
+## Footnote
+
+Claude Code AI was used during this work.
+
+The sequenceTubeMap code has significantly diverged from upstream at this point
+but could be upstreamed piecewise or in-whole with dedicated effort
+
+This also tries to parse gbz-base in wasm (webassembly) which uses custom
+patches but this might not be accepted by upstream gbz-base project. We can, as
+of now, use native gbz-base to generate the files but we use patched version to
+parse files. Given this disparity, it might be troublesome and we might need a
+different solution in the future

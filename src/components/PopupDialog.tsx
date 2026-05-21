@@ -27,6 +27,7 @@ export const PopupDialog = ({
       open={open}
       onClose={() => close()}
       onBackdropClick={closeOnDocumentClick ? () => close() : undefined}
+      onClick={(e) => { e.stopPropagation(); }}
       data-testid={testID}
       maxWidth={width === null ? false : undefined}
       disableEscapeKeyDown={!closeOnDocumentClick}
