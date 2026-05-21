@@ -22,22 +22,14 @@ export const PopupDialog = ({
   width = '760px',
   testID = 'PopupDialog',
 }: PopupDialogProps) => {
-  const handleClose = (_event: object, reason: string) => {
-    if (
-      !closeOnDocumentClick &&
-      (reason === 'backdropClick' || reason === 'escapeKeyDown')
-    ) {
-      return
-    }
-    close()
-  }
-
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={() => close()}
+      onBackdropClick={closeOnDocumentClick ? () => close() : undefined}
       data-testid={testID}
       maxWidth={width === null ? false : undefined}
+      disableEscapeKeyDown={!closeOnDocumentClick}
       slotProps={{
         paper: {
           sx: width !== null ? { width, maxWidth: 'none' } : { maxWidth: 'none' },
@@ -45,7 +37,7 @@ export const PopupDialog = ({
       }}
     >
       <IconButton
-        onClick={() => { close(); }}
+        onClick={() => close()}
         data-testid={testID.concat('CloseButton')}
         size="small"
         sx={{ position: 'absolute', top: 8, right: 8 }}

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Modal, ModalHeader, ModalBody } from 'reactstrap'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
 
 interface HelpDialogProps {
   title: string
@@ -14,14 +16,14 @@ function HelpDialog({ title, children }: HelpDialogProps) {
       <button
         className="btn btn-link btn-sm p-0 ms-2 align-baseline"
         style={{ fontSize: '0.8em' }}
-        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        onClick={e => { e.stopPropagation(); setOpen(true); }}
       >
         What is this?
       </button>
-      <Modal isOpen={open} toggle={() => { setOpen(false); }}>
-        <ModalHeader toggle={() => { setOpen(false); }}>{title}</ModalHeader>
-        <ModalBody>{children}</ModalBody>
-      </Modal>
+      <Dialog open={open} onClose={() => setOpen(false)}>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogContent>{children}</DialogContent>
+      </Dialog>
     </>
   )
 }
