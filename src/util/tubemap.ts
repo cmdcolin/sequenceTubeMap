@@ -405,7 +405,13 @@ let trackRectanglesStep3: TrackRectangle[] = []
 let maxYCoordinate = 0
 let minYCoordinate = 0
 let maxXCoordinate = 0
+let minXCoordinate = 0
 let trackForRuler: string | undefined
+
+// alignSVG attaches a wheel listener and ResizeObserver to the parent each
+// time it runs; create() runs on every TubeMap prop change, so without
+// tracking the previous registration the listeners stack up.
+let cleanupParentBindings: (() => void) | null = null
 
 let bed: BedRecord[] | null = null
 
@@ -821,6 +827,7 @@ function createTubeMap(): void {
   maxYCoordinate = 0
   minYCoordinate = 0
   maxXCoordinate = 0
+  minXCoordinate = 0
   trackForRuler = undefined
   svg = d3.select(svgID)
   svg.selectAll('*').remove() // clear svg for (re-)drawing
@@ -1784,12 +1791,14 @@ function removeUnusedNodes(allNodes: LayoutNode[]): LayoutNode[] {
 // get the minimum and maximum coordinates used in the image to calculate image dimensions
 function getImageDimensions(): void {
   maxXCoordinate = -99
+  minXCoordinate = 99
   minYCoordinate = 99
   maxYCoordinate = -99
 
   nodes.forEach(node => {
     if (!node) return
     if (node.x !== undefined) {
+      minXCoordinate = Math.min(minXCoordinate, node.x)
       maxXCoordinate = Math.max(maxXCoordinate, node.x + 20 + node.pixelWidth)
     }
     if (node.y !== undefined) {
@@ -1822,7 +1831,7 @@ function minZoom(): number {
   }
   return Math.min(
     1,
-    parentElement.clientWidth / maxXCoordinate,
+    parentElement.clientWidth / (maxXCoordinate - minXCoordinate),
     parentElement.clientHeight / (maxYCoordinate - minYCoordinate + RAIL_SPACE),
   )
 }
@@ -1957,9 +1966,9 @@ function alignSVG(): () => void {
       ])
       .scaleExtent([minScaleFactor, 8])
       .translateExtent([
-        [0, minYCoordinate - RAIL_SPACE],
+        [minXCoordinate, minYCoordinate - RAIL_SPACE],
         [
-          Math.max(maxXCoordinate, parentElement.clientWidth / minScaleFactor),
+          Math.max(maxXCoordinate, minXCoordinate + parentElement.clientWidth / minScaleFactor),
           Math.max(maxYCoordinate, parentElement.clientHeight / minScaleFactor),
         ],
       ])
@@ -1970,18 +1979,30 @@ function alignSVG(): () => void {
   svg.call(zoom).on('dblclick.zoom', null)
   // @ts-expect-error — d3 Selection<SVGGElement> is not structurally assignable to Selection<Element> due to callback this-type invariance, but works at runtime.
   svg = svg.append('g')
-  // Don't let scrolling bubble up from the visualization
-  parentElement.addEventListener('wheel', e => {
-    e.preventDefault()
-  })
 
-  // If the view area resizes, reconfigure the zoom
-  if (window.ResizeObserver) {
-    // This feature is in all current major browsers, but not in React's testing environment.
-    const resizeObserver = new window.ResizeObserver(() => {
-      configureZoomBounds()
-    })
+  // Drop any wheel/resize bindings from a previous create() before attaching
+  // fresh ones — without this, every re-render piles another handler onto the
+  // same parent element.
+  if (cleanupParentBindings) {
+    cleanupParentBindings()
+    cleanupParentBindings = null
+  }
+  const wheelHandler = (e: WheelEvent): void => {
+    e.preventDefault()
+  }
+  parentElement.addEventListener('wheel', wheelHandler)
+  const resizeObserver = window.ResizeObserver
+    ? new window.ResizeObserver(() => {
+        configureZoomBounds()
+      })
+    : null
+  if (resizeObserver) {
+    // ResizeObserver is in all current major browsers, but not in React's testing environment.
     resizeObserver.observe(parentElement)
+  }
+  cleanupParentBindings = () => {
+    parentElement.removeEventListener('wheel', wheelHandler)
+    if (resizeObserver) resizeObserver.disconnect()
   }
 
   // On the first draw, fit vertically and centre horizontally. On subsequent
