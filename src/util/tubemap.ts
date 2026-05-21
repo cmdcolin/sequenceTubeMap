@@ -1823,9 +1823,7 @@ function getImageDimensions(): void {
 // how small the graph needs to appear to fully fit onto the screen.
 // This factor is based on maxXCoordinate and maxYCoordinate, and the size of the svg's parent.
 function minZoom(): number {
-  const svgElement = document.getElementById(svgID.substring(1))
-  const parentElement =
-    svgElement?.parentNode instanceof HTMLElement ? svgElement.parentNode : null
+  const parentElement = getSvgParent()
   if (!parentElement) {
     return 1
   }
@@ -1842,6 +1840,14 @@ const RULER_WIDTH = 30
 const NODE_MARGIN = 10
 // This is how much space to let us pan, around the nodes as measure by getImageDimensions()
 const RAIL_SPACE = RULER_WIDTH + NODE_MARGIN
+const MAX_ZOOM = 8
+
+function getSvgParent(): HTMLElement | null {
+  const svgElement = document.getElementById(svgID.substring(1))
+  return svgElement?.parentNode instanceof HTMLElement
+    ? svgElement.parentNode
+    : null
+}
 
 // align visualization to the top and left within svg and resize svg to correct size
 // enable zooming and panning. Returns a function that applies the initial zoom
@@ -1849,11 +1855,8 @@ const RAIL_SPACE = RULER_WIDTH + NODE_MARGIN
 // labels, etc.) has been appended, so the zoom handler's synchronous flush can
 // counter-scale every label group on the first paint.
 function alignSVG(): () => void {
-  // Find the SVG element.
-  // Trim off the leading "#" from the SVG ID.
   const svgElement = document.getElementById(svgID.substring(1))
-  const parentElement =
-    svgElement?.parentNode instanceof HTMLElement ? svgElement.parentNode : null
+  const parentElement = getSvgParent()
   if (!svgElement || !parentElement) return () => {}
 
   // d3-zoom stores the current transform on the SVG node as __zoom. It is
@@ -1964,7 +1967,7 @@ function alignSVG(): () => void {
         [0, 0],
         [parentElement.clientWidth, parentElement.clientHeight],
       ])
-      .scaleExtent([minScaleFactor, 8])
+      .scaleExtent([minScaleFactor, MAX_ZOOM])
       .translateExtent([
         [minXCoordinate, minYCoordinate - RAIL_SPACE],
         [
@@ -2038,21 +2041,16 @@ function alignSVG(): () => void {
 }
 
 export function zoomBy(zoomFactor: number): void {
-  // Find the SVG element.
-  // Trim off the leading "#" from the SVG ID.
-  const svgElement = document.getElementById(svgID.substring(1))
-  const parentElement =
-    svgElement?.parentNode instanceof HTMLElement ? svgElement.parentNode : null
+  const parentElement = getSvgParent()
   if (!parentElement) return
 
-  const maxZoom = 8
   const width = parentElement.clientWidth
 
   const node = d3.select<Element, unknown>(svgID).node()
   if (!node) return
   const transform = d3.zoomTransform(node)
   const translateK = Math.min(
-    maxZoom,
+    MAX_ZOOM,
     Math.max(transform.k * zoomFactor, minZoom()),
   )
   let translateX =
