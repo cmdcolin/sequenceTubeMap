@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 50" width="168" height="50">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 288 50" width="288" height="50">
   <!-- Variant D3: pure wing gesture - the ribbons themselves IMPLY a
        graph node (where they bend) without drawing it. Touching stacked
        ribbons curve through and fan upward like a wingbeat. -->
@@ -9,5 +9,5 @@
     <path d="M 0 16 L 14 16 C 22 16 38 9  56 12 L 56 21 C 38 16 22 22 14 22 L 0 22 Z" fill="#2778C4" />
     <path d="M 0 10 L 14 10 C 22 10 38 2  56 3  L 56 12 C 38 9  22 16 14 16 L 0 16 Z" fill="#1a5276" />
   </g>
-  <text x="64" y="37" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="34" fill="#ffffff" letter-spacing="-1">vgv</text>
+  <text x="64" y="37" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="34" fill="#ffffff" letter-spacing="-1">seqTubeMaps</text>
 </svg>
