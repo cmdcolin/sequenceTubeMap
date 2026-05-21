@@ -1827,7 +1827,7 @@ function minZoom(): number {
   if (!parentElement) {
     return 1
   }
-  return Math.min(
+  return MIN_ZOOM_PADDING * Math.min(
     1,
     parentElement.clientWidth / (maxXCoordinate - minXCoordinate),
     parentElement.clientHeight / (maxYCoordinate - minYCoordinate + RAIL_SPACE),
@@ -1841,6 +1841,9 @@ const NODE_MARGIN = 10
 // This is how much space to let us pan, around the nodes as measure by getImageDimensions()
 const RAIL_SPACE = RULER_WIDTH + NODE_MARGIN
 const MAX_ZOOM = 8
+// Allow zooming out ~15% past the exact-fit level so the content sits with
+// comfortable padding rather than flush against the viewport edges.
+const MIN_ZOOM_PADDING = 0.85
 
 function getSvgParent(): HTMLElement | null {
   const svgElement = document.getElementById(svgID.substring(1))
@@ -1910,8 +1913,10 @@ function alignSVG(): () => void {
   // the node path (mouseup target would differ from mousedown target).
   let gestureMoved = false
   function zoomed(event: d3.D3ZoomEvent<Element, unknown>): void {
+    const { x, y, k } = event.transform
+    console.log(`[zoom] zoomed k=${k.toFixed(3)} tx=${x.toFixed(1)} ty=${y.toFixed(1)}`)
     pendingTransform = String(event.transform)
-    pendingK = event.transform.k
+    pendingK = k
     if (!gestureMoved) {
       gestureMoved = true
       // Disable hit-testing on the transformed content for the rest of this
@@ -1948,20 +1953,21 @@ function alignSVG(): () => void {
     svg.attr('width', parentElement.clientWidth)
 
     const minScaleFactor = minZoom()
+    console.log('[zoom] configureZoomBounds:', {
+      viewport: { w: parentElement.clientWidth, h: parentElement.clientHeight },
+      content: { x: [minXCoordinate, maxXCoordinate], y: [minYCoordinate, maxYCoordinate] },
+      minScaleFactor,
+    })
 
     // We need to set an extent here because auto-determination of the region
-    // to zoom breaks on the React testing jsdom
+    // to zoom breaks on the React testing jsdom.
     //
-    // We also need the translate extent to always be larger than the zoom
-    // extent. See <https://stackoverflow.com/a/53784776>.
-    //
-    // Really we would like to say that, given the zoom level, some part of the
-    // drawing should always be on the screen. But that requires redefining the
-    // translate extent (the area that d3 stops us from seeing out of) to be
-    // smaller when zoomed in and larger when zoomed out. We can't let the
-    // translate extent ever be smaller than the viewport at any zoom level, or
-    // d3 will lock it to the center along that axis but content will go out of
-    // bounds on the SVG image download.
+    // Use the actual content bounds as the translate extent. When content fits
+    // within the viewport at the current zoom level, d3 centers it; when it
+    // overflows, panning is bounded to the real content region. Previous code
+    // inflated the boundaries to clientWidth/minScaleFactor, which created
+    // phantom pannable space beyond the actual content — the user could pan
+    // into empty space and lose track of the visualization.
     zoom
       .extent([
         [0, 0],
@@ -1970,10 +1976,7 @@ function alignSVG(): () => void {
       .scaleExtent([minScaleFactor, MAX_ZOOM])
       .translateExtent([
         [minXCoordinate, minYCoordinate - RAIL_SPACE],
-        [
-          Math.max(maxXCoordinate, minXCoordinate + parentElement.clientWidth / minScaleFactor),
-          Math.max(maxYCoordinate, parentElement.clientHeight / minScaleFactor),
-        ],
+        [maxXCoordinate, Math.max(maxYCoordinate, parentElement.clientHeight / minScaleFactor)],
       ])
   }
 
@@ -2058,9 +2061,9 @@ export function zoomBy(zoomFactor: number): void {
   )
   let translateX =
     width / 2.0 - ((width / 2.0 - transform.x) * translateK) / transform.k
-  translateX = Math.min(translateX, 1 * translateK)
-  translateX = Math.max(translateX, width - (maxXCoordinate + 2) * translateK)
-  const translateY = (25 - minYCoordinate) * translateK
+  translateX = Math.min(translateX, -minXCoordinate * translateK)
+  translateX = Math.max(translateX, width - maxXCoordinate * translateK)
+  const translateY = RAIL_SPACE - minYCoordinate * translateK
   d3.select(svgID)
     .transition()
     .duration(750)
