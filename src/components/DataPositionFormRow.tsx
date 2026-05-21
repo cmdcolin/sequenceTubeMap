@@ -8,6 +8,7 @@ import {
   faCamera,
 } from '@fortawesome/free-solid-svg-icons'
 import * as tubeMap from '../util/tubemap.ts'
+import { downloadSvgById } from '../util/downloadSvg.ts'
 import type { ViewTarget } from '../Types.ts'
 
 const ZOOM_FACTOR = 2.0
@@ -46,20 +47,6 @@ function DataPositionFormRow({
       ? 'Click to apply pending changes.'
       : 'No changes to apply; view is up to date.'
 
-  const handleDownloadButton = () => {
-    const svgN = document.getElementById('svg')
-    if (!svgN) return
-    const svgData = new XMLSerializer().serializeToString(svgN)
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
-    const svgUrl = URL.createObjectURL(svgBlob)
-    const downloadLink = document.createElement('a')
-    downloadLink.href = svgUrl
-    downloadLink.download = 'graph.svg'
-    document.body.appendChild(downloadLink)
-    downloadLink.click()
-    document.body.removeChild(downloadLink)
-  }
-
   return (
     <Form onKeyUp={onKeyUp}>
       &nbsp;
@@ -92,7 +79,7 @@ function DataPositionFormRow({
       <Button
         color="primary"
         id="downloadButton"
-        onClick={() => { handleDownloadButton(); }}
+        onClick={() => { downloadSvgById('svg', 'graph.svg'); }}
       >
         <FontAwesomeIcon icon={faCamera} className="me-1" />
         Download Image

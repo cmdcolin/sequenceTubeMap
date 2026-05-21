@@ -3,16 +3,15 @@ import AppBar from '@mui/material/AppBar'
 import Backdrop from '@mui/material/Backdrop'
 import Box from '@mui/material/Box'
 import MuiButton from '@mui/material/Button'
-import Popover from '@mui/material/Popover'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import type { AvailableTrack, FileType, Track, Tracks, ViewTarget, VisOptions } from '../Types.ts'
 import HelpButton from './HelpButton.tsx'
-import TrackVisibilityPanel from './TrackVisibilityPanel.tsx'
 import { ExamplesMenu } from './ExamplesMenu.tsx'
 import { FileMenu } from './FileMenu.tsx'
 import { ReadsMenu } from './ReadsMenu.tsx'
 import { ViewMenu } from './ViewMenu.tsx'
+import { VisibilityMenu } from './VisibilityMenu.tsx'
 
 type MenuType = 'examples' | 'file' | 'view' | 'reads' | 'visibility'
 
@@ -125,23 +124,7 @@ export function HeaderFormAppBar({
               />
             </>
           )}
-          <MuiButton
-            color="inherit"
-            onClick={(e) => { setMenuAnchor({ type: 'visibility', el: e.currentTarget }); }}
-          >
-            Visibility
-          </MuiButton>
-          <Popover
-            keepMounted
-            anchorEl={menuAnchor?.type === 'visibility' ? menuAnchor.el : null}
-            open={menuAnchor?.type === 'visibility'}
-            onClose={() => { setMenuAnchor(null); }}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          >
-            <Box sx={{ p: 1 }}>
-              <TrackVisibilityPanel />
-            </Box>
-          </Popover>
+          <VisibilityMenu {...menuFor('visibility')} />
           <Box sx={{ flexGrow: 1 }} />
           <Typography
             variant="body2"

@@ -84,7 +84,7 @@ export function FileMenu({
             tracks={tracks}
             availableTracks={availableTracks}
             onChange={(newTracks) => { onTracksChange(newTracks); }}
-            handleFileUpload={async (fileType, file) => handleFileUpload(fileType, file)}
+            handleFileUpload={handleFileUpload}
           />
         </PopupDialog>
       )}

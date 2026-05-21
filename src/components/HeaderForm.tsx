@@ -465,6 +465,13 @@ function HeaderForm({
     currentViewTarget,
   )
   const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
+  const dataPositionProps = {
+    handleGoButton: () => { handleGoButton(); },
+    uploadInProgress,
+    currentViewTarget,
+    viewTargetHasChange,
+    canGo: isValidRegion(region) && tracks.length > 0,
+  }
 
   const errorDiv = error ? (
     <div>
@@ -579,13 +586,7 @@ function HeaderForm({
             {customFilesFlag && (
               <div className="d-flex justify-content-between align-items-start">
                 <div>
-                  <DataPositionFormRow
-                    handleGoButton={() => { handleGoButton(); }}
-                    uploadInProgress={uploadInProgress}
-                    currentViewTarget={currentViewTarget}
-                    viewTargetHasChange={viewTargetHasChange}
-                    canGo={isValidRegion(region) && tracks.length > 0}
-                  />
+                  <DataPositionFormRow {...dataPositionProps} />
                 </div>
                 <div className="d-flex justify-content-end align-items-start flex-shrink-0">
                   <SimplifyButton
@@ -616,13 +617,7 @@ function HeaderForm({
                 />
               ) : (
                 !customFilesFlag && (
-                  <DataPositionFormRow
-                    handleGoButton={() => { handleGoButton(); }}
-                    uploadInProgress={uploadInProgress}
-                    currentViewTarget={currentViewTarget}
-                    viewTargetHasChange={viewTargetHasChange}
-                    canGo={isValidRegion(region) && tracks.length > 0}
-                  />
+                  <DataPositionFormRow {...dataPositionProps} />
                 )
               )}
             </Row>
