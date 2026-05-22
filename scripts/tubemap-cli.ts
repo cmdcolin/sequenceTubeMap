@@ -132,7 +132,8 @@ async function loadSourceFromConfig(
   if (!region) throw new Error(`Source "${sourceName}" has no region`)
 
   const { GBZBaseAPI } = await import('../src/api/GBZBaseAPI.ts')
-  const api = new GBZBaseAPI()
+  const { getCompiledWasm } = await import('./cli-wasm-loader.ts')
+  const api = new GBZBaseAPI(getCompiledWasm)
 
   // Stage each track file (and any sibling .gai) into the API's upload
   // registry. resolveTrackFile prefers numeric ids, so once we've uploaded a

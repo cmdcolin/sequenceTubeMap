@@ -17,13 +17,14 @@ export default defineConfig({
           new URL('./src/api/wasm/sql-wasm-url.node.ts', import.meta.url),
         ),
       },
-      // query.wasm / gbz2db.wasm are loaded directly by the app code, not
-      // via locateFile — the loaders in node tests use fs.readFile against
-      // a hard-coded path, so tests don't need this URL. Stub it.
+      // WorkerImplementation imports loader.browser.ts (for the browser), but
+      // tests run in Node. Redirect the full-string regex match to the node
+      // loader so vitest never processes the bare `import wasmUrl from '*.wasm'`
+      // that webpack handles but vite cannot.
       {
-        find: /\.wasm$/,
+        find: /^.*\/loader\.browser\.ts$/,
         replacement: fileURLToPath(
-          new URL('./src/api/wasm/wasm-url-stub.ts', import.meta.url),
+          new URL('./src/api/wasm/loader.node.ts', import.meta.url),
         ),
       },
     ],

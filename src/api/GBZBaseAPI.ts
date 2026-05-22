@@ -14,7 +14,6 @@ import {
 
 import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
 
-import { getCompiledWasm } from '#wasm-loader'
 import { makeWasiFile } from './wasm/blobWasiFile.ts'
 import { convertSchema, removeNodeSequencesInPlace } from './wasm/schema.ts'
 import { clearProgress, report } from './downloadProgress.ts'
@@ -110,6 +109,7 @@ function alignmentInRange(
  */
 export class GBZBaseAPI implements APIInterface {
   readonly mode = 'local' as const
+  private loadWasm: () => Promise<WebAssembly.Module>
   // User-uploaded files, indexed by string id (the array index).
   private registry = new UploadRegistry()
   // Index of upload ids by track type.
@@ -124,6 +124,10 @@ export class GBZBaseAPI implements APIInterface {
   private baseUrl: string | null = null
   // Promise for the compiled WebAssembly module. Populated lazily by setUp().
   private compiledWasm: Promise<WebAssembly.Module> | null = null
+
+  constructor(loadWasm: () => Promise<WebAssembly.Module>) {
+    this.loadWasm = loadWasm
+  }
 
   setBaseUrl(url: string): void {
     this.baseUrl = url
@@ -187,7 +191,7 @@ export class GBZBaseAPI implements APIInterface {
   }
 
   async setUp(): Promise<WebAssembly.Module> {
-    this.compiledWasm ??= getCompiledWasm()
+    this.compiledWasm ??= this.loadWasm()
     return this.compiledWasm
   }
 

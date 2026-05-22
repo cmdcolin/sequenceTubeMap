@@ -1,19 +1,20 @@
 import { GBZBaseAPI } from './GBZBaseAPI.ts'
+import { getCompiledWasm } from './wasm/loader.node.ts'
 import type { ViewTarget } from '../Types.ts'
 import { readFileSync } from 'node:fs'
 
 it('can be constructed', () => {
-  new GBZBaseAPI()
+  new GBZBaseAPI(getCompiledWasm)
 })
 
 it('can self-test its WASM setup', async () => {
-  const api = new GBZBaseAPI()
+  const api = new GBZBaseAPI(getCompiledWasm)
   const working = await api.available()
   expect(working).toBeTruthy()
 })
 
 it('can have a file uploaded', async () => {
-  const api = new GBZBaseAPI()
+  const api = new GBZBaseAPI(getCompiledWasm)
 
   // We need to make sure we make a jsdom File (which is a jsdom Blob), and not
   // a Node Blob, for our test file. Otherwise it doesn't work with jsdom's
@@ -37,7 +38,7 @@ it('can have a file uploaded', async () => {
 
 describe('when a file is uploaded', () => {
   let uploadName: string | null = null
-  const api = new GBZBaseAPI()
+  const api = new GBZBaseAPI(getCompiledWasm)
 
   beforeAll(async () => {
     const fileData = readFileSync('exampleData/x.gbz.db')
@@ -106,7 +107,7 @@ describe('when a file is uploaded', () => {
 // should let the LocalAPI find the index when reading the GAM, so region
 // queries work for dropped folders like exampleData/Toxo.
 describe('uploaded read + index siblings', () => {
-  const api = new GBZBaseAPI()
+  const api = new GBZBaseAPI(getCompiledWasm)
   let gamId: string | null = null
   let gaiId: string | null = null
 
@@ -152,7 +153,7 @@ describe('uploaded read + index siblings', () => {
 const RUN_NETWORK = process.env.RUN_NETWORK_TESTS === '1'
 describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC chr20', () => {
   it('returns real PanSN sample names (no `unknown#N` fallback)', async () => {
-    const api = new GBZBaseAPI()
+    const api = new GBZBaseAPI(getCompiledWasm)
     const viewTarget: ViewTarget = {
       dataType: 'mounted files',
       tracks: [{

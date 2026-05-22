@@ -5,6 +5,7 @@
 
 import * as Comlink from 'comlink'
 import { GBZBaseAPI } from '../GBZBaseAPI.ts'
+import { getCompiledWasm } from '../wasm/loader.browser.ts'
 import type { ChunkedDataResponse } from '../APIInterface.ts'
 import type {
   FileType,
@@ -16,7 +17,7 @@ import type {
 } from '../../Types.ts'
 
 class WorkerAPI {
-  #api = new GBZBaseAPI()
+  #api = new GBZBaseAPI(getCompiledWasm)
   #abortControllers = new Map<number, AbortController>()
 
   #getSignal(cancelID: number | undefined): AbortSignal | null {
