@@ -7,7 +7,9 @@ import CopyWebpackPlugin from 'copy-webpack-plugin'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const appConfig = JSON.parse(readFileSync('./src/config.json', 'utf-8'))
-const serverPort = appConfig.serverPort || 3000
+const serverPort = process.env.SERVER_PORT
+  ? parseInt(process.env.SERVER_PORT, 10)
+  : appConfig.serverPort || 3000
 const isProduction = process.env.NODE_ENV === 'production'
 
 export default {

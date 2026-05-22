@@ -2643,8 +2643,15 @@ export function start() {
       }
     }
 
-    const serverPort = process.env.SERVER_PORT || config.serverPort || 3000
-    const server = app.listen(serverPort, SERVER_BIND_ADDRESS, () => {
+    const serverPort = process.env.SERVER_PORT
+      ? parseInt(process.env.SERVER_PORT, 10)
+      : config.serverPort || 3000
+    // NOTE: don't pass a callback positionally to app.listen — Express 5 wraps
+    // it with `once` and attaches it to both 'listening' AND 'error', so a
+    // bind failure (e.g. EADDRINUSE) would fire the same callback with no
+    // address() yet and mask the real error.
+    const server = app.listen(serverPort, SERVER_BIND_ADDRESS)
+    server.on('listening', () => {
       console.log('TubeMapServer listening on ' + getServerURL(server))
       state.server = server
       resolveIfReady()
