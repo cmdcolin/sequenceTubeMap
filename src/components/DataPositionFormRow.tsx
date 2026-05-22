@@ -54,6 +54,7 @@ function DataPositionFormRow({
         <div className="smallLoader" id="fileUploadSpinner" />
       )}
       <Button
+        size="sm"
         color="primary"
         title={goTitle}
         id="goButton"
@@ -63,6 +64,7 @@ function DataPositionFormRow({
         Go
       </Button>
       <Button
+        size="sm"
         color="primary"
         id="zoomInButton"
         onClick={() => { tubeMap.zoomBy(ZOOM_FACTOR); }}
@@ -70,6 +72,7 @@ function DataPositionFormRow({
         <FontAwesomeIcon icon={faSearchPlus} size="lg" />
       </Button>
       <Button
+        size="sm"
         color="primary"
         id="zoomOutButton"
         onClick={() => { tubeMap.zoomBy(1.0 / ZOOM_FACTOR); }}
@@ -77,6 +80,7 @@ function DataPositionFormRow({
         <FontAwesomeIcon icon={faSearchMinus} size="lg" />
       </Button>
       <Button
+        size="sm"
         color="primary"
         id="downloadButton"
         onClick={() => { downloadSvgById('svg', 'graph.svg'); }}
