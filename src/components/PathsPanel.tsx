@@ -22,15 +22,15 @@ interface PathsPanelProps {
 // (the tube-map layout pipeline is O(N) in nodes/bases). Warn before loading.
 const SLOW_PATH_THRESHOLD = 10_000
 
-function regionFor(name: string, length: number) {
-  return `${name}:0-${length - 1}`
+function regionFor(name: string, start: number, length: number) {
+  return `${name}:${start}-${start + length - 1}`
 }
 
 function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, onToggle }: PathsPanelProps) {
 
   if (!pathInfo.length) return null
 
-  function handleLoad(name: string, length: number) {
+  function handleLoad(name: string, start: number, length: number) {
     const proceed =
       length < SLOW_PATH_THRESHOLD ||
       window.confirm(
@@ -39,7 +39,7 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
           `Load the full path anyway?`,
       )
     if (proceed) {
-      onLoadPath(regionFor(name, length))
+      onLoadPath(regionFor(name, start, length))
     }
   }
 
@@ -103,7 +103,7 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
               </tr>
             </thead>
             <tbody>
-              {pathInfo.map(({ name, length, cyclic }) => {
+              {pathInfo.map(({ name, start = 0, length, cyclic }) => {
                 const slow = length !== null && length >= SLOW_PATH_THRESHOLD
                 const reads = readCounts?.[name] ?? 0
                 // Mirror the per-region read cap in TubeMapContainer: anything
@@ -158,14 +158,14 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                         className="me-1"
                         disabled={length === null}
                         title="Copy region into the Region field above so you can edit the range before loading"
-                        onClick={() => { onCopyToRegion(regionFor(name, length!)); }}
+                        onClick={() => { onCopyToRegion(regionFor(name, start, length!)); }}
                       >
                         Copy to region
                       </Button>
                       <Button
                         size="sm"
                         disabled={length === null}
-                        onClick={() => { handleLoad(name, length!); }}
+                        onClick={() => { handleLoad(name, start, length!); }}
                       >
                         Load
                       </Button>

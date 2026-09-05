@@ -138,7 +138,7 @@ function HeaderForm({
   const availableBeds = ['none', ...(filenamesData?.bedFiles ?? [])]
   const availableTrackSet = makeAvailableTrackSet(files)
   const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
-  // In WASM/local mode the gbz-base query.wasm only understands .gbz.db files,
+  // In local mode the in-browser gbz-base reader only understands .gbz.db files,
   // so .vg.xg-based built-ins would silently fail. Hide them from the dropdown.
   const apiMode = APIInterface.mode
   const visibleDataSources = apiMode === 'local'

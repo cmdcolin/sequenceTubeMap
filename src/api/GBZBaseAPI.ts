@@ -1,23 +1,25 @@
 /**
- * GBZBase-based API implementation. Designed to run in a worker efficiently.
+ * gbz-base-backed API implementation. Designed to run in a worker efficiently.
+ *
+ * Reads `.gbz.db` files through `@gmod/gbz-base`, a pure TypeScript reader
+ * that fetches only the SQLite pages a query touches, so a URL-hosted
+ * database is queried by HTTP range requests instead of being downloaded.
  */
 
 import '../config-client.js'
+import { BlobFile, RemoteFile } from 'generic-filehandle2'
 import {
-  WASI,
-  File as WasiFile,
-  OpenFile,
-  PreopenDirectory,
-  type Fd,
-  type Inode,
-} from '@bjorn3/browser_wasi_shim'
+  GBZBase,
+  GENERIC_SAMPLE,
+  nodes as gbzNodes,
+  subgraphInInterval,
+} from '@gmod/gbz-base'
+import type { GbzPath, PathName, PathQuery, Pos } from '@gmod/gbz-base'
 
 import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
 
-import { makeWasiFile } from './wasm/blobWasiFile.ts'
-import { convertSchema, removeNodeSequencesInPlace } from './wasm/schema.ts'
+import { convertSchema, removeNodeSequencesInPlace } from './gbz/schema.ts'
 import { clearProgress, report } from './downloadProgress.ts'
-import { readGbzDbPaths } from './wasm/gbzDbPaths.ts'
 import { readGam, readGamRegion, scanReadNodeIds } from './gam/gam.ts'
 import { UploadRegistry, isUploadId } from './local/fileRegistry.ts'
 
@@ -57,15 +59,12 @@ const debugLog: (...args: unknown[]) => void = DEBUG
       /* no-op */
     }
 
-interface WasmResult {
-  returnCode: number | undefined
-  stdout: string
-  stderr: string
+interface NodeIdRange {
+  min: bigint
+  max: bigint
 }
 
-function nodeIdRange(
-  nodes: VgNode[],
-): { min: bigint; max: bigint } | null {
+function nodeIdRange(nodes: VgNode[]): NodeIdRange | null {
   if (nodes.length === 0) {
     return null
   }
@@ -101,54 +100,150 @@ function alignmentInRange(
   return false
 }
 
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
+
+// The Region field takes `contig`, `sample#contig` or
+// `sample#haplotype#contig`. A bare contig is the generic `_gbwt_ref` path.
+function pathQueryFor(contig: string): PathQuery {
+  const parts = contig.split('#')
+  const [sample, second] = parts
+  if (parts.length === 1 || sample === undefined || second === undefined) {
+    return { contig }
+  }
+  if (parts.length === 2) {
+    return { sample, contig: second }
+  }
+  const haplotype = Number(second)
+  return {
+    sample,
+    contig: parts.slice(2).join('#'),
+    ...(Number.isInteger(haplotype) ? { haplotype } : {}),
+  }
+}
+
+// gbz-base path names follow the GBWT `sample#haplotype#contig` convention.
+// Reference paths carry the `_gbwt_ref` sample, which is stripped so the
+// surfaced name is what the Region field accepts.
+function displayName({ sample, contig, haplotype }: PathName): string {
+  if (sample === GENERIC_SAMPLE) {
+    return contig
+  }
+  return haplotype === 0 ? `${sample}#${contig}` : `${sample}#${haplotype}#${contig}`
+}
+
+// Match the server-side filtering: skip internal `_…` paths and the
+// `thread_N` names vg gbwt -G emits for haplotypes that came through
+// `vg chunk -T`. Neither is a meaningful contig for the path picker.
+function isUserFacingPath(name: string): boolean {
+  return !name.startsWith('_') && !/^thread_\d+$/.test(name)
+}
+
+// Walk the GBWT from the last ReferenceIndex sample to the end of the path.
+// Samples are at most one index interval apart, so this is a short walk that
+// turns the sampled offset into the exact path length.
+async function walkToPathEnd(
+  db: GBZBase,
+  from: { pathOffset: number; pos: Pos },
+): Promise<number> {
+  let offset = from.pathOffset
+  let pos: Pos | undefined = from.pos
+  while (pos !== undefined && pos.node !== gbzNodes.ENDMARKER) {
+    const record = await db.getRecord(pos.node)
+    if (!record) {
+      throw new Error(`Node record ${pos.node} is missing from the database`)
+    }
+    offset += record.sequenceLen
+    pos = record.gbwt().lf(pos.offset)
+  }
+  return offset
+}
+
+async function pathLength(db: GBZBase, path: GbzPath): Promise<number | null> {
+  const indexed = db.hasHaplotypeIndex
+    ? await db.haplotypeLength(path.handle)
+    : undefined
+  if (indexed !== undefined) {
+    return indexed
+  }
+  const last = await db.indexedPosition(path.handle, Number.MAX_SAFE_INTEGER)
+  return last ? walkToPathEnd(db, last) : null
+}
+
+// Per-path node-id range from the ReferenceIndex samples. Approximate — the
+// index samples nodes, so a path can in principle traverse ids outside
+// MIN/MAX; for typical reference paths this is rare.
+async function pathNodeRanges(db: GBZBase): Promise<Map<number, NodeIdRange>> {
+  const ranges = new Map<number, NodeIdRange>()
+  for await (const { values } of db.sqlite.scan('ReferenceIndex')) {
+    const [pathHandle, , nodeHandle] = values
+    if (typeof pathHandle === 'number' && typeof nodeHandle === 'number') {
+      const id = BigInt(gbzNodes.nodeId(nodeHandle))
+      const range = ranges.get(pathHandle)
+      if (!range) {
+        ranges.set(pathHandle, { min: id, max: id })
+      } else {
+        if (id < range.min) {
+          range.min = id
+        }
+        if (id > range.max) {
+          range.max = id
+        }
+      }
+    }
+  }
+  return ranges
+}
+
 /**
- * API implementation that uses tools compiled to WebAssembly, client-side.
+ * API implementation that reads gbz-base databases client-side.
  *
  * Can operate either in the main thread or in a worker, but handles file
  * uploads differently depending on where you put it.
  */
 export class GBZBaseAPI implements APIInterface {
   readonly mode = 'local' as const
-  private loadWasm: () => Promise<WebAssembly.Module>
   // User-uploaded files, indexed by string id (the array index).
   private registry = new UploadRegistry()
   // Index of upload ids by track type.
   private filesByType = new Map<FileType, string[]>()
-  // Cache of blobs fetched lazily from URLs (built-in sample data sources
-  // use paths like "exampleData/cactus.vg.xg" instead of uploaded files).
+  // Cache of blobs fetched lazily from URLs (read tracks are still consumed
+  // whole; graph databases go through `openGraph` instead).
   private urlCache = new Map<string, Promise<Blob>>()
+  // One open database per graph file, keyed by upload id or resolved URL.
+  private graphs = new Map<string, Promise<GBZBase>>()
   // Base URL to resolve relative trackFile paths against. Required because
   // GBZBaseAPI typically runs in a Web Worker whose self.location points at
   // /static/js/Worker.ts, not the page; the host LocalAPI passes the page's
   // baseURI via setBaseUrl().
   private baseUrl: string | null = null
-  // Promise for the compiled WebAssembly module. Populated lazily by setUp().
-  private compiledWasm: Promise<WebAssembly.Module> | null = null
-
-  constructor(loadWasm: () => Promise<WebAssembly.Module>) {
-    this.loadWasm = loadWasm
-  }
 
   setBaseUrl(url: string): void {
     this.baseUrl = url
   }
 
+  private resolveUrl(trackFile: string): string {
+    return this.baseUrl ? new URL(trackFile, this.baseUrl).href : trackFile
+  }
+
+  private uploadedBlob(trackFile: string): Blob {
+    const blob = this.registry.get(trackFile)
+    if (!blob) {
+      throw new Error(`Uploaded file ${trackFile} does not exist`)
+    }
+    return blob
+  }
+
   // Resolve a trackFile string to a Blob: a numeric ID points at the uploads
-  // array; anything else is fetched from the URL (cached). For large URL
-  // fetches (e.g. the 128 MB hprc-chr20.gbz.db demo file) we stream the body
-  // and publish progress via `downloadProgress.report` so the loader spinner
-  // can show "downloading X / Y MB" instead of looking frozen.
+  // array; anything else is fetched from the URL (cached). Large URL fetches
+  // stream the body and publish progress via `downloadProgress.report` so the
+  // loader spinner can show "downloading X / Y MB" instead of looking frozen.
   private async resolveTrackFile(trackFile: string): Promise<Blob> {
     if (isUploadId(trackFile)) {
-      const blob = this.registry.get(trackFile)
-      if (!blob) {
-        throw new Error(`Uploaded file ${trackFile} does not exist`)
-      }
-      return blob
+      return this.uploadedBlob(trackFile)
     }
-    const resolved = this.baseUrl
-      ? new URL(trackFile, this.baseUrl).href
-      : trackFile
+    const resolved = this.resolveUrl(trackFile)
     let cached = this.urlCache.get(resolved)
     if (!cached) {
       cached = (async () => {
@@ -169,8 +264,6 @@ export class GBZBaseAPI implements APIInterface {
           let received = 0
           report(resolved, 0, total)
           try {
-            // The inner read loop is what actually paces progress reporting;
-            // pull all the chunks before assembling the Blob.
             for (;;) {
               const { done, value } = await reader.read()
               if (done) break
@@ -190,85 +283,40 @@ export class GBZBaseAPI implements APIInterface {
     return cached
   }
 
-  async setUp(): Promise<WebAssembly.Module> {
-    this.compiledWasm ??= this.loadWasm()
-    return this.compiledWasm
+  // Open a graph database once per file. Uploads are read from their Blob;
+  // URLs are read by range requests, so a hosted multi-hundred-MB database
+  // costs only the pages each query touches.
+  private openGraph(trackFile: string): Promise<GBZBase> {
+    const key = isUploadId(trackFile) ? trackFile : this.resolveUrl(trackFile)
+    let opened = this.graphs.get(key)
+    if (!opened) {
+      opened = (async () => {
+        const source = isUploadId(trackFile)
+          ? new BlobFile(this.uploadedBlob(trackFile))
+          : new RemoteFile(key)
+        try {
+          return await GBZBase.open(source)
+        } catch (e) {
+          this.graphs.delete(key)
+          throw new Error(
+            `Could not open "${trackFile}" as a gbz-base database: ${errorMessage(e)}\n` +
+              'The in-browser backend reads .gbz.db files; .vg, .xg and .gbz are not supported.',
+            { cause: e },
+          )
+        }
+      })()
+      this.graphs.set(key, opened)
+    }
+    return opened
   }
 
-  // Make a call into the WebAssembly code and return the result.
-  //
-  // If workingDirectory is set, it is an object from filename to blob to
-  // present as the current directory.
-  async callWasm(
-    argv: string[],
-    workingDirectory?: Record<string, Blob>,
-  ): Promise<WasmResult> {
-    if (argv.length < 1) {
-      throw new Error('Not safe to invoke main() without program name')
-    }
-
-    const module = await this.setUp()
-
-    const stdin = new WasiFile([])
-    const stdout = new WasiFile([])
-    const stderr = new WasiFile([])
-
-    const environment = ['RUST_BACKTRACE=full']
-
-    const fileDescriptors: Fd[] = [
-      new OpenFile(stdin),
-      new OpenFile(stdout),
-      new OpenFile(stderr),
-    ]
-
-    if (workingDirectory) {
-      const nameToWASIFile = new Map<string, Inode>()
-      for (const [filename, blob] of Object.entries(workingDirectory)) {
-        debugLog(`Mount ${blob.size} byte blob:`, blob)
-        const file = await makeWasiFile(blob)
-        nameToWASIFile.set(filename, file)
-        debugLog('Mount file:', file)
-      }
-      fileDescriptors.push(new PreopenDirectory('.', nameToWASIFile))
-    }
-
-    const wasi = new WASI(argv, environment, fileDescriptors)
-
-    const instantiation = await WebAssembly.instantiate(module, {
-      wasi_snapshot_preview1: wasi.wasiImport,
-    })
-
-    debugLog('Running WASM with arguments:', argv)
-    debugLog('Running WASM with FDs:', fileDescriptors)
-
-    let returnCode: number | undefined
-    let stdOutText: string
-    let stdErrText: string
-
-    try {
-      returnCode = wasi.start(
-        instantiation as Parameters<typeof wasi.start>[0],
-      )
-      // TODO: the shim logs loads of attempts to make/open the lock file, is it maybe not being allowed to be read back?
-      // TODO: Our return code is undefined for some reason; it is supposed to come out of start.
-      debugLog('Execution finished with return code:', returnCode)
-    } finally {
-      stdOutText = new TextDecoder().decode(stdout.data)
-      stdErrText = new TextDecoder().decode(stderr.data)
-      debugLog('Standard Output:', stdOutText)
-      debugLog('Standard Error:', stdErrText)
-    }
-
-    return { returnCode, stdout: stdOutText, stderr: stdErrText }
-  }
-
-  async available(): Promise<boolean> {
-    try {
-      await this.callWasm(['query', '--help'])
-      return true
-    } catch {
-      return false
-    }
+  // For uploaded files `graphFile` is a numeric registry id like "0", so the
+  // extension check has to look at the original filename the registry kept.
+  private isGbzDb(graphFile: string): boolean {
+    const checkName = isUploadId(graphFile)
+      ? this.registry.getName(graphFile)
+      : graphFile
+    return checkName === null ? false : checkName.endsWith('.gbz.db')
   }
 
   /////////
@@ -286,64 +334,30 @@ export class GBZBaseAPI implements APIInterface {
       throw new Error('No graph track selected')
     }
 
-    const graphFileBlob = await this.resolveTrackFile(graphTrack.trackFile)
-
     const region = convertRegionToRangeRegion(parseRegion(viewTarget.region))
-
-    if (!region.contig.includes('#')) {
-      // Not PanSN; ask for a generic path.
-      region.contig = '_gbwt_ref#' + region.contig
-    }
-
-    const parts = region.contig.split('#')
-    const sample = parts[0] ?? ''
-    const contig = parts[parts.length - 1] ?? ''
-
-    const { stdout, stderr, returnCode } = await this.callWasm(
-      [
-        'query',
-        '--sample',
-        sample,
-        '--contig',
-        contig,
-        '--interval',
-        `${region.start}..${region.end}`,
-        '--format',
-        'json',
-        '--distinct',
-        'graph.gbz.db',
-      ],
-      { 'graph.gbz.db': graphFileBlob },
-    )
+    const db = await this.openGraph(graphTrack.trackFile)
 
     let result
     try {
-      result = convertSchema(JSON.parse(stdout))
-    } catch {
-      const stderrTail = stderr.trim().split('\n').slice(-5).join('\n')
-      // Pull the first 'Error: ...' line out of stderr; that's the structured
-      // message the gbz-base CLI prints for both load failures and query
-      // failures, and it's the part the user actually needs.
-      const wasmErrorLine = stderr
-        .split('\n')
-        .map(l => l.trim())
-        .find(l => l.startsWith('Error:'))
-      const reason = wasmErrorLine ?? `WASM exited with code ${returnCode ?? 'undefined'}`
-      // Heuristic: load/parse failures mention the file or schema; query
-      // failures mention paths/intervals. Only surface the file-format hint
-      // when it's actually plausible the file is the wrong type.
-      const looksLikeFormatError =
-        wasmErrorLine === undefined ||
-        /unsupported|cannot open|not a database|schema|magic/i.test(wasmErrorLine)
-      const formatHint = looksLikeFormatError
-        ? `\nThe in-browser WASM backend reads .gbz (preferred) or .gbz.db files; .vg / .xg are not supported.`
-        : ''
-      const stderrSuffix =
-        stderrTail && stderrTail !== wasmErrorLine
-          ? `\nWASM stderr:\n${stderrTail}`
-          : ''
+      const subgraph = await subgraphInInterval(
+        db,
+        pathQueryFor(region.contig),
+        region.start,
+        region.end,
+        { haplotypes: 'distinct' },
+      )
+      if (db.hasHaplotypeIndex) {
+        await subgraph.identifyPaths()
+      }
+      result = convertSchema(
+        subgraph.toJSON(false, {
+          names: db.hasHaplotypeIndex ? 'resolved' : 'anonymous',
+        }),
+      )
+    } catch (e) {
       throw new Error(
-        `Failed to query "${graphTrack.trackFile}" at ${region.contig}:${region.start}-${region.end}: ${reason}${formatHint}${stderrSuffix}`,
+        `Failed to query "${graphTrack.trackFile}" at ${region.contig}:${region.start}-${region.end}: ${errorMessage(e)}`,
+        { cause: e },
       )
     }
     const readTracks = viewTarget.tracks.filter(t => t.trackType === 'read')
@@ -394,7 +408,7 @@ export class GBZBaseAPI implements APIInterface {
 
   private async readsForTrack(
     trackFile: string,
-    nodeRange: { min: bigint; max: bigint } | null,
+    nodeRange: NodeIdRange | null,
   ): Promise<VgRead[]> {
     const gamBlob = await this.resolveTrackFile(trackFile)
     if (nodeRange) {
@@ -485,24 +499,25 @@ export class GBZBaseAPI implements APIInterface {
     graphFile: string,
     _cancelSignal: AbortSignal | null,
   ): Promise<{ pathInfo: PathInfo[] }> {
-    // For uploaded files `graphFile` is a numeric registry id like "0", so the
-    // extension check has to look at the original filename the registry kept.
-    const checkName = isUploadId(graphFile)
-      ? this.registry.getName(graphFile)
-      : graphFile
-    if (!checkName?.endsWith('.gbz.db')) {
+    if (!this.isGbzDb(graphFile)) {
       return { pathInfo: [] }
     }
     try {
-      const blob = await this.resolveTrackFile(graphFile)
-      const pathInfo = await readGbzDbPaths(blob)
-      // Drop the node-range fields before returning so the public PathInfo
-      // shape stays stable; getReadCountsPerPath re-derives them.
-      return {
-        pathInfo: pathInfo.map(({ name, length, cyclic }) => ({
-          name, length, cyclic,
-        })),
+      const db = await this.openGraph(graphFile)
+      const paths = (await db.paths())
+        .filter(p => p.isIndexed)
+        .map(p => ({ path: p, name: displayName(p.name) }))
+        .filter(({ name }) => isUserFacingPath(name))
+      const pathInfo: PathInfo[] = []
+      for (const { path, name } of paths) {
+        pathInfo.push({
+          name,
+          start: path.name.fragment,
+          length: await pathLength(db, path),
+          cyclic: false,
+        })
       }
+      return { pathInfo }
     } catch (e) {
       debugLog('getPathInfo failed:', e)
       return { pathInfo: [] }
@@ -542,36 +557,36 @@ export class GBZBaseAPI implements APIInterface {
     graphFile: string,
     readFile: string,
   ): Promise<{ counts: Record<string, number> } | null> {
-    const checkName = isUploadId(graphFile)
-      ? this.registry.getName(graphFile)
-      : graphFile
-    if (!checkName?.endsWith('.gbz.db')) return null
+    if (!this.isGbzDb(graphFile)) return null
     try {
-      const graphBlob = await this.resolveTrackFile(graphFile)
-      const paths = await readGbzDbPaths(graphBlob)
-      const pathsWithRange = paths.filter(
-        (p): p is typeof p & { minNodeId: bigint; maxNodeId: bigint } =>
-          p.minNodeId !== null && p.maxNodeId !== null,
-      )
-      if (pathsWithRange.length === 0) return null
+      const db = await this.openGraph(graphFile)
+      const ranges = await pathNodeRanges(db)
+      const paths = (await db.paths())
+        .filter(p => p.isIndexed)
+        .map(p => ({ name: displayName(p.name), range: ranges.get(p.handle) }))
+        .filter(
+          (p): p is { name: string; range: NodeIdRange } =>
+            p.range !== undefined && isUserFacingPath(p.name),
+        )
+      if (paths.length === 0) return null
 
       const gamBlob = await this.resolveTrackFile(readFile)
       const readNodes = await scanReadNodeIds(gamBlob)
 
       const counts: Record<string, number> = {}
-      for (const path of pathsWithRange) {
+      for (const { name, range } of paths) {
         let n = 0
         for (const nodes of readNodes) {
           // De-dup per read: increment once even if multiple visited nodes
           // fall inside the path's range.
           for (const id of nodes) {
-            if (id >= path.minNodeId && id <= path.maxNodeId) {
+            if (id >= range.min && id <= range.max) {
               n++
               break
             }
           }
         }
-        counts[path.name] = n
+        counts[name] = n
       }
       return { counts }
     } catch (e) {

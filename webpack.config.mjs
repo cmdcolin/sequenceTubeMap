@@ -47,8 +47,6 @@ export default {
           },
         },
       },
-      // .wasm files are loaded as URLs and fetched manually (not as async WASM modules)
-      { test: /\.wasm$/, type: 'asset/resource' },
       {
         test: /\.css$/,
         use: isProduction
@@ -62,7 +60,6 @@ export default {
           /\.(tsx|ts|js|mjs|jsx)$/,
           /\.html$/,
           /\.json$/,
-          /\.wasm$/,
           /\.css$/,
         ],
         type: 'asset/resource',

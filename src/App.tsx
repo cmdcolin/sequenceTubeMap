@@ -33,7 +33,7 @@ function removeUndefined<T extends object>(obj: T): T {
   ) as T
 }
 
-// BACKEND_URL semantics: literal `false` selects the WASM LocalAPI; any string
+// BACKEND_URL semantics: literal `false` selects the in-browser LocalAPI; any string
 // (possibly empty for same-origin via the dev-server proxy) means ServerAPI.
 const isLocalMode = config.BACKEND_URL === false
 

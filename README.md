@@ -19,7 +19,7 @@ Live demo — https://cmdcolin.github.io/sequenceTubeMap/
 Use **File → Open…** to load your own data. The dialog explains both options:
 
 - **vgteam server** (default) — drop `.xg`, `.vg`, or `.gbz` graphs and `.gam`/`.gaf` reads directly; processed by `vg` on `api.tubemap.graphs.vg`. 5 MB limit.
-- **In-browser / WASM** — files stay on your machine, but graphs must first be converted to `.gbz.db` (requires `vg` + `gbz-base`).
+- **In-browser** — files stay on your machine, but graphs must first be converted to `.gbz.db` (requires `vg` + `gbz-base`). Hosted `.gbz.db` URLs are read by HTTP range requests, so whole-chromosome graphs work without a download.
 
 → [Full data preparation guide](doc/uploading.md)
 
@@ -32,12 +32,12 @@ to see available contig names.
 
 - [Data preparation & hosting options](doc/uploading.md)
 - [Headless SVG/PNG rendering](doc/headless-rendering.md)
-- [WASM build details](doc/wasm-build.md)
+- [In-browser gbz-base reader](doc/gbz-base.md)
 - [Deep-link URL format](doc/linking.md)
 
 ## Features added vs. upstream
 
-- Serverless WASM mode — graph + GAM parsing in the browser, no server needed
+- Serverless in-browser mode — `.gbz.db` graphs read in pure TypeScript ([`@gmod/gbz-base`](https://github.com/GMOD/gbz-base-js), range requests for hosted files) + GAM parsing, no server needed
 - Upload to vgteam server — File → Open sends `.xg`/`.vg` to `api.tubemap.graphs.vg` (CORS-compatible, wildcard `*`)
 - App-bar GUI — all settings on one screen, contextual visibility
 - Path picker — one-click path loading, no need to hand-type contig names

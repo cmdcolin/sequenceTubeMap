@@ -69,6 +69,14 @@
       "dataType": "built-in"
     },
     {
+      "name": "HPRC MICB-KIR3DL1 (resolved haplotype names)",
+      "tracks": [
+        {"trackFile": "exampleData/micb-kir3dl1.gbz.db", "trackType": "graph"}
+      ],
+      "region": "GRCh38#chr6:31500000-31501000",
+      "dataType": "built-in"
+    },
+    {
       "name": "cactus multiple reads",
       "tracks": [
         {"trackFile": "exampleData/cactus.vg.xg", "trackType": "graph"},

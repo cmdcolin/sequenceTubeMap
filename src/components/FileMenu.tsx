@@ -59,7 +59,7 @@ export function FileMenu({
             if (!customFilesFlag) {
               onOpenCustomFiles()
             }
-            // Default to server upload when opening from pure local (WASM) mode
+            // Default to server upload when opening from pure local (in-browser) mode
             // so the primary upload path is front-and-centre.
             if (apiMode === 'local' && serverModeId) {
               onDestChange?.(serverModeId)

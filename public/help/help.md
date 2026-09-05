@@ -5,14 +5,14 @@ nothing uploaded.
 
 > **seqTubeMaps** is a fork of the excellent
 > [sequenceTubeMap / IVG](https://github.com/vgteam/sequenceTubeMap) by the
-> vgteam. Same core tube-map visualization, with WASM-only mode, ribbon-style
+> vgteam. Same core tube-map visualization, with a server-free in-browser mode, ribbon-style
 > reads, MUI rewrite, and other additions on top.
 
 **Opening data** — File → Sample data for built-ins, or File → Open custom files
 for your own `.gbz.db` / `.gam` / `.gbwt` files. Use the Track Picker to add
 tracks.
 
-[How to prepare your own files →](https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md#browser-only-wasm-mode-npm-run-startlocal)
+[How to prepare your own files →](https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md#browser-only-mode-npm-run-startlocal)
 
 ---
 

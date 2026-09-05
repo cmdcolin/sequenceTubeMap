@@ -38,9 +38,9 @@ Drop the graph and read files in the dialog and click **Upload & use**.
 
 ---
 
-## Option 2 — In-browser / WASM
+## Option 2 — In-browser
 
-Everything runs in your browser via WebAssembly — no server, no upload.
+Everything runs in your browser — no server, no upload.
 Files never leave your machine. No file size limit.
 
 **Accepted formats**
@@ -53,25 +53,27 @@ Files never leave your machine. No file size limit.
 **Requires two tools:**
 
 - [`vg`](https://github.com/vgteam/vg) — `mamba install -c bioconda vg`
-- [`gbz-base`](https://github.com/jltsiren/gbz-base) — `cargo install gbz-base`
+- [`gbz-base`](https://github.com/jltsiren/gbz-base) — `cargo install --git https://github.com/jltsiren/gbz-base`
 
 **Convert your graph once:**
 
 ```bash
 # .xg → .gbz → .gbz.db
 vg gbwt --xg-name input.xg --index-paths --gbz-format -g input.gbz
-gbz2db input.gbz input.gbz.db
+gbz-base construct input.gbz
 
 # Starting from a GFA
 vg gbwt -G input.gfa --gbz-format -g input.gbz
-gbz2db input.gbz input.gbz.db
+gbz-base construct input.gbz
 ```
 
-In the dialog click **Switch to in-browser (WASM) →** then drop your `.gbz.db`
-and `.gam` files and click **Load files**.
+To see real haplotype names instead of `unknown#N`, also run the optional
+`gbz-haplotype-index` step described in [gbz-base.md](gbz-base.md).
 
-> **Note:** the in-browser parser uses a patched build of `gbz-base` (patch not
-> yet accepted upstream). Generating `.gbz.db` files uses the standard release.
+In the dialog click **Switch to in-browser →** then drop your `.gbz.db`
+and `.gam` files and click **Load files**. A `.gbz.db` hosted on an HTTPS
+server with CORS can also be given as a track URL; it is read by range
+requests rather than downloaded.
 
 ---
 

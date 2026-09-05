@@ -114,7 +114,7 @@ export function isEmpty(obj: object): boolean {
   return Object.keys(obj).length === 0
 }
 
-// The WASM backend (gbz-base/query.wasm) only reads SQLite-backed .gbz.db
+// The in-browser backend (@gmod/gbz-base) only reads SQLite-backed .gbz.db
 // files. Used to autoload a compatible source in local mode and to hide
 // dropdown entries that would silently fail to parse.
 export function isLocalCompatibleDataSource(ds: ViewTarget): boolean {

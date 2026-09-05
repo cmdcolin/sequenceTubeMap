@@ -31,7 +31,7 @@ Selecting a data source from the Examples menu auto-loads it immediately. For so
 
 You can add your own data to the Sequence Tube Map, by placing it in the data path (by default, the `sequenceTubeMap/exampleData/` directory) of a local copy, uploading it through the web interface, or hosting it online and providing a track or BED URL.
 
-## Browser-only WASM mode (`npm run start:local`)
+## Browser-only mode (`npm run start:local`)
 
 Everything runs in the browser — no server, no uploads. The in-browser backend
 only reads two file types:
@@ -50,10 +50,12 @@ Starting from a `.xg` or `.vg`:
 vg gbwt --xg-name input.xg --index-paths --gbz-format -g input.gbz
 
 # 2. Convert to the SQLite format the browser backend reads
-node scripts/gbz2db.mjs input.gbz input.gbz.db
+gbz-base construct input.gbz
 ```
 
-If you already have a `.gbz`, skip step 1 and run `gbz2db.mjs` directly.
+If you already have a `.gbz`, skip step 1. Optionally run
+`gbz-haplotype-index` on the result so haplotypes get their real PanSN names;
+see [gbz-base.md](gbz-base.md).
 
 ### Indexing reads for region queries
 
@@ -71,7 +73,7 @@ Then drop both `.sorted.gam` and `.sorted.gam.gai` together into the dialog.
 Open **Paths in this graph** in the sidebar. Region syntax:
 `<contig>:<start>-<end>` (e.g. `chr1:1000-2000`).
 
-More notes: [wasm-build.md](wasm-build.md#caveats).
+More notes: [gbz-base.md](gbz-base.md).
 
 ## Adding Full Graphs
 

@@ -37,7 +37,7 @@ function VisualizationOptions({
                 value={currentAPIMode}
                 onChange={(e) => { setAPIMode(e.target.value) }}
               >
-                <MenuItem value="local">In-browser / WASM (.gbz.db uploads only)</MenuItem>
+                <MenuItem value="local">In-browser (.gbz.db uploads only)</MenuItem>
                 <MenuItem value="upstream">Upload to vgteam server (api.tubemap.graphs.vg)</MenuItem>
                 {showServerOption && (
                   <MenuItem value="server">Self-hosted server</MenuItem>

@@ -3,7 +3,7 @@
 // after the fact.
 //
 // Kept separate from GBZBaseAPI so the pairing logic is exercisable in tests
-// without spinning up the WASM backend.
+// without opening a database.
 
 // Suffixes of files that ride alongside another file as its index. They are
 // stored by the registry but never registered as their own track.

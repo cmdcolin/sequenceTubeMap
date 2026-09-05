@@ -8,7 +8,7 @@ a tube map into a paper without a browser screenshot.
 # bundled demo data (1–9)
 pnpm tubemap-cli --example 6 --out demo6.svg
 
-# real data via the WASM API (any source from src/config.json)
+# real data via the in-browser API (any source from src/config.json)
 pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' \
                  --out brca1.svg --width 3000
 

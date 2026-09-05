@@ -5,9 +5,9 @@ export const READ_EXTS = ['.gam', '.gaf', '.gaf.gz']
 export const HAPLOTYPE_EXTS = ['.gbwt']
 // .gai is the sibling index for a sorted .gam, .tbi for a tabixed .gaf.gz.
 // In server mode the server creates these itself so they're silently skipped;
-// in local/WASM mode they're stored alongside the .gam for sibling lookup.
+// in local mode they're stored alongside the .gam for sibling lookup.
 export const INDEX_EXTS = ['.gai', '.tbi']
-// Local/WASM mode only supports .gbz.db/.db graphs and .gam reads (+.gai index).
+// Local mode only supports .gbz.db/.db graphs and .gam reads (+.gai index).
 export const LOCAL_EXTS = ['.gbz.db', '.db', '.gam', '.gai']
 
 export const LOCAL_ACCEPT = LOCAL_EXTS.join(',')

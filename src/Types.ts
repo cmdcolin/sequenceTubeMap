@@ -147,6 +147,9 @@ export interface VisOptions {
 // A path entry returned by the API for a graph track.
 export interface PathInfo {
   name: string
+  // Offset of the path fragment along its contig; the region a whole-path
+  // load asks for starts here rather than at 0.
+  start?: number
   length: number | null
   cyclic: boolean
 }

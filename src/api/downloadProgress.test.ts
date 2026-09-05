@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { GBZBaseAPI } from './GBZBaseAPI.ts'
-import { getCompiledWasm } from './wasm/loader.node.ts'
 import {
   subscribeDownloadProgress,
   getDownloadProgressSnapshot,
@@ -50,7 +49,7 @@ describe('GBZBaseAPI download progress', () => {
       }
     })
 
-    const api = new GBZBaseAPI(getCompiledWasm) as unknown as {
+    const api = new GBZBaseAPI() as unknown as {
       resolveTrackFile: (f: string) => Promise<Blob>
     }
     const blob = await api.resolveTrackFile(url)
