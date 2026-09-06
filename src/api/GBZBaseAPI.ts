@@ -8,13 +8,8 @@
 
 import '../config-client.js'
 import { BlobFile, RemoteFile } from 'generic-filehandle2'
-import {
-  GBZBase,
-  GENERIC_SAMPLE,
-  nodes as gbzNodes,
-  subgraphInInterval,
-} from '@gmod/gbz-base'
-import type { GbzPath, PathName, PathQuery, Pos } from '@gmod/gbz-base'
+import { GBZBase, GENERIC_SAMPLE, nodes as gbzNodes } from '@gmod/gbz-base'
+import type { PathName, PathQuery } from '@gmod/gbz-base'
 
 import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
 
@@ -138,37 +133,6 @@ function displayName({ sample, contig, haplotype }: PathName): string {
 // `vg chunk -T`. Neither is a meaningful contig for the path picker.
 function isUserFacingPath(name: string): boolean {
   return !name.startsWith('_') && !/^thread_\d+$/.test(name)
-}
-
-// Walk the GBWT from the last ReferenceIndex sample to the end of the path.
-// Samples are at most one index interval apart, so this is a short walk that
-// turns the sampled offset into the exact path length.
-async function walkToPathEnd(
-  db: GBZBase,
-  from: { pathOffset: number; pos: Pos },
-): Promise<number> {
-  let offset = from.pathOffset
-  let pos: Pos | undefined = from.pos
-  while (pos !== undefined && pos.node !== gbzNodes.ENDMARKER) {
-    const record = await db.getRecord(pos.node)
-    if (!record) {
-      throw new Error(`Node record ${pos.node} is missing from the database`)
-    }
-    offset += record.sequenceLen
-    pos = record.gbwt().lf(pos.offset)
-  }
-  return offset
-}
-
-async function pathLength(db: GBZBase, path: GbzPath): Promise<number | null> {
-  const indexed = db.hasHaplotypeIndex
-    ? await db.haplotypeLength(path.handle)
-    : undefined
-  if (indexed !== undefined) {
-    return indexed
-  }
-  const last = await db.indexedPosition(path.handle, Number.MAX_SAFE_INTEGER)
-  return last ? walkToPathEnd(db, last) : null
 }
 
 // Per-path node-id range from the ReferenceIndex samples. Approximate — the
@@ -339,18 +303,21 @@ export class GBZBaseAPI implements APIInterface {
 
     let result
     try {
-      const subgraph = await subgraphInInterval(
-        db,
+      // gbz-base resolves which fragment of a split contig covers the window
+      // and names the haplotypes itself when the database has the index.
+      const subgraph = await db.getSubgraphForRange(
         pathQueryFor(region.contig),
         region.start,
         region.end,
         { haplotypes: 'distinct' },
       )
-      if (db.hasHaplotypeIndex) {
-        await subgraph.identifyPaths()
+      if (!subgraph) {
+        throw new Error(
+          `no fragment of path ${region.contig} covers ${region.start}-${region.end}`,
+        )
       }
       result = convertSchema(
-        subgraph.toJSON(false, {
+        subgraph.toSubgraphJson({
           names: db.hasHaplotypeIndex ? 'resolved' : 'anonymous',
         }),
       )
@@ -513,7 +480,7 @@ export class GBZBaseAPI implements APIInterface {
         pathInfo.push({
           name,
           start: path.name.fragment,
-          length: await pathLength(db, path),
+          length: await db.pathLength(path.handle),
           cyclic: false,
         })
       }
