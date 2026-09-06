@@ -3,4 +3,5 @@ allowBuilds:
   es5-ext: true
   esbuild: true
   utf-8-validate: true
-  "@gmod/gbz-base@https://codeload.github.com/GMOD/gbz-base-js/tar.gz/df8e4f87763556b340fca6eb8207d444d8a8a593": true
+minimumReleaseAgeExclude:
+  - '@gmod/gbz-base'

@@ -19,9 +19,9 @@ and converts `subgraph.toJSON()` (the same JSON `gbz-base query --format json`
 prints) into vg-style JSON in `src/api/gbz/schema.ts`. The "Paths in this
 graph" panel comes from `db.paths()`.
 
-The package is installed from GitHub, pinned to a commit in `package.json`;
-`pnpm-workspace.yaml` allows its `prepare` build so `pnpm install` compiles
-`dist/`.
+The package comes from npm (`@gmod/gbz-base`); `pnpm-workspace.yaml` lists
+it under `minimumReleaseAgeExclude` so a fresh release installs without the
+default waiting period.
 
 ## Building a `.gbz.db`
 

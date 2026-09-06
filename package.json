@@ -13,7 +13,7 @@
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "@fortawesome/react-fontawesome": "^3.3.1",
     "@gmod/bgzf-filehandle": "^6.0.23",
-    "@gmod/gbz-base": "github:GMOD/gbz-base-js#df8e4f87763556b340fca6eb8207d444d8a8a593",
+    "@gmod/gbz-base": "^0.0.1",
     "@mui/material": "^9.0.1",
     "@streamparser/json": "^0.0.22",
     "body-parser": "^2.2.2",
