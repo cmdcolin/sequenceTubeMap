@@ -32,6 +32,10 @@ export default defineConfig({
         url: 'http://localhost/',
       },
     },
+    // jsdom + MUI + the React Compiler make component tests genuinely slow;
+    // under parallel load several cross vitest's 5s default and fail as
+    // timeouts rather than on their assertions.
+    testTimeout: 20000,
     teardownTimeout: 10000,
   },
 })

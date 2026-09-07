@@ -8,6 +8,7 @@ process.env.SERVER_PORT = '0'
 // server's start function and put it in an object pretendign to be a module.
 import { start } from './server.mjs'
 import fs from 'fs-extra'
+import { vg_available } from './vg.mjs'
 const server = { start }
 
 import React from 'react'
@@ -240,7 +241,7 @@ describe('When we wait for it to load', () => {
     expect(svg).toBeTruthy()
   })
 
-  it('draws the right SVG for vg "small"', async () => {
+  it.skipIf(!vg_available())('draws the right SVG for vg "small"', async () => {
     await selectExample('vg "small" example')
     const autocomplete = screen.getByTestId('autocomplete')
     const input = autocomplete.querySelector('input')
@@ -280,7 +281,7 @@ describe('When we wait for it to load', () => {
     expect(shapes).toEqual(50)
   })
 
-  it('draws the right SVG for cactus multiple reads', async () => {
+  it.skipIf(!vg_available())('draws the right SVG for cactus multiple reads', async () => {
     await selectExample('cactus multiple reads')
     const autocomplete = screen.getByTestId('autocomplete')
     const input = autocomplete.querySelector('input')
@@ -378,7 +379,7 @@ it('can retrieve the list of mounted graph files', async () => {
 })
 
 // uploads a cactus.vg file and renders the svg
-it('can accept uploaded files', async () => {
+it.skipIf(!vg_available())('can accept uploaded files', async () => {
   await waitForLoadEnd()
 
   // Swap over to the custom files mode via the File menu

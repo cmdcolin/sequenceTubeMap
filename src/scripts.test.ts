@@ -3,7 +3,7 @@
 
 import './config-server.mjs'
 
-import { find_vg } from './vg.mjs'
+import { find_vg, vg_available } from './vg.mjs'
 
 import { mkdtemp, rm, cp, open, access } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
@@ -32,7 +32,7 @@ afterEach(async () => {
   }
 })
 
-it('can run prepare_vg.sh', async () => {
+it.skipIf(!vg_available())('can run prepare_vg.sh', async () => {
   for (const filename of ['x.fa', 'x.vcf.gz', 'x.vcf.gz.tbi']) {
     await cp(join(EXAMPLE_DATA, filename), join(workDir, filename))
   }

@@ -56,3 +56,14 @@ export function find_vg() {
   )
 }
 find_vg.found_vg = null
+
+/// Return whether vg can be found, without throwing. For tests that need the
+/// binary and should skip rather than fail when it is not installed.
+export function vg_available() {
+  try {
+    find_vg()
+    return true
+  } catch (e) {
+    return false
+  }
+}
