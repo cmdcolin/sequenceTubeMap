@@ -1,16 +1,11 @@
-import MuiButton from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
-import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import ListSubheader from '@mui/material/ListSubheader'
 import type { ViewTarget } from '../Types.ts'
+import { AppBarMenu } from './AppBarMenu.tsx'
 import { dataTypes } from './headerFormUtils.ts'
 
 interface ExamplesMenuProps {
-  anchorEl: HTMLElement | null
-  open: boolean
-  onClose: () => void
-  onOpen: (el: HTMLElement) => void
   visibleDataSources: ViewTarget[]
   discoveredDataSources: ViewTarget[]
   dataType: string
@@ -19,10 +14,6 @@ interface ExamplesMenuProps {
 }
 
 export function ExamplesMenu({
-  anchorEl,
-  open,
-  onClose,
-  onOpen,
   visibleDataSources,
   discoveredDataSources,
   dataType,
@@ -30,46 +21,39 @@ export function ExamplesMenu({
   onSelect,
 }: ExamplesMenuProps) {
   return (
-    <>
-      <MuiButton
-        color="inherit"
-        data-testid="examplesMenuButton"
-        onClick={(e) => { onOpen(e.currentTarget); }}
-      >
-        Examples
-      </MuiButton>
-      <Menu anchorEl={anchorEl} open={open} onClose={() => { onClose(); }}>
-        {visibleDataSources.map(ds => (
+    <AppBarMenu label="Examples" testid="examplesMenuButton">
+      {close => (
+        <>
+          {visibleDataSources.map(ds => (
+            <MenuItem
+              key={ds.name}
+              selected={dataType === dataTypes.BUILT_IN && name === ds.name}
+              onClick={() => { onSelect(ds.name!); close(); }}
+            >
+              {ds.name}
+            </MenuItem>
+          ))}
+          {discoveredDataSources.length > 0 && (
+            <ListSubheader key="discoveredHeading">Discovered</ListSubheader>
+          )}
+          {discoveredDataSources.map(ds => (
+            <MenuItem
+              key={ds.name}
+              selected={dataType === dataTypes.BUILT_IN && name === ds.name}
+              onClick={() => { onSelect(ds.name!); close(); }}
+            >
+              {ds.name}
+            </MenuItem>
+          ))}
+          <Divider />
           <MenuItem
-            key={ds.name}
-            selected={dataType === dataTypes.BUILT_IN && name === ds.name}
-            onClick={() => { onSelect(ds.name!); onClose(); }}
+            selected={dataType === dataTypes.EXAMPLES}
+            onClick={() => { onSelect(dataTypes.EXAMPLES); close(); }}
           >
-            {ds.name}
+            Synthetic examples
           </MenuItem>
-        ))}
-        {discoveredDataSources.length > 0 && (
-          <>
-            <ListSubheader>Discovered</ListSubheader>
-            {discoveredDataSources.map(ds => (
-              <MenuItem
-                key={ds.name}
-                selected={dataType === dataTypes.BUILT_IN && name === ds.name}
-                onClick={() => { onSelect(ds.name!); onClose(); }}
-              >
-                {ds.name}
-              </MenuItem>
-            ))}
-          </>
-        )}
-        <Divider />
-        <MenuItem
-          selected={dataType === dataTypes.EXAMPLES}
-          onClick={() => { onSelect(dataTypes.EXAMPLES); onClose(); }}
-        >
-          Synthetic examples
-        </MenuItem>
-      </Menu>
-    </>
+        </>
+      )}
+    </AppBarMenu>
   )
 }

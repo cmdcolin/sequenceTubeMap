@@ -127,7 +127,7 @@ interface LegendProps {
   tracks: Tracks
   colorSchemes: ColorScheme[]
   readGroups?: ReadGroup[]
-  otherReadsColor?: string
+  otherReadsColor?: Palette
   ignoreStrand?: boolean
   title?: string
   onClose?: () => void
@@ -184,26 +184,22 @@ function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, ignoreStran
         {tracks.map((t, i) => {
           const scheme = colorSchemes[i]
           const roles = paletteRoles(t.trackType, hasHaplotype, ignoreStrand)
+          const fullLabel = trackLabel(
+            t.trackFile,
+            t.trackType,
+            t.trackDisplayName,
+          )
           return (
             <div key={`${i}-${t.trackFile ?? ''}`}>
-              {(() => {
-                const fullLabel = trackLabel(
-                  t.trackFile,
-                  t.trackType,
-                  t.trackDisplayName,
-                )
-                return (
-                  <div
-                    style={{ fontWeight: 600, marginBottom: 2 }}
-                    title={fullLabel}
-                  >
-                    {truncateMiddle(fullLabel, 40)}{' '}
-                    <span style={{ color: '#666', fontWeight: 400 }}>
-                      ({t.trackType})
-                    </span>
-                  </div>
-                )
-              })()}
+              <div
+                style={{ fontWeight: 600, marginBottom: 2 }}
+                title={fullLabel}
+              >
+                {truncateMiddle(fullLabel, 40)}{' '}
+                <span style={{ color: '#666', fontWeight: 400 }}>
+                  ({t.trackType})
+                </span>
+              </div>
               {scheme ? (
                 <div
                   style={{
@@ -220,11 +216,11 @@ function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, ignoreStran
                       {readGroups.map(g => (
                         <Fragment key={g.id}>
                           <span>{g.name}</span>
-                          <PaletteSwatch palette={g.color as Palette} />
+                          <PaletteSwatch palette={g.color} />
                         </Fragment>
                       ))}
                       <span>Other reads</span>
-                      <PaletteSwatch palette={(otherReadsColor ?? 'greys') as Palette} />
+                      <PaletteSwatch palette={otherReadsColor ?? 'greys'} />
                     </>
                   ) : (
                     <>

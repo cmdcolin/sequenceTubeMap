@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import isEqual from 'react-fast-compare'
 
 import './App.css'
 import HeaderForm from './components/HeaderForm.tsx'
 import TubeMapContainer from './components/TubeMapContainer.tsx'
 import { urlParamsToViewTarget } from './urlViewTarget.ts'
-import CustomizationAccordion from './components/CustomizationAccordion.tsx'
+import BackendSelector from './components/BackendSelector.tsx'
 import Footer from './components/Footer.tsx'
+import { ReadsMenu } from './components/ReadsMenu.tsx'
+import { ViewMenu } from './components/ViewMenu.tsx'
+import { viewTargetsEqual } from './components/headerFormUtils.ts'
 import { dataOriginTypes } from './enums.ts'
 import './config-client.js'
 import { config } from './config-global.mjs'
@@ -15,22 +17,39 @@ import { LocalAPI } from './api/LocalAPI.ts'
 import type { APIInterface } from './api/APIInterface.ts'
 import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
 import type {
+  ColorPaletteName,
   ColorScheme,
   Palette,
   PaletteField,
   Tracks,
   ViewTarget,
+  VisOptionFlag,
   VisOptions,
 } from './Types.ts'
+
+type APIMode = APIInterface['mode']
 
 function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
   return tracks.map(t => t.trackColorSettings ?? defaultTrackColors(t.trackType))
 }
 
-function removeUndefined<T extends object>(obj: T): T {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as T
+// qs (copy link) and SWR's key hashing both treat an explicitly-undefined
+// field differently from a missing one, so drop the undefined ones.
+function removeUndefined(target: ViewTarget): ViewTarget {
+  return {
+    region: target.region,
+    tracks: target.tracks,
+    ...(target.bedFile !== undefined && { bedFile: target.bedFile }),
+    ...(target.name !== undefined && { name: target.name }),
+    ...(target.dataType !== undefined && { dataType: target.dataType }),
+    ...(target.simplify !== undefined && { simplify: target.simplify }),
+    ...(target.removeSequences !== undefined && {
+      removeSequences: target.removeSequences,
+    }),
+    ...(target.skipAutoLoad !== undefined && {
+      skipAutoLoad: target.skipAutoLoad,
+    }),
+  }
 }
 
 // BACKEND_URL semantics: literal `false` selects the in-browser LocalAPI; any string
@@ -41,19 +60,23 @@ const defaultApiUrl = isLocalMode ? '' : `${config.BACKEND_URL}/api/v0`
 
 const UPSTREAM_API_URL = 'https://api.tubemap.graphs.vg/api/v0'
 
-const localDefaultViewTarget: ViewTarget =
+const localDefaultViewTarget: ViewTarget = removeUndefined(
   config.DATA_SOURCES.find(isLocalCompatibleDataSource) ??
-  { tracks: [], region: '' }
+    { tracks: [], region: '' },
+)
 
-const defaultViewTarget: ViewTarget =
+const defaultViewTarget: ViewTarget = removeUndefined(
   urlParamsToViewTarget(document.location) ??
-  (isLocalMode ? localDefaultViewTarget : config.DATA_SOURCES[0])
+    (isLocalMode ? localDefaultViewTarget : config.DATA_SOURCES[0]),
+)
 
 interface AppProps {
   apiUrl?: string
+  // Lets tests drive the app with a stub backend instead of the real APIs.
+  api?: APIInterface
 }
 
-function App({ apiUrl = defaultApiUrl }: AppProps) {
+function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   const [dataOrigin, setDataOrigin] = useState<string>(dataOriginTypes.API)
   const [viewTarget, setViewTarget] = useState<ViewTarget>(defaultViewTarget)
   const [legendVisible, setLegendVisible] = useState(true)
@@ -72,66 +95,66 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     ignoreStrand: false,
   })
   const [apiInterface, setApiInterface] = useState<APIInterface>(
-    () => (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),
+    () => api ?? (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),
   )
 
+  // Which backend each mode talks to, and the view target to fall back to
+  // when switching to it (the in-browser reader can only open .gbz.db).
+  const apiModes: Record<
+    APIMode,
+    { create: () => APIInterface; viewTarget: ViewTarget }
+  > = {
+    local: {
+      create: () => new LocalAPI(),
+      viewTarget: localDefaultViewTarget,
+    },
+    server: {
+      create: () => new ServerAPI(apiUrl),
+      viewTarget: defaultViewTarget,
+    },
+    upstream: {
+      create: () => new ServerAPI(UPSTREAM_API_URL, 'upstream'),
+      viewTarget: defaultViewTarget,
+    },
+  }
+
   const setAPIMode = (mode: string) => {
-    if (mode === apiInterface.mode) {
-      return
-    }
-    if (mode === 'local') {
-      setApiInterface(new LocalAPI())
-      setDataOrigin(dataOriginTypes.API)
-      setViewTarget(localDefaultViewTarget)
-      setVisOptions(v => ({
-        ...v,
-        colorSchemes: getColorSchemesFromTracks(localDefaultViewTarget.tracks),
-      }))
-    } else if (mode === 'server') {
-      setApiInterface(new ServerAPI(apiUrl))
-      setDataOrigin(dataOriginTypes.API)
-      setViewTarget(defaultViewTarget)
-      setVisOptions(v => ({
-        ...v,
-        colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
-      }))
-    } else if (mode === 'upstream') {
-      setApiInterface(new ServerAPI(UPSTREAM_API_URL, 'upstream'))
-      setDataOrigin(dataOriginTypes.API)
-      setViewTarget(defaultViewTarget)
-      setVisOptions(v => ({
-        ...v,
-        colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
-      }))
-    } else {
+    if (mode !== 'local' && mode !== 'server' && mode !== 'upstream') {
       throw new Error('Unimplemented API mode: ' + mode)
+    }
+    if (mode !== apiInterface.mode) {
+      const { create, viewTarget: modeViewTarget } = apiModes[mode]
+      setApiInterface(create())
+      setDataOrigin(dataOriginTypes.API)
+      setViewTarget(modeViewTarget)
+      setVisOptions(v => ({
+        ...v,
+        colorSchemes: getColorSchemesFromTracks(modeViewTarget.tracks),
+      }))
     }
   }
 
   const setCurrentViewTarget = (newTarget: ViewTarget) => {
     const newViewTarget = removeUndefined(newTarget)
     if (
-      !isEqual(viewTarget, newViewTarget) ||
+      !viewTargetsEqual(viewTarget, newViewTarget) ||
       dataOrigin !== dataOriginTypes.API
     ) {
-      const newColorSchemes = getColorSchemesFromTracks(newViewTarget.tracks)
       setViewTarget(newViewTarget)
       setDataOrigin(dataOriginTypes.API)
-      setVisOptions(v => ({ ...v, colorSchemes: newColorSchemes }))
+      setVisOptions(v => ({
+        ...v,
+        colorSchemes: getColorSchemesFromTracks(newViewTarget.tracks),
+      }))
     }
   }
 
-  const currentViewTarget = removeUndefined(viewTarget)
-
-  const toggleVisOptionFlag = (flagName: string) => {
-    setVisOptions(v => {
-      const key = flagName as keyof VisOptions
-      return { ...v, [key]: !v[key] }
-    })
+  const toggleVisOptionFlag = (flagName: VisOptionFlag) => {
+    setVisOptions(v => ({ ...v, [flagName]: !v[flagName] }))
   }
 
-  const handleMappingQualityCutoffChange = (value: string | number) => {
-    setVisOptions(v => ({ ...v, mappingQualityCutoff: Number(value) }))
+  const handleMappingQualityCutoffChange = (value: number) => {
+    setVisOptions(v => ({ ...v, mappingQualityCutoff: value }))
   }
 
   const setColorSetting = (
@@ -147,23 +170,46 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
     })
   }
 
+  const showExample = (
+    origin: string,
+    mainPalette: ColorPaletteName,
+    readPalette?: ColorPaletteName,
+  ) => {
+    setDataOrigin(origin)
+    setColorSetting('mainPalette', 0, mainPalette)
+    if (readPalette !== undefined) {
+      setColorSetting('mainPalette', 1, readPalette)
+    }
+  }
+
   return (
     <div>
       <HeaderForm
+        // Re-seed the form's tracks/region/name/bedFile when the backend
+        // changes, since the previous backend's files aren't valid any more.
+        key={apiInterface.mode}
         setCurrentViewTarget={setCurrentViewTarget}
-        setDataOrigin={setDataOrigin}
-        setColorSetting={setColorSetting}
-        defaultViewTarget={defaultViewTarget}
-        currentViewTarget={currentViewTarget}
+        showExample={showExample}
+        currentViewTarget={viewTarget}
         APIInterface={apiInterface}
         onAPIMode={setAPIMode}
         serverModeId={isLocalMode ? 'upstream' : 'server'}
-        legendVisible={legendVisible}
-        toggleLegend={() => { setLegendVisible(v => !v) }}
-        visOptions={visOptions}
-        toggleVisOptionFlag={toggleVisOptionFlag}
-        handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
-        compressedViewLocked={viewTarget.removeSequences}
+        visMenus={
+          <>
+            <ViewMenu
+              legendVisible={legendVisible}
+              toggleLegend={() => { setLegendVisible(v => !v); }}
+              visOptions={visOptions}
+              toggleVisOptionFlag={toggleVisOptionFlag}
+              compressedViewLocked={viewTarget.removeSequences}
+            />
+            <ReadsMenu
+              visOptions={visOptions}
+              toggleVisOptionFlag={toggleVisOptionFlag}
+              handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
+            />
+          </>
+        }
       />
       <div style={{ margin: '8px 0' }}>
         <TubeMapContainer
@@ -173,10 +219,10 @@ function App({ apiUrl = defaultApiUrl }: AppProps) {
           visOptions={visOptions}
           APIInterface={apiInterface}
           legendVisible={legendVisible}
-          onLegendClose={() => { setLegendVisible(false) }}
+          onLegendClose={() => { setLegendVisible(false); }}
         />
       </div>
-      <CustomizationAccordion
+      <BackendSelector
         currentAPIMode={apiInterface.mode}
         setAPIMode={setAPIMode}
         showServerOption={!isLocalMode}

@@ -1,8 +1,9 @@
+import '../config-client.js'
 import {
   determineRegionIndex,
+  makeViewTarget,
   regionStringFromRegionIndex,
-} from './HeaderForm.js'
-import { makeViewTarget } from './headerFormUtils.ts'
+} from './headerFormUtils.ts'
 import type { Tracks } from '../Types.ts'
 
 // test for determineRegionIndex and regionStringFromRegionIndex

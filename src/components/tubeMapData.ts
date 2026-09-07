@@ -1,6 +1,14 @@
 import * as tubeMap from '../util/tubemap.ts'
-import type { InputNode, InputTrack, VgJson, VgRead } from '../util/tubemap.ts'
+import type {
+  InputNode,
+  InputRegion,
+  InputTrack,
+  VgJson,
+  VgRead,
+} from '../util/tubemap.ts'
+import type { ChunkedDataResponse } from '../api/APIInterface.ts'
 import { dataOriginTypes } from '../enums.ts'
+import type { Tracks } from '../Types.ts'
 
 // demo-data.js types are inferred from JS literals; keep this loose so the
 // module-level shape (which includes a few extra JS-only fields) is
@@ -20,6 +28,66 @@ interface DemoData {
   cycleReads: VgRead[]
   cycle2Graph: VgJson
   cycle2Reads: VgRead[]
+}
+
+// Everything the tube map needs to render one view.
+export interface TubeMapData {
+  nodes: InputNode[]
+  tracks: InputTrack[]
+  reads: InputTrack[]
+  region: InputRegion | undefined
+  coloredNodes: string[] | undefined
+}
+
+// Turn one API response into tube map inputs. The track list says which
+// track index each extracted graph/haplotype/read belongs to, so reads keep
+// pointing at the track they came from.
+export function parseChunkedData(
+  json: ChunkedDataResponse,
+  tracks: Tracks,
+): TubeMapData {
+  if (json.graph === undefined) {
+    throw new Error('Fetching remote data returned error')
+  }
+  const readTrackIDs: number[] = []
+  let graphTrackID = 0
+  let haplotypeTrackID = 0
+  tracks.forEach((track, i) => {
+    if (track.trackType === 'read') {
+      readTrackIDs.push(i)
+    } else if (track.trackType === 'graph') {
+      graphTrackID = i
+    } else if (track.trackType === 'haplotype') {
+      haplotypeTrackID = i
+    }
+  })
+  const nodes = tubeMap.vgExtractNodes(json.graph, json.nameMap)
+  const extractedTracks = tubeMap.vgExtractTracks(
+    json.graph,
+    graphTrackID,
+    haplotypeTrackID,
+  )
+  const readsPerTrack: InputTrack[][] = []
+  let totalReads = 0
+  for (const gam of json.gam ?? []) {
+    const readSourceTrackID = readTrackIDs[readsPerTrack.length] ?? 0
+    const reads = tubeMap.vgExtractReads(
+      nodes,
+      extractedTracks,
+      gam,
+      totalReads,
+      readSourceTrackID,
+    )
+    readsPerTrack.push(reads)
+    totalReads += reads.length
+  }
+  return {
+    nodes,
+    tracks: extractedTracks,
+    reads: readsPerTrack.flat(),
+    region: json.region,
+    coloredNodes: json.coloredNodes,
+  }
 }
 
 export interface ExampleResult {

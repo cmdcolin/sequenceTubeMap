@@ -8,18 +8,18 @@ import MenuItem from '@mui/material/MenuItem'
 import Container from '@mui/material/Container'
 import Box from '@mui/material/Box'
 
-interface VisualizationOptionsProps {
+interface BackendSelectorProps {
   currentAPIMode: string
   setAPIMode: (mode: string) => void
   // Show the "self-hosted server" option (only meaningful when BACKEND_URL is configured)
-  showServerOption?: boolean
+  showServerOption: boolean
 }
 
-function VisualizationOptions({
+function BackendSelector({
   currentAPIMode,
   setAPIMode,
-  showServerOption = false,
-}: VisualizationOptionsProps) {
+  showServerOption,
+}: BackendSelectorProps) {
   return (
     <Container sx={{ mt: 1 }}>
       <Accordion disableGutters>
@@ -35,7 +35,7 @@ function VisualizationOptions({
                 id="apiSelect"
                 label="Extract tube map data"
                 value={currentAPIMode}
-                onChange={(e) => { setAPIMode(e.target.value) }}
+                onChange={(e) => { setAPIMode(e.target.value); }}
               >
                 <MenuItem value="local">In-browser (.gbz.db uploads only)</MenuItem>
                 <MenuItem value="upstream">Upload to vgteam server (api.tubemap.graphs.vg)</MenuItem>
@@ -51,4 +51,4 @@ function VisualizationOptions({
   )
 }
 
-export default VisualizationOptions
+export default BackendSelector

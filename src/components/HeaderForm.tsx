@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import useSWR from 'swr'
 import { Button, Container, Row, Col, Label, Alert } from 'reactstrap'
 import '../config-client.js'
@@ -32,41 +33,38 @@ import {
   viewTargetsEqual,
 } from './headerFormUtils.ts'
 import type {
+  ColorPaletteName,
   FileType,
-  PaletteField,
   PathInfo,
-  Palette,
   RegionInfo,
   Track,
   Tracks,
   ViewTarget,
-  VisOptions,
 } from '../Types.ts'
 
-export { determineRegionIndex, regionStringFromRegionIndex }
-
 const DATA_SOURCES: ViewTarget[] = config.DATA_SOURCES
-const MAX_UPLOAD_SIZE_DESCRIPTION = '5 MB'
+
+const MAX_UPLOAD_SIZE_DESCRIPTION = `${(
+  config.MAXUPLOADSIZE /
+  (1024 * 1024)
+).toFixed(0)} MB`
 
 interface HeaderFormProps {
-  setColorSetting: (
-    key: PaletteField,
-    index: number,
-    value: Palette,
+  showExample: (
+    origin: string,
+    mainPalette: ColorPaletteName,
+    readPalette?: ColorPaletteName,
   ) => void
-  setDataOrigin: (origin: string) => void
   setCurrentViewTarget: (viewTarget: ViewTarget) => void
+  // Also seeds the form's own tracks/region/name/bedFile state on mount. App
+  // remounts the form when the backend changes, so switching backends
+  // re-seeds it from that backend's view target.
   currentViewTarget: ViewTarget
-  defaultViewTarget?: ViewTarget
   APIInterface: APIInterface
-  onAPIMode?: (mode: string) => void
-  serverModeId?: 'server' | 'upstream'
-  legendVisible?: boolean
-  toggleLegend?: () => void
-  visOptions?: VisOptions
-  toggleVisOptionFlag?: (flag: string) => void
-  handleMappingQualityCutoffChange?: (value: string | number) => void
-  compressedViewLocked?: boolean
+  onAPIMode: (mode: string) => void
+  serverModeId: 'server' | 'upstream'
+  // The app's own View/Reads menus, rendered in the app bar.
+  visMenus: ReactNode
 }
 
 interface CoordsMetaData {
@@ -74,43 +72,37 @@ interface CoordsMetaData {
   chunk: string
 }
 
+// A dataset with a BED file but no preset region gets its region from the
+// first BED entry, which only arrives once the BED fetch resolves. Modelling
+// "no region chosen yet" as undefined lets that default be derived during
+// render instead of written back into state from a fetch callback.
+function presetRegion(region: string) {
+  return region === '' ? undefined : region
+}
+
 function HeaderForm({
-  setColorSetting,
-  setDataOrigin,
+  showExample,
   setCurrentViewTarget,
   currentViewTarget,
-  defaultViewTarget,
   APIInterface,
   onAPIMode,
   serverModeId,
-  legendVisible,
-  toggleLegend,
-  visOptions,
-  toggleVisOptionFlag,
-  handleMappingQualityCutoffChange,
-  compressedViewLocked,
+  visMenus,
 }: HeaderFormProps) {
-  const initialView = defaultViewTarget ?? DATA_SOURCES[0]!
-  const [bedSelect, setBedSelect] = useState(
-    isSet(initialView.bedFile) ? initialView.bedFile : 'none',
+  const [tracks, setTracks] = useState<Tracks>(currentViewTarget.tracks)
+  const [bedFile, setBedFile] = useState(currentViewTarget.bedFile)
+  const [chosenRegion, setChosenRegion] = useState(
+    presetRegion(currentViewTarget.region),
   )
-  const [tracks, setTracks] = useState<Tracks>(initialView.tracks)
-  const [bedFile, setBedFile] = useState(initialView.bedFile)
-  const [region, setRegion] = useState(initialView.region)
-  const [name, setName] = useState(initialView.name)
+  const [name, setName] = useState(currentViewTarget.name)
   const [dataType, setDataType] = useState(
-    initialView.dataType ?? dataTypes.BUILT_IN,
+    currentViewTarget.dataType ?? dataTypes.BUILT_IN,
   )
   const [fileSizeAlert, setFileSizeAlert] = useState(false)
-  const [uploadInProgress, setUploadInProgress] = useState(false)
-  // Set true when a dataset with a BED but no preset region is picked; the
-  // onSuccess callback below applies the first BED entry as the default region
-  // once BED data arrives, then clears the flag.
-  const [pendingRegionDefault, setPendingRegionDefault] = useState(false)
-  const [manualError, setManualError] = useState<Error | string | null>(null)
-  const [simplify, setSimplify] = useState(initialView.simplify ?? false)
+  const [manualError, setManualError] = useState<Error | null>(null)
+  const [simplify, setSimplify] = useState(currentViewTarget.simplify ?? false)
   const [removeSequences, setRemoveSequences] = useState(
-    initialView.removeSequences ?? false,
+    currentViewTarget.removeSequences ?? false,
   )
   // Filenames of files uploaded via the "Open custom files" dialog. Shown as a
   // success banner so the user gets confirmation. Cleared when the user
@@ -121,18 +113,24 @@ function HeaderForm({
   // are available without having to expand it.
   const [pathsPanelOpen, setPathsPanelOpen] = useState(true)
 
-  // SWR-managed fetches. Each key encodes the state it depends on, so changing
-  // that state automatically triggers a new fetch and supersedes any in-flight
-  // result for the previous key (SWR only returns data for the current key).
+  // SWR-managed fetches. Each key encodes the state it depends on — including
+  // the API mode, so switching backends refetches rather than reusing the
+  // previous backend's answer — and changing that state supersedes any
+  // in-flight result for the previous key.
+  const apiMode = APIInterface.mode
   const {
     data: filenamesData,
     error: filenamesError,
     mutate: refetchFilenames,
-  } = useSWR('headerForm.filenames', () => APIInterface.getFilenames(null), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    shouldRetryOnError: false,
-  })
+  } = useSWR(
+    ['headerForm.filenames', apiMode] as const,
+    () => APIInterface.getFilenames(null),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    },
+  )
 
   const files = filenamesData?.files ?? []
   const availableBeds = ['none', ...(filenamesData?.bedFiles ?? [])]
@@ -140,7 +138,6 @@ function HeaderForm({
   const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
   // In local mode the in-browser gbz-base reader only understands .gbz.db files,
   // so .vg.xg-based built-ins would silently fail. Hide them from the dropdown.
-  const apiMode = APIInterface.mode
   const visibleDataSources = apiMode === 'local'
     ? DATA_SOURCES.filter(isLocalCompatibleDataSource)
     : DATA_SOURCES
@@ -154,37 +151,32 @@ function HeaderForm({
   const allDataSources = [...visibleDataSources, ...discoveredDataSources]
 
   const bedKey =
-    dataType !== dataTypes.EXAMPLES && isSet(bedFile) ? bedFile : null
+    dataType !== dataTypes.EXAMPLES && isSet(bedFile)
+      ? (['headerForm.bedRegions', apiMode, bedFile] as const)
+      : null
   const { data: bedRegionsData, error: bedRegionsError } = useSWR(
     bedKey,
-    (k: string) => APIInterface.getBedRegions(k, null),
-    {
-      // Apply the auto-default region from the first BED entry when BED data
-      // arrives for a dataset switch that armed pendingRegionDefault.
-      onSuccess: data => {
-        if (pendingRegionDefault) {
-          const ri = data.bedRegions
-          if (ri?.chr && ri.chr.length > 0) {
-            setRegion(regionStringFromRegionIndex(0, ri))
-          }
-          setPendingRegionDefault(false)
-        }
-      },
-    },
+    ([, , bed]: readonly [string, string, string]) =>
+      APIInterface.getBedRegions(bed, null),
   )
   const regionInfo: RegionInfo = bedRegionsData?.bedRegions ?? {}
+  const firstBedRegion = regionInfo.chr?.length
+    ? regionStringFromRegionIndex(0, regionInfo)
+    : undefined
+  const region = chosenRegion ?? firstBedRegion ?? ''
 
   const graphTrack = firstGraphTrack(tracks)
   // Ask whenever we have a graph track that isn't a synthetic example.
   // `getPathInfo` returns [] (and won't surface an error) when the API
   // can't resolve the file, so we don't need a separate availability gate.
-  const graphKey =
-    dataType !== dataTypes.EXAMPLES && graphTrack?.trackFile
-      ? graphTrack.trackFile
-      : null
+  const graphFile =
+    dataType !== dataTypes.EXAMPLES ? graphTrack?.trackFile : undefined
   const { data: pathInfoData, error: pathInfoError } = useSWR(
-    graphKey,
-    (k: string) => APIInterface.getPathInfo(k, null),
+    graphFile === undefined
+      ? null
+      : (['headerForm.pathInfo', apiMode, graphFile] as const),
+    ([, , graph]: readonly [string, string, string]) =>
+      APIInterface.getPathInfo(graph, null),
   )
   const pathInfo: PathInfo[] = pathInfoData?.pathInfo ?? []
 
@@ -194,16 +186,14 @@ function HeaderForm({
   // ServerAPI doesn't yet). Keyed by (graph, read) so it re-runs when either
   // changes, but stays cached across re-renders within the same dataset.
   const readTrackForCounts = tracks.find(t => t.trackType === 'read')
-  const readCountsKey =
-    graphKey !== null
-    && readTrackForCounts?.trackFile
-    && APIInterface.getReadCountsPerPath
-      ? [graphKey, readTrackForCounts.trackFile] as const
-      : null
+  const readFile = readTrackForCounts?.trackFile
+  const getReadCountsPerPath = APIInterface.getReadCountsPerPath
   const { data: readCountsData } = useSWR(
-    readCountsKey,
-    async ([g, r]: readonly [string, string]) =>
-      APIInterface.getReadCountsPerPath!(g, r, null),
+    graphFile !== undefined && readFile !== undefined && getReadCountsPerPath
+      ? (['headerForm.readCounts', apiMode, graphFile, readFile] as const)
+      : null,
+    ([, , graph, read]: readonly [string, string, string, string]) =>
+      getReadCountsPerPath!(graph, read, null),
     { revalidateOnFocus: false, revalidateOnReconnect: false, shouldRetryOnError: false },
   )
   const readCounts: Record<string, number> | undefined =
@@ -212,9 +202,9 @@ function HeaderForm({
   // Adjust state during render when the graph file changes — re-opens the
   // paths panel for the new graph. See:
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-  const [lastGraphKey, setLastGraphKey] = useState(graphKey)
-  if (graphKey !== lastGraphKey) {
-    setLastGraphKey(graphKey)
+  const [lastGraphFile, setLastGraphFile] = useState(graphFile)
+  if (graphFile !== lastGraphFile) {
+    setLastGraphFile(graphFile)
     setPathsPanelOpen(true)
   }
 
@@ -226,12 +216,14 @@ function HeaderForm({
       ? (filenamesData.error ?? (apiMode === 'local' ? null : 'Server did not return a list of mounted filenames.'))
       : null
 
-  const error =
-    manualError ??
-    filenamesError ??
-    bedRegionsError ??
-    pathInfoError ??
-    noFilesMessage
+  // Every error that's currently live, so one failure can't hide another.
+  const errors: unknown[] = [
+    manualError,
+    filenamesError,
+    bedRegionsError,
+    pathInfoError,
+    noFilesMessage,
+  ].filter(e => e !== null && e !== undefined)
 
   const desc = regionDescByCoords(region, regionInfo)
 
@@ -279,9 +271,7 @@ function HeaderForm({
             `Type a region like "ref:0-1000" or pick a path below.`,
         ),
       )
-      return
-    }
-    if (
+    } else if (
       next.tracks.length > 0 &&
       !viewTargetsEqual(currentViewTarget, next)
     ) {
@@ -300,7 +290,7 @@ function HeaderForm({
   async function handleRegionChange(
     coords: string,
   ): Promise<{ region: string; tracks: Tracks } | null> {
-    setRegion(coords)
+    setChosenRegion(coords)
     setManualError(null)
 
     const coordsToMetaData: Record<string, CoordsMetaData> = {}
@@ -334,7 +324,7 @@ function HeaderForm({
           return null
         }
         console.error('API getChunkTracks failed:', e)
-        setManualError(e instanceof Error ? e : String(e))
+        setManualError(e instanceof Error ? e : new Error(String(e)))
         return null
       }
     }
@@ -358,16 +348,6 @@ function HeaderForm({
     setTracks(newTracks)
   }
 
-  function handleBedChange(event: { target: { id: string; value: string } }) {
-    const { id, value } = event.target
-    if (id === 'bedSelect') {
-      setBedSelect(value)
-    }
-    setBedFile(value)
-    // regionInfo + desc derive from the bedFile-keyed SWR fetch; nothing else
-    // to reset here.
-  }
-
   async function jumpRegion(offset: -1 | 1) {
     const current = determineRegionIndex(region, regionInfo) ?? 0
     await changeRegionAndGo(regionStringFromRegionIndex(current + offset, regionInfo))
@@ -379,9 +359,8 @@ function HeaderForm({
   // picks new files. The success banner derives its filenames directly from
   // the tracks' `trackDisplayName` (set by UploadPanel).
   function enterCustomFilesMode(newTracks: Tracks) {
-    setBedSelect('none')
     setBedFile('none')
-    setRegion('')
+    setChosenRegion('')
     setName(undefined)
     setTracks(newTracks)
     setDataType(dataTypes.CUSTOM_FILES)
@@ -401,7 +380,6 @@ function HeaderForm({
 
     if (value === dataTypes.CUSTOM_FILES) {
       enterCustomFilesMode([])
-      setUploadInProgress(false)
     } else if (value === dataTypes.EXAMPLES) {
       setDataType(dataTypes.EXAMPLES)
     } else {
@@ -409,14 +387,12 @@ function HeaderForm({
       if (ds) {
         setTracks(ds.tracks)
         setBedFile(ds.bedFile)
-        setBedSelect(isSet(ds.bedFile) ? ds.bedFile : 'none')
-        setRegion(ds.region)
+        setChosenRegion(presetRegion(ds.region))
         setDataType(dataTypes.BUILT_IN)
         setName(ds.name)
-        setPendingRegionDefault(isSet(ds.bedFile) && !ds.region)
         // Auto-commit so the tube map clears and loads the new source immediately.
         // Skipped when skipAutoLoad is set (for data sources with large default
-        // regions) or when there's no valid region yet (pendingRegionDefault path).
+        // regions) or when the region still has to come from the BED file.
         if (!ds.skipAutoLoad && isValidRegion(ds.region) && ds.tracks.length > 0) {
           setCurrentViewTarget(makeViewTarget({
             tracks: ds.tracks,
@@ -440,54 +416,21 @@ function HeaderForm({
     fileType: FileType,
     file: File,
   ): Promise<string | undefined> {
-    if (
-      apiMode !== 'local' &&
-      file.size > config.MAXUPLOADSIZE
-    ) {
+    if (apiMode !== 'local' && file.size > config.MAXUPLOADSIZE) {
       setFileSizeAlert(true)
-      return
+      return undefined
     }
-
-    setUploadInProgress(true)
-    try {
-      const fileName = await APIInterface.putFile(fileType, file, null)
-      if (fileType === 'graph') {
-        void refetchFilenames()
-      }
-      setUploadInProgress(false)
-      return fileName
-    } catch (e) {
-      setUploadInProgress(false)
-      throw e
+    const fileName = await APIInterface.putFile(fileType, file, null)
+    if (fileType === 'graph') {
+      void refetchFilenames()
     }
+    return fileName
   }
 
   const customFilesFlag = dataType === dataTypes.CUSTOM_FILES
   const examplesFlag = dataType === dataTypes.EXAMPLES
-  const viewTargetHasChange = !viewTargetsEqual(
-    buildViewTarget(),
-    currentViewTarget,
-  )
   const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
-  const dataPositionProps = {
-    handleGoButton: () => { handleGoButton(); },
-    uploadInProgress,
-    currentViewTarget,
-    viewTargetHasChange,
-    canGo: isValidRegion(region) && tracks.length > 0,
-  }
-
-  const errorDiv = error ? (
-    <div>
-      <Container fluid={true}>
-        <Row>
-          <Alert color="danger">
-            {error instanceof Error ? error.message : String(error)}
-          </Alert>
-        </Row>
-      </Container>
-    </div>
-  ) : null
+  const bedRegionCount = regionInfo.chr?.length ?? 0
 
   return (
     <div>
@@ -507,16 +450,17 @@ function HeaderForm({
         apiMode={apiMode}
         serverModeId={serverModeId}
         onDestChange={onAPIMode}
-        legendVisible={legendVisible}
-        toggleLegend={toggleLegend}
-        visOptions={visOptions}
-        toggleVisOptionFlag={toggleVisOptionFlag}
-        compressedViewLocked={compressedViewLocked}
-        handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
+        visMenus={visMenus}
       />
       <Container>
         <Row>
-          <Col>{errorDiv}</Col>
+          <Col>
+            {errors.map((e, i) => (
+              <Alert color="danger" key={i}>
+                {e instanceof Error ? e.message : String(e)}
+              </Alert>
+            ))}
+          </Col>
         </Row>
         <Row className="align-items-start">
           <Col>
@@ -533,35 +477,35 @@ function HeaderForm({
                   className="customDataMounted dropdown mb-2 me-sm-4 mb-sm-0"
                   id="bedSelect"
                   inputId="bedSelectInput"
-                  value={bedSelect}
-                  onChange={(e) => { handleBedChange(e); }}
+                  value={isSet(bedFile) ? bedFile : 'none'}
+                  onChange={(value) => { setBedFile(value); }}
                   options={availableBeds}
                 />
-                {isSet(bedFile) && (
-                  <>
-                    &nbsp;
-                    <Button
-                      color="primary"
-                      size="sm"
-                      disabled={regionIndex === 0}
-                      onClick={() => { void jumpRegion(-1); }}
-                    >
-                      Prev
-                    </Button>
-                    &nbsp;
-                    <Button
-                      color="primary"
-                      size="sm"
-                      disabled={!regionInfo.chr || regionIndex >= regionInfo.chr.length - 1}
-                      onClick={() => { void jumpRegion(1); }}
-                    >
-                      Next
-                    </Button>
-                  </>
-                )}
                 &nbsp;
               </Fragment>
             ) : null}
+            {bedRegionCount > 0 && (
+              <>
+                <Button
+                  color="primary"
+                  size="sm"
+                  disabled={regionIndex === 0}
+                  onClick={() => { void jumpRegion(-1); }}
+                >
+                  Prev
+                </Button>
+                &nbsp;
+                <Button
+                  color="primary"
+                  size="sm"
+                  disabled={regionIndex >= bedRegionCount - 1}
+                  onClick={() => { void jumpRegion(1); }}
+                >
+                  Next
+                </Button>
+                &nbsp;
+              </>
+            )}
             {!examplesFlag && (
               <RegionInput
                 regionInfo={regionInfo}
@@ -586,23 +530,8 @@ function HeaderForm({
                 isOpen={pathsPanelOpen}
                 onToggle={() => { setPathsPanelOpen(o => !o); }}
                 onLoadPath={region => { void changeRegionAndGo(region); }}
-                onCopyToRegion={region => { setRegion(region); }}
+                onCopyToRegion={region => { setChosenRegion(region); }}
               />
-            )}
-            {customFilesFlag && (
-              <div className="d-flex justify-content-between align-items-start">
-                <div>
-                  <DataPositionFormRow {...dataPositionProps} />
-                </div>
-                <div className="d-flex justify-content-end align-items-start flex-shrink-0">
-                  <SimplifyButton
-                    simplify={simplify}
-                    removeSequences={removeSequences}
-                    setSimplify={(next) => { setSimplify(next); }}
-                    setRemoveSequences={(next) => { setRemoveSequences(next); }}
-                  />
-                </div>
-              </div>
             )}
             <Row>
               <Alert
@@ -617,14 +546,30 @@ function HeaderForm({
               </Alert>
 
               {examplesFlag ? (
-                <ExampleSelectButtons
-                  setDataOrigin={setDataOrigin}
-                  setColorSetting={setColorSetting}
-                />
+                <ExampleSelectButtons showExample={showExample} />
               ) : (
-                !customFilesFlag && (
-                  <DataPositionFormRow {...dataPositionProps} />
-                )
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <DataPositionFormRow
+                      handleGoButton={() => { handleGoButton(); }}
+                      currentViewTarget={currentViewTarget}
+                      viewTargetHasChange={
+                        !viewTargetsEqual(buildViewTarget(), currentViewTarget)
+                      }
+                      canGo={isValidRegion(region) && tracks.length > 0}
+                    />
+                  </div>
+                  {customFilesFlag && (
+                    <div className="d-flex justify-content-end align-items-start flex-shrink-0">
+                      <SimplifyButton
+                        simplify={simplify}
+                        removeSequences={removeSequences}
+                        setSimplify={(next) => { setSimplify(next); }}
+                        setRemoveSequences={(next) => { setRemoveSequences(next); }}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </Row>
             {desc ? (

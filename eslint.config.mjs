@@ -15,7 +15,6 @@ export default defineConfig(
       'public',
       'node_modules',
       'eslint.config.mjs',
-      'webpack.config.mjs',
       'vite.config.mjs',
       'src/util/tubemap.js',
       'src/util/tubemap.ts',
@@ -135,15 +134,6 @@ export default defineConfig(
       globals: {
         ...globals.worker,
       },
-    },
-  },
-  {
-    // HeaderForm needs targeted disables (load-on-mount [] deps, stateRef
-    // latest-snapshot during render). React Compiler refuses to optimize
-    // components with disabled rules — that's an acceptable trade-off here.
-    files: ['src/components/HeaderForm.tsx'],
-    rules: {
-      'react-compiler/react-compiler': 'off',
     },
   },
   {

@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
-import { Container, Row, Alert } from 'reactstrap'
+import { Container, Row, Alert, Button } from 'reactstrap'
 
 import TubeMap from './TubeMap.tsx'
 import * as tubeMap from '../util/tubemap.ts'
-import type { InputNode, InputRegion, InputTrack } from '../util/tubemap.ts'
 import { dataOriginTypes } from '../enums.ts'
 import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog.tsx'
 import ReadContextMenu from './ReadContextMenu.tsx'
@@ -13,21 +12,31 @@ import PendingPanel from './PendingPanel.tsx'
 import DownloadProgressPanel from './DownloadProgressPanel.tsx'
 import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel.tsx'
 import Legend from './Legend.tsx'
-import { computeExampleData } from './tubeMapData.ts'
+import {
+  computeExampleData,
+  parseChunkedData,
+  type TubeMapData,
+} from './tubeMapData.ts'
 import type { APIInterface } from '../api/APIInterface.ts'
-import type { Tracks, ViewTarget, VisOptions } from '../Types.ts'
+import type {
+  ColorPaletteName,
+  Palette,
+  Tracks,
+  ViewTarget,
+  VisOptions,
+} from '../Types.ts'
 import { mergeUnique } from '../util/array.ts'
 
-const GROUP_PALETTE_CYCLE = [
+const GROUP_PALETTE_CYCLE: ColorPaletteName[] = [
   'reds',
   'blues',
   'ygreys',
   'greys',
   'lightColors',
   'plainColors',
-] as const
+]
 
-function paletteForIndex(idx: number): string {
+function paletteForIndex(idx: number): ColorPaletteName {
   return GROUP_PALETTE_CYCLE[idx % GROUP_PALETTE_CYCLE.length] ?? 'greys'
 }
 
@@ -42,6 +51,9 @@ const READ_LIMIT_PRESETS = [100, 500, 2000, 10000] as const
 // threshold the renderer will actually subsample at — otherwise the badge's
 // meaning ("this will be subsampled by default") drifts from reality.
 export const DEFAULT_READ_RENDER_LIMIT = READ_LIMIT_PRESETS[0]
+
+// The presets plus "render everything", as offered by the banner's buttons.
+const READ_LIMIT_CHOICES: (number | null)[] = [...READ_LIMIT_PRESETS, null]
 
 // Subsample reads to at most `limit` by taking every k-th read (k chosen so
 // the output count lands at `limit`). Preserves the original ordering, which
@@ -123,55 +135,37 @@ function ReadRenderLimitBanner({
         style={{ width: 90, fontSize: 13 }}
       />
       {' '}reads.{' '}
-      {READ_LIMIT_PRESETS.map(n => (
+      {READ_LIMIT_CHOICES.map(choice => (
         <button
-          key={n}
+          key={choice ?? 'all'}
           type="button"
-          onClick={() => { onChange(n); }}
+          onClick={() => { onChange(choice); }}
           style={{
             marginLeft: 4,
             padding: '0 6px',
             fontSize: 12,
-            background: limit === n ? '#cce5ff' : 'transparent',
+            background: limit === choice ? '#cce5ff' : 'transparent',
             border: '1px solid #999',
             borderRadius: 3,
             cursor: 'pointer',
           }}
+          title={
+            choice === null
+              ? 'Render every read (may freeze the browser for high-coverage regions)'
+              : undefined
+          }
         >
-          {n.toLocaleString()}
+          {choice === null ? 'all' : choice.toLocaleString()}
         </button>
       ))}
-      <button
-        type="button"
-        onClick={() => { onChange(null); }}
-        style={{
-          marginLeft: 4,
-          padding: '0 6px',
-          fontSize: 12,
-          background: limit === null ? '#cce5ff' : 'transparent',
-          border: '1px solid #999',
-          borderRadius: 3,
-          cursor: 'pointer',
-        }}
-        title="Render every read (may freeze the browser for high-coverage regions)"
-      >
-        all
-      </button>
     </Alert>
   )
 }
 
-interface TubeMapData {
-  nodes: InputNode[]
-  tracks: InputTrack[]
-  reads: InputTrack[]
-  region: InputRegion | undefined
-  coloredNodes: string[] | undefined
-}
-
-// SWR key shape: tuple discriminated by the first element.
+// SWR key shape: tuple discriminated by the first element. The API mode is
+// part of the key so switching backends can't serve another backend's data.
 type FetchKey =
-  | readonly ['tubeMapContainer.api', ViewTarget]
+  | readonly ['tubeMapContainer.api', APIInterface['mode'], ViewTarget]
   | readonly ['tubeMapContainer.example', string]
 
 interface ReadContextMenuState {
@@ -222,24 +216,16 @@ function TubeMapContainer({
   const [readGroups, setReadGroups] = useState<ReadGroup[]>([])
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [groupCounter, setGroupCounter] = useState(0)
-  const [otherReadsColor, setOtherReadsColor] = useState('greys')
+  const [otherReadsColor, setOtherReadsColor] = useState<Palette>('greys')
   // Render-time cap on reads. Deep-coverage regions can produce 5k+ reads,
   // which inflate the tube-map layout to ~150k SVG elements and freeze the
   // browser. `null` means render all. Default is the smallest preset so the
-  // first render of a fresh region is always responsive.
+  // first render of a fresh region is always responsive. App.tsx remounts
+  // this component whenever the region or track files change, so the cap
+  // re-engages for each new dataset without any resetting logic here.
   const [readRenderLimit, setReadRenderLimit] = useState<number | null>(
     READ_LIMIT_PRESETS[0],
   )
-  // Reset the limit each time the user navigates to a new region/track set,
-  // so the cap re-engages for the new dataset. Done as a render-time
-  // adjustment (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
-  // keyed on the viewTarget reference, which App.tsx keeps stable across
-  // unrelated re-renders.
-  const [lastViewTargetForLimit, setLastViewTargetForLimit] = useState(viewTarget)
-  if (viewTarget !== lastViewTargetForLimit) {
-    setLastViewTargetForLimit(viewTarget)
-    setReadRenderLimit(READ_LIMIT_PRESETS[0])
-  }
 
   // SWR key: null when there's nothing to fetch (no tracks selected). The
   // viewTarget object is stable across re-renders thanks to App.tsx's equality
@@ -248,53 +234,22 @@ function TubeMapContainer({
     dataOrigin === dataOriginTypes.API
       ? viewTarget.tracks.length === 0
         ? null
-        : ['tubeMapContainer.api', viewTarget]
+        : ['tubeMapContainer.api', APIInterface.mode, viewTarget]
       : ['tubeMapContainer.example', dataOrigin]
 
-  const { data, error, isLoading } = useSWR<TubeMapData, Error, FetchKey | null>(
+  const { data, error, isLoading, mutate } = useSWR<
+    TubeMapData,
+    Error,
+    FetchKey | null
+  >(
     fetchKey,
     async (key: FetchKey): Promise<TubeMapData> => {
       if (key[0] === 'tubeMapContainer.api') {
-        const target = key[1]
-        const json = await APIInterface.getChunkedData(target, null)
-        if (json.graph === undefined) {
-          throw new Error('Fetching remote data returned error')
-        }
-        const readTrackIDs: number[] = []
-        let graphTrackID = 0
-        let haplotypeTrackID = 0
-        target.tracks.forEach((track, i) => {
-          if (track.trackType === 'read') readTrackIDs.push(i)
-          else if (track.trackType === 'graph') graphTrackID = i
-          else if (track.trackType === 'haplotype') haplotypeTrackID = i
-        })
-        const newNodes = tubeMap.vgExtractNodes(json.graph, json.nameMap)
-        const newTracks = tubeMap.vgExtractTracks(
-          json.graph,
-          graphTrackID,
-          haplotypeTrackID,
+        const target = key[2]
+        return parseChunkedData(
+          await APIInterface.getChunkedData(target, null),
+          target.tracks,
         )
-        const readsArr: InputTrack[][] = []
-        let totalReads = 0
-        for (const gam of json.gam ?? []) {
-          const readSourceTrackID = readTrackIDs[readsArr.length] ?? 0
-          const newReads = tubeMap.vgExtractReads(
-            newNodes,
-            newTracks,
-            gam,
-            totalReads,
-            readSourceTrackID,
-          )
-          readsArr.push(newReads)
-          totalReads += newReads.length
-        }
-        return {
-          nodes: newNodes,
-          tracks: newTracks,
-          reads: readsArr.flat(),
-          region: json.region,
-          coloredNodes: json.coloredNodes,
-        }
       }
       const demo = await import('../util/demo-data.js')
       const result = computeExampleData(key[1], demo)
@@ -326,33 +281,39 @@ function TubeMapContainer({
     )
   }, [])
 
-  if (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return (
-      <div id="tubeMapContainer">
-        <Container>
-          <Row>
-            <Alert color="danger">{message}</Alert>
-          </Row>
-        </Container>
-      </div>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <div id="tubeMapContainer">
-        <Container>
-          <Row>
-            <div id="loaderContainer">
-              <div id="loader" />
-              <DownloadProgressPanel />
-            </div>
-          </Row>
-        </Container>
-      </div>
-    )
-  }
+  // Rendered above the tube map rather than in place of it, so a failed or
+  // in-flight fetch doesn't throw away the staged read/node sets, the read
+  // groups and the legend.
+  const status = error ? (
+    <Container>
+      <Row>
+        <Alert
+          color="danger"
+          className="d-flex justify-content-between align-items-center"
+        >
+          <span>{error instanceof Error ? error.message : String(error)}</span>
+          <Button
+            color="danger"
+            outline
+            size="sm"
+            className="ms-3 flex-shrink-0"
+            onClick={() => { void mutate(); }}
+          >
+            Retry
+          </Button>
+        </Alert>
+      </Row>
+    </Container>
+  ) : isLoading ? (
+    <Container>
+      <Row>
+        <div id="loaderContainer">
+          <div id="loader" />
+          <DownloadProgressPanel />
+        </div>
+      </Row>
+    </Container>
+  ) : null
 
   // When the user starts editing a fresh set while a filter is active, seed
   // pending with the active filter so adding/removing reads extends the
@@ -421,7 +382,7 @@ function TubeMapContainer({
     setReadGroups(prev => prev.map(g => (g.id === id ? { ...g, name } : g)))
   }
 
-  const recolorGroup = (id: string, color: string) => {
+  const recolorGroup = (id: string, color: Palette) => {
     setReadGroups(prev => prev.map(g => (g.id === id ? { ...g, color } : g)))
   }
 
@@ -469,6 +430,7 @@ function TubeMapContainer({
 
   return (
     <div id="tubeMapContainer" style={{ position: 'relative' }}>
+      {status}
       <PopUpInfoDialog
         open={infoDialogContent !== undefined}
         attributes={infoDialogContent}

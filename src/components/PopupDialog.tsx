@@ -9,7 +9,6 @@ interface PopupDialogProps {
   open: boolean
   children?: ReactNode
   close: () => void
-  closeOnDocumentClick?: boolean
   width?: string | null
   testID?: string
 }
@@ -18,18 +17,13 @@ export const PopupDialog = ({
   open,
   children,
   close,
-  closeOnDocumentClick = false,
   width = '760px',
   testID = 'PopupDialog',
 }: PopupDialogProps) => {
   return (
     <Dialog
       open={open}
-      onClose={() => {
-        if (closeOnDocumentClick) {
-          close()
-        }
-      }}
+      onClose={() => { close(); }}
       onClick={(e) => { e.stopPropagation(); }}
       data-testid={testID}
       maxWidth={width === null ? false : undefined}
@@ -42,6 +36,8 @@ export const PopupDialog = ({
       <IconButton
         onClick={() => { close(); }}
         data-testid={testID.concat('CloseButton')}
+        aria-label="Close"
+        title="Close"
         size="small"
         sx={{ position: 'absolute', top: 8, right: 8 }}
       >

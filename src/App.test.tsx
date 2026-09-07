@@ -4,65 +4,34 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import App from './App.tsx'
-import type { fetchAndParse as FetchAndParse } from './fetchAndParse.ts'
-import type * as FetchAndParseModule from './fetchAndParse.ts'
+import type { APIInterface } from './api/APIInterface.ts'
+
+// A backend that answers everything with empty results, so nothing but the
+// behavior under test moves. Individual tests override single methods.
+function fakeAPI(overrides: Partial<APIInterface> = {}): APIInterface {
+  return {
+    mode: 'server',
+    getChunkedData: async () => ({}),
+    getFilenames: async () => ({ files: [], bedFiles: [] }),
+    subscribeToFilenameChanges: () => () => {},
+    putFile: async () => 'uploaded',
+    getBedRegions: async () => ({}),
+    getPathNames: async () => ({ pathNames: [] }),
+    getPathInfo: async () => ({ pathInfo: [] }),
+    getChunkTracks: async () => ({}),
+    ...overrides,
+  }
+}
 
 // SWR caches by key across renders; without a fresh provider per test, an
-// errored fetch in one test leaks into the next and the new mock is never
+// errored fetch in one test leaks into the next and the new fake is never
 // consulted. Each renderApp() call gets an isolated cache.
-const renderApp = () =>
+const renderApp = (api: APIInterface = fakeAPI()) =>
   render(
     <SWRConfig value={{ provider: () => new Map() }}>
-      <App />
+      <App api={api} />
     </SWRConfig>,
   )
-
-type FetchAndParseFn = typeof FetchAndParse
-type FetchAndParseArgs = Parameters<FetchAndParseFn>
-type FetchAndParseReturn = ReturnType<FetchAndParseFn>
-
-const MOCK_KEY = '__App.test.js_fetchAndParse_mock'
-type GlobalWithMock = typeof globalThis & {
-  [MOCK_KEY]?: (...args: FetchAndParseArgs) => FetchAndParseReturn
-}
-
-// We want to be able to replace the `fetchAndParse` that *other* files see,
-// and we want to use *different* implementations for different tests in this
-// file. We can mock it with vi.mock, but vi will move this call before the
-// imports when running the tests, so we can't access any file-level variables
-// in it. So we need to do some sneaky global trickery.
-function setFetchAndParseMock(
-  replacement: (...args: FetchAndParseArgs) => FetchAndParseReturn,
-) {
-  ;(globalThis as GlobalWithMock)[MOCK_KEY] = replacement
-}
-
-function clearFetchAndParseMock() {
-  ;(globalThis as GlobalWithMock)[MOCK_KEY] = undefined
-}
-
-vi.mock('./fetchAndParse', async () => {
-  const actual =
-    await vi.importActual<typeof FetchAndParseModule>('./fetchAndParse')
-  const fetchAndParseDispatcher = (
-    ...args: FetchAndParseArgs
-  ): FetchAndParseReturn => {
-    const functionToUse =
-      (globalThis as GlobalWithMock)[MOCK_KEY] ?? actual.fetchAndParse
-    return functionToUse(...args)
-  }
-  return {
-    __esModule: true,
-    fetchAndParse: fetchAndParseDispatcher,
-  }
-})
-
-// TODO: We won't need to do *any* of this if we actually get the ability to pass an API implementation into the app.
-
-beforeEach(() => {
-  vi.resetAllMocks()
-  clearFetchAndParseMock()
-})
 
 const getRegionInput = () =>
   screen.getByRole<HTMLInputElement>('combobox', { name: /Region/i })
@@ -73,24 +42,48 @@ it('renders without crashing', () => {
 })
 
 it('renders with error when api call to server throws', async () => {
-  setFetchAndParseMock(() => {
-    throw new Error('Mock Server Error')
-  })
-  renderApp()
+  renderApp(
+    fakeAPI({
+      getFilenames: () => {
+        throw new Error('Mock Server Error')
+      },
+    }),
+  )
   await waitFor(() => {
     expect(screen.getAllByText(/Mock Server Error/i)[0]).toBeInTheDocument()
   })
 })
 
 it('renders without crashing when sent bad fetch data from server', async () => {
-  setFetchAndParseMock(async () => ({}))
-  renderApp()
+  renderApp(fakeAPI({ getFilenames: async () => ({}) }))
 
   await waitFor(() => {
     expect(screen.getAllByText(/Server did not/i)[0]).toBeInTheDocument()
   })
   await waitFor(() => {
     screen.getByText('Fetching remote data returned error')
+  })
+})
+
+it('offers a retry when the tube map data fails to load', async () => {
+  let calls = 0
+  renderApp(
+    fakeAPI({
+      getChunkedData: async () => {
+        calls += 1
+        throw new Error('Mock Chunk Error')
+      },
+    }),
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText(/Mock Chunk Error/i)).toBeInTheDocument()
+  })
+  expect(calls).toBe(1)
+
+  await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+  await waitFor(() => {
+    expect(calls).toBe(2)
   })
 })
 
@@ -107,6 +100,27 @@ it('allows the data source to be changed', async () => {
     screen.getByRole('menuitem', { name: 'vg "small" example' }),
   )
   expect(getRegionInput().value).toEqual('x:1-100')
+})
+
+it('re-seeds the form when the backend is switched', async () => {
+  renderApp()
+  expect(getRegionInput().value).toEqual('17:1-100')
+
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+  expect(getRegionInput().value).toEqual('ref:1-100')
+
+  // The backend selector switches the API mode, which resets the form to the
+  // view target of the newly-selected backend.
+  await userEvent.click(screen.getByText('Backend configuration'))
+  await userEvent.click(screen.getByLabelText('Extract tube map data'))
+  await userEvent.click(
+    screen.getByRole('option', { name: /vgteam server/i }),
+  )
+
+  await waitFor(() => {
+    expect(getRegionInput().value).toEqual('17:1-100')
+  })
 })
 
 it('allows the start to be cleared', async () => {

@@ -1,17 +1,12 @@
 import { useState } from 'react'
-import MuiButton from '@mui/material/Button'
-import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import type { AvailableTrack, FileType, Track, Tracks } from '../Types.ts'
+import { AppBarMenu } from './AppBarMenu.tsx'
 import PopupDialog from './PopupDialog.tsx'
 import TrackPickerDisplay from './TrackPickerDisplay.tsx'
 import { UploadDialog } from './UploadDialog.tsx'
 
 interface FileMenuProps {
-  anchorEl: HTMLElement | null
-  open: boolean
-  onClose: () => void
-  onOpen: (el: HTMLElement) => void
   customFilesFlag: boolean
   tracks: Tracks
   availableTracks: AvailableTrack[]
@@ -20,15 +15,11 @@ interface FileMenuProps {
   onUploaded: (tracks: Track[]) => void
   onOpenCustomFiles: () => void
   apiMode: 'local' | 'server' | 'upstream'
-  serverModeId?: 'server' | 'upstream'
-  onDestChange?: (mode: string) => void
+  serverModeId: 'server' | 'upstream'
+  onDestChange: (mode: string) => void
 }
 
 export function FileMenu({
-  anchorEl,
-  open,
-  onClose,
-  onOpen,
   customFilesFlag,
   tracks,
   availableTracks,
@@ -44,48 +35,39 @@ export function FileMenu({
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   return (
     <>
-      <MuiButton
-        color="inherit"
-        data-testid="fileMenuButton"
-        onClick={(e) => { onOpen(e.currentTarget); }}
-      >
-        File
-      </MuiButton>
-      <Menu anchorEl={anchorEl} open={open} onClose={() => { onClose(); }}>
-        <MenuItem
-          data-testid="openCustomFiles"
-          selected={customFilesFlag}
-          onClick={() => {
-            if (!customFilesFlag) {
-              onOpenCustomFiles()
-            }
-            // Default to server upload when opening from pure local (in-browser) mode
-            // so the primary upload path is front-and-centre.
-            if (apiMode === 'local' && serverModeId) {
-              onDestChange?.(serverModeId)
-            }
-            setUploadDialogOpen(true)
-            onClose()
-          }}
-        >
-          Open…
-        </MenuItem>
-        <MenuItem
-          data-testid="manageTracks"
-          disabled={!customFilesFlag}
-          onClick={() => {
-            setTracksDialogOpen(true)
-            onClose()
-          }}
-        >
-          Manage tracks…
-        </MenuItem>
-      </Menu>
+      <AppBarMenu label="File" testid="fileMenuButton">
+        {close => (
+          <>
+            <MenuItem
+              data-testid="openCustomFiles"
+              selected={customFilesFlag}
+              onClick={() => {
+                if (!customFilesFlag) {
+                  onOpenCustomFiles()
+                }
+                setUploadDialogOpen(true)
+                close()
+              }}
+            >
+              Open…
+            </MenuItem>
+            <MenuItem
+              data-testid="manageTracks"
+              disabled={!customFilesFlag}
+              onClick={() => {
+                setTracksDialogOpen(true)
+                close()
+              }}
+            >
+              Manage tracks…
+            </MenuItem>
+          </>
+        )}
+      </AppBarMenu>
       {customFilesFlag && (
         <PopupDialog
           open={tracksDialogOpen}
           close={() => { setTracksDialogOpen(false); }}
-          closeOnDocumentClick={false}
           width={null}
           testID="TrackPicker"
         >

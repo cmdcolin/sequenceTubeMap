@@ -9,16 +9,12 @@ function getFilename(fullPath: string | null | undefined) {
   return segments.at(-1) ?? ''
 }
 
-interface BedFileDropdownChangeEvent {
-  target: { id: string; value: string }
-}
-
 interface BedFileDropdownProps {
   id: string
   inputId: string
   className?: string
   value?: string | null
-  onChange: (event: BedFileDropdownChangeEvent) => void
+  onChange: (value: string) => void
   options: string[]
 }
 
@@ -40,7 +36,7 @@ export function BedFileDropdown({
       options={options}
       getOptionLabel={option => getFilename(option)}
       onChange={(_event, newValue) => {
-        onChange({ target: { id, value: newValue } })
+        onChange(newValue)
       }}
       renderInput={params => (
         <TextField

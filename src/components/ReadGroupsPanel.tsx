@@ -1,8 +1,9 @@
 import type { CSSProperties } from 'react'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
+import type { ColorHex, ColorPaletteName, Palette } from '../Types.ts'
 
-const PALETTE_OPTIONS = [
+const PALETTE_OPTIONS: { value: ColorPaletteName; label: string }[] = [
   { value: 'plainColors', label: 'Plain' },
   { value: 'reds', label: 'Reds' },
   { value: 'blues', label: 'Blues' },
@@ -84,18 +85,19 @@ const OTHER_ROW_STYLE: CSSProperties = {
   paddingTop: '8px',
 }
 
-function isSolid(color: unknown): color is string {
-  return typeof color === 'string' && color.startsWith('#')
+// Rebuilding the string keeps the ColorHex template type without a cast.
+function asSolid(color: string): ColorHex | undefined {
+  return color.startsWith('#') ? `#${color.slice(1)}` : undefined
 }
 
 interface PaletteChooserProps {
-  value: string
+  value: Palette
   // Describes the *thing being colored* (e.g. 'group "foo"', 'other reads').
   // Used in aria-labels for both the palette dropdown and the solid swatch.
   subject: string
   title?: string
-  solidDefault: string
-  onChange: (value: string) => void
+  solidDefault: ColorHex
+  onChange: (value: Palette) => void
 }
 
 const PaletteChooser = ({
@@ -105,15 +107,21 @@ const PaletteChooser = ({
   solidDefault,
   onChange,
 }: PaletteChooserProps) => {
-  const solid = isSolid(value)
+  const solid = asSolid(value)
   return (
     <>
       <Select<string>
         size="small"
-        value={solid ? SOLID_SENTINEL : value}
+        value={solid === undefined ? value : SOLID_SENTINEL}
         onChange={e => {
-          const v = e.target.value
-          onChange(v === SOLID_SENTINEL ? solidDefault : v)
+          const chosen = e.target.value
+          const palette =
+            chosen === SOLID_SENTINEL
+              ? solidDefault
+              : PALETTE_OPTIONS.find(o => o.value === chosen)?.value
+          if (palette !== undefined) {
+            onChange(palette)
+          }
         }}
         aria-label={`Palette for ${subject}`}
         title={title}
@@ -126,15 +134,20 @@ const PaletteChooser = ({
         ))}
         <MenuItem value={SOLID_SENTINEL}>Solid color…</MenuItem>
       </Select>
-      {solid ? (
+      {solid === undefined ? null : (
         <input
           type="color"
-          value={value}
+          value={solid}
           style={SWATCH_STYLE}
-          onChange={e => { onChange(e.target.value); }}
+          onChange={e => {
+            const picked = asSolid(e.target.value)
+            if (picked !== undefined) {
+              onChange(picked)
+            }
+          }}
           aria-label={`Solid color for ${subject}`}
         />
-      ) : null}
+      )}
     </>
   )
 }
@@ -142,19 +155,19 @@ const PaletteChooser = ({
 export interface ReadGroup {
   id: string
   name: string
-  color: string
+  color: Palette
   reads: string[]
 }
 
 interface ReadGroupsPanelProps {
   groups: ReadGroup[]
   activeGroupId?: string | null
-  otherReadsColor: string
+  otherReadsColor: Palette
   onSetActive: (id: string) => void
   onRename: (id: string, name: string) => void
-  onRecolor: (id: string, color: string) => void
+  onRecolor: (id: string, color: Palette) => void
   onDelete: (id: string) => void
-  onRecolorOther: (color: string) => void
+  onRecolorOther: (color: Palette) => void
 }
 
 const ReadGroupsPanel = ({
