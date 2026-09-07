@@ -35,6 +35,7 @@ to see available contig names.
 
 ## More docs
 
+- [Differences from upstream sequenceTubeMap](doc/differences-from-upstream.md)
 - [Data preparation & hosting options](doc/uploading.md)
 - [Headless SVG/PNG rendering](doc/headless-rendering.md)
 - [In-browser gbz-base reader](doc/gbz-base.md)
