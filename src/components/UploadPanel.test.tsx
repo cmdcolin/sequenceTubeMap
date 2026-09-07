@@ -113,7 +113,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
     const input = screen
       .getByTestId('UploadPanel')
-      .querySelector('input[type="file"]')!
+      .querySelector<HTMLInputElement>('input[type="file"]')!
     expect(input).not.toBeNull()
 
     const gam = fakeFile('reads.sorted.gam')
@@ -158,7 +158,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
     const input = screen
       .getByTestId('UploadPanel')
-      .querySelector('input[type="file"]')!
+      .querySelector<HTMLInputElement>('input[type="file"]')!
 
     await userEvent.upload(input, [
       fakeFile('reads.sorted.gam'),
@@ -199,7 +199,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
     const input = screen
       .getByTestId('UploadPanel')
-      .querySelector('input[type="file"]')!
+      .querySelector<HTMLInputElement>('input[type="file"]')!
 
     await userEvent.upload(input, [
       fakeFile('graph.xg'),
@@ -230,7 +230,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
     const input = screen
       .getByTestId('UploadPanel')
-      .querySelector('input[type="file"]')!
+      .querySelector<HTMLInputElement>('input[type="file"]')!
 
     // bypass the input's `accept` filter (which userEvent normally applies)
     // so we can verify the panel's own runtime filter rejects the .xg.
@@ -256,7 +256,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
     const input = screen
       .getByTestId('UploadPanel')
-      .querySelector('input[type="file"]')!
+      .querySelector<HTMLInputElement>('input[type="file"]')!
 
     // Build a "file" that reports a huge size without allocating bytes.
     const big = new File(['x'], 'big.gam', { type: 'application/octet-stream' })
@@ -284,7 +284,7 @@ describe('UploadPanel mode flip clears staged files', () => {
 
     const input = screen
       .getByTestId('UploadPanel')
-      .querySelector('input[type="file"]')!
+      .querySelector<HTMLInputElement>('input[type="file"]')!
 
     await userEvent.upload(input, [fakeFile('graph.xg')])
     expect(screen.getByText('graph.xg')).toBeTruthy()

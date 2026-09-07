@@ -1896,7 +1896,7 @@ function alignSVG(): () => void {
       const shouldHide = pendingK < MISMATCH_HIDE_BELOW_K
       if (shouldHide !== detailHidden) {
         detailHidden = shouldHide
-        const display = shouldHide ? 'none' : null
+        const display = shouldHide ? 'none' : ''
         svg.select<SVGGElement>('g.mismatches-layer').style('display', display)
         svg.select<SVGGElement>('g.sequence-labels-layer').style('display', display)
         console.log(

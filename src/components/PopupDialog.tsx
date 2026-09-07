@@ -25,12 +25,14 @@ export const PopupDialog = ({
   return (
     <Dialog
       open={open}
-      onClose={() => { close(); }}
-      onBackdropClick={closeOnDocumentClick ? () => { close(); } : undefined}
+      onClose={() => {
+        if (closeOnDocumentClick) {
+          close()
+        }
+      }}
       onClick={(e) => { e.stopPropagation(); }}
       data-testid={testID}
       maxWidth={width === null ? false : undefined}
-      disableEscapeKeyDown={!closeOnDocumentClick}
       slotProps={{
         paper: {
           sx: width !== null ? { width, maxWidth: 'none' } : { maxWidth: 'none' },
