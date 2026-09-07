@@ -24,6 +24,25 @@ decides how far the drawing is scaled down to fit. The exported `viewBox` is
 then cropped to the drawing itself, so nothing is clipped and there is no dead
 space around it. Pass `--viewport` to export the whole canvas instead.
 
+## View options
+
+`--compressed`, `--no-reads`, `--node-labels`, `--coarsened` and `--mapq N`
+mirror the app's View menu. `--compressed` is the one to reach for on a graph
+whose nodes hold long sequences: node width becomes logarithmic in sequence
+length, which is often the difference between a legible figure and a drawing
+tens of thousands of units wide.
+
+Example 6 at natural node widths is 4376 units across
+([SVG](tubemap-cli-samples/demo-example-6.svg)):
+
+![Demo example 6](tubemap-cli-samples/demo-example-6.png)
+
+The same data with `--compressed` is 1725 across, and readable at the width a
+page actually gives it
+([SVG](tubemap-cli-samples/demo-example-6-compressed.svg)):
+
+![Demo example 6, compressed node widths](tubemap-cli-samples/demo-example-6-compressed.png)
+
 ## Reads
 
 Unlike the browser, which subsamples to 100 reads by default to stay responsive,
@@ -46,11 +65,6 @@ Everything below was produced by the commands above and lives in
 
 ![snp1kg-BRCA1 tube map](tubemap-cli-samples/snp1kg-BRCA1.png)
 
-`--example 6` — reads aligned to a graph
-([SVG](tubemap-cli-samples/demo-example-6.svg))
-
-![Demo example 6](tubemap-cli-samples/demo-example-6.png)
-
 `--example 8` — a cyclic graph, whose loops are drawn outside the node bounds
 ([SVG](tubemap-cli-samples/demo-example-8.svg))
 
@@ -72,5 +86,10 @@ The remaining demo datasets render the same way: examples
 [4](tubemap-cli-samples/demo-example-4.png),
 [5](tubemap-cli-samples/demo-example-5.png) and
 [9](tubemap-cli-samples/demo-example-9.png).
+
+A render whose layout produced non-finite coordinates prints
+`warning: N shape(s) have non-finite coordinates and will not appear`. Those
+shapes are missing from the picture, so treat the figure as incomplete rather
+than shipping it.
 
 Caveat: interactive features (zoom, context menus) are inert in headless mode.

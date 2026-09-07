@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { svgContentBounds } from './svgBounds.ts'
+import { nonFiniteGeometryCount, svgContentBounds } from './svgBounds.ts'
 
 function svgFrom(inner: string): SVGSVGElement {
   const doc = new DOMParser().parseFromString(
@@ -93,5 +93,44 @@ describe('svgContentBounds', () => {
       width: 0,
       height: 0,
     })
+  })
+
+  it('skips broken shapes rather than letting NaN poison the box', () => {
+    // The tube map layout can emit NaN or undefined coordinates; without this
+    // one bad shape would leave the whole export uncroppable.
+    const box = svgContentBounds(
+      svgFrom(
+        '<rect x="NaN" y="4" width="NaN" height="2"/><rect x="0" y="0" width="6" height="6"/><path d="M undefined 3 L 2 2"/>',
+      ),
+    )
+    expect(box).toEqual({ x: 0, y: 0, width: 6, height: 6 })
+  })
+})
+
+describe('nonFiniteGeometryCount', () => {
+  it('is zero for a healthy drawing', () => {
+    expect(
+      nonFiniteGeometryCount(
+        svgFrom('<rect x="0" y="0" width="1" height="1"/>'),
+      ),
+    ).toBe(0)
+  })
+
+  it('counts each element carrying a non-finite coordinate', () => {
+    expect(
+      nonFiniteGeometryCount(
+        svgFrom(
+          '<rect x="NaN" y="0" width="1" height="1"/><path d="M undefined 3 L 2 2"/><rect x="1" y="1" width="1" height="1"/>',
+        ),
+      ),
+    ).toBe(2)
+  })
+
+  it('ignores <defs>', () => {
+    expect(
+      nonFiniteGeometryCount(
+        svgFrom('<defs><rect x="NaN" y="0" width="1" height="1"/></defs>'),
+      ),
+    ).toBe(0)
   })
 })

@@ -181,10 +181,17 @@ export function svgContentBounds(root: Element): Box | null {
     if (element.tagName.toLowerCase() !== 'defs') {
       const here = childFrame(element, frame)
       for (const point of elementPoints(element)) {
-        minX = Math.min(minX, here.tx + here.k * point.x)
-        maxX = Math.max(maxX, here.tx + here.k * point.x)
-        minY = Math.min(minY, here.ty + here.k * point.y)
-        maxY = Math.max(maxY, here.ty + here.k * point.y)
+        const x = here.tx + here.k * point.x
+        const y = here.ty + here.k * point.y
+        // A NaN coordinate would otherwise poison every comparison and leave
+        // the whole box unusable, so drop the broken shape and keep the rest.
+        // Callers that care can ask separately -- see nonFiniteGeometryCount.
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          minX = Math.min(minX, x)
+          maxX = Math.max(maxX, x)
+          minY = Math.min(minY, y)
+          maxY = Math.max(maxY, y)
+        }
       }
       for (const child of element.children) {
         walk(child, here)
@@ -198,4 +205,29 @@ export function svgContentBounds(root: Element): Box | null {
   return minX <= maxX && minY <= maxY
     ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
     : null
+}
+
+// How many elements in the subtree carry a coordinate that isn't a finite
+// number. Always zero for a healthy render: it means the layout produced NaN
+// or undefined, and those shapes are silently absent from the picture.
+export function nonFiniteGeometryCount(root: Element): number {
+  let broken = 0
+  const walk = (element: Element) => {
+    if (element.tagName.toLowerCase() !== 'defs') {
+      if (
+        elementPoints(element).some(
+          point => !Number.isFinite(point.x) || !Number.isFinite(point.y),
+        )
+      ) {
+        broken += 1
+      }
+      for (const child of element.children) {
+        walk(child)
+      }
+    }
+  }
+  for (const child of root.children) {
+    walk(child)
+  }
+  return broken
 }

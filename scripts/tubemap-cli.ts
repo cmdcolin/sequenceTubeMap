@@ -20,10 +20,12 @@ import { JSDOM } from 'jsdom'
 import type { GBZBaseAPI } from '../src/api/GBZBaseAPI.ts'
 import type { FetchKey } from '../src/components/tubeMapData.ts'
 import type { Tracks, ViewTarget } from '../src/Types.ts'
+import type { StoredVisOptions } from '../src/util/visOptions.ts'
 
 const USAGE = `tubemap-cli [--example 1..9 | --source <config name>] [--region X:S-E]
              [--out file.svg] [--width N] [--height N] [--viewport]
-             [--read-limit N]
+             [--read-limit N] [--compressed] [--no-reads] [--node-labels]
+             [--coarsened] [--mapq N]
 
 The tube map is laid out in a --width by --height viewport, which is what
 decides how much the drawing is scaled down. The exported viewBox is then
@@ -31,6 +33,11 @@ cropped to the drawing; pass --viewport to export the whole canvas instead.
 
 Every read in the region is drawn unless --read-limit caps it, in which case
 reads are evenly subsampled the way the app's read-render limit does.
+
+The view flags mirror the app's View menu. --compressed is the one to reach for
+on a graph whose nodes hold long sequences: node width becomes logarithmic in
+sequence length, which is often the difference between a legible figure and a
+drawing tens of thousands of units wide.
 `
 
 // Breathing room around the cropped drawing so edge strokes and the outermost
@@ -50,6 +57,8 @@ interface CliArgs {
   viewport: boolean
   // Most reads to draw, or undefined to draw them all.
   readLimit: number | undefined
+  // View-menu settings this render departs from the app's defaults on.
+  visOptions: Partial<StoredVisOptions>
 }
 
 function parsePositive(name: string, raw: string): number {
@@ -71,6 +80,11 @@ function parseCli(): CliArgs {
       height: { type: 'string' },
       viewport: { type: 'boolean', default: false },
       'read-limit': { type: 'string' },
+      compressed: { type: 'boolean', default: false },
+      'no-reads': { type: 'boolean', default: false },
+      'node-labels': { type: 'boolean', default: false },
+      coarsened: { type: 'boolean', default: false },
+      mapq: { type: 'string' },
       help: { type: 'boolean', default: false },
     },
   })
@@ -87,6 +101,15 @@ function parseCli(): CliArgs {
       values['read-limit'] === undefined
         ? undefined
         : parsePositive('read-limit', values['read-limit']),
+    visOptions: {
+      ...(values.compressed && { compressedView: true }),
+      ...(values['no-reads'] && { showReads: false }),
+      ...(values['node-labels'] && { showNodeLabels: true }),
+      ...(values.coarsened && { coarsenedReadView: true }),
+      ...(values.mapq !== undefined && {
+        mappingQualityCutoff: parsePositive('mapq', values.mapq),
+      }),
+    },
   }
   if (values.example !== undefined && values.source !== undefined) {
     throw new Error(`pass either --example or --source, not both\n${USAGE}`)
@@ -268,7 +291,8 @@ async function main(): Promise<void> {
   const { GBZBaseAPI } = await import('../src/api/GBZBaseAPI.ts')
   const { defaultTrackColors } = await import('../src/common.ts')
   const { subsampleReads } = await import('../src/util/array.ts')
-  const { svgContentBounds } = await import('../src/util/svgBounds.ts')
+  const { nonFiniteGeometryCount, svgContentBounds } =
+    await import('../src/util/svgBounds.ts')
   const { applyVisOptions, DEFAULT_VIS_OPTIONS } =
     await import('../src/util/visOptions.ts')
 
@@ -283,6 +307,7 @@ async function main(): Promise<void> {
   applyVisOptions(
     {
       ...DEFAULT_VIS_OPTIONS,
+      ...args.visOptions,
       colorSchemes: (viewTarget?.tracks ?? []).map(
         t => t.trackColorSettings ?? defaultTrackColors(t.trackType),
       ),
@@ -318,6 +343,16 @@ async function main(): Promise<void> {
   // laid out in, so exporting that size would clip a wide map and leave dead
   // space under a short one. Crop to what was actually drawn instead, and
   // trade width/height for the viewBox so viewers scale the map fluidly.
+  // A healthy layout never produces these. When it does the affected shapes
+  // are simply missing from the picture, so say so rather than shipping a
+  // quietly incomplete figure.
+  const broken = nonFiniteGeometryCount(svg)
+  if (broken > 0) {
+    console.error(
+      `warning: ${broken} shape(s) have non-finite coordinates and will not appear`,
+    )
+  }
+
   const bounds = svgContentBounds(svg)
   const pad = CROP_MARGIN
   svg.setAttribute(
