@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
@@ -5,6 +6,11 @@ import CardContent from '@mui/material/CardContent'
 import CardHeader from '@mui/material/CardHeader'
 import Chip from '@mui/material/Chip'
 import Collapse from '@mui/material/Collapse'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogTitle from '@mui/material/DialogTitle'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -40,20 +46,23 @@ function regionFor(name: string, start: number, length: number) {
   return `${name}:${start}-${start + length - 1}`
 }
 
+interface SlowPath {
+  name: string
+  start: number
+  length: number
+}
+
 function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, onToggle }: PathsPanelProps) {
+  // The path a confirmation is being asked about, if any.
+  const [slowPath, setSlowPath] = useState<SlowPath | null>(null)
 
   if (!pathInfo.length) return null
 
   function handleLoad(name: string, start: number, length: number) {
-    const proceed =
-      length < SLOW_PATH_THRESHOLD ||
-      window.confirm(
-        `Path "${name}" is ${length.toLocaleString()} bp. Rendering paths this large can freeze the browser for many seconds.\n\n` +
-          `Tip: instead of loading the whole path, use the "Copy to region" button and edit the range before loading.\n\n` +
-          `Load the full path anyway?`,
-      )
-    if (proceed) {
+    if (length < SLOW_PATH_THRESHOLD) {
       onLoadPath(regionFor(name, start, length))
+    } else {
+      setSlowPath({ name, start, length })
     }
   }
 
@@ -204,6 +213,40 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
           </Table>
         </CardContent>
       </Collapse>
+      <Dialog
+        open={slowPath !== null}
+        onClose={() => { setSlowPath(null); }}
+        maxWidth="sm"
+      >
+        <DialogTitle>Load the whole path?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Path "{slowPath?.name}" is{' '}
+            {slowPath?.length.toLocaleString()} bp. Rendering paths this large
+            can freeze the browser for many seconds.
+          </DialogContentText>
+          <DialogContentText sx={{ mt: 2 }}>
+            Instead of loading the whole path, you can use "Copy to region" and
+            edit the range before loading.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setSlowPath(null); }}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (slowPath) {
+                onLoadPath(
+                  regionFor(slowPath.name, slowPath.start, slowPath.length),
+                )
+                setSlowPath(null)
+              }
+            }}
+          >
+            Load anyway
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   )
 }

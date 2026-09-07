@@ -7,10 +7,12 @@ import DialogContent from '@mui/material/DialogContent'
 
 interface HelpDialogProps {
   title: string
+  // Text of the button that opens the dialog.
+  label?: string
   children: ReactNode
 }
 
-function HelpDialog({ title, children }: HelpDialogProps) {
+function HelpDialog({ title, label = 'What is this?', children }: HelpDialogProps) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -20,7 +22,7 @@ function HelpDialog({ title, children }: HelpDialogProps) {
         sx={{ fontSize: '0.8em', p: 0, ml: 1, minWidth: 0 }}
         onClick={e => { e.stopPropagation(); setOpen(true); }}
       >
-        What is this?
+        {label}
       </Button>
       <Dialog open={open} onClose={() => { setOpen(false); }} onClick={(e) => { e.stopPropagation(); }}>
         <DialogTitle>{title}</DialogTitle>

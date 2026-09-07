@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import useSWR from 'swr'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -14,12 +13,8 @@ import PendingPanel from './PendingPanel.tsx'
 import DownloadProgressPanel from './DownloadProgressPanel.tsx'
 import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel.tsx'
 import Legend from './Legend.tsx'
-import {
-  computeExampleData,
-  parseChunkedData,
-  type TubeMapData,
-} from './tubeMapData.ts'
-import type { APIInterface } from '../api/APIInterface.ts'
+import type { TubeMapData } from './tubeMapData.ts'
+import { useKeyboardShortcuts } from './useKeyboardShortcuts.ts'
 import type {
   ColorPaletteName,
   Palette,
@@ -62,7 +57,7 @@ const READ_LIMIT_CHOICES: (number | null)[] = [...READ_LIMIT_PRESETS, null]
 // for indexed gam queries is roughly node-position-sorted, so the subsample
 // stays spatially representative rather than biasing to one end of the
 // region (which `slice(0, limit)` would do).
-function subsampleReads<T>(reads: T[], limit: number): T[] {
+export function subsampleReads<T>(reads: T[], limit: number): T[] {
   if (reads.length <= limit) return reads
   const stride = reads.length / limit
   const out: T[] = []
@@ -164,12 +159,6 @@ function ReadRenderLimitBanner({
   )
 }
 
-// SWR key shape: tuple discriminated by the first element. The API mode is
-// part of the key so switching backends can't serve another backend's data.
-type FetchKey =
-  | readonly ['tubeMapContainer.api', APIInterface['mode'], ViewTarget]
-  | readonly ['tubeMapContainer.example', string]
-
 interface ReadContextMenuState {
   readName: string
   x: number
@@ -192,7 +181,17 @@ interface TubeMapContainerProps {
   viewTarget: ViewTarget
   dataOrigin: string
   visOptions: VisOptions
-  APIInterface: APIInterface
+  // The fetch lives in App (see its useSWR call) so the Go button can show
+  // that a load is in flight and the previous region can stay on screen while
+  // the next one arrives.
+  data: TubeMapData | undefined
+  error: Error | undefined
+  isValidating: boolean
+  onRetry: () => void
+  // Cap on how many reads get rendered, persisted by App as a preference.
+  // Each new region starts from it again.
+  readRenderLimit: number | null
+  onReadRenderLimitChange: (limit: number | null) => void
   legendVisible: boolean
   onLegendClose: () => void
 }
@@ -201,7 +200,12 @@ function TubeMapContainer({
   viewTarget,
   dataOrigin,
   visOptions,
-  APIInterface,
+  data,
+  error,
+  isValidating,
+  onRetry,
+  readRenderLimit: readRenderLimitPreference,
+  onReadRenderLimitChange,
   legendVisible,
   onLegendClose,
 }: TubeMapContainerProps) {
@@ -221,55 +225,42 @@ function TubeMapContainer({
   const [otherReadsColor, setOtherReadsColor] = useState<Palette>('greys')
   // Render-time cap on reads. Deep-coverage regions can produce 5k+ reads,
   // which inflate the tube-map layout to ~150k SVG elements and freeze the
-  // browser. `null` means render all. Default is the smallest preset so the
-  // first render of a fresh region is always responsive. App.tsx remounts
-  // this component whenever the region or track files change, so the cap
-  // re-engages for each new dataset without any resetting logic here.
+  // browser. `null` means render all.
   const [readRenderLimit, setReadRenderLimit] = useState<number | null>(
-    READ_LIMIT_PRESETS[0],
-  )
-
-  // SWR key: null when there's nothing to fetch (no tracks selected). The
-  // viewTarget object is stable across re-renders thanks to App.tsx's equality
-  // guard, so SWR's default stable-hash keying works.
-  const fetchKey: FetchKey | null =
-    dataOrigin === dataOriginTypes.API
-      ? viewTarget.tracks.length === 0
-        ? null
-        : ['tubeMapContainer.api', APIInterface.mode, viewTarget]
-      : ['tubeMapContainer.example', dataOrigin]
-
-  const { data, error, isLoading, mutate } = useSWR<
-    TubeMapData,
-    Error,
-    FetchKey | null
-  >(
-    fetchKey,
-    async (key: FetchKey): Promise<TubeMapData> => {
-      if (key[0] === 'tubeMapContainer.api') {
-        const target = key[2]
-        return parseChunkedData(
-          await APIInterface.getChunkedData(target, null),
-          target.tracks,
-        )
-      }
-      const demo = await import('../util/demo-data.js')
-      const result = computeExampleData(key[1], demo)
-      return {
-        nodes: result.nodes,
-        tracks: result.tracks,
-        reads: result.reads,
-        region: undefined,
-        coloredNodes: undefined,
-      }
-    },
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      shouldRetryOnError: false,
-    },
+    readRenderLimitPreference,
   )
   const { nodes, tracks, reads, region, coloredNodes } = data ?? {}
+
+  // Everything the user staged for the region they were looking at (read
+  // groups, the pending read/node sets, the read filter and the render cap)
+  // describes that region's reads, so a different dataset starts over.
+  // Adjusted during render rather than in an effect, and rather than by
+  // remounting on a key, which would also throw away the previous render and
+  // defeat keepPreviousData. See
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const datasetKey = [
+    dataOrigin,
+    viewTarget.region,
+    ...viewTarget.tracks.map(t => t.trackFile ?? ''),
+  ].join('|')
+  const [lastDatasetKey, setLastDatasetKey] = useState(datasetKey)
+  if (datasetKey !== lastDatasetKey) {
+    setLastDatasetKey(datasetKey)
+    setPendingReadSet([])
+    setPendingNodeSet([])
+    setFocusReadNames(null)
+    setReadGroups([])
+    setActiveGroupId(null)
+    setGroupCounter(0)
+    setReadContextMenu(null)
+    setNodeContextMenu(null)
+    setReadRenderLimit(readRenderLimitPreference)
+  }
+
+  const changeReadRenderLimit = (limit: number | null) => {
+    setReadRenderLimit(limit)
+    onReadRenderLimitChange(limit)
+  }
 
   useEffect(() => {
     tubeMap.setInfoCallback((text: InfoAttribute[]) =>
@@ -283,9 +274,18 @@ function TubeMapContainer({
     )
   }, [])
 
-  // Rendered above the tube map rather than in place of it, so a failed or
-  // in-flight fetch doesn't throw away the staged read/node sets, the read
-  // groups and the legend.
+  // Rendered above the tube map rather than in place of it, so a failed
+  // fetch doesn't throw away the staged read/node sets, the read groups and
+  // the legend.
+  // Nothing has ever rendered for this view, so the loader takes the place of
+  // the map instead of covering it.
+  const loader = (
+    <div id="loaderContainer">
+      <div id="loader" />
+      <DownloadProgressPanel />
+    </div>
+  )
+
   const status = error ? (
     <Box sx={{ px: 2 }}>
       <Alert
@@ -296,7 +296,7 @@ function TubeMapContainer({
             variant="outlined"
             size="small"
             sx={{ flexShrink: 0 }}
-            onClick={() => { void mutate(); }}
+            onClick={() => { onRetry(); }}
           >
             Retry
           </Button>
@@ -305,13 +305,8 @@ function TubeMapContainer({
         {error instanceof Error ? error.message : String(error)}
       </Alert>
     </Box>
-  ) : isLoading ? (
-    <Box sx={{ px: 2 }}>
-      <div id="loaderContainer">
-        <div id="loader" />
-        <DownloadProgressPanel />
-      </div>
-    </Box>
+  ) : data === undefined && isValidating ? (
+    <Box sx={{ px: 2 }}>{loader}</Box>
   ) : null
 
   // When the user starts editing a fresh set while a filter is active, seed
@@ -389,6 +384,18 @@ function TubeMapContainer({
     setReadGroups(prev => prev.filter(g => g.id !== id))
     if (activeGroupId === id) setActiveGroupId(null)
   }
+
+  const menuOpen = readContextMenu !== null || nodeContextMenu !== null
+  useKeyboardShortcuts(
+    menuOpen
+      ? {
+          Escape: () => {
+            setReadContextMenu(null)
+            setNodeContextMenu(null)
+          },
+        }
+      : {},
+  )
 
   const activeGroup = readGroups.find(g => g.id === activeGroupId) ?? null
   const pendingReadActions = [
@@ -505,10 +512,28 @@ function TubeMapContainer({
         <ReadRenderLimitBanner
           totalReads={reads.length}
           limit={readRenderLimit}
-          onChange={setReadRenderLimit}
+          onChange={limit => { changeReadRenderLimit(limit); }}
         />
       ) : null}
       <div id="tubeMapSVG">
+        {data !== undefined && isValidating ? (
+          <Box
+            data-testid="tubeMapLoadingOverlay"
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              // Translucent so the region still on screen stays readable
+              // while the next one loads.
+              background: 'rgba(255, 255, 255, 0.6)',
+            }}
+          >
+            {loader}
+          </Box>
+        ) : null}
         {nodes !== undefined && tracks !== undefined ? (
           <TubeMap
             nodes={nodes}

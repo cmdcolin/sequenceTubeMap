@@ -6,9 +6,9 @@ import type {
   VgJson,
   VgRead,
 } from '../util/tubemap.ts'
-import type { ChunkedDataResponse } from '../api/APIInterface.ts'
+import type { APIInterface, ChunkedDataResponse } from '../api/APIInterface.ts'
 import { dataOriginTypes } from '../enums.ts'
-import type { Tracks } from '../Types.ts'
+import type { Tracks, ViewTarget } from '../Types.ts'
 
 // demo-data.js types are inferred from JS literals; keep this loose so the
 // module-level shape (which includes a few extra JS-only fields) is
@@ -170,4 +170,32 @@ export function computeExampleData(
     console.warn('invalid example data origin type:', dataOrigin)
   }
   return { nodes: data.inputNodes, tracks: [], reads: [] }
+}
+
+// SWR key shape: a tuple discriminated by its first element. The API mode is
+// part of the key so switching backends can't serve another backend's data.
+export type FetchKey =
+  | readonly ['tubeMap.api', APIInterface['mode'], ViewTarget]
+  | readonly ['tubeMap.example', string]
+
+export async function fetchTubeMapData(
+  key: FetchKey,
+  api: APIInterface,
+): Promise<TubeMapData> {
+  if (key[0] === 'tubeMap.api') {
+    const target = key[2]
+    return parseChunkedData(
+      await api.getChunkedData(target, null),
+      target.tracks,
+    )
+  }
+  const demo = await import('../util/demo-data.js')
+  const result = computeExampleData(key[1], demo)
+  return {
+    nodes: result.nodes,
+    tracks: result.tracks,
+    reads: result.reads,
+    region: undefined,
+    coloredNodes: undefined,
+  }
 }

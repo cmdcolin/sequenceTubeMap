@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { RefObject } from 'react'
 import TextField from '@mui/material/TextField'
 import Autocomplete from '@mui/material/Autocomplete'
 import Tooltip from '@mui/material/Tooltip'
@@ -24,6 +25,8 @@ interface RegionInputProps {
   regionInfo: RegionInfo
   handleRegionChange: (region: string) => void
   onSubmit?: () => void
+  // Lets the app's "/" shortcut put the cursor in this field.
+  inputRef?: RefObject<HTMLInputElement | null>
 }
 
 // RegionInput: The path and region input box component
@@ -33,6 +36,7 @@ export const RegionInput = ({
   regionInfo,
   handleRegionChange,
   onSubmit,
+  inputRef,
 }: RegionInputProps) => {
   const [helpOpen, setHelpOpen] = useState(false)
   const [popupOpen, setPopupOpen] = useState(false)
@@ -100,6 +104,7 @@ export const RegionInput = ({
                 size="small"
                 label={'Region'}
                 name="Region Input"
+                inputRef={inputRef}
                 onKeyDown={e => {
                   // While the popup is open Enter belongs to the highlighted
                   // option; submitting here would use the pre-selection value.

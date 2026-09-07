@@ -1,6 +1,7 @@
 import { CopyLink } from './CopyLink.tsx'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faSearchPlus,
@@ -9,29 +10,31 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import * as tubeMap from '../util/tubemap.ts'
 import { downloadSvgById } from '../util/downloadSvg.ts'
-import type { ViewTarget } from '../Types.ts'
 
 const ZOOM_FACTOR = 2.0
 
 interface DataPositionFormRowProps {
   handleGoButton: () => void
-  currentViewTarget: ViewTarget
   viewTargetHasChange: boolean
   canGo: boolean
+  // Whether the committed view is still being fetched.
+  loading: boolean
 }
 
 function DataPositionFormRow({
   handleGoButton,
-  currentViewTarget,
   viewTargetHasChange,
   canGo,
+  loading,
 }: DataPositionFormRowProps) {
-  const goDisabled = !canGo || !viewTargetHasChange
-  const goTitle = !canGo
-    ? 'Pick a region (e.g. "ref:0-1000") and load a graph before clicking Go.'
-    : viewTargetHasChange
-      ? 'Click to apply pending changes.'
-      : 'No changes to apply; view is up to date.'
+  const goDisabled = !canGo || !viewTargetHasChange || loading
+  const goTitle = loading
+    ? 'Loading the current view…'
+    : !canGo
+      ? 'Pick a region (e.g. "ref:0-1000") and load a graph before clicking Go.'
+      : viewTargetHasChange
+        ? 'Click to apply pending changes.'
+        : 'No changes to apply; view is up to date.'
 
   return (
     <Box
@@ -44,6 +47,9 @@ function DataPositionFormRow({
         variant="contained"
         title={goTitle}
         id="goButton"
+        startIcon={
+          loading ? <CircularProgress size={14} color="inherit" /> : undefined
+        }
         onClick={() => { handleGoButton(); }}
         disabled={goDisabled}
       >
@@ -78,7 +84,7 @@ function DataPositionFormRow({
       >
         Download Image
       </Button>
-      <CopyLink currentViewTarget={currentViewTarget} />
+      <CopyLink />
     </Box>
   )
 }

@@ -5,6 +5,16 @@ import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+import {
+  faAngleLeft,
+  faAngleRight,
+  faArrowLeft,
+  faArrowRight,
+  faCompress,
+  faExpand,
+} from '@fortawesome/free-solid-svg-icons'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { APIInterface } from '../api/APIInterface.ts'
@@ -17,10 +27,17 @@ import BedFileDropdown from './BedFileDropdown.tsx'
 import SimplifyButton from './SimplifyButton.tsx'
 import FormHelperText from '@mui/material/FormHelperText'
 import { HeaderFormAppBar } from './HeaderFormAppBar.tsx'
+import KeyboardShortcutsHelp from './KeyboardShortcutsHelp.tsx'
+import { useKeyboardShortcuts } from './useKeyboardShortcuts.ts'
+import * as tubeMap from '../util/tubemap.ts'
 import {
+  convertRegionToRangeRegion,
   isValidRegion,
   isLocalCompatibleDataSource,
   isEmpty,
+  parseRegion,
+  stringifyRangeRegion,
+  type RangeRegion,
 } from '../common.ts'
 import {
   dataTypes,
@@ -66,9 +83,23 @@ interface HeaderFormProps {
   APIInterface: APIInterface
   onAPIMode: (mode: string) => void
   serverModeId: 'server' | 'upstream'
+  // Whether the committed view is currently being fetched, so the Go button
+  // can say so.
+  loading: boolean
+  // Escape, when the user isn't typing. App uses it to dismiss the legend.
+  onEscape: () => void
   // The app's own View/Reads menus, rendered in the app bar.
   visMenus: ReactNode
 }
+
+// How far one "shift" moves the window, as a fraction of its width.
+const SHIFT_FRACTION = 0.5
+
+// How much one "widen"/"narrow" step scales the window.
+const REGION_ZOOM_FACTOR = 2
+
+// Factor the canvas zooms by for the +/- shortcuts, matching the zoom buttons.
+const CANVAS_ZOOM_FACTOR = 2
 
 interface CoordsMetaData {
   tracks: Track[] | null
@@ -83,6 +114,50 @@ function presetRegion(region: string) {
   return region === '' ? undefined : region
 }
 
+// Views the user has committed, so Back/Forward can walk them. `index` is the
+// entry currently on screen; committing from anywhere but the end drops the
+// entries that were ahead, as a browser's history does.
+interface RegionHistory {
+  entries: ViewTarget[]
+  index: number
+}
+
+function initialRegionHistory(target: ViewTarget): RegionHistory {
+  return target.tracks.length > 0
+    ? { entries: [target], index: 0 }
+    : { entries: [], index: -1 }
+}
+
+interface RegionControlButtonProps {
+  label: string
+  icon: IconDefinition
+  disabled: boolean
+  testid: string
+  onClick: () => void
+}
+
+function RegionControlButton({
+  label,
+  icon,
+  disabled,
+  testid,
+  onClick,
+}: RegionControlButtonProps) {
+  return (
+    <Button
+      variant="contained"
+      size="small"
+      aria-label={label}
+      title={label}
+      data-testid={testid}
+      disabled={disabled}
+      onClick={() => { onClick(); }}
+    >
+      <FontAwesomeIcon icon={icon} />
+    </Button>
+  )
+}
+
 function HeaderForm({
   showExample,
   setCurrentViewTarget,
@@ -90,6 +165,8 @@ function HeaderForm({
   APIInterface,
   onAPIMode,
   serverModeId,
+  loading,
+  onEscape,
   visMenus,
 }: HeaderFormProps) {
   const [tracks, setTracks] = useState<Tracks>(currentViewTarget.tracks)
@@ -115,6 +192,11 @@ function HeaderForm({
   // changes (see render-time adjustment below) so the user sees what paths
   // are available without having to expand it.
   const [pathsPanelOpen, setPathsPanelOpen] = useState(true)
+  const [regionHistory, setRegionHistory] = useState(() =>
+    initialRegionHistory(currentViewTarget),
+  )
+  // Focused by the "/" shortcut; a ref is how you hand focus to a DOM node.
+  const regionInputRef = useRef<HTMLInputElement>(null)
 
   // SWR-managed fetches. Each key encodes the state it depends on — including
   // the API mode, so switching backends refetches rather than reusing the
@@ -280,6 +362,32 @@ function HeaderForm({
     ) {
       setCurrentViewTarget(next)
       setRecentlyUploaded([])
+      setRegionHistory(h => ({
+        entries: [...h.entries.slice(0, h.index + 1), next],
+        index: h.index + 1,
+      }))
+    }
+  }
+
+  // Re-seed the form from a view target that was already committed once, so
+  // Back/Forward restore the whole view and not just its region.
+  function applyViewTarget(target: ViewTarget) {
+    setTracks(target.tracks)
+    setBedFile(target.bedFile)
+    setChosenRegion(presetRegion(target.region))
+    setName(target.name)
+    setDataType(target.dataType ?? dataTypes.BUILT_IN)
+    setSimplify(target.simplify ?? false)
+    setRemoveSequences(target.removeSequences ?? false)
+    setManualError(null)
+    setCurrentViewTarget(target)
+  }
+
+  function goInHistory(delta: -1 | 1) {
+    const target = regionHistory.entries[regionHistory.index + delta]
+    if (target) {
+      setRegionHistory({ ...regionHistory, index: regionHistory.index + delta })
+      applyViewTarget(target)
     }
   }
 
@@ -354,6 +462,35 @@ function HeaderForm({
   async function jumpRegion(offset: -1 | 1) {
     const current = determineRegionIndex(region, regionInfo) ?? 0
     await changeRegionAndGo(regionStringFromRegionIndex(current + offset, regionInfo))
+  }
+
+  // The region controls rewrite the window and load it immediately, the way
+  // the BED prev/next buttons do.
+  function transformRegion(transform: (range: RangeRegion) => RangeRegion) {
+    try {
+      const range = convertRegionToRangeRegion(parseRegion(region))
+      void changeRegionAndGo(stringifyRangeRegion(transform(range)))
+    } catch (e) {
+      setManualError(e instanceof Error ? e : new Error(String(e)))
+    }
+  }
+
+  function shiftRegion(direction: -1 | 1) {
+    transformRegion(({ contig, start, end }) => {
+      const span = end - start
+      const offset = Math.max(1, Math.round(span * SHIFT_FRACTION)) * direction
+      const newStart = Math.max(0, start + offset)
+      return { contig, start: newStart, end: newStart + span }
+    })
+  }
+
+  function scaleRegion(factor: number) {
+    transformRegion(({ contig, start, end }) => {
+      const span = Math.max(1, Math.round((end - start) * factor))
+      const center = (start + end) / 2
+      const newStart = Math.max(0, Math.round(center - span / 2))
+      return { contig, start: newStart, end: newStart + span }
+    })
   }
 
   // Shared reset for the two entry points into custom-files mode (the File
@@ -434,6 +571,20 @@ function HeaderForm({
   const examplesFlag = dataType === dataTypes.EXAMPLES
   const regionIndex = determineRegionIndex(region, regionInfo) ?? 0
   const bedRegionCount = regionInfo.chr?.length ?? 0
+  const regionUsable = isValidRegion(region)
+  const hasBedRegions = bedRegionCount > 0
+
+  useKeyboardShortcuts({
+    '+': () => { tubeMap.zoomBy(CANVAS_ZOOM_FACTOR); },
+    '=': () => { tubeMap.zoomBy(CANVAS_ZOOM_FACTOR); },
+    '-': () => { tubeMap.zoomBy(1 / CANVAS_ZOOM_FACTOR); },
+    '[': hasBedRegions ? () => { void jumpRegion(-1); } : undefined,
+    ']': hasBedRegions ? () => { void jumpRegion(1); } : undefined,
+    'Shift+ArrowLeft': regionUsable ? () => { shiftRegion(-1); } : undefined,
+    'Shift+ArrowRight': regionUsable ? () => { shiftRegion(1); } : undefined,
+    '/': () => { regionInputRef.current?.focus(); },
+    Escape: () => { onEscape(); },
+  })
 
   return (
     <div>
@@ -481,34 +632,93 @@ function HeaderForm({
               />
             </>
           ) : null}
-          {bedRegionCount > 0 && (
-            <Box sx={{ display: 'flex', gap: 0.5, alignSelf: 'center' }}>
-              <Button
-                variant="contained"
-                size="small"
-                disabled={regionIndex === 0}
-                onClick={() => { void jumpRegion(-1); }}
-              >
-                Prev
-              </Button>
-              <Button
-                variant="contained"
-                size="small"
-                disabled={regionIndex >= bedRegionCount - 1}
-                onClick={() => { void jumpRegion(1); }}
-              >
-                Next
-              </Button>
+          {!examplesFlag && (
+            <Box
+              sx={{
+                display: 'flex',
+                gap: 0.5,
+                alignSelf: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
+              <RegionControlButton
+                testid="regionHistoryBack"
+                label="Back to the previous view"
+                icon={faArrowLeft}
+                disabled={regionHistory.index <= 0}
+                onClick={() => { goInHistory(-1); }}
+              />
+              <RegionControlButton
+                testid="regionHistoryForward"
+                label="Forward to the next view"
+                icon={faArrowRight}
+                disabled={regionHistory.index >= regionHistory.entries.length - 1}
+                onClick={() => { goInHistory(1); }}
+              />
+              {hasBedRegions && (
+                <>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={regionIndex === 0}
+                    onClick={() => { void jumpRegion(-1); }}
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={regionIndex >= bedRegionCount - 1}
+                    onClick={() => { void jumpRegion(1); }}
+                  >
+                    Next
+                  </Button>
+                </>
+              )}
+              <RegionControlButton
+                testid="shiftRegionLeft"
+                label="Shift region left by half a window"
+                icon={faAngleLeft}
+                disabled={!regionUsable}
+                onClick={() => { shiftRegion(-1); }}
+              />
+              <RegionControlButton
+                testid="widenRegion"
+                label={`Widen region ${REGION_ZOOM_FACTOR}x`}
+                icon={faExpand}
+                disabled={!regionUsable}
+                onClick={() => { scaleRegion(REGION_ZOOM_FACTOR); }}
+              />
+              <RegionControlButton
+                testid="narrowRegion"
+                label={`Narrow region ${REGION_ZOOM_FACTOR}x`}
+                icon={faCompress}
+                disabled={!regionUsable}
+                onClick={() => { scaleRegion(1 / REGION_ZOOM_FACTOR); }}
+              />
+              <RegionControlButton
+                testid="shiftRegionRight"
+                label="Shift region right by half a window"
+                icon={faAngleRight}
+                disabled={!regionUsable}
+                onClick={() => { shiftRegion(1); }}
+              />
             </Box>
           )}
           {!examplesFlag && (
             <Box sx={{ flexGrow: 1, minWidth: 260 }}>
               <RegionInput
                 regionInfo={regionInfo}
+                inputRef={regionInputRef}
                 handleRegionChange={coords => { void handleRegionChange(coords); }}
                 region={region}
                 onSubmit={() => { handleGoButton(); }}
               />
+            </Box>
+          )}
+          {!examplesFlag && (
+            <Box sx={{ alignSelf: 'center' }}>
+              <KeyboardShortcutsHelp />
             </Box>
           )}
         </Box>
@@ -556,11 +766,11 @@ function HeaderForm({
           >
             <DataPositionFormRow
               handleGoButton={() => { handleGoButton(); }}
-              currentViewTarget={currentViewTarget}
               viewTargetHasChange={
                 !viewTargetsEqual(buildViewTarget(), currentViewTarget)
               }
-              canGo={isValidRegion(region) && tracks.length > 0}
+              canGo={regionUsable && tracks.length > 0}
+              loading={loading}
             />
             {customFilesFlag && (
               <Box sx={{ flexShrink: 0 }}>

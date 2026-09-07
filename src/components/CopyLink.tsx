@@ -3,23 +3,16 @@ import Button from '@mui/material/Button'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLink } from '@fortawesome/free-solid-svg-icons'
 import PopupDialog from './PopupDialog.tsx'
-import { viewTargetToUrlParams } from '../urlViewTarget.ts'
-import type { ViewTarget } from '../Types.ts'
 
-interface CopyLinkProps {
-  currentViewTarget: ViewTarget
-}
-
-export function CopyLink({ currentViewTarget }: CopyLinkProps) {
+export function CopyLink() {
   // The link that was last copied, so the "Copied!" label resets by itself as
-  // soon as the view target (and therefore the link) changes.
+  // soon as the view (and therefore the link) changes.
   const [copiedLink, setCopiedLink] = useState<string>()
   const [dialogLink, setDialogLink] = useState<string>()
 
-  const url = new URL(window.location.toString())
-  url.search = '?' + viewTargetToUrlParams(currentViewTarget)
-  url.hash = ''
-  const link = url.toString()
+  // App rewrites the query on every commit, so the current URL already
+  // describes the view on screen.
+  const link = window.location.href
 
   const handleCopyLink = async () => {
     try {

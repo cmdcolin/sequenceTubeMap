@@ -53,7 +53,6 @@ export function FileMenu({
             </MenuItem>
             <MenuItem
               data-testid="manageTracks"
-              disabled={!customFilesFlag}
               onClick={() => {
                 setTracksDialogOpen(true)
                 close()
@@ -64,21 +63,19 @@ export function FileMenu({
           </>
         )}
       </AppBarMenu>
-      {customFilesFlag && (
-        <PopupDialog
-          open={tracksDialogOpen}
-          close={() => { setTracksDialogOpen(false); }}
-          width={null}
-          testID="TrackPicker"
-        >
-          <TrackPickerDisplay
-            tracks={tracks}
-            availableTracks={availableTracks}
-            onChange={(newTracks) => { onTracksChange(newTracks); }}
-            handleFileUpload={handleFileUpload}
-          />
-        </PopupDialog>
-      )}
+      <PopupDialog
+        open={tracksDialogOpen}
+        close={() => { setTracksDialogOpen(false); }}
+        width={null}
+        testID="TrackPicker"
+      >
+        <TrackPickerDisplay
+          tracks={tracks}
+          availableTracks={availableTracks}
+          onChange={(newTracks) => { onTracksChange(newTracks); }}
+          handleFileUpload={handleFileUpload}
+        />
+      </PopupDialog>
       <UploadDialog
         open={uploadDialogOpen}
         onClose={() => { setUploadDialogOpen(false); }}
