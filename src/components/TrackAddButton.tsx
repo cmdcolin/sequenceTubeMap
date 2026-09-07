@@ -14,7 +14,7 @@ export const TrackAddButton = ({
 }: TrackAddButtonProps) => {
   return (
     <Button
-      aria-label="TrackAdd"
+      aria-label="Add track"
       onClick={() => { onChange(); }}
       data-testid={testID}
       style={{ marginLeft: '25px', marginTop: '5px' }}

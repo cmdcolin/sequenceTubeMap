@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import Autocomplete from '@mui/material/Autocomplete'
 import TextField from '@mui/material/TextField'
 import '../config-client.js'
@@ -17,7 +17,6 @@ interface TrackFilePickerProps {
   value?: string
   handleInputChange: (newValue: string | undefined) => void
   pickerType?: 'mounted' | 'upload'
-  className?: string
   testID?: string
   handleFileUpload: (
     fileType: FileType,
@@ -39,11 +38,11 @@ export const TrackFilePicker = ({
   value,
   handleInputChange,
   pickerType = 'mounted',
-  className,
   testID = 'file-select-component',
   handleFileUpload,
 }: TrackFilePickerProps) => {
   const uploadFileInput = useRef<HTMLInputElement>(null)
+  const [uploadError, setUploadError] = useState<Error>()
   const acceptedExtensions = config.fileTypeToExtensions[fileType]
 
   async function uploadOnChange() {
@@ -53,12 +52,12 @@ export const TrackFilePicker = ({
     const file = uploadingInput.files?.[0]
     if (!file) return
 
+    setUploadError(undefined)
     try {
       handleInputChange(await handleFileUpload(fileType, file))
     } catch (e) {
       console.error('TrackFilePicker could not upload: ', e)
-      // TODO: Display error to user in a better way
-      alert(String(e))
+      setUploadError(e instanceof Error ? e : new Error(String(e)))
       uploadingInput.value = ''
     }
   }
@@ -115,7 +114,6 @@ export const TrackFilePicker = ({
           onChange={(_event, newValue) => {
             mountedOnChange(newValue)
           }}
-          className={className}
           sx={{ minWidth: 240 }}
           renderInput={params => (
             <TextField
@@ -128,22 +126,28 @@ export const TrackFilePicker = ({
     )
   } else {
     return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginTop: 5,
-        }}
-      >
-        <Input
-          data-testid={testID}
-          type="file"
-          className="customDataUpload form-control-file"
-          accept={acceptedExtensions}
-          innerRef={uploadFileInput}
-          onChange={() => uploadOnChange()}
-        />
+      <div style={{ marginTop: 5 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Input
+            data-testid={testID}
+            type="file"
+            className="customDataUpload form-control-file"
+            accept={acceptedExtensions}
+            innerRef={uploadFileInput}
+            onChange={() => uploadOnChange()}
+          />
+        </div>
+        {uploadError ? (
+          <div style={{ color: '#c00', fontSize: 12 }} role="alert">
+            Upload failed: {uploadError.message}
+          </div>
+        ) : null}
       </div>
     )
   }

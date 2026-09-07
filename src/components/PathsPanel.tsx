@@ -45,20 +45,28 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
 
   return (
     <Card className="mt-2">
-      <CardHeader
-        onClick={() => { onToggle(); }}
-        style={{ cursor: 'pointer', userSelect: 'none' }}
-        className="d-flex justify-content-between align-items-center"
-        role="button"
-        aria-expanded={isOpen}
-      >
-        <span>
-          <FontAwesomeIcon
-            icon={isOpen ? faChevronDown : faChevronRight}
-            className="me-2"
-            style={{ width: 12 }}
-          />
-          Paths in this graph
+      <CardHeader className="d-flex justify-content-between align-items-center p-0">
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          onClick={() => { onToggle(); }}
+          className="btn btn-link text-reset text-decoration-none d-flex justify-content-between align-items-center flex-grow-1 px-3 py-2"
+          style={{ userSelect: 'none' }}
+        >
+          <span>
+            <FontAwesomeIcon
+              icon={isOpen ? faChevronDown : faChevronRight}
+              className="me-2"
+              style={{ width: 12 }}
+            />
+            Paths in this graph
+          </span>
+          <span className="text-muted small">
+            {pathInfo.length} paths{' '}
+            {isOpen ? '(click to collapse)' : '(click to expand)'}
+          </span>
+        </button>
+        <span className="pe-3">
           <HelpDialog title="Paths in this graph">
             <p>
               These are the named paths embedded in the pangenome graph file
@@ -85,10 +93,6 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
               <code>chr1:0-5000</code>), instead of loading the entire path.
             </p>
           </HelpDialog>
-        </span>
-        <span className="text-muted small">
-          {pathInfo.length} paths{' '}
-          {isOpen ? '(click to collapse)' : '(click to expand)'}
         </span>
       </CardHeader>
       <Collapse isOpen={isOpen}>

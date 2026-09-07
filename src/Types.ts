@@ -144,6 +144,11 @@ export interface VisOptions {
   ignoreStrand: boolean
 }
 
+// Keys of VisOptions that hold a boolean, i.e. the ones that can be toggled.
+export type VisOptionFlag = {
+  [K in keyof VisOptions]: VisOptions[K] extends boolean ? K : never
+}[keyof VisOptions]
+
 // A path entry returned by the API for a graph track.
 export interface PathInfo {
   name: string

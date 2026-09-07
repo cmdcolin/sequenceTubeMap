@@ -34,7 +34,7 @@ export const TrackSettingsButton = ({
   const close = () => { setOpen(false); }
   return (
     <>
-      <Button aria-label="Settings" onClick={() => { setOpen(!open); }}>
+      <Button aria-label="Track color settings" onClick={() => { setOpen(!open); }}>
         <FontAwesomeIcon icon={faGear} data-testid={testID} />
       </Button>
       <PopupDialog open={open} close={close}>

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import isEqual from 'react-fast-compare'
 import { Row, Col } from 'reactstrap'
 import { TrackList } from './TrackList.tsx'
 import { TrackAddButton } from './TrackAddButton.tsx'
@@ -22,7 +21,7 @@ interface TrackPickerDisplayProps {
   tracks: Tracks
   availableTracks: AvailableTrack[]
   availableColors?: ColorPaletteName[]
-  onChange?: (newTracks: Tracks) => void
+  onChange: (newTracks: Tracks) => void
   handleFileUpload: (
     fileType: FileType,
     file: File,
@@ -49,11 +48,29 @@ function applyChanges(base: Tracks, changes: TrackChanges): Tracks {
 const allFilesSet = (tracks: Tracks) =>
   tracks.every(t => t.trackFile !== undefined)
 
+// Same track set, in the same order, as far as the picker is concerned.
+function sameTracks(a: Tracks, b: Tracks) {
+  return (
+    a.length === b.length &&
+    a.every((track, i) => {
+      const other = b[i]
+      return (
+        track.trackType === other?.trackType &&
+        track.trackFile === other.trackFile &&
+        track.trackColorSettings?.mainPalette ===
+          other.trackColorSettings?.mainPalette &&
+        track.trackColorSettings?.auxPalette ===
+          other.trackColorSettings?.auxPalette
+      )
+    })
+  )
+}
+
 export const TrackPickerDisplay = ({
   tracks,
   availableTracks,
   availableColors,
-  onChange = () => {},
+  onChange,
   handleFileUpload,
 }: TrackPickerDisplayProps) => {
   // Pending edits layered on top of the parent's tracks. We only flush to
@@ -67,7 +84,7 @@ export const TrackPickerDisplay = ({
   const stage = (extra: TrackChanges) => {
     const merged = { ...pending, ...extra }
     const next = applyChanges(tracks, merged)
-    if (allFilesSet(next) && !isEqual(next, tracks)) {
+    if (allFilesSet(next) && !sameTracks(next, tracks)) {
       onChange(next)
       setPending({})
     } else {

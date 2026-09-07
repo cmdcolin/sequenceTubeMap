@@ -55,7 +55,7 @@ export const ColorPicker = ({
   return (
     <div>
       <Button
-        aria-label="ColorPicker"
+        aria-label="Pick a custom color"
         onClick={() => { togglePicker(); }}
         data-testid={testID}
       >

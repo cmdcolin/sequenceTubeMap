@@ -35,6 +35,7 @@ export const RegionInput = ({
   onSubmit,
 }: RegionInputProps) => {
   const [helpOpen, setHelpOpen] = useState(false)
+  const [popupOpen, setPopupOpen] = useState(false)
   const pathsWithRegion: RegionOption[] = []
 
   const regionToDesc = new Map<string, string>()
@@ -70,6 +71,9 @@ export const RegionInput = ({
           <Autocomplete<RegionOption | string, false, false, true>
             disablePortal
             freeSolo
+            open={popupOpen}
+            onOpen={() => { setPopupOpen(true); }}
+            onClose={() => { setPopupOpen(false); }}
             size="small"
             sx={{ flexGrow: 1 }}
             getOptionLabel={option =>
@@ -97,7 +101,9 @@ export const RegionInput = ({
                 label={'Region'}
                 name="Region Input"
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && onSubmit) {
+                  // While the popup is open Enter belongs to the highlighted
+                  // option; submitting here would use the pre-selection value.
+                  if (e.key === 'Enter' && !popupOpen && onSubmit) {
                     e.preventDefault()
                     onSubmit()
                   }
@@ -106,7 +112,12 @@ export const RegionInput = ({
             )}
           />
         </Tooltip>
-        <IconButton size="small" onClick={() => { setHelpOpen(true); }}>
+        <IconButton
+          size="small"
+          aria-label="Region format help"
+          title="Region format help"
+          onClick={() => { setHelpOpen(true); }}
+        >
           <FontAwesomeIcon icon={faCircleQuestion} />
         </IconButton>
       </Box>

@@ -4,7 +4,7 @@ export const dataTypes = {
   BUILT_IN: 'built-in',
   CUSTOM_FILES: 'mounted files',
   EXAMPLES: 'examples',
-}
+} as const
 import type {
   AvailableTrack,
   FolderManifest,

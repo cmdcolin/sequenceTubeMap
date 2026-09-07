@@ -102,7 +102,7 @@ export const TrackSettings = ({
   const labels = ROW_LABELS[fileType]
   return (
     <>
-      <h5>{label} Colors</h5>
+      <h5>{label === undefined ? 'Colors' : `${label} Colors`}</h5>
       {labels && (
         <Form>
           <PaletteRow

@@ -6,42 +6,29 @@ import PopupDialog from './PopupDialog.tsx'
 import { viewTargetToUrlParams } from '../urlViewTarget.ts'
 import type { ViewTarget } from '../Types.ts'
 
-const UNCLICKED_TEXT = ' Copy link to data'
-const CLICKED_TEXT = ' Copied link!'
-
-// uses Clipboard API to write text to clipboard
-export const writeToClipboard = (text: string) => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  navigator.clipboard.writeText(text)
-}
-
-// For testing purposes
-let copyCallback: (text: string) => void = writeToClipboard
-
-// sets value of copyCallback
-export const setCopyCallback = (callback: (text: string) => void) =>
-  (copyCallback = callback)
-
 interface CopyLinkProps {
   currentViewTarget: ViewTarget
 }
 
 export function CopyLink({ currentViewTarget }: CopyLinkProps) {
-  // Button to copy a link with viewTarget to the data selected
-  const [text, setText] = useState(UNCLICKED_TEXT)
+  // The link that was last copied, so the "Copied!" label resets by itself as
+  // soon as the view target (and therefore the link) changes.
+  const [copiedLink, setCopiedLink] = useState<string>()
   const [dialogLink, setDialogLink] = useState<string>()
 
-  const handleCopyLink = () => {
-    const url = new URL(window.location.toString())
-    url.search = '?' + viewTargetToUrlParams(currentViewTarget)
-    url.hash = ''
+  const url = new URL(window.location.toString())
+  url.search = '?' + viewTargetToUrlParams(currentViewTarget)
+  url.hash = ''
+  const link = url.toString()
 
+  const handleCopyLink = async () => {
     try {
-      copyCallback(url.toString())
-      setText(CLICKED_TEXT)
-    } catch {
-      setText(UNCLICKED_TEXT)
-      setDialogLink(url.toString())
+      await navigator.clipboard.writeText(link)
+      setCopiedLink(link)
+    } catch (e) {
+      console.error('Could not write to the clipboard:', e)
+      setCopiedLink(undefined)
+      setDialogLink(link)
     }
   }
 
@@ -51,12 +38,12 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
         size="sm"
         id="copyLinkButton"
         color="primary"
-        onClick={() => { handleCopyLink(); }}
+        onClick={() => { void handleCopyLink(); }}
       >
         <FontAwesomeIcon icon={faLink} />
-        {text}
+        {copiedLink === link ? ' Copied link!' : ' Copy link to data'}
       </Button>
-      <PopupDialog open={dialogLink != null} close={() => { setDialogLink(undefined); }}>
+      <PopupDialog open={dialogLink !== undefined} close={() => { setDialogLink(undefined); }}>
         <h5>Link to Data</h5>
         <p>
           <a href={dialogLink} target="_blank" rel="noopener noreferrer">

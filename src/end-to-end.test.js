@@ -8,20 +8,16 @@ process.env.SERVER_PORT = '0'
 // server's start function and put it in an object pretendign to be a module.
 import { start } from './server.mjs'
 import fs from 'fs-extra'
+import { join } from 'node:path'
 import { vg_available } from './vg.mjs'
 const server = { start }
 
-import React from 'react'
+// Tests that shell out to vg skip themselves when it isn't installed, the
+// same way the network tests in src/api/GBZBaseAPI.test.ts opt in.
+const HAS_VG = vg_available()
+
 // testing-library provides a render() that auto-cleans-up from the global DOM.
-import {
-  render,
-  fireEvent,
-  getByTestId,
-  screen,
-  waitFor,
-  act,
-} from '@testing-library/react'
-import { setCopyCallback, writeToClipboard } from './components/CopyLink.tsx'
+import { render, fireEvent, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App.tsx'
 import { selectMuiOption } from './testUtils.ts'
@@ -42,15 +38,32 @@ async function selectExample(name) {
 // This holds the running server for the duration of each test.
 let serverState = undefined
 
-// This holds the root element of the app
-const root = undefined
+// Where the server writes uploaded files, and the names that were in there
+// before the current test started.
+const UPLOADS_DIR = 'uploads'
+let uploadsBefore = new Set()
 
-// Mock clipboard (string)
+function listUploads() {
+  return new Set(fs.readdirSync(UPLOADS_DIR))
+}
+
+// Mock clipboard (string). jsdom has no Clipboard API, so we install one and
+// remove it again in tearDown.
 let fakeClipboard = undefined
 
 // This needs to be called by global and per-scope beforeEach
 async function setUp() {
-  setCopyCallback(value => (fakeClipboard = value))
+  fakeClipboard = undefined
+  uploadsBefore = listUploads()
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: {
+      writeText: text => {
+        fakeClipboard = text
+        return Promise.resolve()
+      },
+    },
+  })
   // Create the application.
   render(<App apiUrl={serverState.getApiUrl()} />)
 }
@@ -59,7 +72,14 @@ async function setUp() {
 // Any mutations of the server (e.g. file uploads)
 // or globals (e.g. the clipboard) should be undone here.
 async function tearDown() {
-  setCopyCallback(writeToClipboard)
+  delete navigator.clipboard
+  // Remove anything a test uploaded, so a test run leaves uploads/ as it
+  // found it.
+  for (const name of listUploads()) {
+    if (!uploadsBefore.has(name)) {
+      fs.removeSync(join(UPLOADS_DIR, name))
+    }
+  }
 }
 
 beforeEach(async () => {
@@ -85,58 +105,24 @@ afterAll(async () => {
   }
 })
 
-// Wait for the loading throbber to appear
-async function waitForLoadStart() {
-  return new Promise((resolve, reject) => {
-    function waitAround() {
-      const loader = document.getElementById('loader')
-      if (!loader) {
-        setTimeout(waitAround, 100)
-      } else {
-        resolve()
-      }
-    }
-    waitAround()
-  })
-}
+// Wait for the loading throbber to disappear. Fails rather than hanging until
+// vitest's own test timeout if the app never settles.
+const LOAD_TIMEOUT_MS = 15000
 
-// Wait for the loading throbber to disappear
 async function waitForLoadEnd() {
+  const deadline = Date.now() + LOAD_TIMEOUT_MS
   return new Promise((resolve, reject) => {
     function waitAround() {
-      const loader = document.getElementById('loader')
-      if (loader) {
-        setTimeout(waitAround, 100)
-      } else {
-        resolve()
-      }
-    }
-    waitAround()
-  })
-}
-
-// Wait for the upload throbber to appear
-async function waitForUploadStart() {
-  return new Promise((resolve, reject) => {
-    function waitAround() {
-      const loaders = document.getElementsByClassName('upload-in-progress')
-      if (loaders.length == 0) {
-        setTimeout(waitAround, 100)
-      } else {
-        resolve()
-      }
-    }
-    waitAround()
-  })
-}
-
-// Wait for the upload throbber to disappear
-async function waitForUploadEnd() {
-  return new Promise((resolve, reject) => {
-    function waitAround() {
-      const loaders = document.getElementsByClassName('upload-in-progress')
-      if (loaders.length > 0) {
-        setTimeout(waitAround, 100)
+      if (document.getElementById('loader')) {
+        if (Date.now() > deadline) {
+          reject(
+            new Error(
+              `Loading throbber still present after ${LOAD_TIMEOUT_MS} ms`,
+            ),
+          )
+        } else {
+          setTimeout(waitAround, 100)
+        }
       } else {
         resolve()
       }
@@ -152,14 +138,6 @@ async function clickCopyLink() {
     await userEvent.click(copyButton)
   })
 }
-function clickGoButton() {
-  // Press go
-  act(() => {
-    const go = document.getElementById('goButton')
-    userEvent.click(go)
-  })
-}
-
 it('initially renders as loading', () => {
   const loader = document.getElementById('loader')
   expect(loader).toBeTruthy()
@@ -241,7 +219,7 @@ describe('When we wait for it to load', () => {
     expect(svg).toBeTruthy()
   })
 
-  it.skipIf(!vg_available())('draws the right SVG for vg "small"', async () => {
+  it.skipIf(!HAS_VG)('draws the right SVG for vg "small"', async () => {
     await selectExample('vg "small" example')
     const autocomplete = screen.getByTestId('autocomplete')
     const input = autocomplete.querySelector('input')
@@ -281,43 +259,46 @@ describe('When we wait for it to load', () => {
     expect(shapes).toEqual(50)
   })
 
-  it.skipIf(!vg_available())('draws the right SVG for cactus multiple reads', async () => {
-    await selectExample('cactus multiple reads')
-    const autocomplete = screen.getByTestId('autocomplete')
-    const input = autocomplete.querySelector('input')
+  it.skipIf(!HAS_VG)(
+    'draws the right SVG for cactus multiple reads',
+    async () => {
+      await selectExample('cactus multiple reads')
+      const autocomplete = screen.getByTestId('autocomplete')
+      const input = autocomplete.querySelector('input')
 
-    await userEvent.clear(input)
+      await userEvent.clear(input)
 
-    // Input region
-    // using fireEvent because userEvent has no change
-    fireEvent.focus(input)
-    fireEvent.change(input, { target: { value: 'node:1+10' } })
-    expect(input.value).toBe('node:1+10')
-    fireEvent.keyDown(autocomplete, { key: 'Enter' })
+      // Input region
+      // using fireEvent because userEvent has no change
+      fireEvent.focus(input)
+      fireEvent.change(input, { target: { value: 'node:1+10' } })
+      expect(input.value).toBe('node:1+10')
+      fireEvent.keyDown(autocomplete, { key: 'Enter' })
 
-    // Wait for rendered response
-    await waitFor(() => screen.getByTestId('autocomplete'))
+      // Wait for rendered response
+      await waitFor(() => screen.getByTestId('autocomplete'))
 
-    // Click go
-    const go = document.getElementById('goButton')
-    await userEvent.click(go)
+      // Click go
+      const go = document.getElementById('goButton')
+      await userEvent.click(go)
 
-    const loader = document.getElementById('loader')
-    expect(loader).toBeTruthy()
+      const loader = document.getElementById('loader')
+      expect(loader).toBeTruthy()
 
-    await waitForLoadEnd()
+      await waitForLoadEnd()
 
-    // See if correct svg rendered. The custom hover-tooltip replaced the
-    // native <svg:title> elements that used to live on every node and track
-    // shape, so count the rendered shapes directly.
-    const svg = document.getElementById('svg')
-    expect(svg).toBeTruthy()
-    const shapes =
-      svg.querySelectorAll('g.node path').length +
-      svg.querySelectorAll('[trackID]').length +
-      svg.querySelectorAll('[nodeY]').length
-    expect(shapes).toEqual(22)
-  })
+      // See if correct svg rendered. The custom hover-tooltip replaced the
+      // native <svg:title> elements that used to live on every node and track
+      // shape, so count the rendered shapes directly.
+      const svg = document.getElementById('svg')
+      expect(svg).toBeTruthy()
+      const shapes =
+        svg.querySelectorAll('g.node path').length +
+        svg.querySelectorAll('[trackID]').length +
+        svg.querySelectorAll('[nodeY]').length
+      expect(shapes).toEqual(22)
+    },
+  )
 })
 
 it('produces correct link when data source is changed', async () => {
@@ -379,108 +360,112 @@ it('can retrieve the list of mounted graph files', async () => {
 })
 
 // uploads a cactus.vg file and renders the svg
-it.skipIf(!vg_available())('can accept uploaded files', async () => {
-  await waitForLoadEnd()
+it.skipIf(!HAS_VG)(
+  'can accept uploaded files',
+  async () => {
+    await waitForLoadEnd()
 
-  // Swap over to the custom files mode via the File menu
-  await act(async () => {
-    fireEvent.click(screen.getByTestId('fileMenuButton'))
-  })
-  await act(async () => {
-    fireEvent.click(screen.getByTestId('openCustomFiles'))
-  })
+    // Swap over to the custom files mode via the File menu
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fileMenuButton'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('openCustomFiles'))
+    })
 
-  // Open "Manage tracks…" from the File menu (the former AppBar "Tracks" button)
-  await act(async () => {
-    fireEvent.click(screen.getByTestId('fileMenuButton'))
-  })
-  await act(async () => {
-    fireEvent.click(screen.getByTestId('manageTracks'))
-  })
+    // Open "Manage tracks…" from the File menu (the former AppBar "Tracks" button)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('fileMenuButton'))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('manageTracks'))
+    })
 
-  // add a new track
-  await waitFor(() => {
-    fireEvent.click(screen.queryByTestId('track-add-button-component'))
-  })
+    // add a new track
+    await waitFor(() => {
+      fireEvent.click(screen.queryByTestId('track-add-button-component'))
+    })
 
-  // select the upload option from the picker type dropdown
-  await waitFor(() => screen.queryByTestId('picker-type-select-component0'))
-  await selectMuiOption(
-    screen.queryByTestId('picker-type-select-component0'),
-    'upload',
-  )
+    // select the upload option from the picker type dropdown
+    await waitFor(() => screen.queryByTestId('picker-type-select-component0'))
+    await selectMuiOption(
+      screen.queryByTestId('picker-type-select-component0'),
+      'upload',
+    )
 
-  await waitFor(() => screen.queryByTestId('file-select-component0'))
+    await waitFor(() => screen.queryByTestId('file-select-component0'))
 
-  const fileUploader = screen.queryByTestId('file-select-component0')
+    const fileUploader = screen.queryByTestId('file-select-component0')
 
-  // We need to make sure we make a jsdom File (which is a jsdom Blob), and not
-  // a Node Blob, for our test file. Otherwise it doesn't work with jsdom's
-  // upload machinery.
-  // See for example <https://github.com/vitest-dev/vitest/issues/2078> for
-  // background on the many flavors of Blob.
-  const fileData = await fs.readFileSync('exampleData/cactus.vg')
-  // Since a Node Buffer is an ArrayBuffer, we can use it to make a jsdom File.
-  // We need to put the data block in an enclosing array, or else the block
-  // will be iterated and each byte will be stringified and *those* bytes will
-  // be uploaded.
-  const file = new window.File([fileData], 'cactus.vg', {
-    type: 'application/octet-stream',
-  })
+    // We need to make sure we make a jsdom File (which is a jsdom Blob), and not
+    // a Node Blob, for our test file. Otherwise it doesn't work with jsdom's
+    // upload machinery.
+    // See for example <https://github.com/vitest-dev/vitest/issues/2078> for
+    // background on the many flavors of Blob.
+    const fileData = await fs.readFileSync('exampleData/cactus.vg')
+    // Since a Node Buffer is an ArrayBuffer, we can use it to make a jsdom File.
+    // We need to put the data block in an enclosing array, or else the block
+    // will be iterated and each byte will be stringified and *those* bytes will
+    // be uploaded.
+    const file = new window.File([fileData], 'cactus.vg', {
+      type: 'application/octet-stream',
+    })
 
-  await act(async () => {
-    await userEvent.upload(fileUploader, file)
+    await act(async () => {
+      await userEvent.upload(fileUploader, file)
 
-    // make sure the file is in the upload component
-    expect(fileUploader.files.length).toBe(1)
-    expect(fileUploader.files[0]).toStrictEqual(file)
-  })
+      // make sure the file is in the upload component
+      expect(fileUploader.files.length).toBe(1)
+      expect(fileUploader.files[0]).toStrictEqual(file)
+    })
 
-  // Wait for upload to finish. The spinner may appear and disappear very
-  // quickly on a warm server, so we just wait for it to be gone (upload done
-  // or errored). We already verified the file was set on the input inside
-  // act, so if the spinner is absent the upload has completed.
-  await waitFor(
-    () =>
-      expect(document.getElementsByClassName('upload-in-progress').length).toBe(
-        0,
-      ),
-    { timeout: 30000 },
-  )
-  // exit the track picker
-  fireEvent.click(screen.queryByTestId('TrackPickerCloseButton'))
+    // Wait for upload to finish. The spinner may appear and disappear very
+    // quickly on a warm server, so we just wait for it to be gone (upload done
+    // or errored). We already verified the file was set on the input inside
+    // act, so if the spinner is absent the upload has completed.
+    await waitFor(
+      () =>
+        expect(
+          document.getElementsByClassName('upload-in-progress').length,
+        ).toBe(0),
+      { timeout: 30000 },
+    )
+    // exit the track picker
+    fireEvent.click(screen.queryByTestId('TrackPickerCloseButton'))
 
-  // try to compute the svg
-  const autocomplete = screen.getByTestId('autocomplete')
-  const input = autocomplete.querySelector('input')
+    // try to compute the svg
+    const autocomplete = screen.getByTestId('autocomplete')
+    const input = autocomplete.querySelector('input')
 
-  await userEvent.clear(input)
+    await userEvent.clear(input)
 
-  // Input region
-  // using fireEvent because userEvent has no change
-  fireEvent.focus(input)
-  fireEvent.change(input, { target: { value: 'node:1+10' } })
-  expect(input.value).toBe('node:1+10')
-  fireEvent.keyDown(autocomplete, { key: 'Enter' })
+    // Input region
+    // using fireEvent because userEvent has no change
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'node:1+10' } })
+    expect(input.value).toBe('node:1+10')
+    fireEvent.keyDown(autocomplete, { key: 'Enter' })
 
-  // Wait for rendered response
-  await waitFor(() => screen.getByTestId('autocomplete'))
+    // Wait for rendered response
+    await waitFor(() => screen.getByTestId('autocomplete'))
 
-  // Click go
-  const go = document.getElementById('goButton')
-  await userEvent.click(go)
+    // Click go
+    const go = document.getElementById('goButton')
+    await userEvent.click(go)
 
-  await waitForLoadEnd()
+    await waitForLoadEnd()
 
-  // See if correct svg rendered. The custom hover-tooltip replaced the
-  // native <svg:title> elements; count rendered shapes directly. With
-  // remove-redundant-nodes on, we expect 3 nodes and 2 track shapes.
-  const svg = document.getElementById('svg')
-  expect(svg).toBeTruthy()
-  const shapes =
-    svg.querySelectorAll('g.node path').length +
-    svg.querySelectorAll('[trackID]').length +
-    svg.querySelectorAll('[nodeY]').length
-  expect(shapes).toEqual(5)
-}, 50000) // We need to allow a long time for the slow vg test machines.
+    // See if correct svg rendered. The custom hover-tooltip replaced the
+    // native <svg:title> elements; count rendered shapes directly. With
+    // remove-redundant-nodes on, we expect 3 nodes and 2 track shapes.
+    const svg = document.getElementById('svg')
+    expect(svg).toBeTruthy()
+    const shapes =
+      svg.querySelectorAll('g.node path').length +
+      svg.querySelectorAll('[trackID]').length +
+      svg.querySelectorAll('[nodeY]').length
+    expect(shapes).toEqual(5)
+  },
+  50000,
+) // We need to allow a long time for the slow vg test machines.
 // TODO: Is this slow because of unnecessary re-renders caused by the new color schemes taking effect and being rendered with the old data, before the new data downloads?

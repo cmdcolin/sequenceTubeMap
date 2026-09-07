@@ -14,6 +14,7 @@ function HelpDialog({ title, children }: HelpDialogProps) {
   return (
     <>
       <button
+        type="button"
         className="btn btn-link btn-sm p-0 ms-2 align-baseline"
         style={{ fontSize: '0.8em' }}
         onClick={e => { e.stopPropagation(); setOpen(true); }}

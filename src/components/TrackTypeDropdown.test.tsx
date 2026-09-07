@@ -6,7 +6,11 @@ describe('TrackTypeDropdown', () => {
   it('calls the onChange callback handler', async () => {
     const onChange = vi.fn()
     const { getByTestId } = render(
-      <TrackTypeDropdown value="haplotype" onChange={onChange} />,
+      <TrackTypeDropdown
+        value="haplotype"
+        onChange={onChange}
+        options={['graph', 'haplotype', 'read', 'node']}
+      />,
     )
     await selectMuiOption(getByTestId('file-type-select-component'), 'graph')
 

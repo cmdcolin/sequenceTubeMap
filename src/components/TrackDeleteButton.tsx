@@ -16,7 +16,7 @@ export function TrackDeleteButton({
   ...rest
 }: TrackDeleteButtonProps) {
   return (
-    <Button data-testid={testID} {...rest}>
+    <Button aria-label="Delete track" data-testid={testID} {...rest}>
       <FontAwesomeIcon icon={faX} />
     </Button>
   )

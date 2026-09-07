@@ -31,7 +31,7 @@ export const TrackList = ({
     <div>
       {tracks.map((trackProps, idx) => (
         <TrackListItem
-          key={trackProps.trackFile ?? String(idx)}
+          key={idx}
           trackProps={trackProps}
           availableTracks={availableTracks}
           availableColors={availableColors}

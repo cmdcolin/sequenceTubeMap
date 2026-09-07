@@ -29,6 +29,14 @@ interface TrackListItemProps {
 
 type PickerType = 'mounted' | 'upload'
 
+const TRACK_TYPE_OPTIONS: FileType[] = [
+  'graph',
+  'haplotype',
+  'read',
+  'node',
+  'translation',
+]
+
 export const TrackListItem = ({
   trackProps,
   availableTracks,
@@ -45,30 +53,26 @@ export const TrackListItem = ({
   }
 
   return (
-    <Container
-      key={trackID}
-      style={{ width: '900px', marginLeft: 0, marginRight: 15 }}
-    >
+    <Container style={{ width: '900px', marginLeft: 0, marginRight: 15 }}>
       <Row className="g-0">
         <Col sm="2" className="tracklist-dropdown type">
           <TrackTypeDropdown
             value={trackProps.trackType}
             onChange={(newType) => {
-              const fileType = newType as FileType
               updateTrack({
-                trackType: fileType,
+                trackType: newType,
                 trackFile: undefined,
-                trackColorSettings: defaultTrackColors(fileType),
+                trackColorSettings: defaultTrackColors(newType),
               })
             }}
             testID={`file-type-select-component${trackID}`}
-            options={['graph', 'haplotype', 'read', 'node', 'translation']}
+            options={TRACK_TYPE_OPTIONS}
           />
         </Col>
         <Col sm="2" className="tracklist-dropdown source">
           <TrackTypeDropdown
             value={pickerType}
-            onChange={(v) => { setPickerType(v as PickerType); }}
+            onChange={(v) => { setPickerType(v); }}
             testID={`picker-type-select-component${trackID}`}
             options={config.pickerTypeOptions}
           />
@@ -98,6 +102,7 @@ export const TrackListItem = ({
               }); }
             }
             availableColors={availableColors}
+            label={trackProps.trackType}
             testID={`settings-button-component${trackID}`}
           />
           <TrackDeleteButton

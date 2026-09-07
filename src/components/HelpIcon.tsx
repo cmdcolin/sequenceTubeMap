@@ -15,6 +15,8 @@ export function HelpIcon({ label, helpText }: { label: string; helpText: string 
     <>
       <IconButton
         size="small"
+        aria-label={`Help: ${label}`}
+        title={`Help: ${label}`}
         sx={{ ml: 0.5, color: 'action.active' }}
         onClick={(e) => { e.stopPropagation(); setOpen(true); }}
       >
