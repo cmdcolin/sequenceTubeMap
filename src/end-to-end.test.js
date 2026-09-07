@@ -131,6 +131,19 @@ async function waitForLoadEnd() {
   })
 }
 
+// The Go button stays disabled while a view is still loading, so clicking it
+// straight after switching examples races the auto-load. Wait for it to become
+// clickable instead.
+async function clickGo() {
+  await waitFor(
+    () => {
+      expect(document.getElementById('goButton').disabled).toBe(false)
+    },
+    { timeout: LOAD_TIMEOUT_MS },
+  )
+  await userEvent.click(document.getElementById('goButton'))
+}
+
 async function clickCopyLink() {
   // Click copy link button to test clipboard
   await act(async () => {
@@ -238,8 +251,7 @@ describe('When we wait for it to load', () => {
     await waitFor(() => screen.getByTestId('autocomplete'))
 
     // Click go
-    const go = document.getElementById('goButton')
-    await userEvent.click(go)
+    await clickGo()
 
     const loader = document.getElementById('loader')
     expect(loader).toBeTruthy()
@@ -280,8 +292,7 @@ describe('When we wait for it to load', () => {
       await waitFor(() => screen.getByTestId('autocomplete'))
 
       // Click go
-      const go = document.getElementById('goButton')
-      await userEvent.click(go)
+      await clickGo()
 
       const loader = document.getElementById('loader')
       expect(loader).toBeTruthy()
@@ -465,8 +476,7 @@ it.skipIf(!HAS_VG)(
     await waitFor(() => screen.getByTestId('autocomplete'))
 
     // Click go
-    const go = document.getElementById('goButton')
-    await userEvent.click(go)
+    await clickGo()
 
     await waitForLoadEnd()
 
