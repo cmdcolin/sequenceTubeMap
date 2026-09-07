@@ -30,8 +30,8 @@ importers:
         specifier: ^6.0.23
         version: 6.0.23
       '@gmod/gbz-base':
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^2.6.0
+        version: 2.6.0
       '@mui/material':
         specifier: ^9.0.1
         version: 9.0.1(@emotion/react@11.14.0(@types/react@19.2.15)(react@19.2.6)(supports-color@8.1.1))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.15)(react@19.2.6)(supports-color@8.1.1))(@types/react@19.2.15)(react@19.2.6)(supports-color@8.1.1))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -780,8 +780,8 @@ packages:
   '@gmod/bgzf-filehandle@6.0.23':
     resolution: {integrity: sha512-Xrkzq1sP09HOiKfjJGN1eRWKOjSvx4nNhNmeZBIwYCQSVgEyrzQn6GKW3QqK9RAZmkmc2wlkjly2jMBbq/++vA==}
 
-  '@gmod/gbz-base@2.2.0':
-    resolution: {integrity: sha512-hTu+Lrra5cPOrEwjahtG0bAEm8hQPbOhajgBkniWbjJgTrldzdjhH6TDAQxba7b3VG7x4mGl+YY6R4Dcv6Ws+Q==}
+  '@gmod/gbz-base@2.6.0':
+    resolution: {integrity: sha512-Rr53rB+bALE7TSv3NylorkIX8tAfwiCFDRr+QGuTQJItP5H+gjyr/zJn8/gw8OJwWRwJMkXIbNxPFn1pYz38BQ==}
     hasBin: true
 
   '@humanfs/core@0.19.2':
@@ -5344,7 +5344,7 @@ snapshots:
       generic-filehandle2: 2.1.9
       pako-esm2: 2.0.2
 
-  '@gmod/gbz-base@2.2.0':
+  '@gmod/gbz-base@2.6.0':
     dependencies:
       generic-filehandle2: 2.1.9
 

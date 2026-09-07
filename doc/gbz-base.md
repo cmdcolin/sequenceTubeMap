@@ -41,8 +41,8 @@ gbz-base construct --output other.db --overwrite input.gbz
 ```
 
 Releases up to 0.5.1 call the binary `gbz2db` instead of
-`gbz-base construct`. Databases from either read fine; the reader looks the
-schema up by table name, not version.
+`gbz-base construct`. The reader opens databases tagged `GBZ-base version 4`,
+which every release from 0.5.0 on writes, and refuses older ones.
 
 `scripts/rebuild-bundled-dbs.sh` runs this over every `.gbz` under
 `exampleData/`.
@@ -51,9 +51,12 @@ schema up by table name, not version.
 
 Upstream gbz-base cannot say which haplotype a subgraph path belongs to and
 labels them `unknown#N#contig`. The package ships a small Rust tool that adds
-two side tables (`HaplotypeSamples`, `HaplotypeLengths`) to an existing
-database; with them, every haplotype through a window is reported under its
-real `sample#haplotype#contig` name, and the paths panel shows exact lengths.
+side tables (`HaplotypeSamples`, `HaplotypeLengths`, `HaplotypeAnchors`) to an
+existing database; with them, every haplotype through a window is reported
+under its real `sample#haplotype#contig` name, and the paths panel shows exact
+lengths. What the tables hold, and the `--output` form that writes them as a
+companion file beside a database you did not build, is in the
+[gbz-base README](https://github.com/GMOD/gbz-base-js#readme).
 
 ```bash
 cd node_modules/@gmod/gbz-base/tools/haplotype-index && cargo build --release
