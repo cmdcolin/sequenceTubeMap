@@ -68,18 +68,19 @@ about "~774 errors" or "drop the pragma" as historical.
 
 ### Structural work not yet done
 
-- **Module-level mutable state.** ~25 module `let`s split into three groups:
-  the inputs (`inputNodes`, `inputTracks`, `inputReads`, `inputRegion`, `bed`,
-  `svgID`), per-render layout scratch (`nodes`, `tracks`, `reads`, `nodeMap`,
+- **Module-level mutable state**, now grouped under banner comments into the
+  inputs (`svgID`, `inputNodes`, `inputTracks`, `inputReads`, `inputRegion`,
+  `bed`), per-render layout scratch (`nodes`, `tracks`, `reads`, `nodeMap`,
   `nodeOrders`, `nodesPerOrder`, `assignments`, `extraLeft`, `extraRight`,
-  `maxOrder`, the five `track*` shape arrays and the four min/max
-  coordinates), and UI state (`zoom`, `svg`, `hoverTooltip`,
-  `highlightedTrack`, `detailHidden`, `cleanupParentBindings`,
-  `coarsenedEdgeMeta`, the visibility snapshot). The layout-scratch group is
-  reset in one block at the top of `createTubeMap`, so it can be gathered into
-  a single `layout` object created there and threaded through as a parameter.
-  It is mechanical but touches nearly every function in the file, so it wants
-  a dedicated pass with the render tests as the safety net.
+  `maxOrder`, `shapes`, `trackForRuler`), and UI state (`svg`, `zoom`,
+  `imageBounds`, `hoverTooltip`, `highlightedTrack`, `detailHidden`,
+  `cleanupParentBindings`, `coarsenedEdgeMeta`, the visibility snapshot).
+  The drawing lists and the image extent have already been collapsed into
+  `shapes` and `imageBounds`. Threading the rest of the layout scratch through
+  as a `layout` parameter is mechanical but touches nearly every function in
+  the file, so it wants a dedicated pass with the render tests as the safety
+  net. Note that `imageBounds` cannot become a parameter as-is: the exported
+  `zoomBy()` reads it from the toolbar long after `createTubeMap` returned.
 - **`generateBasicPathsForReads` vs `generateLaneAssignment`** walk a path with
   the same 60-line case analysis (forward / backward / same-order, with and
   without turnaround segments). The only difference is that the lane version
