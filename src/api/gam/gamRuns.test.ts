@@ -1,5 +1,6 @@
 import { crc32, deflateRawSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
+import { BlobFile } from 'generic-filehandle2'
 import { readAlignmentsForRuns } from './gam.ts'
 import type { IndexRun } from './gamIndex.ts'
 
@@ -100,11 +101,19 @@ function twoGroupGam() {
 
 const names = (reads: { name?: string }[]) => reads.map(r => r.name).sort()
 
+// readAlignmentsForRuns seeks, so it takes a handle rather than the bytes.
+// The copy is to get a plain ArrayBuffer, which is what BlobPart accepts.
+function sourceOf(compressed: Uint8Array) {
+  const ab = new ArrayBuffer(compressed.byteLength)
+  new Uint8Array(ab).set(compressed)
+  return new BlobFile(new Blob([ab]))
+}
+
 describe('readAlignmentsForRuns', () => {
   it('reads every run when two runs share one BGZF block', async () => {
     const { compressed, firstRun, secondRun } = twoGroupGam()
     const reads = await readAlignmentsForRuns(
-      compressed,
+      sourceOf(compressed),
       [firstRun, secondRun],
       1n,
       100n,
@@ -114,16 +123,16 @@ describe('readAlignmentsForRuns', () => {
 
   it('stops decoding at the past-end offset of the run', async () => {
     const { compressed, firstRun, secondRun } = twoGroupGam()
-    expect(names(await readAlignmentsForRuns(compressed, [firstRun], 1n, 100n)))
+    expect(names(await readAlignmentsForRuns(sourceOf(compressed), [firstRun], 1n, 100n)))
       .toEqual(['read-a', 'read-b'])
-    expect(names(await readAlignmentsForRuns(compressed, [secondRun], 1n, 100n)))
+    expect(names(await readAlignmentsForRuns(sourceOf(compressed), [secondRun], 1n, 100n)))
       .toEqual(['read-c'])
   })
 
   it('keeps only alignments inside the queried node range', async () => {
     const { compressed, firstRun, secondRun } = twoGroupGam()
     const reads = await readAlignmentsForRuns(
-      compressed,
+      sourceOf(compressed),
       [firstRun, secondRun],
       6n,
       6n,
@@ -136,7 +145,7 @@ describe('readAlignmentsForRuns', () => {
   it('decodes negative alignment scores', async () => {
     const { compressed, firstRun, secondRun } = twoGroupGam()
     const reads = await readAlignmentsForRuns(
-      compressed,
+      sourceOf(compressed),
       [firstRun, secondRun],
       1n,
       100n,

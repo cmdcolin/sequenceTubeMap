@@ -8,6 +8,7 @@
 
 import '../config-client.js'
 import { BlobFile, RemoteFile } from 'generic-filehandle2'
+import type { GenericFilehandle } from 'generic-filehandle2'
 import {
   GBZBase,
   GENERIC_SAMPLE,
@@ -33,6 +34,7 @@ import {
   scanReadNodeIds,
 } from './gam/gam.ts'
 import { UploadRegistry, isUploadId } from './local/fileRegistry.ts'
+import { errorMessage } from '../util/error.ts'
 
 import type {
   APIInterface,
@@ -93,10 +95,6 @@ function subgraphNodes(nodes: VgNode[]): SubgraphNodes | null {
     }
   }
   return min === null || max === null ? null : { ids, min, max }
-}
-
-function errorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e)
 }
 
 class HttpError extends Error {
@@ -194,11 +192,14 @@ export class GBZBaseAPI implements APIInterface {
   private registry = new UploadRegistry()
   // Index of upload ids by track type.
   private filesByType = new Map<FileType, string[]>()
-  // Cache of blobs fetched lazily from URLs (read tracks are still consumed
-  // whole; graph databases go through `openGraph` instead).
+  // Cache of blobs fetched lazily from URLs. Only the whole-file paths use
+  // it — an unindexed read track and the read-count scan; graph databases go
+  // through `openGraph` and indexed reads through `trackSource`.
   private urlCache = new Map<string, Promise<Blob>>()
   // One open database per graph file, keyed by upload id or resolved URL.
   private graphs = new Map<string, Promise<GBZBase>>()
+  // One seekable handle per read track file, keyed the same way.
+  private trackSources = new Map<string, GenericFilehandle>()
   // Base URL to resolve relative trackFile paths against. Required because
   // GBZBaseAPI typically runs in a Web Worker whose self.location points at
   // /static/js/Worker.ts, not the page; the host LocalAPI passes the page's
@@ -354,6 +355,22 @@ export class GBZBaseAPI implements APIInterface {
     return opened
   }
 
+  // A seekable handle on a track file, for readers that use an index instead
+  // of consuming the file whole. Uploads read out of their Blob; URLs are
+  // read by HTTP range requests. Kept per file so RemoteFile's cached stat()
+  // survives across region changes.
+  private trackSource(trackFile: string): GenericFilehandle {
+    const key = isUploadId(trackFile) ? trackFile : this.resolveUrl(trackFile)
+    let source = this.trackSources.get(key)
+    if (!source) {
+      source = isUploadId(trackFile)
+        ? new BlobFile(this.uploadedBlob(trackFile))
+        : new RemoteFile(key)
+      this.trackSources.set(key, source)
+    }
+    return source
+  }
+
   // For uploaded files `graphFile` is a numeric registry id like "0", so the
   // extension check has to look at the original filename the registry kept.
   private isGbzDb(graphFile: string): boolean {
@@ -484,15 +501,27 @@ export class GBZBaseAPI implements APIInterface {
     if (nodes === null) {
       return []
     }
-    const gamBlob = await this.resolveTrackFile(trackFile, cancelSignal)
     const gaiBlob = await this.resolveSibling(trackFile, '.gai', cancelSignal)
     throwIfCancelled(cancelSignal)
-    const candidates = gaiBlob
-      ? await readGamRegion(gamBlob, gaiBlob, nodes.min, nodes.max)
-      : await readGam(gamBlob)
-    // The index and the whole-file scan can only prefilter by node-id range,
-    // which over-selects whenever the subgraph's ids aren't contiguous.
-    return candidates.filter(read => alignmentVisitsAny(read, nodes.ids))
+    if (gaiBlob) {
+      // Only the BGZF blocks the index points at are read, so a URL-hosted
+      // GAM costs a few range requests per region rather than a download of
+      // the whole file.
+      return await readGamRegion(
+        this.trackSource(trackFile),
+        gaiBlob,
+        nodes.min,
+        nodes.max,
+        nodes.ids,
+      )
+    }
+    // Without an index there is nothing to seek with, so the file is read
+    // whole and every read filtered against the subgraph.
+    const gamBlob = await this.resolveTrackFile(trackFile, cancelSignal)
+    throwIfCancelled(cancelSignal)
+    return (await readGam(gamBlob)).filter(read =>
+      alignmentVisitsAny(read, nodes.ids),
+    )
   }
 
   async getFilenames(

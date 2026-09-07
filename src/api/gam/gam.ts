@@ -8,13 +8,16 @@
 //     Alignment. Suitable for small uploads or as a fallback when no .gam.gai
 //     is available.
 //
-//   readGamRegion(blob, indexBlob, minNode, maxNode)
+//   readGamRegion(source, indexBlob, minNode, maxNode, visits?)
 //     Index-driven region query. Uses the .gam.gai file to find compressed
 //     virtual offset runs that may contain Alignments touching the node-id
-//     range [minNode, maxNode], reads only those bytes, and yields the
-//     Alignments that actually overlap.
+//     range [minNode, maxNode], reads only those runs' bytes off `source`,
+//     and yields the Alignments that actually overlap. `source` is a
+//     generic-filehandle2 handle rather than a Blob so a URL-hosted GAM is
+//     read by HTTP range requests instead of being downloaded whole.
 
 import { unzip } from '@gmod/bgzf-filehandle'
+import type { GenericFilehandle } from 'generic-filehandle2'
 import { decodeAlignment } from './alignment.ts'
 import { iterateMessages } from './messageStream.ts'
 import { loadGamIndex, runsForNodeRange } from './gamIndex.ts'
@@ -67,68 +70,42 @@ export async function scanReadNodeIds(blob: Blob): Promise<bigint[][]> {
   return reads
 }
 
-// Walk an Alignment message and pull node IDs out of path.mapping[].position.node_id.
-// Mirrors decodeAlignment's field-number assignments but skips everything else.
+// Pull node IDs out of an Alignment's path.mapping[].position.node_id without
+// decoding anything else — one varint per mapping against the full
+// alignment.ts decode path.
+//
+// The four levels are the same walk over a length-delimited submessage, so
+// they share one loop: descend through Alignment.path (2), Path.mapping (2)
+// and Mapping.position (1), then read Position.node_id (1).
+const NODE_ID_PATH = [2, 2, 1] as const
+
 function extractNodeIds(buf: Uint8Array): bigint[] {
   const nodes: bigint[] = []
-  let offset = 0
-  while (offset < buf.length) {
-    const header = readFieldHeader(buf, offset)
-    offset = header.offset
-    if (header.fieldNumber === 2 && header.wireType === WIRE_LEN) {
-      const { bytes, offset: next } = readLengthDelimited(buf, offset)
-      extractPathNodeIds(bytes, nodes)
-      offset = next
-    } else {
-      offset = skipField(buf, offset, header.wireType)
-    }
-  }
+  collectNodeIds(buf, 0, nodes)
   return nodes
 }
 
-function extractPathNodeIds(buf: Uint8Array, out: bigint[]): void {
+function collectNodeIds(buf: Uint8Array, depth: number, out: bigint[]): void {
+  const wanted = NODE_ID_PATH[depth]
   let offset = 0
   while (offset < buf.length) {
     const header = readFieldHeader(buf, offset)
     offset = header.offset
-    if (header.fieldNumber === 2 && header.wireType === WIRE_LEN) {
+    if (wanted === undefined) {
+      // Position: node_id itself, a varint rather than a submessage.
+      if (header.fieldNumber === 1 && header.wireType === WIRE_VARINT) {
+        out.push(readVarint64(buf, offset).value)
+        return
+      }
+      offset = skipField(buf, offset, header.wireType)
+    } else if (header.fieldNumber === wanted && header.wireType === WIRE_LEN) {
       const { bytes, offset: next } = readLengthDelimited(buf, offset)
-      extractMappingNodeId(bytes, out)
+      collectNodeIds(bytes, depth + 1, out)
       offset = next
     } else {
       offset = skipField(buf, offset, header.wireType)
     }
   }
-}
-
-function extractMappingNodeId(buf: Uint8Array, out: bigint[]): void {
-  let offset = 0
-  while (offset < buf.length) {
-    const header = readFieldHeader(buf, offset)
-    offset = header.offset
-    if (header.fieldNumber === 1 && header.wireType === WIRE_LEN) {
-      const { bytes, offset: next } = readLengthDelimited(buf, offset)
-      const id = extractPositionNodeId(bytes)
-      if (id !== null) out.push(id)
-      offset = next
-    } else {
-      offset = skipField(buf, offset, header.wireType)
-    }
-  }
-}
-
-function extractPositionNodeId(buf: Uint8Array): bigint | null {
-  let offset = 0
-  while (offset < buf.length) {
-    const header = readFieldHeader(buf, offset)
-    offset = header.offset
-    if (header.fieldNumber === 1 && header.wireType === WIRE_VARINT) {
-      return readVarint64(buf, offset).value
-    } else {
-      offset = skipField(buf, offset, header.wireType)
-    }
-  }
-  return null
 }
 
 // vg's `vg gamsort` writes BGZF; older or hand-rolled .gam files are plain
@@ -160,34 +137,46 @@ async function decompressGzipMultiMember(buf: Uint8Array): Promise<Uint8Array> {
 }
 
 export async function readGamRegion(
-  gamBlob: Blob,
+  source: GenericFilehandle,
   indexBlob: Blob,
   minNode: bigint,
   maxNode: bigint,
+  visits?: ReadonlySet<bigint>,
 ): Promise<VgRead[]> {
   const index = await loadGamIndex(indexBlob)
   const runs = runsForNodeRange(index, minNode, maxNode)
   if (runs.length === 0) {
     return []
   }
-  const compressed = new Uint8Array(await gamBlob.arrayBuffer())
-  return readAlignmentsForRuns(compressed, runs, minNode, maxNode)
+  return readAlignmentsForRuns(source, runs, minNode, maxNode, visits)
 }
 
 // `runsForNodeRange` hands back non-overlapping, non-adjacent runs sorted by
 // start, so every run is read exactly once and nothing is decoded twice.
+//
+// `visits` is the exact set of node ids the caller wants, when it knows it.
+// The index can only prefilter by id range, which over-selects whenever the
+// wanted ids aren't contiguous, so the caller used to filter the result a
+// second time; every id in the set is inside [minNode, maxNode] by
+// construction, so testing the set here is the same answer for one walk of
+// each alignment instead of two.
 export async function readAlignmentsForRuns(
-  compressed: Uint8Array,
+  source: GenericFilehandle,
   runs: IndexRun[],
   minNode: bigint,
   maxNode: bigint,
+  visits?: ReadonlySet<bigint>,
 ): Promise<VgRead[]> {
+  const { size } = await source.stat()
   const out: VgRead[] = []
   for (const run of runs) {
-    for (const msg of await messagesInRun(compressed, run)) {
+    for (const msg of await messagesInRun(source, size, run)) {
       if (isAlignmentTag(msg.tag)) {
         const aln = decodeAlignment(msg.bytes)
-        if (alignmentOverlaps(aln, minNode, maxNode)) {
+        const wanted = alignmentNodeIds(aln).some(id =>
+          visits ? visits.has(id) : id >= minNode && id <= maxNode,
+        )
+        if (wanted) {
           out.push(aln)
         }
       }
@@ -196,15 +185,32 @@ export async function readAlignmentsForRuns(
   return out
 }
 
-async function messagesInRun(compressed: Uint8Array, run: IndexRun) {
+// A BGZF block's size is BSIZE + 1 with BSIZE a uint16, so no block is larger
+// than this.
+const MAX_BGZF_BLOCK = 0x10000
+
+async function messagesInRun(
+  source: GenericFilehandle,
+  fileSize: number,
+  run: IndexRun,
+) {
   const startBlock = blockOfVO(run.start)
-  if (run.pastEnd <= run.start || startBlock >= compressed.length) {
+  if (run.pastEnd <= run.start || startBlock >= fileSize) {
     return []
   }
+  // Fetch only the blocks this run spans, rather than the whole file: for a
+  // URL-backed GAM that is a couple of range requests instead of a download
+  // of everything. The last block's own size lives in a header we haven't
+  // read yet, so ask for one maximum block past where it starts and let
+  // inflateBlocks stop once it reaches it.
+  const endBlock = blockOfVO(run.pastEnd)
+  const compressed = await source.read(
+    Math.min(fileSize, endBlock + MAX_BGZF_BLOCK) - startBlock,
+    startBlock,
+  )
   const { data, lastBlockStart } = await inflateBlocks(
     compressed,
-    startBlock,
-    blockOfVO(run.pastEnd),
+    endBlock - startBlock,
   )
   // A virtual offset is (block_start << 16) | offset_within_block. `data`
   // begins at the first uncompressed byte of `startBlock`, so run.start's
@@ -226,18 +232,19 @@ async function messagesInRun(compressed: Uint8Array, run: IndexRun) {
   return messages
 }
 
-// Inflate the BGZF blocks from `startBlock` through `endBlock` inclusive and
-// report where the last block's uncompressed data begins, so a virtual
-// offset landing in it can be turned into an index into the result.
+// Inflate the BGZF blocks of `compressed` up to and including the one that
+// starts at `endBlock`, and report where that last block's uncompressed data
+// begins, so a virtual offset landing in it can be turned into an index into
+// the result. `compressed` starts on a block boundary, so offsets into it are
+// relative to the run's first block.
 async function inflateBlocks(
   compressed: Uint8Array,
-  startBlock: number,
   endBlock: number,
 ): Promise<{ data: Uint8Array; lastBlockStart: number }> {
   const parts: Uint8Array[] = []
   let total = 0
   let lastBlockStart = 0
-  let blockStart = startBlock
+  let blockStart = 0
   while (blockStart < compressed.length) {
     const blockSize = maxBgzfBlock(compressed, blockStart)
     const inflated = await decompress(
@@ -275,14 +282,6 @@ function alignmentNodeIds(aln: VgRead): bigint[] {
     }
   }
   return ids
-}
-
-export function alignmentOverlaps(
-  aln: VgRead,
-  minNode: bigint,
-  maxNode: bigint,
-): boolean {
-  return alignmentNodeIds(aln).some(id => id >= minNode && id <= maxNode)
 }
 
 export function alignmentVisitsAny(
