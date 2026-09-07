@@ -18,9 +18,8 @@ import '../config-client.js'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import _externalConfig from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
-import { greys, ygreys, blues, reds, plainColors, lightColors } from './palettes.ts'
+import { greys, PALETTES } from './palettes.ts'
 import { formatTrackDisplayName } from './trackName.ts'
-import isEqual from 'react-fast-compare'
 
 // Replacement for d3-selection-multi (incompatible with d3 v7). Use via
 // `selection.call(applyAttrs, {...})` — keeps the chain typed without
@@ -234,7 +233,6 @@ export type InfoAttribute = [string, string | number | null | undefined]
 interface TubeMapConfig {
   mergeNodesFlag: boolean
   transparentNodesFlag: boolean
-  clickableNodesFlag: boolean
   showExonsFlag: boolean
   nodeWidthOption: 'normal' | 'compressed' | 'small' | 'fixed'
   showNodeLabels: boolean
@@ -263,7 +261,6 @@ export interface CreateParams {
   reads?: InputTrack[] | null
   region?: InputRegion
   bed?: BedRecord[] | null
-  clickableNodes?: boolean
   hideLegend?: boolean
 }
 
@@ -358,7 +355,6 @@ let maxOrder: number // horizontal order of the rightmost node
 const config: TubeMapConfig = {
   mergeNodesFlag: true,
   transparentNodesFlag: false,
-  clickableNodesFlag: false,
   showExonsFlag: false,
   // Options for the width of sequence nodes:
   // normal...scale node width linear with number of bases within node
@@ -413,13 +409,35 @@ let trackForRuler: string | undefined
 // tracking the previous registration the listeners stack up.
 let cleanupParentBindings: (() => void) | null = null
 
+// Everything this module attaches outside its own <svg>: the parent's wheel
+// listener / ResizeObserver and the hover tooltip in <body>. Both are recreated
+// on demand by the next draw.
+function releaseDomBindings(): void {
+  if (cleanupParentBindings) {
+    cleanupParentBindings()
+    cleanupParentBindings = null
+  }
+  hoverTooltip?.remove()
+  hoverTooltip = undefined
+}
+
 let bed: BedRecord[] | null = null
+
+// The node/track arrays of the most recent create() call. Reference equality
+// against them tells alignSVG whether this is a redraw of the same dataset
+// (preserve the user's pan/zoom) or a brand new one (fit and centre).
+let lastCreateNodes: InputNode[] | null = null
+let lastCreateTracks: InputTrack[] | null = null
 
 // main function to call from outside
 // which starts the process of creating a tube map visualization
 export function create(params: CreateParams): void {
   // mandatory parameters: svgID (really a selector, but must be an ID selector), nodes, tracks
-  // optional parameters: bed, clickableNodes, reads, showLegend
+  // optional parameters: bed, reads, showLegend
+  const sameDataset =
+    params.nodes === lastCreateNodes && params.tracks === lastCreateTracks
+  lastCreateNodes = params.nodes
+  lastCreateTracks = params.tracks
   svgID = params.svgID
   svg = d3.select(params.svgID)
   inputNodes = deepCopy(params.nodes) // deep copy
@@ -432,11 +450,10 @@ export function create(params: CreateParams): void {
   delete inputNodes[0]
   inputTracks = deepCopy(params.tracks) // deep copy
   inputReads = params.reads ?? []
-  inputRegion = params.region || []
-  bed = params.bed || null
-  config.clickableNodesFlag = params.clickableNodes || false
-  config.hideLegendFlag = params.hideLegend || false
-  createTubeMap()
+  inputRegion = params.region ?? []
+  bed = params.bed ?? null
+  config.hideLegendFlag = params.hideLegend === true
+  createTubeMap(sameDataset)
 }
 
 // structuredClone preserves sparse-array holes; JSON round-trip would fill them with null.
@@ -527,7 +544,6 @@ export function changeTrackVisibility(trackID: number): void {
     track.hidden = !track.hidden
   }
   createTubeMap()
-  emitTrackVisibility()
 }
 
 // to select/deselect all
@@ -536,7 +552,6 @@ export function changeAllTracksVisibility(value: boolean): void {
     t.hidden = !value
   }
   createTubeMap()
-  emitTrackVisibility()
 }
 
 // React subscription for the per-track visibility panel. tubemap.ts owns
@@ -576,7 +591,7 @@ function emitTrackVisibility(): void {
       items.push({
         id: t.id,
         name: t.name ?? String(t.id),
-        color: generateTrackColor(t as Track, 'plain'),
+        color: generateTrackColor(t, 'plain'),
         hidden: t.hidden === true,
         ...(t.freq !== undefined ? { freq: t.freq } : {}),
       })
@@ -591,70 +606,45 @@ export function changeExonVisibility(): void {
   createTubeMap()
 }
 
+// Every setter below only mutates `config`. `create()` is the single render
+// trigger, so a batch of visOptions changes costs one layout instead of one
+// per changed option.
+
 // sets the flag for whether redundant nodes should be automatically removed or not
 export function setMergeNodesFlag(value: boolean): void {
-  if (config.mergeNodesFlag !== value) {
-    config.mergeNodesFlag = value
-    svg = d3.select(svgID)
-    createTubeMap()
-  }
+  config.mergeNodesFlag = value
 }
 
 // sets the flag for whether nodes should be fully transparent or not
 export function setTransparentNodesFlag(value: boolean): void {
-  if (config.transparentNodesFlag !== value) {
-    config.transparentNodesFlag = value
-    svg = d3.select(svgID)
-    createTubeMap()
-  }
+  config.transparentNodesFlag = value
 }
 
 // sets the flag for whether read soft clips should be displayed or not
 export function setSoftClipsFlag(value: boolean): void {
-  if (config.showSoftClips !== value) {
-    config.showSoftClips = value
-    svg = d3.select(svgID)
-    createTubeMap()
-  }
+  config.showSoftClips = value
 }
 
 // sets the flag for whether reads should be displayed or not
 export function setShowReadsFlag(value: boolean): void {
-  if (config.showReads !== value) {
-    config.showReads = value
-    svg = d3.select(svgID)
-    createTubeMap()
-  }
+  config.showReads = value
 }
 
 // Toggles the Sankey-style coarsened read view: one aggregated band per edge
 // instead of per-read ribbons.
 export function setCoarsenedReadViewFlag(value: boolean): void {
-  if (config.coarsenedReadView !== value) {
-    config.coarsenedReadView = value
-    svg = d3.select(svgID)
-    createTubeMap()
-  }
+  config.coarsenedReadView = value
 }
 
 // Treat forward and reverse strands as equivalent. In normal mode this drops
 // the auxPalette branch in generateTrackColor; in coarsened mode this merges
 // (+A→+B) and (-B→-A) into one band.
 export function setIgnoreStrandFlag(value: boolean): void {
-  if (config.ignoreStrand !== value) {
-    config.ignoreStrand = value
-    svg = d3.select(svgID)
-    createTubeMap()
-  }
+  config.ignoreStrand = value
 }
 
 export function setColorSet(fileID: number | string, newColor: ColorScheme): void {
-  const currColor = config.colorSchemes[Number(fileID)]
-  // update if any coloring parameter is different
-  if (!currColor || !isEqual(currColor, newColor)) {
-    config.colorSchemes[Number(fileID)] = newColor
-    createTubeMap()
-  }
+  config.colorSchemes[Number(fileID)] = newColor
 }
 
 // sets which option should be used for calculating the node width from its sequence length
@@ -667,15 +657,7 @@ export function setColorSet(fileID: number | string, newColor: ColorScheme): voi
 export function setNodeWidthOption(
   value: 'normal' | 'compressed' | 'small' | 'fixed',
 ): void {
-  if (['normal', 'compressed', 'small', 'fixed'].includes(value)) {
-    if (config.nodeWidthOption !== value) {
-      config.nodeWidthOption = value
-      if (svg !== undefined) {
-        svg = d3.select(svgID)
-        createTubeMap()
-      }
-    }
-  }
+  config.nodeWidthOption = value
 }
 
 export function setColoredNodes(value: unknown): void {
@@ -741,26 +723,12 @@ export function getReadNamesThroughNodes(
 // Restrict the displayed reads to the given set of read names. Pass null or
 // an empty array to clear the filter.
 export function setFocusReadNames(value: string[] | null | undefined): void {
-  const newValue = value && value.length > 0 ? value : null
-  const oldKey =
-    config.focusReadNames === null ? '' : config.focusReadNames.join('\0')
-  const newKey = newValue === null ? '' : newValue.join('\0')
-  if (oldKey !== newKey) {
-    config.focusReadNames = newValue
-    if (svg !== undefined) {
-      svg = d3.select(svgID)
-      createTubeMap()
-    }
-  }
+  config.focusReadNames = value && value.length > 0 ? value : null
 }
 
 interface ReadGroupInput {
   color: string
   reads: string[] | Set<string>
-}
-
-function readGroupsKey(groups: { color: string; reads: string[] }[]): string {
-  return groups.map(g => `${g.color}${g.reads.join('\0')}`).join('')
 }
 
 // Set the named read groups for custom coloring. Accepts an array of
@@ -769,53 +737,23 @@ function readGroupsKey(groups: { color: string; reads: string[] }[]): string {
 export function setReadGroups(
   value: ReadGroupInput[] | null | undefined,
 ): void {
-  const incoming = value || []
-  const oldKey = readGroupsKey(
-    config.readGroups.map(g => ({
-      color: g.color,
-      reads: Array.from(g.reads),
-    })),
-  )
-  const incomingNormalized = incoming.map(g => ({
+  config.readGroups = (value ?? []).map(g => ({
     color: g.color,
-    reads: Array.from(g.reads),
+    reads: new Set(g.reads),
   }))
-  const newKey = readGroupsKey(incomingNormalized)
-  if (oldKey !== newKey) {
-    config.readGroups = incomingNormalized.map(g => ({
-      color: g.color,
-      reads: new Set(g.reads),
-    }))
-    if (svg !== undefined) {
-      svg = d3.select(svgID)
-      createTubeMap()
-    }
-  }
 }
 
 export function setOtherReadsColor(value: string | null | undefined): void {
-  const next = value || 'greys'
-  if (config.otherReadsColor !== next) {
-    config.otherReadsColor = next
-    if (svg !== undefined) {
-      svg = d3.select(svgID)
-      createTubeMap()
-    }
-  }
+  config.otherReadsColor = value && value.length > 0 ? value : 'greys'
 }
 
 export function setMappingQualityCutoff(value: number): void {
-  if (config.mappingQualityCutoff !== value) {
-    config.mappingQualityCutoff = value
-    if (svg !== undefined) {
-      svg = d3.select(svgID)
-      createTubeMap()
-    }
-  }
+  config.mappingQualityCutoff = value
 }
 
-// main
-function createTubeMap(): void {
+// main. preserveViewport keeps the user's current pan/zoom; pass false only
+// when the underlying dataset changed and the old viewport is meaningless.
+function createTubeMap(preserveViewport = true): void {
   trackRectangles = []
   trackCurves = []
   trackCorners = []
@@ -831,6 +769,12 @@ function createTubeMap(): void {
   trackForRuler = undefined
   svg = d3.select(svgID)
   svg.selectAll('*').remove() // clear svg for (re-)drawing
+  // Tear down the listeners/tooltip from the previous draw *before* the early
+  // exits below, otherwise an empty redraw leaves them bound to a stale parent.
+  releaseDomBindings()
+  // Emitted here rather than at the end of the draw so the panel still gets a
+  // snapshot when every track is hidden and we bail out early.
+  emitTrackVisibility()
 
   // early exit is necessary when visualization options such as colors are
   // changed before any graph has been rendered
@@ -840,11 +784,9 @@ function createTubeMap(): void {
   // (width, order, x/y, path, indexSequence, etc.) before any reader runs.
   nodes = deepCopy(inputNodes) as LayoutNode[]
   tracks = deepCopy(inputTracks) as Track[]
-  reads = deepCopy(inputReads) as Track[]
-
-  straightenTrack(0)
-
-  reads = filterReads(reads)
+  // Drop the reads we will never draw before cloning them — the deep copy of a
+  // large GAM is the single most expensive step in a redraw.
+  reads = deepCopy(filterReads(inputReads)) as Track[]
 
   for (let i = tracks.length - 1; i >= 0; i -= 1) {
     const t = tracks[i]!
@@ -860,6 +802,10 @@ function createTubeMap(): void {
     }
   }
   if (tracks.length === 0) return
+
+  // Run against the visible tracks only, so hiding the reference doesn't leave
+  // the layout straightened around a track that is no longer drawn.
+  straightenTrack(0)
 
   nodeMap = generateNodeMap()
   generateTrackIndexSequences(tracks)
@@ -939,7 +885,7 @@ function createTubeMap(): void {
     console.log(assignments)
   }
   getImageDimensions()
-  const applyInitialTransform = alignSVG()
+  const applyInitialTransform = alignSVG(preserveViewport)
   defineSVGPatterns()
 
   // all drawn tracks are grouped
@@ -975,10 +921,9 @@ function createTubeMap(): void {
   // Drawn last so the labels paint above ruler/mismatches/reads
   if (config.showNodeLabels) drawNodeLabels(dNodes)
   if (DEBUG) {
-    console.log(`number of tracks: ${numberOfTracks}`)
-    console.log(`number of nodes: ${numberOfNodes}`)
+    console.log(`number of tracks: ${tracks.length}`)
+    console.log(`number of nodes: ${nodes.length}`)
   }
-  emitTrackVisibility()
   // Apply the initial zoom transform now that all content (including node
   // labels) is in the DOM. The zoom handler's synchronous "end" flush will
   // counter-scale every label group on this first paint.
@@ -1235,10 +1180,9 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
   // for a single entry is fully captured by:
   //   decisionStep: the smallest k>=1 where path[pathIdx-k].y is defined, or pathIdx+1
   //                 if no preceding segment has a defined y (the "reached 0" case).
-  //   atZero: true iff decisionStep == pathIdx+1 (walked off the front).
-  //   y:      the defined y at decisionStep, when !atZero.
-  // Smaller decisionStep wins; ties prefer atZero (matches the `a[1]===0 return -1`
-  // early-exit ordering); otherwise compare y's.
+  //   y:            the defined y at decisionStep, or undefined for "reached 0".
+  // Smaller decisionStep wins; ties put the "reached 0" entries first;
+  // otherwise compare y's.
   const incomingKeys = incomingReads.map(entry => {
     const [readID, pathIdx] = entry
     const path = reads[readID]!.path
@@ -1252,13 +1196,16 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
         break
       }
     }
-    return { entry, decisionStep, atZero: foundY === undefined, y: foundY }
+    return { entry, decisionStep, y: foundY }
   })
   incomingKeys.sort((a, b) => {
-    if (a.decisionStep !== b.decisionStep) return a.decisionStep - b.decisionStep
-    if (a.atZero) return -1
-    if (b.atZero) return 1
-    return a.y! - b.y!
+    if (a.decisionStep !== b.decisionStep) {
+      return a.decisionStep - b.decisionStep
+    }
+    if (a.y === undefined || b.y === undefined) {
+      return (a.y === undefined ? 0 : 1) - (b.y === undefined ? 0 : 1)
+    }
+    return a.y - b.y
   })
   incomingReads = incomingKeys.map(k => k.entry)
 
@@ -1486,9 +1433,13 @@ function compareReadOutgoingSegmentsByGoingTo(
 
 // Compare tracks based on ordering at their first convergence
 function compareTrackByInitialOrdering(trackA: Track, trackB: Track): number {
-  // Find the first node where the two tracks converge, sort by layer
-  if (!trackA.path) return -1
-  if (!trackB.path) return 1
+  // Find the first node where the two tracks converge, sort by layer.
+  // Tracks with no path sort first, and two of them tie.
+  if (trackA.path === undefined || trackB.path === undefined) {
+    return (
+      (trackA.path === undefined ? 0 : 1) - (trackB.path === undefined ? 0 : 1)
+    )
+  }
 
   const pathA = trackA.path
   const pathB = trackB.path
@@ -1703,16 +1654,15 @@ function reverseReversedReads(): void {
       for (let i = 0; i < sequenceNew.length; i += 1) {
         const entry = sequenceNew[i]!
         entry.nodeName = forward(entry.nodeName) // visit nodes forward
-        const nodeIdx = nodeMap.get(entry.nodeName)!
-        const nodeWidth = nodes[nodeIdx]!.width
+        const seqLen = nodeByName(entry.nodeName).sequenceLength ?? 0
         entry.mismatches.forEach(mm => {
           if (mm.type === 'insertion') {
-            mm.pos = nodeWidth - mm.pos
+            mm.pos = seqLen - mm.pos
             mm.seq = mm.seq === undefined ? undefined : getReverseComplement(mm.seq)
           } else if (mm.type === 'deletion') {
-            mm.pos = nodeWidth - mm.pos - (mm.length ?? 0)
+            mm.pos = seqLen - mm.pos - (mm.length ?? 0)
           } else if (mm.type === 'substitution') {
-            mm.pos = nodeWidth - mm.pos - (mm.seq?.length ?? 0)
+            mm.pos = seqLen - mm.pos - (mm.seq?.length ?? 0)
             mm.seq = mm.seq === undefined ? undefined : getReverseComplement(mm.seq)
           }
           if (mm.seq !== undefined) {
@@ -1723,12 +1673,11 @@ function reverseReversedReads(): void {
 
       // adjust firstNodeOffset and finalNodeCoverLength
       const temp = read.firstNodeOffset ?? 0
-      let seqLength = nodes[nodeMap.get(read.sequence[0]!)!]!.sequenceLength ?? 0
-      read.firstNodeOffset = seqLength - (read.finalNodeCoverLength ?? 0)
-      seqLength =
-        nodes[nodeMap.get(read.sequence[read.sequence.length - 1]!)!]!
-          .sequenceLength ?? 0
-      read.finalNodeCoverLength = seqLength - temp
+      const firstLen = nodeByName(read.sequence[0]!).sequenceLength ?? 0
+      read.firstNodeOffset = firstLen - (read.finalNodeCoverLength ?? 0)
+      const lastLen =
+        nodeByName(read.sequence[read.sequence.length - 1]!).sequenceLength ?? 0
+      read.finalNodeCoverLength = lastLen - temp
     }
   })
 }
@@ -1824,14 +1773,18 @@ function getImageDimensions(): void {
 // This factor is based on maxXCoordinate and maxYCoordinate, and the size of the svg's parent.
 function minZoom(): number {
   const parentElement = getSvgParent()
-  if (!parentElement) {
-    return 1
+  const contentWidth = maxXCoordinate - minXCoordinate
+  const contentHeight = maxYCoordinate - minYCoordinate + RAIL_SPACE
+  // getImageDimensions leaves the min/max sentinels crossed when no node got
+  // coordinates, which would otherwise produce a negative scale factor.
+  if (parentElement && contentWidth > 0 && contentHeight > 0) {
+    return MIN_ZOOM_PADDING * Math.min(
+      1,
+      parentElement.clientWidth / contentWidth,
+      parentElement.clientHeight / contentHeight,
+    )
   }
-  return MIN_ZOOM_PADDING * Math.min(
-    1,
-    parentElement.clientWidth / (maxXCoordinate - minXCoordinate),
-    parentElement.clientHeight / (maxYCoordinate - minYCoordinate + RAIL_SPACE),
-  )
+  return 1
 }
 
 // This needs to be the width of the ruler.
@@ -1857,7 +1810,7 @@ function getSvgParent(): HTMLElement | null {
 // transform; the caller is expected to invoke it *after* all content (nodes,
 // labels, etc.) has been appended, so the zoom handler's synchronous flush can
 // counter-scale every label group on the first paint.
-function alignSVG(): () => void {
+function alignSVG(preserveViewport: boolean): () => void {
   const svgElement = document.getElementById(svgID.substring(1))
   const parentElement = getSvgParent()
   if (!svgElement || !parentElement) return () => {}
@@ -1914,7 +1867,9 @@ function alignSVG(): () => void {
   let gestureMoved = false
   function zoomed(event: d3.D3ZoomEvent<Element, unknown>): void {
     const { x, y, k } = event.transform
-    console.log(`[zoom] zoomed k=${k.toFixed(3)} tx=${x.toFixed(1)} ty=${y.toFixed(1)}`)
+    if (DEBUG) {
+      console.log(`[zoom] zoomed k=${k.toFixed(3)} tx=${x.toFixed(1)} ty=${y.toFixed(1)}`)
+    }
     pendingTransform = String(event.transform)
     pendingK = k
     if (!gestureMoved) {
@@ -1953,11 +1908,13 @@ function alignSVG(): () => void {
     svg.attr('width', parentElement.clientWidth)
 
     const minScaleFactor = minZoom()
-    console.log('[zoom] configureZoomBounds:', {
-      viewport: { w: parentElement.clientWidth, h: parentElement.clientHeight },
-      content: { x: [minXCoordinate, maxXCoordinate], y: [minYCoordinate, maxYCoordinate] },
-      minScaleFactor,
-    })
+    if (DEBUG) {
+      console.log('[zoom] configureZoomBounds:', {
+        viewport: { w: parentElement.clientWidth, h: parentElement.clientHeight },
+        content: { x: [minXCoordinate, maxXCoordinate], y: [minYCoordinate, maxYCoordinate] },
+        minScaleFactor,
+      })
+    }
 
     // We need to set an extent here because auto-determination of the region
     // to zoom breaks on the React testing jsdom.
@@ -1986,13 +1943,8 @@ function alignSVG(): () => void {
   // @ts-expect-error — d3 Selection<SVGGElement> is not structurally assignable to Selection<Element> due to callback this-type invariance, but works at runtime.
   svg = svg.append('g')
 
-  // Drop any wheel/resize bindings from a previous create() before attaching
-  // fresh ones — without this, every re-render piles another handler onto the
-  // same parent element.
-  if (cleanupParentBindings) {
-    cleanupParentBindings()
-    cleanupParentBindings = null
-  }
+  // createTubeMap already released the previous draw's bindings, so attaching
+  // fresh ones here cannot stack up.
   const wheelHandler = (e: WheelEvent): void => {
     e.preventDefault()
   }
@@ -2034,13 +1986,14 @@ function alignSVG(): () => void {
       ? (containerWidth - scaledWidth - 10) / 2
       : 0
   const initialTransform =
-    previousTransform ??
-    d3.zoomIdentity
-      .translate(
-        leftMargin - minXCoordinate * initialScale,
-        RAIL_SPACE - minYCoordinate * initialScale,
-      )
-      .scale(initialScale)
+    preserveViewport && previousTransform !== undefined
+      ? previousTransform
+      : d3.zoomIdentity
+          .translate(
+            leftMargin - minXCoordinate * initialScale,
+            RAIL_SPACE - minYCoordinate * initialScale,
+          )
+          .scale(initialScale)
   return () => {
     zoom.transform(d3.select<Element, unknown>(svgID), initialTransform)
   }
@@ -2051,6 +2004,7 @@ export function zoomBy(zoomFactor: number): void {
   if (!parentElement) return
 
   const width = parentElement.clientWidth
+  const height = parentElement.clientHeight
 
   const node = d3.select<Element, unknown>(svgID).node()
   if (!node) return
@@ -2063,7 +2017,10 @@ export function zoomBy(zoomFactor: number): void {
     width / 2.0 - ((width / 2.0 - transform.x) * translateK) / transform.k
   translateX = Math.min(translateX, -minXCoordinate * translateK)
   translateX = Math.max(translateX, width - maxXCoordinate * translateK)
-  const translateY = RAIL_SPACE - minYCoordinate * translateK
+  // Zoom about the viewport centre vertically too. Recomputing translateY from
+  // minYCoordinate would throw away whatever the user had scrolled to.
+  const translateY =
+    height / 2.0 - ((height / 2.0 - transform.y) * translateK) / transform.k
   d3.select(svgID)
     .transition()
     .duration(750)
@@ -2072,6 +2029,17 @@ export function zoomBy(zoomFactor: number): void {
       zoom.transform,
       d3.zoomIdentity.translate(translateX, translateY).scale(translateK),
     )
+}
+
+// Resolve a (possibly reverse-oriented) node name to its layout node. Every
+// caller runs after generateNodeMap, so a miss is a programming error.
+function nodeByName(nodeName: string): LayoutNode {
+  const index = nodeMap.get(forward(nodeName))
+  const node = index === undefined ? undefined : nodes[index]
+  if (node === undefined) {
+    throw new Error(`Unknown node ${nodeName}`)
+  }
+  return node
 }
 
 // map node names to node indices
@@ -2181,6 +2149,9 @@ function generateNodeOrderTrackBeginning(sequence: number[]): number | null {
   return anchorIndex
 }
 
+// Sentinel order for nodes no track or read reaches.
+const UNREACHABLE_ORDER = -1
+
 // generate global sequence of nodes from left to right, starting with first track and adding other tracks sequentially
 function generateNodeOrder(): void {
   let modifiedSequence: number[]
@@ -2191,7 +2162,9 @@ function generateNodeOrder(): void {
   const tracksAndReads =
     config.showReads && reads.length > 0 ? tracks.concat(reads) : tracks
 
-  nodeOrders = new Array(nodes.length) // reset scratch; undefined = unassigned
+  // fill() makes the array dense: `new Array(n)` alone is all holes, which
+  // forEach skips, so neither the sentinel pass nor the copy-back below ran.
+  nodeOrders = new Array<number | undefined>(nodes.length).fill(undefined)
   // Clear stale orders from previous runs so downstream `order === undefined`
   // guards still identify unassigned nodes. LayoutNode.order is non-optional
   // (set by this very pass), so we widen via the Node base type to allow the reset.
@@ -2313,17 +2286,17 @@ function generateNodeOrder(): void {
 
   if (minOrder < 0) increaseOrderForAllNodes(-minOrder)
 
-  // Assign -1 to nodes unreachable from any track so all nodes have a defined order.
-  // -1 acts as a sentinel: downstream code uses `order >= 0` to skip these nodes.
-  nodeOrders.forEach((order, i) => {
-    if (order === undefined) nodeOrders[i] = -1
-  })
-
-  // Copy computed orders back onto node objects.
-  nodeOrders.forEach((order, i) => {
+  // Nodes unreachable from any track get UNREACHABLE_ORDER so every node ends
+  // up with a defined order; downstream code uses `order >= 0` to skip them.
+  for (let i = 0; i < nodeOrders.length; i += 1) {
+    const assigned = nodeOrders[i]
+    const order = assigned === undefined ? UNREACHABLE_ORDER : assigned
+    nodeOrders[i] = order
     const node = nodes[i]
-    if (node !== undefined) node.order = order!
-  })
+    if (node !== undefined) {
+      node.order = order
+    }
+  }
 }
 
 function isSuccessor(first: number, second: number): boolean {
@@ -3222,46 +3195,48 @@ function calculateTrackWidth(): void {
 }
 
 function getColorSet(colorSetName: string | undefined): readonly string[] {
-  if (!colorSetName) return greys
-  // single color hex
-  if (colorSetName.startsWith('#')) {
+  // A single custom color arrives as a bare hex string rather than a palette name.
+  if (colorSetName?.startsWith('#')) {
     return [colorSetName]
   }
-
-  // set of color hexes
-  switch (colorSetName) {
-    case 'plainColors':
-      return plainColors
-    case 'reds':
-      return reds
-    case 'blues':
-      return blues
-    case 'greys':
-      return greys
-    case 'ygreys':
-      return ygreys
-    case 'lightColors':
-      return lightColors
-    default:
-      return greys
-  }
+  const palette = PALETTES.find(entry => entry.name === colorSetName)
+  return palette === undefined ? greys : palette.colors
 }
 
-function generateTrackColor(track: Track, highlight?: string): string {
-  if (typeof highlight === 'undefined') highlight = 'plain'
+// The subset of a track that coloring depends on. Deliberately narrower than
+// Track so the visibility panel can color raw InputTracks without a cast.
+interface ColorableTrack {
+  id: number
+  sourceTrackID: number
+  type?: TrackType
+  name?: string
+  mapping_quality?: number
+  is_reverse?: boolean
+}
+
+// The scheme for a track's source file: whatever the UI last set, else the
+// type-appropriate default. Computed rather than cached into config.colorSchemes
+// so coloring stays a pure read of config.
+function colorSchemeFor(track: ColorableTrack): ColorScheme {
+  return (
+    config.colorSchemes[track.sourceTrackID] ??
+    defaultTrackColors(track.type ?? 'haplotype')
+  )
+}
+
+const MAX_MAPPING_QUALITY = 60
+
+function generateTrackColor(track: ColorableTrack, highlight = 'plain'): string {
+  const scheme = colorSchemeFor(track)
   let trackColor: string
 
-  const sourceID = track.sourceTrackID
-  if (!config.colorSchemes[sourceID]) {
-    config.colorSchemes[sourceID] = defaultTrackColors(track.type!)
-  }
-
-  if (track.type !== undefined && track.type === 'read') {
+  if (track.type === 'read') {
     // Custom group coloring: last group wins on overlap. A group's color
     // can be a single hex (#rrggbb) or a palette name; getColorSet handles
     // both and we stagger across reads in the group via track.id.
+    const name = track.name
     for (let i = config.readGroups.length - 1; i >= 0; i--) {
-      if (config.readGroups[i]!.reads.has(track.name!)) {
+      if (name !== undefined && config.readGroups[i]!.reads.has(name)) {
         const groupColors = getColorSet(config.readGroups[i]!.color)
         return groupColors[track.id % groupColors.length]!
       }
@@ -3273,34 +3248,26 @@ function generateTrackColor(track: Track, highlight?: string): string {
       const otherColors = getColorSet(config.otherReadsColor)
       return otherColors[track.id % otherColors.length]!
     }
-    if (config.colorSchemes[sourceID].colorReadsByMappingQuality) {
-      trackColor = d3.interpolateRdYlGn(
-        Math.min(60, track.mapping_quality!) / 60,
-      )
+    if (scheme.colorReadsByMappingQuality) {
+      trackColor = d3.interpolateRdYlGn(mappingQualityFraction(track))
     } else {
-      if (
-        track.is_reverse !== undefined &&
-        track.is_reverse &&
-        !config.ignoreStrand
-      ) {
-        // get the color currently stored for this read source file, and stagger color using modulo
-        const colorSet = getColorSet(config.colorSchemes[sourceID].auxPalette)
-        trackColor = colorSet[track.id % colorSet.length]!
-      } else {
-        const colorSet = getColorSet(config.colorSchemes[sourceID].mainPalette)
-        trackColor = colorSet[track.id % colorSet.length]!
-      }
+      const reverseStrand = track.is_reverse === true && !config.ignoreStrand
+      // get the color currently stored for this read source file, and stagger color using modulo
+      const colorSet = getColorSet(
+        reverseStrand ? scheme.auxPalette : scheme.mainPalette,
+      )
+      trackColor = colorSet[track.id % colorSet.length]!
     }
   } else {
     if (!config.showExonsFlag || highlight !== 'plain') {
       // Don't repeat the color of the first track (reference) to highlight is better.
       // TODO: Allow using color 0 for other schemes not the same as the one for the reference path.
       // TODO: Stop reads from taking this color?
-      const auxColorSet = getColorSet(config.colorSchemes[sourceID].auxPalette)
-      const primaryColorSet = getColorSet(
-        config.colorSchemes[sourceID].mainPalette,
-      )
-      if (track.id === 0) {
+      const auxColorSet = getColorSet(scheme.auxPalette)
+      const primaryColorSet = getColorSet(scheme.mainPalette)
+      // The reference is whatever track currently sits in the first input
+      // position, which trackDoubleClick / moveTrackToFirstPosition can change.
+      if (track.id === inputTracks[0]?.id) {
         trackColor = primaryColorSet[0]!
       } else {
         trackColor = auxColorSet[(track.id - 1) % auxColorSet.length]!
@@ -3313,17 +3280,21 @@ function generateTrackColor(track: Track, highlight?: string): string {
   return trackColor
 }
 
-function generateTrackAlpha(track: Track, highlight?: string): number {
-  if (typeof highlight === 'undefined') highlight = 'plain'
-  let trackAlpha = 1
+function mappingQualityFraction(track: ColorableTrack): number {
+  return (
+    Math.min(MAX_MAPPING_QUALITY, track.mapping_quality ?? 0) /
+    MAX_MAPPING_QUALITY
+  )
+}
 
-  const sourceID = track.sourceTrackID
-  if (track.type !== undefined && track.type === 'read') {
-    if (config.colorSchemes[sourceID]!.alphaReadsByMappingQuality) {
-      trackAlpha = 0.1 + 0.9 * (Math.min(60, track.mapping_quality!) / 60)
-    }
+function generateTrackAlpha(track: ColorableTrack): number {
+  if (
+    track.type === 'read' &&
+    colorSchemeFor(track).alphaReadsByMappingQuality
+  ) {
+    return 0.1 + 0.9 * mappingQualityFraction(track)
   }
-  return trackAlpha
+  return 1
 }
 
 function getReadXStart(read: Track): number | null {
@@ -3402,8 +3373,18 @@ function generateSVGShapesFromPath(): void {
 
   tracks.forEach(track => {
     highlight = 'plain'
+    // Both are pure functions of (track, highlight); alpha doesn't even look at
+    // highlight. Recomputing them per path segment was pure overhead.
     trackColor = generateTrackColor(track, highlight)
-    trackAlpha = generateTrackAlpha(track, highlight)
+    trackAlpha = generateTrackAlpha(track)
+    let colorHighlight = highlight
+    const colorForCurrentHighlight = (): string => {
+      if (colorHighlight !== highlight) {
+        colorHighlight = highlight
+        trackColor = generateTrackColor(track, highlight)
+      }
+      return trackColor
+    }
 
     // start of path
     yStart = track.path[0]!.y!
@@ -3446,8 +3427,7 @@ function generateSVGShapesFromPath(): void {
           xEnd = orderStartX[track.path[i - 1]!.order]!
         }
         if (xEnd !== xStart) {
-          trackColor = generateTrackColor(track, highlight)
-          trackAlpha = generateTrackAlpha(track, highlight)
+          trackColor = colorForCurrentHighlight()
           trackRectangles.push({
             xStart: Math.min(xStart, xEnd),
             yStart,
@@ -3467,8 +3447,7 @@ function generateSVGShapesFromPath(): void {
           xStart = xEnd
           xEnd = orderStartX[track.path[i]!.order]!
           yEnd = track.path[i]!.y!
-          trackColor = generateTrackColor(track, highlight)
-          trackAlpha = generateTrackAlpha(track, highlight)
+          trackColor = colorForCurrentHighlight()
           trackCurves.push({
             xStart,
             yStart,
@@ -3491,8 +3470,7 @@ function generateSVGShapesFromPath(): void {
           xStart = xEnd
           xEnd = orderEndX[track.path[i]!.order]!
           yEnd = track.path[i]!.y!
-          trackColor = generateTrackColor(track, highlight)
-          trackAlpha = generateTrackAlpha(track, highlight)
+          trackColor = colorForCurrentHighlight()
           trackCurves.push({
             xStart: xStart + 1,
             yStart,
@@ -3759,10 +3737,12 @@ function buildCoarsenedSyntheticReads(): Track[] {
       tallestName = n.name
     }
   }
-  console.log(
-    `[coarsened] reads_in=${reads.length} edges_out=${synthetic.length} ` +
-      `tallestNodeBeforePlace=${tallestName}(${tallestH.toFixed(1)})`,
-  )
+  if (DEBUG) {
+    console.log(
+      `[coarsened] reads_in=${reads.length} edges_out=${synthetic.length} ` +
+        `tallestNodeBeforePlace=${tallestName}(${tallestH.toFixed(1)})`,
+    )
+  }
   return synthetic
 }
 
@@ -4150,7 +4130,6 @@ function drawNodes(dNodes: Node[], groupNode: SvgGroupSelection): void {
     .attr('d', d => d.d ?? null)
     .on('mouseover', nodeMouseOver)
     .on('mouseout', nodeMouseOut)
-    .on('dblclick', nodeDoubleClick)
     .on('click', nodeSingleClick)
     .on('contextmenu', nodeRightClick)
     .style('fill', d => colorNodes(d.name).fill ?? null)
@@ -4507,13 +4486,13 @@ function drawRuler(): void {
   const intervalsVisitedByNodes: Interval[] = []
 
   for (let i = 0; i < rulerTrack.indexSequence.length; i++) {
-    // Walk along the ruler track in ascending coordinate order.
-    const nodeIndex =
-      rulerTrack.indexSequence[
-        rulerTrack.isCompletelyReverse
-          ? rulerTrack.indexSequence.length - 1 - i
-          : i
-      ]!
+    // Walk along the ruler track in ascending coordinate order. vgExtractTracks
+    // already reversed the sequence of a completely-reverse track for layout,
+    // so ascending coordinates run back to front through it.
+    const stepIndex = rulerTrack.isCompletelyReverse
+      ? rulerTrack.indexSequence.length - 1 - i
+      : i
+    const nodeIndex = rulerTrack.indexSequence[stepIndex]!
     const currentNode = nodes[Math.abs(nodeIndex)]!
 
     // Adding node X start and end positions into an array
@@ -4523,7 +4502,8 @@ function drawRuler(): void {
     // backward. In fact, the whole track may be laid out backward.
     // So xor the reverse flags, which we assume to be bools
     const currentNodeIsReverse =
-      isReverse(rulerTrack.sequence[i]!) !== rulerTrack.isCompletelyReverse
+      isReverse(rulerTrack.sequence[stepIndex]!) !==
+      rulerTrack.isCompletelyReverse
 
     // For some displayus we want to mark each node only once.
     let alreadyMarkedNode = false
@@ -5331,21 +5311,6 @@ function nodeRightClick(this: SVGElement, event: MouseEvent): void {
   })
 }
 
-// Redraw with current node moved to beginning
-function nodeDoubleClick(this: SVGElement): void {
-  /* jshint validthis: true */
-  const nodeID = d3.select(this).attr('id')
-  if (config.clickableNodesFlag) {
-    if (config.showReads && reads.length > 0) {
-      document.querySelector<HTMLInputElement>('#hgvmNodeID')!.value = nodeID
-      document.getElementById('hgvmPostButton')!.click()
-    } else {
-      document.querySelector<HTMLInputElement>('#nodeID')!.value = nodeID
-      document.getElementById('postButton')!.click()
-    }
-  }
-}
-
 // extract info about nodes from vg-json
 export interface ExtractedVgNode {
   name: string
@@ -6032,38 +5997,57 @@ function drawMismatches(): void {
   // if the user is currently zoomed out below the threshold.
   detailHidden = false
   tracks.forEach(read => {
-    if (read.type === 'read') {
-      read.sequenceNew!.forEach((element, i) => {
-        element.mismatches.forEach(mm => {
-          const nodeName = forward(element.nodeName)
-          const nodeIndex = nodeMap.get(nodeName)!
-          const node = nodes[nodeIndex]!
-          const x = getXCoordinateOfBaseWithinNode(node, mm.pos)!
-          let pathIndex = i
-          while (read.path[pathIndex]!.node !== nodeIndex) {
-            pathIndex += 1
-          }
-          const y = read.path[pathIndex]!.y!
-          if (mm.type === 'insertion') {
-            if (
-              config.showSoftClips ||
-              ((mm.pos !== read.firstNodeOffset || i !== 0) &&
-                (mm.pos !== read.finalNodeCoverLength ||
-                  i !== read.sequenceNew!.length - 1))
-            ) {
-              drawInsertion(layer, x - 3, y + READ_WIDTH, mm.seq, node.y)
+    const sequenceNew = read.sequenceNew
+    if (read.type === 'read' && sequenceNew !== undefined) {
+      sequenceNew.forEach((element, i) => {
+        const nodeIndex = nodeMap.get(forward(element.nodeName))
+        const node = nodeIndex === undefined ? undefined : nodes[nodeIndex]
+        // Walk forward from the matching sequenceNew index to the path segment
+        // that visits this node. Bounded: node merging can drop a visit, and an
+        // unbounded walk would run off the end of the path.
+        let pathIndex = i
+        while (
+          pathIndex < read.path.length &&
+          read.path[pathIndex]!.node !== nodeIndex
+        ) {
+          pathIndex += 1
+        }
+        const y = read.path[pathIndex]?.y
+        if (node !== undefined && y !== undefined) {
+          element.mismatches.forEach(mm => {
+            // Positions past the (possibly merged) node's end have no pixel
+            // coordinate; drawing them would emit NaN attributes.
+            const x = getXCoordinateOfBaseWithinNode(node, mm.pos)
+            if (x !== null) {
+              if (mm.type === 'insertion') {
+                if (
+                  config.showSoftClips ||
+                  ((mm.pos !== read.firstNodeOffset || i !== 0) &&
+                    (mm.pos !== read.finalNodeCoverLength ||
+                      i !== sequenceNew.length - 1))
+                ) {
+                  drawInsertion(layer, x - 3, y + READ_WIDTH, mm.seq, node.y)
+                }
+              } else if (mm.type === 'deletion' && mm.length !== undefined) {
+                const x2 = getXCoordinateOfBaseWithinNode(
+                  node,
+                  mm.pos + mm.length,
+                )
+                if (x2 !== null) {
+                  drawDeletion(layer, x, x2, y + 4, node.y)
+                }
+              } else if (mm.type === 'substitution' && mm.seq !== undefined) {
+                const x2 = getXCoordinateOfBaseWithinNode(
+                  node,
+                  mm.pos + mm.seq.length,
+                )
+                if (x2 !== null) {
+                  drawSubstitution(layer, x + 1, x2, y + READ_WIDTH, node.y, mm.seq)
+                }
+              }
             }
-          } else if (mm.type === 'deletion') {
-            const x2 = getXCoordinateOfBaseWithinNode(node, mm.pos + mm.length!)!
-            drawDeletion(layer, x, x2, y + 4, node.y)
-          } else if (mm.type === 'substitution') {
-            const x2 = getXCoordinateOfBaseWithinNode(
-              node,
-              mm.pos + mm.seq!.length,
-            )!
-            drawSubstitution(layer, x + 1, x2, y + READ_WIDTH, node.y, mm.seq)
-          }
-        })
+          })
+        }
       })
     }
   })
@@ -6215,14 +6199,21 @@ function substitutionMouseOut(this: SVGElement): void {
   d3.selectAll('.substitutionHighlight').remove()
 }
 
-function filterReads(reads: Track[]): Track[] {
+function filterReads<
+  T extends {
+    is_secondary?: boolean
+    mapping_quality?: number
+    name?: string
+  },
+>(readList: T[]): T[] {
   const focusNames = config.focusReadNames
     ? new Set(config.focusReadNames)
     : null
-  return reads.filter(
+  return readList.filter(
     read =>
-      !read.is_secondary &&
+      read.is_secondary !== true &&
       (read.mapping_quality ?? 0) >= config.mappingQualityCutoff &&
-      (!focusNames || (read.name !== undefined && focusNames.has(read.name))),
+      (focusNames === null ||
+        (read.name !== undefined && focusNames.has(read.name))),
   )
 }
