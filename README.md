@@ -27,10 +27,17 @@ before they fan out:
 
 ![HPRC chr20 haplotypes in register](doc/images/hprc-chr20-haplotypes.png)
 
-**Reads over a graph.** 262 GAM alignments across the snp1kg BRCA1 graph, blue
-and red for forward and reverse strand:
+**Reads over a graph.** GAM alignments across the snp1kg BRCA1 graph, blue and
+red for forward and reverse strand:
 
 ![BRCA1 reads](doc/images/brca1-reads.png)
+
+**The same reads, coarsened.** The Sankey view collapses per-read ribbons into
+one band per node-to-node edge, scaled by how many reads traverse it, so
+rendering is O(edges) rather than O(reads). Allele balance at each bubble
+becomes readable at a glance:
+
+![BRCA1 reads, coarsened](doc/images/brca1-reads-coarsened.png)
 
 Every figure here was produced headlessly with `pnpm tubemap-cli` — see
 [headless SVG rendering](doc/headless-rendering.md).
