@@ -90,6 +90,11 @@ cd node_modules/@gmod/gbz-base/tools/haplotype-index && cargo build --release
 ./target/release/gbz-haplotype-index --from-db graph.gbz.db
 ```
 
+Build cost scales with total path length, not graph size: the full HPRC v2.1
+graph (5.5 GB GBZ, 53,150 paths, 1,305 Gbp walked) takes about 13 minutes on
+24 cores and yields a 7.9 GB companion database. The bundled examples take
+seconds.
+
 `--interval` (default 4096 bp) is the size/latency knob: it sets how far apart
 the samples along each path are, so halving it roughly doubles the table and
 halves the `lf()` walk needed to name a path that missed every sample. Small
