@@ -76,13 +76,16 @@ export function convertSchema(inGraph: GbzGraph): ConvertedGraph {
   // server's normalization (server.mjs:1759-1782): strip the suffix and lift
   // <start> into indexOfFirstBase so tubemap.ts draws the bp ruler.
   const subpathRe = /^(.*)\[(\d+)-\d+\]$/
-  const path: VgPath[] = inGraph.paths.map(p => {
-    const match = p.name === undefined ? null : subpathRe.exec(p.name)
+  // `visits` and `weight` are the GBZ spellings of `mapping` and `freq`, so
+  // they are destructured out rather than spread through: keeping them would
+  // send every path twice across the worker's structured-clone boundary.
+  const path: VgPath[] = inGraph.paths.map(({ path: visits, weight, ...rest }) => {
+    const match = rest.name === undefined ? null : subpathRe.exec(rest.name)
     return {
-      ...p,
+      ...rest,
       ...(match ? { name: match[1], indexOfFirstBase: match[2] } : {}),
-      ...(p.weight !== undefined ? { freq: p.weight } : {}),
-      mapping: p.path.map(visit => {
+      ...(weight !== undefined ? { freq: weight } : {}),
+      mapping: visits.map(visit => {
         const length = nodeLength.get(visit.id)
         if (length === undefined) {
           throw new Error(`Path visit references unknown node ${visit.id}`)

@@ -22,6 +22,21 @@ describe('convertSchema subpath normalization', () => {
     expect(out.path[0]!.indexOfFirstBase).toBe('100')
   })
 
+  // The GBZ walk and its weight are renamed, not carried alongside. Leaving
+  // them on meant the worker cloned every path twice on its way to the page.
+  it('does not carry the GBZ spellings through alongside the vg ones', () => {
+    const out = convertSchema({
+      nodes,
+      edges: [],
+      paths: [
+        { name: 'x', path: [{ id: 1, is_reverse: false }], weight: 3 },
+      ],
+    })
+    expect(out.path[0]!.freq).toBe(3)
+    expect(out.path[0]).not.toHaveProperty('path')
+    expect(out.path[0]).not.toHaveProperty('weight')
+  })
+
   it('leaves names without a subpath suffix alone', () => {
     const out = convertSchema({
       nodes,
