@@ -1,259 +1,129 @@
-# tubemap.ts Phase 2 handoff (in progress)
+# tubemap.ts clean-up notes
 
-This document supersedes the earlier phase 1 handoff. Read this *first*.
+`src/util/tubemap.ts` is the layout + d3 drawing engine, ported from the
+original sequenceTubeMap JavaScript. This file tracks what has been cleaned up
+and what is left. Earlier revisions of this document described a `@ts-nocheck`
+baseline and an error budget; both are gone, so treat anything you remember
+about "~774 errors" or "drop the pragma" as historical.
 
 ## Current state
 
-- `src/util/tubemap.ts`: ~5870 lines, body still suppressed by `// @ts-nocheck`
-  at line 1. All top-level function signatures (params + return types)
-  typed; top half of body (through `generateNodeOrderTrackBeginning` at
-  ~line 2007) is already strict-clean.
-- `pnpm vitest run src/util/tubemap.test.ts` → 20/20 pass.
-- `pnpm vitest run` → 79/80 pass. The one failure (`App.test.tsx > renders
-  without crashing when sent bad fetch data from server`) is **pre-existing**,
-  not caused by phase-2 work.
-- `pnpm build` succeeds.
-- `pnpm tsc --noEmit` → 24 errors. **0 in tubemap.ts**, 0 in tubemap.test.ts.
-  Remaining errors are pre-existing in unrelated files (HeaderForm.tsx,
-  headerFormUtils.ts, BedFileDropdown.tsx, RegionInput.tsx, TrackList.tsx,
-  TrackFilePicker.tsx, App.tsx, PathsPanel.tsx, CustomizationAccordion.tsx).
-  None of these block phase 2.
-- With pragma removed, error count is **~774** (down from ~1206 baseline).
-  Concentrated in the second half of the file — layout algorithms,
-  drawing, mismatch/ruler overlays.
+- ~6000 lines, no `@ts-nocheck`, no file-wide eslint disables.
+- `npx tsc --noEmit` reports **0 errors** in `tubemap.ts`.
+- `npx vitest run src/util` passes (`tubemap.test.ts` unit tests plus
+  `tubemap.render.test.ts`, which drives the real d3 pipeline against jsdom
+  and inspects the resulting DOM).
+- The file is still listed in `eslint.config.mjs`'s `ignores`. With that entry
+  removed it reports ~70 errors, dominated by two groups (see below). Nothing
+  else in `src/util` is ignored.
 
-## What's been done this pass
+## Invariants worth knowing before you edit
 
-- `reads`/`inputReads` normalized: `reads: Track[]` always (init `[]`),
-  `inputReads: InputTrack[]`. All `if (reads && ...)` guards → length-based.
-- All 44 `hasOwnProperty('foo')` patterns → `.foo !== undefined`.
-- d3 polyfill rewritten: dropped prototype monkey-patching and module
-  augmentation. Now uses a typed `applyAttrs(sel, attrs)` helper and
-  `.call(applyAttrs, {...})` at the 49 call sites. No more `.attrs()`
-  on the prototype.
-- `inputNodes` typed as `(InputNode | undefined)[]`, `inputTracks` as
-  `InputTrack[]`. Single boundary cast at `createTubeMap()` promotes them
-  to `(Node | undefined)[]` / `Track[]` once layout passes will populate
-  the rest. This is the one acknowledged `as` cast in the body.
-- Top half of body fully strict-clean: `moveTrackToFirstPosition`,
-  `straightenTrack`, the createTubeMap setup loop, `generateReadOnlyNodeAttributes`,
-  `assignReadsToNodes`, `removeNonPathNodesFromReads`, `placeReads`,
-  `placeReadSet`, `setOccupiedUntil`, all the comparators
-  (`compareNoNodeReads`, `compareReadOutgoingSegmentsByGoingTo`,
-  `compareReadIncomingSegmentsByComingFrom`, `compareTrackByInitialOrdering`,
-  `compareInternalReads`), `calculateBottomY`, `generateBasicPathsForReads`,
-  `reverseReversedReads`, `generateTrackIndexSequences`, `getImageDimensions`,
-  `minZoom`, `alignSVG` (including the inline `zoomed`/`configureZoomBounds`),
-  `zoomBy`, `generateNodeMap`, `generateNodeSuccessors`.
+- **`inputNodes` / `nodes` are 1-indexed with a real array hole at index 0.**
+  The hole lets a *signed* index encode orientation (`-i` = reverse visit of
+  node `i`), and index 0 has no sign, so it must never be used.
+  `forEach`/`map`/`filter` skip holes; `for...of` and `Array.from` do not.
+  This distinction is load-bearing: `nodeOrders` used to be allocated with
+  `new Array(n)` (all holes) and its `forEach` passes silently did nothing.
+- **`create()` is the only render trigger.** Every `set*` function just mutates
+  `config`. A batch of visOptions changes therefore costs one layout, not one
+  per option. `changeTrackVisibility` / `changeAllTracksVisibility` /
+  `trackDoubleClick` call `createTubeMap()` directly because they change the
+  input, not the config.
+- **The pipeline promotes types as it goes.** `InputNode`/`InputTrack` are the
+  loose shapes `create()` accepts; `Node`/`LayoutNode`/`Track` are the
+  layout-complete shapes. The single boundary cast in `createTubeMap` is the
+  acknowledged one — flag any new `as` to the user. In particular
+  `Node.sequenceLength` and `LayoutNode.order` are declared required because
+  `generateNodeWidth` and `generateNodeOrder` guarantee them; don't reintroduce
+  `?? 0` on those.
+- **`getXCoordinateOfBaseWithinNode` returns `null`** for a base past the
+  node's end, and `drawMismatches` relies on that to skip stale positions.
+  Callers that must produce a coordinate regardless use
+  `clampedXCoordinateOfBaseWithinNode`, which maps out-of-range bases to the
+  nearest node edge — never fall back to `0`, which is the far left of the
+  whole image.
+- **Everything attached outside the SVG is released in one place.**
+  `releaseDomBindings()` (called at the top of `createTubeMap`, before the
+  early exits) drops the parent's wheel listener + ResizeObserver, the hover
+  tooltip in `<body>`, and the cached hover highlight.
+- **`reverseMismatches` pivots on `sequenceLength`, not `node.width`.** They
+  are only equal in `nodeWidthOption: 'normal'`.
 
-The user's relaxed guidance for this pass: `!` is OK where the access is
-provably safe (e.g. `nodes[i]!` when `i` was just computed from
-`Math.abs(track.indexSequence[k]!)` and the algorithm guarantees the entry
-exists). Avoid fallback (`?? 0`) where the value is genuinely guaranteed —
-prefer `!` over masking-with-default in those spots.
+## What remains
 
-## What's been typed (this pass)
+### Two eslint groups (~73 of the ~88 errors when un-ignored)
 
-1. **Domain types restructured.** `Node` and `Track` now have a clean
-   layered shape:
-   - `InputNode` — minimal shape accepted by `create()` (name, seq,
-     optional sequenceLength).
-   - `Node extends InputNode` — layout-complete shape with width, pixelWidth,
-     order, x, y, predecessors, etc. all required.
-   - Same split for `InputTrack` → `Track`.
-   - This avoids the all-optional-fields code smell. Consumers use the
-     `Input*` shapes; layout/drawing code uses the full shapes.
-2. **vg-json shapes.** `VgJson`, `VgPath`, `VgMapping`, `VgPosition`,
-   `VgEdit`, `VgNode`, `VgRead` are exported and typed. `VgMapping.position`
-   is optional (cigar_string only reads `edit`; vgExtractReads narrows).
-3. **Tested exports** (used in `tubemap.test.ts`): `cigar_string`,
-   `coverage`, `numReadsVisitNode`, `axisIntervals` are fully typed.
-   `cigar_string` uses a `CigarToken = number | CigarOp` token list.
-   `coverage` uses minimal `NodeCoverageInfo` / `ReadCoverageInfo`
-   interfaces — not the full `Node`/`Track` — so tests can pass partial
-   fixtures.
-4. **vg extractors**: `vgExtractNodes`, `vgExtractTracks`, `vgExtractReads`
-   return typed `ExtractedVgNode[]` / `ExtractedVgTrack[]` /
-   `ExtractedVgRead[]`. The Read shape includes id, sourceTrackID, type,
-   firstNodeOffset, finalNodeCoverLength, mapping_quality, etc.
-5. **Setters and trivial helpers**: `setMergeNodesFlag`, `setColorSet`,
-   `setReadGroups`, `setFocusReadNames`, `setColoredNodes`,
-   `setNodeWidthOption`, etc. — all typed.
-6. **`create(params: CreateParams)`** typed; CreateParams uses
-   `InputNode[]` / `InputTrack[]`.
-7. **Test file updated** (`tubemap.test.ts`):
-   - `NodeLike` / `ReadLike` widened to include the extra fields the test
-     fixtures actually have (id, type, sourceTrackID, sequence,
-     mismatches).
-   - All `const node = { ... }` annotated `: NodeLike`.
-   - All `const reads = [...]` annotated `: ReadLike[]`.
-   - All `const nodePixelCoordinates = [...]` annotated
-     `: [number, number][]`.
-   - Renamed test data `nodename: '3'` typo → `name: '3'`.
-8. **Consumer files updated to use the new types:**
-   - `src/components/TubeMap.tsx` — props now `InputNode[]` / `InputTrack[]`,
-     not `unknown`.
-   - `src/components/TubeMapContainer.tsx` — state typed, `unknown[]` casts
-     removed. Helper `paletteForIndex` instead of bare indexing.
-   - `src/components/tubeMapData.ts` — `DemoData`, `computeExampleData`
-     typed against InputNode/InputTrack/VgJson/VgRead. STATIC_EXAMPLE_TRACKS
-     / READ_EXAMPLES narrowed to `TrackKey` / `GraphKey` / `ReadsKey`
-     subsets of `keyof DemoData` so the indexed access returns the right
-     type without unions.
-   - `src/api/APIInterface.ts` — `ChunkedDataResponse` uses VgJson / VgRead[][]
-     / InputRegion / string[] instead of `unknown` everywhere.
+1. **`@typescript-eslint/no-unnecessary-condition` (~50).** Almost all are
+   defensive `if (node)` / `if (node.y !== undefined)` guards against the
+   sparse `nodes` array, which is typed `LayoutNode[]` even though index 0 is
+   a hole and unreachable nodes have no `x`/`y`. Fixing this properly means
+   typing `nodes` as `(LayoutNode | undefined)[]` and narrowing at every
+   access, which cascades through the whole layout section. Do it as its own
+   pass, not opportunistically.
+2. **`no-console` (23).** All of these sit behind the module's `DEBUG` flag.
+   They are deliberate; the file needs either a per-file `no-console` override
+   in `eslint.config.mjs` (like `src/components/TubeMap.tsx` already has) or a
+   small `debugLog()` wrapper before the file can be un-ignored.
 
-## What remains (next pass: ~774 errors)
+### Structural work not yet done
 
-Work top-down through the rest of the file. The remaining errors are
-concentrated in the layout algorithms and drawing code. Approach:
-drop `// @ts-nocheck`, fix each function, re-add pragma when stopping a
-session. Or just leave pragma off and accept a long error list during
-work.
-
-### Concrete next steps in order
-
-1. **Layout algorithms** (lines ~2007–2755, ~250 errors). `generateNodeOrder`,
-   `generateNodeOrderTrackBeginning` body, `switchNodeOrientation`,
-   `switchNodeOrientationForPaths`, `generateNodeXCoords`,
-   `calculateExtraSpace`, `generateLaneAssignment`, `addToAssignment`,
-   `getIdealLanesAndCoords`, `generateSingleLaneAssignment`,
-   `adjustVertically*`. Mostly bare `nodes[i]` / `tracks[i]` / `assignments[i]`
-   accesses inside bounded loops where `!` is safe. Pattern:
-
-   ```ts
-   const currentNode = nodes[Math.abs(sequence[i]!)]!
-   ```
-
-2. **Track features / colors** (lines ~2974–3186, ~50 errors).
-   `addTrackFeatures`, `calculateTrackWidth`, `getColorSet`,
-   `generateTrackColor`, `generateTrackAlpha`, `getReadXStart/End`,
-   `getXCoordinateOfBaseWithinNode`. Mostly straightforward `node`/`track`
-   field narrowing.
-
-3. **SVG shape generation** (lines ~3215–3710, ~150 errors).
-   `generateSVGShapesFromPath` is the biggest single function — 200+
-   lines mutating `track.path[i]`. `createFeatureRectangle`,
-   `generateForwardToReverse`, `generateReverseToForward`,
-   `drawReversalsByColor`. The `track.path[i].order`/`.y`/`.lane`/`.node`
-   accesses need `!` since the algorithm just populated them.
-
-4. **Drawing** (lines ~3731–4807, ~200 errors). `drawNodes`, `drawLabels`,
-   `drawNodeLabels`, `drawRuler`, `drawRulerMarking*`,
-   `drawTrackRectangles`, `drawTrackCurves`, `drawTrackCorners`,
-   `defineSVGPatterns`, `drawLegend`. The d3 `.data(arr).enter().append('rect')
-   .attr('x', d => d.xStart)` callbacks need `d` typed. Use
-   `.data<TrackRectangle>(arr)` to bind, then callbacks resolve. For
-   `getElementById(...)` calls used without null checks (`.innerHTML = ...`,
-   `.addEventListener`), narrow with an early return.
-
-5. **Click handlers / lookups** (lines ~4810–4980, ~30 errors).
-   `getInputTrackIndexByID`, `getTrackByID`, `trackSingleClick`,
-   `nodeRightClick`, `nodeDoubleClick`. The `this: SVGElement` annotations
-   are already there; just fix the few `node`/`track` accesses.
-
-6. **VG extractors / merge / mismatches** (lines ~4984–5849, ~90 errors).
-   `vgExtractReads` (already has its return type), `generateNodeWidth`,
-   `mergeNodes`, `mergeableWith*`, `drawMismatches`, `drawInsertion/
-   Substitution/Deletion`, the `*MouseOver/Out` handlers,
-   `filterReads`. Mostly nullable property access on `read.sequenceNew[i]`.
-
-7. **Drop the pragma**. Verify `pnpm tsc --noEmit` reports 0 errors in
-   `tubemap.ts`. Run `pnpm vitest run` (must stay 79/80) and `pnpm build`.
-
-### Style rules (from user this pass)
-
-- `!` is allowed where the access is provably safe (just-checked map,
-  bounded loop, algorithm invariant). Prefer `!` over `?? <fallback>`
-  when the value is genuinely guaranteed — a spurious `?? 0` masks
-  bugs. Use `?? <fallback>` only when undefined is a real runtime case.
-- No `as` casts in the body (the one boundary promotion in `createTubeMap`
-  is the only acceptable one — flag any new ones to the user).
-- Module augmentations / prototype patches are out — use a typed helper
-  function with `.call()` instead.
-- React Compiler is enabled — skip manual memoization.
-
-### Verification before each commit
-
-```
-pnpm vitest run src/util/tubemap.test.ts  # must stay 20/20
-pnpm tsc --noEmit 2>&1 | grep -c "tubemap.ts"  # monotonically decreasing
-pnpm build  # after layout/drawing sections
-```
-
-## Hard constraints (re-iterated from user CLAUDE.md)
-
-- **No `any`. No typecasts** — `as`, `!`, `as unknown as X` are all out.
-  Type predicates (`x is T`) are the escape hatch. The original phase 1
-  cast `(d3.selection.prototype as { attrs: unknown }).attrs = ...` at the
-  top of the file is the ONLY one in the current source — replace with a
-  proper module augmentation if you find a clean way.
-- **Avoid optionals where possible.** Prefer separate input/layout types
-  (see the InputNode/Node split done in this pass) over blanket
-  optional fields.
-- **Avoid early returns** — nest if statements or use ternaries.
-- **`||` / `??` are code smells** — eliminate the undefined state at the
-  type level instead.
-- **No `git stash`** — multiple agents share this working tree.
-- **Package manager**: `pnpm`.
-- React Compiler is enabled — skip manual `useMemo` / `useCallback` /
-  `React.memo` (CLAUDE.md project rule).
-
-## Approach for the remaining sections
-
-The plan from phase 1 still applies:
-
-- Work in a scratch worktree or `cp tubemap.ts /tmp/scratch.ts && sed -i
-  '1s|^// @ts-nocheck.*|//|' /tmp/scratch.ts && pnpm tsc /tmp/scratch.ts`
-  to see the errors for one section without removing the pragma in master.
-  (The current run with `@ts-nocheck` stripped reports ~1200 errors;
-  most are `noUncheckedIndexedAccess` warnings on `nodes[i]` and
-  `tracks[i]`.)
-- Type one function at a time. Run `pnpm vitest run src/util/tubemap.test.ts`
-  after each, must stay 20/20. Run `pnpm build` after the drawing sections
-  to catch d3 runtime mismatches the type checker can't.
-- Only drop `// @ts-nocheck` in the final commit once every function is
-  clean.
-
-## Gotchas encountered
-
-- The vg-json fixtures from `demo-data.js` carry an `edge` field that
-  isn't declared on `VgJson`. Structural typing means that's fine — the
-  excess-property check only kicks in for fresh object literals.
-- `inputNodes` is 1-indexed (a hole at index 0 lets us use signed
-  indices for orientation). I typed the internal `inputNodes` as
-  `(Node | undefined)[]` to reflect the hole, but it's still under
-  `@ts-nocheck` so the layout code doesn't yet narrow.
-- Test fixtures use `[number, number][]` tuples; TS infers `number[][]`
-  from array literals so each test fixture needs an explicit annotation
-  (already done for the existing tests). Future test additions need the
-  same.
-- Demo-data `inputNodes` lack `sequenceLength` (auto-derived from
-  `seq.length` by `generateNodeWidth`), so `InputNode.sequenceLength` is
-  optional.
-- The control characters `\x01`, `\x02` in `readGroupsKey`'s join
-  separators are intentional. Edits via Edit tool can fail to match when
-  these bytes are in `old_string`; use Read and an exact string with
-  surrounding context, or `awk`/`sed` patches.
+- **Module-level mutable state.** ~25 module `let`s split into three groups:
+  the inputs (`inputNodes`, `inputTracks`, `inputReads`, `inputRegion`, `bed`,
+  `svgID`), per-render layout scratch (`nodes`, `tracks`, `reads`, `nodeMap`,
+  `nodeOrders`, `nodesPerOrder`, `assignments`, `extraLeft`, `extraRight`,
+  `maxOrder`, the five `track*` shape arrays and the four min/max
+  coordinates), and UI state (`zoom`, `svg`, `hoverTooltip`,
+  `highlightedTrack`, `detailHidden`, `cleanupParentBindings`,
+  `coarsenedEdgeMeta`, the visibility snapshot). The layout-scratch group is
+  reset in one block at the top of `createTubeMap`, so it can be gathered into
+  a single `layout` object created there and threaded through as a parameter.
+  It is mechanical but touches nearly every function in the file, so it wants
+  a dedicated pass with the render tests as the safety net.
+- **`generateBasicPathsForReads` vs `generateLaneAssignment`** walk a path with
+  the same 60-line case analysis (forward / backward / same-order, with and
+  without turnaround segments). The only difference is that the lane version
+  also emits `SegmentAssignment`s and `lane: null`. Factoring the walk out is
+  the highest-value remaining dedup and also the riskiest change in the file —
+  only attempt it with the render tests green before and after.
+- **`Segment.y` / `Segment.lane` are optional** but are always set by the time
+  the drawing code reads them, which leaves a scattering of `!` and `?? 0`.
+  A `PlacedSegment` type (or splitting placement out of `Segment`) would remove
+  them.
+- **`config.showExonsFlag` has no setter any more** (`changeExonVisibility` was
+  dead and was removed), so the BED/exon feature paths —
+  `addTrackFeatures`, `createFeatureRectangle`, and the `highlight !== 'plain'`
+  branch of `generateTrackColor` — are currently unreachable. Either wire the
+  toggle back up or delete that whole feature.
+- **`reverseMismatches` reverse-complements a sequence and then reverses it**,
+  which nets out to a plain complement. That looks like an original-code bug,
+  but it is preserved verbatim (and noted in the source) because changing it
+  would alter rendered output; it needs a decision from someone who knows the
+  intended semantics.
 
 ## Verification before each commit
 
 ```
-pnpm vitest run src/util/tubemap.test.ts  # must stay 20/20
-pnpm tsc --noEmit 2>&1 | grep -c "error TS"  # should monotonically decrease
-pnpm build  # after layout/drawing sections
+npx tsc --noEmit                                   # 0 errors in tubemap.ts
+npx vitest run src/util src/components
+npx eslint --cache src/util src/components/TubeMap.tsx
 ```
 
-The full test suite has one pre-existing failure (`App.test.tsx`) — not
-caused by phase 2.
+`tubemap.render.test.ts` is the real regression net: it renders all nine demo
+examples, asserts one node `<path>` per input node (with merging off), that the
+reference path lays out strictly left to right, and that no rendered attribute
+ever contains `NaN`. Add to it rather than trusting the unit tests alone —
+most of the historical bugs in this file were geometry, not types.
 
-## Definition of done
+## Style rules (from the user's CLAUDE.md)
 
-- `// @ts-nocheck` removed from line 1.
-- `pnpm tsc --noEmit` reports 0 errors in `tubemap.ts`.
-- No `any`, no `as`/`!`/`as unknown as X` casts (excluding the polyfill
-  if you can't avoid it — flag any new ones to the user).
-- All 20 tubemap tests still pass; full suite still passes (modulo the
-  pre-existing App.test.tsx failure).
-- The d3 polyfill at the top stays functional (run the app manually to
-  confirm `.attrs()`/`.styles()` calls still resolve).
+- No `any`, no typecasts. `!` is acceptable where an algorithm invariant makes
+  the access provably safe; prefer it to a spurious `?? 0`, which masks bugs.
+  Better still, remove the optional from the type.
+- Prefer separate input/layout types over blanket optional fields.
+- Avoid early returns — nest `if`s or use ternaries.
+- Minimal comments; explain *why*, not *what*.
+- React Compiler is enabled — skip manual `useMemo` / `useCallback` /
+  `React.memo`.
+- No `git stash` (multiple agents share this working tree); commit with an
+  explicit pathspec.

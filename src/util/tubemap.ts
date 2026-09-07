@@ -436,9 +436,10 @@ export function create(params: CreateParams): void {
   // Internally in e.g. a path's indexSequence we need to reference nodes by *signed* index.
   // Which means that index 0 can never be allowed to be used, so we need to make sure it is not there.
   // So budge everything down
+  // And leave a hole (rather than an `undefined` entry) at 0, which we won't
+  // iterate over.
   inputNodes.unshift(undefined)
-  // And then leave a hole in the array at 0 which we won't iterate over.
-  delete inputNodes[0]
+  Reflect.deleteProperty(inputNodes, 0)
   inputTracks = deepCopy(params.tracks) // deep copy
   inputReads = params.reads ?? []
   inputRegion = params.region ?? []
@@ -507,8 +508,8 @@ function straightenTrack(index: number): void {
   }
 
   // invert nodes in the tracks' sequence
-  for (let i = 0; i < tracks.length; i += 1) {
-    currentSequence = tracks[i]!.sequence
+  for (const track of tracks) {
+    currentSequence = track.sequence
     for (let j = 0; j < currentSequence.length; j += 1) {
       const cur = currentSequence[j]!
       if (!isReverse(cur)) {
@@ -1632,8 +1633,7 @@ function reverseReversedReads(): void {
       const sequenceNew = read.sequenceNew ?? []
       sequenceNew.reverse() // invert sequence
       read.sequenceNew = sequenceNew
-      for (let i = 0; i < sequenceNew.length; i += 1) {
-        const entry = sequenceNew[i]!
+      for (const entry of sequenceNew) {
         entry.nodeName = forward(entry.nodeName) // visit nodes forward
         reverseMismatches(
           entry.mismatches,
@@ -2154,9 +2154,8 @@ export function fillUnassignedOrders(
   orders: readonly (number | undefined)[],
 ): number[] {
   const filled: number[] = []
-  for (let i = 0; i < orders.length; i += 1) {
-    const order = orders[i]
-    filled.push(order === undefined ? UNREACHABLE_ORDER : order)
+  for (const order of orders) {
+    filled.push(order ?? UNREACHABLE_ORDER)
   }
   return filled
 }
@@ -3322,40 +3321,45 @@ function generateTrackAlpha(track: ColorableTrack): number {
   return 1
 }
 
-function getReadXStart(read: Track): number | null {
+function getReadXStart(read: Track): number {
   const seg = read.path[0]!
   const node = nodes[seg.node!]!
-  if (seg.isForward) {
-    // read starts in forward direction
-    return getXCoordinateOfBaseWithinNode(node, read.firstNodeOffset!)
-  }
-  // read starts in backward direction
-  return getXCoordinateOfBaseWithinNode(
+  const offset = read.firstNodeOffset ?? 0
+  // read starts in forward direction, or backward from the node's far end
+  return clampedXCoordinateOfBaseWithinNode(
     node,
-    node.sequenceLength - (read.firstNodeOffset ?? 0),
+    seg.isForward ? offset : node.sequenceLength - offset,
   )
 }
 
-function getReadXEnd(read: Track): number | null {
+function getReadXEnd(read: Track): number {
   const seg = read.path[read.path.length - 1]!
   const node = nodes[seg.node!]!
-  if (seg.isForward) {
-    // read ends in forward direction
-    return getXCoordinateOfBaseWithinNode(node, read.finalNodeCoverLength!)
-  }
-  // read ends in backward direction
-  return getXCoordinateOfBaseWithinNode(
+  const cover = read.finalNodeCoverLength ?? 0
+  // read ends in forward direction, or backward from the node's far end
+  return clampedXCoordinateOfBaseWithinNode(
     node,
-    node.sequenceLength - (read.finalNodeCoverLength ?? 0),
+    seg.isForward ? cover : node.sequenceLength - cover,
   )
 }
 
 // returns the x coordinate (in pixels) of (the left side) of the given base
-// position within the given node
+// position within the given node, or null if the position is past its end
 function getXCoordinateOfBaseWithinNode(node: Node, base: number): number | null {
   if (base > node.sequenceLength) return null // equality is allowed
+  return clampedXCoordinateOfBaseWithinNode(node, base)
+}
+
+// Same, but a base outside the node maps to the nearest node edge. Callers that
+// have to produce a coordinate no matter what use this: falling back to 0 would
+// put the shape at the far left of the whole image instead.
+function clampedXCoordinateOfBaseWithinNode(node: Node, base: number): number {
   const [nodeLeftX, nodeRightX] = nodePixelCoordinatesInX(node)
-  return nodeLeftX + (base / node.sequenceLength) * (nodeRightX - nodeLeftX)
+  if (node.sequenceLength === 0) {
+    return nodeLeftX
+  }
+  const clamped = Math.min(Math.max(base, 0), node.sequenceLength)
+  return nodeLeftX + (clamped / node.sequenceLength) * (nodeRightX - nodeLeftX)
 }
 
 // transforms the info in the tracks' path attribute into actual coordinates
@@ -3422,12 +3426,12 @@ function generateSVGShapesFromPath(): void {
         xStart = orderStartX[track.path[0]!.order]! - 20
       }
     } else {
-      xStart = getReadXStart(track) ?? 0
+      xStart = getReadXStart(track)
     }
 
     // middle of path
     for (let i = 0; i < track.path.length; i += 1) {
-      if (track.path[i]!.y! === yStart) {
+      if (track.path[i]!.y === yStart) {
         if (track.path[i]!.features !== undefined) {
           reversalFlag =
             i > 0 && track.path[i - 1]!.order === track.path[i]!.order
@@ -3579,7 +3583,7 @@ function generateSVGShapesFromPath(): void {
         xEnd = orderEndX[track.path[track.path.length - 1]!.order]! + 20
       }
     } else {
-      xEnd = getReadXEnd(track) ?? 0
+      xEnd = getReadXEnd(track)
     }
     trackRectangles.push({
       xStart: Math.min(xStart, xEnd),
@@ -3749,7 +3753,7 @@ function buildCoarsenedSyntheticReads(): Track[] {
       sample_name: null,
       read_group: null,
       score: edge.count,
-    } as Track)
+    })
     i += 1
   }
 
@@ -3758,7 +3762,7 @@ function buildCoarsenedSyntheticReads(): Track[] {
   let tallestH = 0
   for (const n of nodes) {
     if (!n) continue
-    const h = n.contentHeight ?? 0
+    const h = n.contentHeight
     if (h > tallestH) {
       tallestH = h
       tallestName = n.name
@@ -3784,7 +3788,6 @@ function createFeatureRectangle(
   trackColor: string,
   reversalFlag: boolean,
 ): { highlight: string; xStart: number } {
-  let nodeWidth: number
   let currentHighlight: string = highlight
   let c: string
   let co: string
@@ -3793,7 +3796,7 @@ function createFeatureRectangle(
 
   nodeXStart -= 8
   nodeXEnd += 8
-  nodeWidth = nodes[node.node!]!.sequenceLength
+  const nodeWidth = nodes[node.node!]!.sequenceLength
 
   node.features!.sort((a, b) => a.start! - b.start!)
   node.features!.forEach(feature => {
@@ -4425,11 +4428,7 @@ function drawRuler(): void {
     }
 
     // Where should we mark in the visualization?
-    const xCoordOfMarking = getXCoordinateOfBaseWithinNode(
-      currentNode,
-      offsetIntoNodeForward,
-    )
-    return xCoordOfMarking
+    return clampedXCoordinateOfBaseWithinNode(currentNode, offsetIntoNodeForward)
   }
 
   // Get the region in bp in the scale bar's coordinate space to highlight as
@@ -4475,7 +4474,7 @@ function drawRuler(): void {
         currentNodeIsReverse,
         true,
       )
-      ticks_region.push([start_region, xCoordStart ?? 0])
+      ticks_region.push([start_region, xCoordStart])
     }
     if (
       end_region !== null &&
@@ -4489,7 +4488,7 @@ function drawRuler(): void {
         currentNodeIsReverse,
         true,
       )
-      ticks_region.push([end_region, xCoordEnd ?? 0])
+      ticks_region.push([end_region, xCoordEnd])
     }
 
     while (
@@ -4508,7 +4507,7 @@ function drawRuler(): void {
       if (config.nodeWidthOption === 'normal' || !alreadyMarkedNode) {
         // This is a mark we are not filtering due to node compression.
         // Make the mark
-        ticks.push([nextUnmarkedIndex, xCoordOfMarking ?? 0])
+        ticks.push([nextUnmarkedIndex, xCoordOfMarking])
         alreadyMarkedNode = true
       }
 
@@ -5486,12 +5485,12 @@ export function vgExtractReads(
           type: 'read',
           firstNodeOffset,
           finalNodeCoverLength,
-          mapping_quality: read.mapping_quality || 0,
-          is_secondary: read.is_secondary || false,
-          sample_name: read.sample_name || null,
-          read_group: read.read_group || null,
+          mapping_quality: read.mapping_quality ?? 0,
+          is_secondary: read.is_secondary ?? false,
+          sample_name: read.sample_name ?? null,
+          read_group: read.read_group ?? null,
           cigar_string: cigar_string(read.path),
-          score: read.score || 0,
+          score: read.score ?? 0,
         }
         if (read.path.freq !== undefined) {
           track.freq = read.path.freq
@@ -5513,12 +5512,10 @@ export function vgExtractReads(
 function mergeNodes(): void {
   let nodeName: string
   let nodeName2: string
-  const predSets: Set<string>[] = [] // array of set of predecessors of each node
-  const succSets: Set<string>[] = [] // array of set of successors of each node
-  for (let i = 0; i < nodes.length; i += 1) {
-    predSets.push(new Set())
-    succSets.push(new Set())
-  }
+  // One set per node index, including the hole at 0 (Array.from materializes
+  // holes, unlike forEach/map).
+  const predSets: Set<string>[] = Array.from(nodes, () => new Set())
+  const succSets: Set<string>[] = Array.from(nodes, () => new Set())
 
   let tracksAndReads
   if (config.showReads && reads.length > 0) tracksAndReads = tracks.concat(reads)
