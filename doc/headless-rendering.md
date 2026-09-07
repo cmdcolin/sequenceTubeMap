@@ -33,14 +33,19 @@ Every option in the app's View menu has a flag: `--compressed`, `--no-reads`,
 scheme, so they apply to `--source` renders rather than `--example` ones, and
 they only show up when the reads actually differ in mapping quality.
 
-`--ignore-strand` is quiet on all nine bundled examples, which is the data
-rather than the flag. In the normal view it only moves reads that the renderer
-marked `is_reverse`, and it marks a read that way only when _every_ node visit
-is reversed — a mixed-orientation read is drawn as if forward. In the coarsened
-view it only merges an edge traversed in both directions. None of the examples
-contain either, so reach for a real alignment: on snp1kg-BRCA1 at `17:1-400` the
-flag moves all 118 reverse-strand reads out of the red auxiliary palette and
-into the blue main one.
+`--ignore-strand` is quiet on all nine bundled `--example` datasets, which is
+those datasets rather than the flag. What it moves in the normal view is reads
+the renderer marked `is_reverse`, and it marks a read that way only when _every_
+node visit is reversed — a mixed-orientation read is drawn as if forward. None
+of the `--example` datasets contain a wholly reversed read, but plenty of the
+bundled alignment data does: on snp1kg-BRCA1 at `17:1-400` the flag moves all
+118 reverse-strand reads out of the red auxiliary palette and into the blue main
+one.
+
+Under `--coarsened` the flag appears to do nothing at all, on every input tried.
+Read orientation is normalised before the bands are aggregated, so both
+traversals of an edge have already collapsed into one band by the time the flag
+could merge them.
 
 `--compressed` is the one to reach for whenever a figure comes out unreadably
 wide. Node width scales with sequence length, so any region spanning many bases

@@ -38,10 +38,7 @@ function setupSvg(width = 1800, height = 1200): SVGSVGElement {
 
 function dataForExample(suffix: string) {
   const key = `EXAMPLE_${suffix}` as keyof typeof dataOriginTypes
-  return computeExampleData(
-    dataOriginTypes[key],
-    demo,
-  )
+  return computeExampleData(dataOriginTypes[key], demo)
 }
 
 function render(
@@ -276,5 +273,64 @@ describe('tubemap.create — empty inputs', () => {
     expect(() => {
       render([], [])
     }).not.toThrow()
+  })
+})
+
+// The coarsened view collapses reads into one band per node-to-node
+// transition. --ignore-strand is meant to additionally merge a transition
+// traversed in both directions, but by the time buildCoarsenedSyntheticReads
+// runs, switchNodeOrientation and reverseReversedReads have already normalised
+// read orientation -- so a reverse traversal has become a forward one and the
+// aggregation cannot tell the two apart. These tests pin that down: no bundled
+// dataset exercises the flag's coarsened branch, and neither does a read
+// written to traverse the same edge backwards.
+describe('tubemap.create — coarsened view normalises orientation', () => {
+  const nodes: InputNode[] = [
+    { name: '1', seq: 'AAAA' },
+    { name: '2', seq: 'CCCC' },
+    { name: '3', seq: 'GGGG' },
+  ]
+  const reference: InputTrack[] = [
+    { id: 0, sequence: ['1', '2'], type: 'haplotype', sourceTrackID: 0 },
+  ]
+  // c is deliberately not *entirely* reverse, so reverseReversedReads leaves
+  // it alone; it walks -2 -> -1, the reverse of what b walks.
+  const reads: InputTrack[] = [
+    { id: 1, name: 'b', sequence: ['1', '2'], type: 'read', sourceTrackID: 1 },
+    {
+      id: 2,
+      name: 'c',
+      sequence: ['3', '-2', '-1'],
+      type: 'read',
+      sourceTrackID: 1,
+    },
+  ]
+
+  // Node merging would fuse the 1->2 chain into a single node and take the
+  // transition under test with it.
+  function coarsenedBands(ignoreStrand: boolean): string[] {
+    setupSvg()
+    tubeMap.setMergeNodesFlag(false)
+    tubeMap.setCoarsenedReadViewFlag(true)
+    tubeMap.setIgnoreStrandFlag(ignoreStrand)
+    const svg = render(nodes, reference, reads)
+    tubeMap.setMergeNodesFlag(true)
+    tubeMap.setCoarsenedReadViewFlag(false)
+    tubeMap.setIgnoreStrandFlag(false)
+    const names = [...svg.querySelectorAll('[trackName]')]
+      .map(el => el.getAttribute('trackName') ?? '')
+      .filter(name => name.includes('\u2192'))
+    return [...new Set(names)].sort()
+  }
+
+  it('lands both traversals of an edge in one band already', () => {
+    expect(coarsenedBands(false)).toEqual([
+      '1 read: Node 2 \u2192 Node 3',
+      '2 reads: Node 1 \u2192 Node 2',
+    ])
+  })
+
+  it('is unchanged by ignoreStrand, which has nothing left to merge', () => {
+    expect(coarsenedBands(true)).toEqual(coarsenedBands(false))
   })
 })
