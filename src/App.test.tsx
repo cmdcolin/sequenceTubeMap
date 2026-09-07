@@ -139,3 +139,74 @@ it('allows the start to be changed', async () => {
   await userEvent.type(getRegionInput(), '17:200-300')
   expect(getRegionInput().value).toEqual('17:200-300')
 })
+
+it('enables "Manage tracks…" for a built-in dataset', async () => {
+  renderApp()
+
+  await userEvent.click(screen.getByTestId('fileMenuButton'))
+
+  expect(screen.getByTestId('manageTracks')).not.toHaveAttribute(
+    'aria-disabled',
+  )
+  await userEvent.click(screen.getByTestId('manageTracks'))
+  expect(screen.getByTestId('TrackPicker')).toBeInTheDocument()
+})
+
+it('puts the committed view in the address bar', async () => {
+  window.history.replaceState(null, '', '/')
+  renderApp()
+
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+
+  await waitFor(() => {
+    expect(window.location.search).toContain('region=ref%3A1-100')
+  })
+  expect(window.location.search).toContain('tracks[0][trackType]=graph')
+})
+
+describe('remembered preferences', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('writes the legend and view options as they change', async () => {
+    renderApp()
+    expect(screen.getByText('Color legend')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByTestId('viewMenuButton'))
+    await userEvent.click(screen.getByTestId('legendToggleMenuItem'))
+
+    expect(localStorage.getItem('sequenceTubeMap.legendVisible')).toEqual(
+      'false',
+    )
+    await waitFor(() => {
+      expect(screen.queryByText('Color legend')).not.toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByRole('menuitem', { name: /node labels/ }))
+    expect(
+      JSON.parse(localStorage.getItem('sequenceTubeMap.visOptions') ?? '{}'),
+    ).toMatchObject({ showNodeLabels: true })
+  })
+
+  it('starts from what was written last time', () => {
+    localStorage.setItem('sequenceTubeMap.legendVisible', 'false')
+    localStorage.setItem(
+      'sequenceTubeMap.visOptions',
+      JSON.stringify({ showNodeLabels: true, removeRedundantNodes: false }),
+    )
+    renderApp()
+
+    expect(screen.queryByText('Color legend')).not.toBeInTheDocument()
+  })
+
+  it('ignores a stored value it cannot use', () => {
+    localStorage.setItem('sequenceTubeMap.legendVisible', 'not-a-boolean')
+    localStorage.setItem('sequenceTubeMap.visOptions', '{"showReads": 7}')
+    renderApp()
+
+    // Falls back to the defaults rather than rendering nothing.
+    expect(screen.getByText('Color legend')).toBeInTheDocument()
+  })
+})
