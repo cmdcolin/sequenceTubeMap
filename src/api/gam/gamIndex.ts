@@ -178,7 +178,7 @@ function binOverlaps(bin: bigint, minNode: bigint, maxNode: bigint): boolean {
   return !(rangeEnd < minNode || rangeStart > maxNode)
 }
 
-function binIdRange(bin: bigint): { rangeStart: bigint; rangeEnd: bigint } {
+export function binIdRange(bin: bigint): { rangeStart: bigint; rangeEnd: bigint } {
   if (bin === 0n) {
     return { rangeStart: 0n, rangeEnd: (1n << 64n) - 1n }
   }

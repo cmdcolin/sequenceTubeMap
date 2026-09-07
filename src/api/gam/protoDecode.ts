@@ -7,9 +7,9 @@
 import { readVarint32, readVarint64 } from './varint.ts'
 
 export const WIRE_VARINT = 0
-export const WIRE_I64 = 1
 export const WIRE_LEN = 2
-export const WIRE_I32 = 5
+const WIRE_I64 = 1
+const WIRE_I32 = 5
 
 export interface FieldHeader {
   fieldNumber: number
@@ -49,16 +49,6 @@ export function skipField(
     return offset + 4
   }
   throw new Error(`unsupported wire type ${wireType}`)
-}
-
-export function readDouble(buf: Uint8Array, offset: number): VarintLike {
-  const view = new DataView(buf.buffer, buf.byteOffset + offset, 8)
-  return { value: view.getFloat64(0, true), offset: offset + 8 }
-}
-
-interface VarintLike {
-  value: number
-  offset: number
 }
 
 export function readLengthDelimited(

@@ -29,6 +29,9 @@ const textDecoder = new TextDecoder()
 export interface TaggedMessage {
   tag: string
   bytes: Uint8Array
+  // Offset in `data` at which this message's enclosing group started. Region
+  // reads use it to stop at the index's past-end virtual offset.
+  groupStart: number
 }
 
 // Iterate every (tag, bytes) pair in a decompressed message stream.
@@ -43,6 +46,7 @@ export function* iterateMessages(data: Uint8Array): Generator<TaggedMessage> {
   let offset = 0
   let currentTag = ''
   while (offset < data.length) {
+    const groupStart = offset
     const group = tryReadVarint64(data, offset)
     if (group === null) return
     if (group.value < 1n) {
@@ -63,19 +67,20 @@ export function* iterateMessages(data: Uint8Array): Generator<TaggedMessage> {
         const msg = tryReadSizedBytes(data, offset)
         if (msg === null) return
         offset = msg.offset
-        yield { tag: currentTag, bytes: msg.bytes }
+        yield { tag: currentTag, bytes: msg.bytes, groupStart }
       }
     } else {
-      // The first item is actually a message under tag "" (or under the
-      // previously-sniffed tag — libvgio docs are clear that absent-tag groups
-      // adopt the previous tag for downstream consumers; we propagate it).
+      // The first item is a message, not a tag. libvgio itself reports an
+      // empty tag for such a group; we hand back the last tag we sniffed so a
+      // slice that starts after the tag group is still labelled, and callers
+      // accept "" either way.
       const tag = currentTag
-      yield { tag, bytes: first.bytes }
+      yield { tag, bytes: first.bytes, groupStart }
       for (let i = 1; i < groupCount; i++) {
         const msg = tryReadSizedBytes(data, offset)
         if (msg === null) return
         offset = msg.offset
-        yield { tag, bytes: msg.bytes }
+        yield { tag, bytes: msg.bytes, groupStart }
       }
     }
   }

@@ -17,7 +17,8 @@
 import { unzip } from '@gmod/bgzf-filehandle'
 import { decodeAlignment } from './alignment.ts'
 import { iterateMessages } from './messageStream.ts'
-import { loadGamIndex, runsForNodeRange, type GamIndex } from './gamIndex.ts'
+import { loadGamIndex, runsForNodeRange } from './gamIndex.ts'
+import type { IndexRun } from './gamIndex.ts'
 import {
   readFieldHeader,
   readLengthDelimited,
@@ -30,26 +31,38 @@ import type { VgRead } from '../../util/tubemap.ts'
 
 const GAM_TAG = 'GAM'
 
+// Older vg releases wrote .gam files without the explicit "GAM" tag, so we
+// accept empty-tag messages too — the caller already knows the file is a GAM
+// by extension.
+function isAlignmentTag(tag: string): boolean {
+  return tag === GAM_TAG || tag === ''
+}
+
 export async function readGam(blob: Blob): Promise<VgRead[]> {
   const compressed = new Uint8Array(await blob.arrayBuffer())
   const decompressed = await decompress(compressed)
-  return collectAlignments(decompressed)
+  const out: VgRead[] = []
+  for (const msg of iterateMessages(decompressed)) {
+    if (isAlignmentTag(msg.tag)) {
+      out.push(decodeAlignment(msg.bytes))
+    }
+  }
+  return out
 }
 
 // Stream just the visited node IDs per read, without decoding the rest of
-// the Alignment proto (sequence, quality, mismatches, etc.). Per-read cost
-// is one varint per mapping versus the full alignment.ts decode path —
-// large win for read-coverage estimation across all paths, where the
-// alignment payload is never used.
+// the Alignment proto (mismatch edits, names, etc.). Per-read cost is one
+// varint per mapping versus the full alignment.ts decode path — large win for
+// read-coverage estimation across all paths, where the alignment payload is
+// never used.
 export async function scanReadNodeIds(blob: Blob): Promise<bigint[][]> {
   const compressed = new Uint8Array(await blob.arrayBuffer())
   const decompressed = await decompress(compressed)
   const reads: bigint[][] = []
   for (const msg of iterateMessages(decompressed)) {
-    if (msg.tag !== GAM_TAG && msg.tag !== '') {
-      continue
+    if (isAlignmentTag(msg.tag)) {
+      reads.push(extractNodeIds(msg.bytes))
     }
-    reads.push(extractNodeIds(msg.bytes))
   }
   return reads
 }
@@ -158,85 +171,125 @@ export async function readGamRegion(
     return []
   }
   const compressed = new Uint8Array(await gamBlob.arrayBuffer())
-  // Track byte ranges we've already scanned so coalesced-but-still-adjacent
-  // runs don't double-decode the same group. Keyed by compressed-block start.
-  const scannedFrom = new Set<number>()
+  return readAlignmentsForRuns(compressed, runs, minNode, maxNode)
+}
+
+// `runsForNodeRange` hands back non-overlapping, non-adjacent runs sorted by
+// start, so every run is read exactly once and nothing is decoded twice.
+export async function readAlignmentsForRuns(
+  compressed: Uint8Array,
+  runs: IndexRun[],
+  minNode: bigint,
+  maxNode: bigint,
+): Promise<VgRead[]> {
   const out: VgRead[] = []
   for (const run of runs) {
-    const startBlock = blockOfVO(run.start)
-    if (scannedFrom.has(startBlock)) {
-      continue
-    }
-    scannedFrom.add(startBlock)
-    const endBlock = blockOfVO(run.pastEnd)
-    // Read up to the start of the block *after* the past-end block, so we
-    // get the entirety of the past-end block when its data offset is > 0.
-    const stop = run.pastEnd === 0n
-      ? startBlock
-      : Math.min(compressed.length, endBlock + maxBgzfBlock(compressed, endBlock))
-    if (startBlock >= compressed.length) {
-      continue
-    }
-    const slice = compressed.subarray(startBlock, stop)
-    const decompressed = await decompress(slice)
-    // A virtual offset is (block_start << 16) | offset_within_block. The
-    // decompressed slice begins at byte 0 of `startBlock`, so the in-block
-    // offset of run.start is the index into `decompressed` at which the
-    // group framing actually resumes. Skipping ahead is necessary because
-    // groups are not aligned to BGZF block boundaries — if we start at
-    // byte 0 of a block whose run lands mid-block, we end up parsing
-    // the tail of an unrelated group and either fail or yield junk
-    // messages that won't decode as Alignments.
-    const startInBlock = Number(run.start & 0xFFFFn)
-    const stream = startInBlock > 0 && startInBlock < decompressed.length
-      ? decompressed.subarray(startInBlock)
-      : decompressed
-    for (const msg of iterateMessages(stream)) {
-      if (msg.tag !== GAM_TAG && msg.tag !== '') {
-        continue
-      }
-      const aln = decodeAlignment(msg.bytes)
-      if (alignmentOverlaps(aln, minNode, maxNode)) {
-        out.push(aln)
+    for (const msg of await messagesInRun(compressed, run)) {
+      if (isAlignmentTag(msg.tag)) {
+        const aln = decodeAlignment(msg.bytes)
+        if (alignmentOverlaps(aln, minNode, maxNode)) {
+          out.push(aln)
+        }
       }
     }
   }
   return out
 }
 
-function collectAlignments(buf: Uint8Array): VgRead[] {
-  const out: VgRead[] = []
-  for (const msg of iterateMessages(buf)) {
-    // Older vg releases wrote .gam files without the explicit "GAM" tag, so
-    // we accept empty-tag messages too — the caller already knows the file
-    // is a GAM by extension.
-    if (msg.tag === GAM_TAG || msg.tag === '') {
-      out.push(decodeAlignment(msg.bytes))
-    }
+async function messagesInRun(compressed: Uint8Array, run: IndexRun) {
+  const startBlock = blockOfVO(run.start)
+  if (run.pastEnd <= run.start || startBlock >= compressed.length) {
+    return []
   }
-  return out
+  const { data, lastBlockStart } = await inflateBlocks(
+    compressed,
+    startBlock,
+    blockOfVO(run.pastEnd),
+  )
+  // A virtual offset is (block_start << 16) | offset_within_block. `data`
+  // begins at the first uncompressed byte of `startBlock`, so run.start's
+  // in-block offset is where the group framing actually resumes. Skipping
+  // ahead is necessary because groups are not aligned to BGZF block
+  // boundaries — starting at byte 0 of a block whose run lands mid-block
+  // parses the tail of an unrelated group and either fails or frames junk.
+  const startInBlock = Number(run.start & 0xffffn)
+  const stopIndex = lastBlockStart + Number(run.pastEnd & 0xffffn)
+  const stream = data.subarray(Math.min(startInBlock, data.length))
+  const messages = []
+  for (const msg of iterateMessages(stream)) {
+    // Groups that begin at or after past-end belong to the next run.
+    if (startInBlock + msg.groupStart >= stopIndex) {
+      break
+    }
+    messages.push(msg)
+  }
+  return messages
 }
 
-function alignmentOverlaps(
+// Inflate the BGZF blocks from `startBlock` through `endBlock` inclusive and
+// report where the last block's uncompressed data begins, so a virtual
+// offset landing in it can be turned into an index into the result.
+async function inflateBlocks(
+  compressed: Uint8Array,
+  startBlock: number,
+  endBlock: number,
+): Promise<{ data: Uint8Array; lastBlockStart: number }> {
+  const parts: Uint8Array[] = []
+  let total = 0
+  let lastBlockStart = 0
+  let blockStart = startBlock
+  while (blockStart < compressed.length) {
+    const blockSize = maxBgzfBlock(compressed, blockStart)
+    const inflated = await decompress(
+      compressed.subarray(
+        blockStart,
+        Math.min(compressed.length, blockStart + blockSize),
+      ),
+    )
+    const reachedEnd = blockStart + blockSize > endBlock
+    if (reachedEnd) {
+      lastBlockStart = total
+    }
+    parts.push(inflated)
+    total += inflated.length
+    if (reachedEnd) {
+      break
+    }
+    blockStart += blockSize
+  }
+  const data = new Uint8Array(total)
+  let at = 0
+  for (const part of parts) {
+    data.set(part, at)
+    at += part.length
+  }
+  return { data, lastBlockStart }
+}
+
+function alignmentNodeIds(aln: VgRead): bigint[] {
+  const ids: bigint[] = []
+  for (const m of aln.path?.mapping ?? []) {
+    const id = m.position?.node_id
+    if (id !== undefined) {
+      ids.push(BigInt(id))
+    }
+  }
+  return ids
+}
+
+export function alignmentOverlaps(
   aln: VgRead,
   minNode: bigint,
   maxNode: bigint,
 ): boolean {
-  const mappings = aln.path?.mapping
-  if (!mappings || mappings.length === 0) {
-    return false
-  }
-  for (const m of mappings) {
-    const idStr = m.position?.node_id
-    if (idStr === undefined) {
-      continue
-    }
-    const id = typeof idStr === 'bigint' ? idStr : BigInt(idStr)
-    if (id >= minNode && id <= maxNode) {
-      return true
-    }
-  }
-  return false
+  return alignmentNodeIds(aln).some(id => id >= minNode && id <= maxNode)
+}
+
+export function alignmentVisitsAny(
+  aln: VgRead,
+  nodeIds: ReadonlySet<bigint>,
+): boolean {
+  return alignmentNodeIds(aln).some(id => nodeIds.has(id))
 }
 
 // BGZF virtual offset is (compressedBlockStart << 16) | uncompressedOffset.
@@ -266,5 +319,3 @@ function maxBgzfBlock(buf: Uint8Array, blockStart: number): number {
   }
   return buf.length - blockStart
 }
-
-export type { GamIndex }
