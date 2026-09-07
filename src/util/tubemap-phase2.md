@@ -14,7 +14,7 @@ about "~774 errors" or "drop the pragma" as historical.
   `tubemap.render.test.ts`, which drives the real d3 pipeline against jsdom
   and inspects the resulting DOM).
 - The file is still listed in `eslint.config.mjs`'s `ignores`. With that entry
-  removed it reports ~70 errors, dominated by two groups (see below). Nothing
+  removed it reports 79 errors, dominated by two groups (see below). Nothing
   else in `src/util` is ignored.
 
 ## Invariants worth knowing before you edit
@@ -52,7 +52,7 @@ about "~774 errors" or "drop the pragma" as historical.
 
 ## What remains
 
-### Two eslint groups (~73 of the ~88 errors when un-ignored)
+### Two eslint groups (73 of the 79 errors when un-ignored)
 
 1. **`@typescript-eslint/no-unnecessary-condition` (~50).** Almost all are
    defensive `if (node)` / `if (node.y !== undefined)` guards against the
