@@ -10,11 +10,15 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import * as tubeMap from '../util/tubemap.ts'
 import { downloadSvgById } from '../util/downloadSvg.ts'
+import type { ViewTarget } from '../Types.ts'
 
 const ZOOM_FACTOR = 2.0
 
 interface DataPositionFormRowProps {
   handleGoButton: () => void
+  // Passed through to CopyLink, which uses it to tell one copied view from
+  // the next.
+  currentViewTarget: ViewTarget
   viewTargetHasChange: boolean
   canGo: boolean
   // Whether the committed view is still being fetched.
@@ -23,6 +27,7 @@ interface DataPositionFormRowProps {
 
 function DataPositionFormRow({
   handleGoButton,
+  currentViewTarget,
   viewTargetHasChange,
   canGo,
   loading,
@@ -84,7 +89,7 @@ function DataPositionFormRow({
       >
         Download Image
       </Button>
-      <CopyLink />
+      <CopyLink currentViewTarget={currentViewTarget} />
     </Box>
   )
 }

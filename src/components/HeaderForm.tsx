@@ -766,6 +766,7 @@ function HeaderForm({
           >
             <DataPositionFormRow
               handleGoButton={() => { handleGoButton(); }}
+              currentViewTarget={currentViewTarget}
               viewTargetHasChange={
                 !viewTargetsEqual(buildViewTarget(), currentViewTarget)
               }

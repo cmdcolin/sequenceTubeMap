@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 
 import './App.css'
@@ -134,7 +134,7 @@ function removeUndefined(target: ViewTarget): ViewTarget {
   }
 }
 
-// Put the committed view in the address bar so a reload (or the browser's own
+// Put the view on screen in the address bar so a reload (or the browser's own
 // back button, which restores the query) comes back to the same view, and so
 // "copy link" is just the current URL.
 function syncUrlToViewTarget(target: ViewTarget) {
@@ -262,9 +262,15 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         ...v,
         colorSchemes: getColorSchemesFromTracks(newViewTarget.tracks),
       }))
-      syncUrlToViewTarget(newViewTarget)
     }
   }
+
+  // The address bar is an external system, and it has to describe the initial
+  // view as well as every later one, so this belongs in an effect rather than
+  // in the commit path.
+  useEffect(() => {
+    syncUrlToViewTarget(viewTarget)
+  }, [viewTarget])
 
   const updateVisOptions = (next: VisOptions) => {
     setVisOptions(next)
