@@ -70,18 +70,20 @@ Open questions before promoting this back to the README:
   first.
 - Default region (`chr20:30000000-30000500`) was picked semi-arbitrarily — is
   there a more biologically interesting demo region?
-  1. .gai shows as "read" in the staged list (misleading) detectType returns
-     'read' for .gai — so users see it listed with a "read" type dropdown, but
-     it's now silently skipped in server mode. The code comment even says
-     "detectType marks it as 'skip'" but that's not what it does. It should
-     return null for index siblings so the dropdown shows (skip) and the intent
-     is visible. For local mode, the upload loop already sends it regardless of
-     type (no isIndexSibling guard there), so returning null wouldn't break
-     anything in local.
+## Server re-sorts already-sorted .sorted.gam files
 
-  2. Server re-sorts already-sorted .sorted.gam files indexGamSorted detects
-     .gam (which .sorted.gam ends with), strips the last .gam, and outputs
-     .sorted.sorted.gam. If a user uploads a pre-sorted GAM, the server wastes
-     time re-sorting and the returned path looks odd. Could detect the
-     .sorted.gam suffix and skip the sort step, returning the file as-is (still
-     creating the .gai with vg gamsort -i only).
+`indexGamSorted` detects `.gam` (which `.sorted.gam` ends with), strips the
+last `.gam`, and outputs `.sorted.sorted.gam`. If a user uploads a pre-sorted
+GAM, the server wastes time re-sorting and the returned path looks odd. Could
+detect the `.sorted.gam` suffix and skip the sort step, returning the file
+as-is (still creating the `.gai` with `vg gamsort -i` only).
+
+## Resolved
+
+- **`.gai` shown as "read" in the staged list.** `detectType` still returns
+  `'read'` for index siblings, but `StagedFileList` branches on
+  `isIndexSibling` and renders them as `index` with a "(index — skipped on
+  server)" note rather than a type dropdown, so the misleading UI is gone.
+  Changing `detectType` itself would be churn: the upload path gates on
+  `isIndex` throughout and never on the type, and returning `null` would pass
+  `null` to `handleFileUpload` for the local sibling registration.
