@@ -1,5 +1,7 @@
 import type { ReactNode, ChangeEvent } from 'react'
-import { Col, Label, Input, FormGroup } from 'reactstrap'
+import Box from '@mui/material/Box'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Radio from '@mui/material/Radio'
 import {
   DEFAULT_AVAILABLE_COLORS,
   type ColorPaletteName,
@@ -39,33 +41,37 @@ function RadioRow({
     }
   }
 
-  const currColorMap = new Map(
-    Array.from(colorMap).filter(([, valueColor]) =>
-      availableColors.includes(valueColor),
-    ),
+  const shown = [...colorMap].filter(([, valueColor]) =>
+    availableColors.includes(valueColor),
   )
 
-  const colorRadios = Array.from(currColorMap).map(([keyColor, valueColor]) => (
-    <Col xs="auto" key={keyColor}>
-      <FormGroup check>
-        <Label check>
-          <Input
-            type="radio"
-            value={keyColor}
-            checked={color === valueColor}
-            onChange={onChange}
-            key={keyColor}
-          />
-          {keyColor}
-        </Label>
-      </FormGroup>
-    </Col>
-  ))
-
   return (
-    <FormGroup row className="mb-1">
-      {rowHeading}:{colorRadios}
-    </FormGroup>
+    <Box
+      sx={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        columnGap: 1,
+        mb: 0.5,
+      }}
+    >
+      {rowHeading}:
+      {shown.map(([keyColor, valueColor]) => (
+        <FormControlLabel
+          key={keyColor}
+          label={keyColor}
+          sx={{ '& .MuiFormControlLabel-label': { fontSize: 'inherit' } }}
+          control={
+            <Radio
+              size="small"
+              value={keyColor}
+              checked={color === valueColor}
+              onChange={onChange}
+            />
+          }
+        />
+      ))}
+    </Box>
   )
 }
 

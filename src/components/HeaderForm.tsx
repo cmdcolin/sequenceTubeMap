@@ -1,7 +1,10 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import useSWR from 'swr'
-import { Button, Container, Row, Col, Label, Alert } from 'reactstrap'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Typography from '@mui/material/Typography'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { APIInterface } from '../api/APIInterface.ts'
@@ -452,137 +455,134 @@ function HeaderForm({
         onDestChange={onAPIMode}
         visMenus={visMenus}
       />
-      <Container>
-        <Row>
-          <Col>
-            {errors.map((e, i) => (
-              <Alert color="danger" key={i}>
-                {e instanceof Error ? e.message : String(e)}
-              </Alert>
-            ))}
-          </Col>
-        </Row>
-        <Row className="align-items-start">
-          <Col>
-            {customFilesFlag && filenamesData?.bedFiles?.length ? (
-              <Fragment>
-                <Label
-                  htmlFor="bedSelectInput"
-                  className="customData tight-label mb-2 me-sm-2 mb-sm-0 ms-2"
-                >
-                  BED file:
-                </Label>
-                &nbsp;
-                <BedFileDropdown
-                  className="customDataMounted dropdown mb-2 me-sm-4 mb-sm-0"
-                  id="bedSelect"
-                  inputId="bedSelectInput"
-                  value={isSet(bedFile) ? bedFile : 'none'}
-                  onChange={(value) => { setBedFile(value); }}
-                  options={availableBeds}
-                />
-                &nbsp;
-              </Fragment>
-            ) : null}
-            {bedRegionCount > 0 && (
-              <>
-                <Button
-                  color="primary"
-                  size="sm"
-                  disabled={regionIndex === 0}
-                  onClick={() => { void jumpRegion(-1); }}
-                >
-                  Prev
-                </Button>
-                &nbsp;
-                <Button
-                  color="primary"
-                  size="sm"
-                  disabled={regionIndex >= bedRegionCount - 1}
-                  onClick={() => { void jumpRegion(1); }}
-                >
-                  Next
-                </Button>
-                &nbsp;
-              </>
-            )}
-            {!examplesFlag && (
+      <Box sx={{ px: 2 }}>
+        {errors.map((e, i) => (
+          <Alert severity="error" key={i} sx={{ mb: 1 }}>
+            {e instanceof Error ? e.message : String(e)}
+          </Alert>
+        ))}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1 }}>
+          {customFilesFlag && filenamesData?.bedFiles?.length ? (
+            <>
+              <Typography
+                component="label"
+                htmlFor="bedSelectInput"
+                variant="body2"
+                sx={{ alignSelf: 'center' }}
+              >
+                BED file:
+              </Typography>
+              <BedFileDropdown
+                id="bedSelect"
+                inputId="bedSelectInput"
+                value={isSet(bedFile) ? bedFile : 'none'}
+                onChange={(value) => { setBedFile(value); }}
+                options={availableBeds}
+              />
+            </>
+          ) : null}
+          {bedRegionCount > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.5, alignSelf: 'center' }}>
+              <Button
+                variant="contained"
+                size="small"
+                disabled={regionIndex === 0}
+                onClick={() => { void jumpRegion(-1); }}
+              >
+                Prev
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                disabled={regionIndex >= bedRegionCount - 1}
+                onClick={() => { void jumpRegion(1); }}
+              >
+                Next
+              </Button>
+            </Box>
+          )}
+          {!examplesFlag && (
+            <Box sx={{ flexGrow: 1, minWidth: 260 }}>
               <RegionInput
                 regionInfo={regionInfo}
                 handleRegionChange={coords => { void handleRegionChange(coords); }}
                 region={region}
                 onSubmit={() => { handleGoButton(); }}
               />
+            </Box>
+          )}
+        </Box>
+        {recentlyUploaded.length > 0 && (
+          <Alert severity="success" sx={{ mt: 1, mb: 1 }}>
+            <strong>Loaded {recentlyUploaded.length} file{recentlyUploaded.length === 1 ? '' : 's'}:</strong>{' '}
+            {recentlyUploaded.map(f => truncateMiddle(f, 40)).join(', ')}.{' '}
+            {pathInfo.length > 0
+              ? 'Pick a path below or type a region to view it.'
+              : 'Type a region above to view it.'}
+          </Alert>
+        )}
+        {pathInfo.length > 0 && !examplesFlag && (
+          <PathsPanel
+            pathInfo={pathInfo}
+            readCounts={readCounts}
+            isOpen={pathsPanelOpen}
+            onToggle={() => { setPathsPanelOpen(o => !o); }}
+            onLoadPath={region => { void changeRegionAndGo(region); }}
+            onCopyToRegion={region => { setChosenRegion(region); }}
+          />
+        )}
+        {fileSizeAlert && (
+          <Alert
+            severity="error"
+            sx={{ mt: 2 }}
+            onClose={() => { setFileSizeAlert(false); }}
+          >
+            <strong>File size too big! </strong>
+            You may only upload files with a maximum size of{' '}
+            {MAX_UPLOAD_SIZE_DESCRIPTION}.
+          </Alert>
+        )}
+        {examplesFlag ? (
+          <ExampleSelectButtons showExample={showExample} />
+        ) : (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: 1,
+              mt: 1,
+            }}
+          >
+            <DataPositionFormRow
+              handleGoButton={() => { handleGoButton(); }}
+              currentViewTarget={currentViewTarget}
+              viewTargetHasChange={
+                !viewTargetsEqual(buildViewTarget(), currentViewTarget)
+              }
+              canGo={isValidRegion(region) && tracks.length > 0}
+            />
+            {customFilesFlag && (
+              <Box sx={{ flexShrink: 0 }}>
+                <SimplifyButton
+                  simplify={simplify}
+                  removeSequences={removeSequences}
+                  setSimplify={(next) => { setSimplify(next); }}
+                  setRemoveSequences={(next) => { setRemoveSequences(next); }}
+                />
+              </Box>
             )}
-            {recentlyUploaded.length > 0 && (
-              <Alert color="success" className="mt-2 mb-2 py-2">
-                <strong>Loaded {recentlyUploaded.length} file{recentlyUploaded.length === 1 ? '' : 's'}:</strong>{' '}
-                {recentlyUploaded.map(f => truncateMiddle(f, 40)).join(', ')}.{' '}
-                {pathInfo.length > 0
-                  ? 'Pick a path below or type a region to view it.'
-                  : 'Type a region above to view it.'}
-              </Alert>
-            )}
-            {pathInfo.length > 0 && !examplesFlag && (
-              <PathsPanel
-                pathInfo={pathInfo}
-                readCounts={readCounts}
-                isOpen={pathsPanelOpen}
-                onToggle={() => { setPathsPanelOpen(o => !o); }}
-                onLoadPath={region => { void changeRegionAndGo(region); }}
-                onCopyToRegion={region => { setChosenRegion(region); }}
-              />
-            )}
-            <Row>
-              <Alert
-                color="danger"
-                isOpen={fileSizeAlert}
-                toggle={() => { setFileSizeAlert(false); }}
-                className="mt-3"
-              >
-                <strong>File size too big! </strong>
-                You may only upload files with a maximum size of{' '}
-                {MAX_UPLOAD_SIZE_DESCRIPTION}.
-              </Alert>
-
-              {examplesFlag ? (
-                <ExampleSelectButtons showExample={showExample} />
-              ) : (
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <DataPositionFormRow
-                      handleGoButton={() => { handleGoButton(); }}
-                      currentViewTarget={currentViewTarget}
-                      viewTargetHasChange={
-                        !viewTargetsEqual(buildViewTarget(), currentViewTarget)
-                      }
-                      canGo={isValidRegion(region) && tracks.length > 0}
-                    />
-                  </div>
-                  {customFilesFlag && (
-                    <div className="d-flex justify-content-end align-items-start flex-shrink-0">
-                      <SimplifyButton
-                        simplify={simplify}
-                        removeSequences={removeSequences}
-                        setSimplify={(next) => { setSimplify(next); }}
-                        setRemoveSequences={(next) => { setRemoveSequences(next); }}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </Row>
-            {desc ? (
-              <div style={{ marginTop: '10px' }}>
-                <FormHelperText> {'Region Description: '} </FormHelperText>
-                <FormHelperText style={{ fontWeight: 'bold' }}>
-                  {desc}
-                </FormHelperText>
-              </div>
-            ) : null}
-          </Col>
-        </Row>
-      </Container>
+          </Box>
+        )}
+        {desc ? (
+          <Box sx={{ mt: 1 }}>
+            <FormHelperText> {'Region Description: '} </FormHelperText>
+            <FormHelperText style={{ fontWeight: 'bold' }}>
+              {desc}
+            </FormHelperText>
+          </Box>
+        ) : null}
+      </Box>
     </div>
   )
 }

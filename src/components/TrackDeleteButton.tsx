@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import { Button } from 'reactstrap'
+import Button from '@mui/material/Button'
 import { faX } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
@@ -16,7 +16,13 @@ export function TrackDeleteButton({
   ...rest
 }: TrackDeleteButtonProps) {
   return (
-    <Button aria-label="Delete track" data-testid={testID} {...rest}>
+    <Button
+      variant="contained"
+      size="small"
+      aria-label="Delete track"
+      data-testid={testID}
+      {...rest}
+    >
       <FontAwesomeIcon icon={faX} />
     </Button>
   )

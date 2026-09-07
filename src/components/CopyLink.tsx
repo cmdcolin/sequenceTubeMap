@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button } from 'reactstrap'
+import Button from '@mui/material/Button'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLink } from '@fortawesome/free-solid-svg-icons'
 import PopupDialog from './PopupDialog.tsx'
@@ -35,13 +35,13 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
   return (
     <>
       <Button
-        size="sm"
+        size="small"
+        variant="contained"
         id="copyLinkButton"
-        color="primary"
+        startIcon={<FontAwesomeIcon icon={faLink} />}
         onClick={() => { void handleCopyLink(); }}
       >
-        <FontAwesomeIcon icon={faLink} />
-        {copiedLink === link ? ' Copied link!' : ' Copy link to data'}
+        {copiedLink === link ? 'Copied link!' : 'Copy link to data'}
       </Button>
       <PopupDialog open={dialogLink !== undefined} close={() => { setDialogLink(undefined); }}>
         <h5>Link to Data</h5>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Row, Col } from 'reactstrap'
+import Box from '@mui/material/Box'
 import { TrackList } from './TrackList.tsx'
 import { TrackAddButton } from './TrackAddButton.tsx'
 import '../config-client.js'
@@ -99,8 +99,8 @@ export const TrackPickerDisplay = ({
   const isEmpty = applied.length === 0
 
   return (
-    <Col style={{ minWidth: '500px' }}>
-      <Row>
+    <Box sx={{ minWidth: '500px' }}>
+      <Box>
         <TrackList
           tracks={applied}
           availableTracks={availableTracks}
@@ -109,20 +109,18 @@ export const TrackPickerDisplay = ({
           onDelete={(trackID) => { stage({ [trackID]: DELETED }); }}
           handleFileUpload={handleFileUpload}
         />
-      </Row>
+      </Box>
       {isEmpty && (
-        <Row>
-          <div
-            style={{ padding: '12px 16px', color: '#666', fontStyle: 'italic' }}
-          >
-            No tracks configured. Click the + button below to add a track.
-          </div>
-        </Row>
+        <Box
+          sx={{ padding: '12px 16px', color: '#666', fontStyle: 'italic' }}
+        >
+          No tracks configured. Click the + button below to add a track.
+        </Box>
       )}
-      <Row>
-        <TrackAddButton onChange={addTrackItem} />
-      </Row>
-    </Col>
+      <Box>
+        <TrackAddButton onChange={() => { addTrackItem(); }} />
+      </Box>
+    </Box>
   )
 }
 

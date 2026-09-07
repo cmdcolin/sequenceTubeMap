@@ -1,4 +1,4 @@
-import { Button } from 'reactstrap'
+import Button from '@mui/material/Button'
 import { faPlus } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
@@ -14,10 +14,12 @@ export const TrackAddButton = ({
 }: TrackAddButtonProps) => {
   return (
     <Button
+      variant="contained"
+      size="small"
       aria-label="Add track"
       onClick={() => { onChange(); }}
       data-testid={testID}
-      style={{ marginLeft: '25px', marginTop: '5px' }}
+      sx={{ ml: 3, mt: 1 }}
     >
       <FontAwesomeIcon icon={faPlus} />
     </Button>

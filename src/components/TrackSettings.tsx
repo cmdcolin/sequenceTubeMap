@@ -1,4 +1,4 @@
-import { Form, Row, Col } from 'reactstrap'
+import Box from '@mui/material/Box'
 import RadioRow from './RadioRow.tsx'
 import ColorPicker from './ColorPicker.tsx'
 import {
@@ -68,8 +68,8 @@ const PaletteRow = ({
   availableColors,
   presetColors,
 }: PaletteRowProps) => (
-  <Row>
-    <Col className="radio-row">
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 680 }}>
+    <Box sx={{ flexGrow: 1 }}>
       <RadioRow
         rowHeading={heading}
         color={palette}
@@ -77,15 +77,13 @@ const PaletteRow = ({
         setColorSetting={setColor}
         availableColors={availableColors}
       />
-    </Col>
-    <Col className="tracklist-button" md="1">
-      <ColorPicker
-        color={palette}
-        presetColors={presetColors}
-        onChange={color => { setColor(field, color); }}
-      />
-    </Col>
-  </Row>
+    </Box>
+    <ColorPicker
+      color={palette}
+      presetColors={presetColors}
+      onChange={color => { setColor(field, color); }}
+    />
+  </Box>
 )
 
 /**
@@ -104,7 +102,7 @@ export const TrackSettings = ({
     <>
       <h5>{label === undefined ? 'Colors' : `${label} Colors`}</h5>
       {labels && (
-        <Form>
+        <Box component="form">
           <PaletteRow
             heading={labels[0]}
             palette={trackColorSettings.mainPalette}
@@ -123,7 +121,7 @@ export const TrackSettings = ({
               presetColors={presetColors}
             />
           )}
-        </Form>
+        </Box>
       )}
     </>
   )

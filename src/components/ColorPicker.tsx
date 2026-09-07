@@ -1,9 +1,4 @@
-import { useState } from 'react'
-import type { CSSProperties } from 'react'
-import { SketchPicker } from 'react-color'
-import { Button, Container } from 'reactstrap'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPalette } from '@fortawesome/free-solid-svg-icons'
+import { useId } from 'react'
 import type { ColorHex, Palette } from '../Types.ts'
 
 interface ColorPickerProps {
@@ -13,70 +8,54 @@ interface ColorPickerProps {
   testID?: string
 }
 
-// A react-color picker embedded within a button
+// Rebuilding the string keeps the ColorHex template type without a cast.
+function asHex(color: string): ColorHex | undefined {
+  return color.startsWith('#') ? `#${color.slice(1)}` : undefined
+}
+
+// A native color swatch. The presets are offered through a datalist, which
+// browsers surface as suggested swatches inside their own color picker.
 export const ColorPicker = ({
   color,
   presetColors,
   onChange,
   testID = 'color-picker-component',
 }: ColorPickerProps) => {
-  const [nextColor, setNextColor] = useState<ColorHex>()
-  const [open, setOpen] = useState(false)
-
-  const popover: CSSProperties = {
-    position: 'absolute',
-    zIndex: 2,
-  }
-
-  const cover: CSSProperties = {
-    position: 'fixed',
-    top: '0px',
-    right: '0px',
-    bottom: '0px',
-    left: '0px',
-  }
-
-  function togglePicker() {
-    if (open) {
-      setOpen(false)
-      if (nextColor) {
-        onChange(nextColor)
-      }
-    } else {
-      setOpen(true)
-      if (color?.startsWith('#')) {
-        setNextColor(color as ColorHex)
-      } else {
-        setNextColor(undefined)
-      }
-    }
-  }
-
+  const listId = useId()
+  const current = color === undefined ? undefined : asHex(color)
   return (
-    <div>
-      <Button
+    <>
+      <input
+        type="color"
         aria-label="Pick a custom color"
-        onClick={() => { togglePicker(); }}
+        title="Pick a custom color"
         data-testid={testID}
-      >
-        <FontAwesomeIcon icon={faPalette} />
-      </Button>
-
-      {open ? (
-        <div style={popover}>
-          <div style={cover} onClick={() => { togglePicker(); }} />
-          <Container>
-            <SketchPicker
-              color={nextColor ?? '#fff'}
-              presetColors={presetColors}
-              onChange={newColor => {
-                setNextColor(newColor.hex as ColorHex)
-              }}
-            />
-          </Container>
-        </div>
+        value={current ?? '#ffffff'}
+        list={presetColors ? listId : undefined}
+        onChange={e => {
+          const picked = asHex(e.target.value)
+          if (picked !== undefined) {
+            onChange(picked)
+          }
+        }}
+        style={{
+          width: 32,
+          height: 28,
+          padding: 0,
+          border: '1px solid #888',
+          borderRadius: 3,
+          cursor: 'pointer',
+          background: 'transparent',
+        }}
+      />
+      {presetColors ? (
+        <datalist id={listId}>
+          {presetColors.map(preset => (
+            <option key={preset} value={preset} />
+          ))}
+        </datalist>
       ) : null}
-    </div>
+    </>
   )
 }
 

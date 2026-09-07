@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
-import { Container, Row, Alert, Button } from 'reactstrap'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 
 import TubeMap from './TubeMap.tsx'
 import * as tubeMap from '../util/tubemap.ts'
@@ -109,8 +111,8 @@ function ReadRenderLimitBanner({
 
   return (
     <Alert
-      color={capped ? 'warning' : 'info'}
-      style={{ margin: '0 20px 8px', padding: '6px 12px', fontSize: 13 }}
+      severity={capped ? 'warning' : 'info'}
+      sx={{ margin: '0 20px 8px', padding: '0 12px', fontSize: 13 }}
     >
       <strong>
         Showing {shown.toLocaleString()} of {totalReads.toLocaleString()} reads
@@ -285,34 +287,31 @@ function TubeMapContainer({
   // in-flight fetch doesn't throw away the staged read/node sets, the read
   // groups and the legend.
   const status = error ? (
-    <Container>
-      <Row>
-        <Alert
-          color="danger"
-          className="d-flex justify-content-between align-items-center"
-        >
-          <span>{error instanceof Error ? error.message : String(error)}</span>
+    <Box sx={{ px: 2 }}>
+      <Alert
+        severity="error"
+        action={
           <Button
-            color="danger"
-            outline
-            size="sm"
-            className="ms-3 flex-shrink-0"
+            color="error"
+            variant="outlined"
+            size="small"
+            sx={{ flexShrink: 0 }}
             onClick={() => { void mutate(); }}
           >
             Retry
           </Button>
-        </Alert>
-      </Row>
-    </Container>
+        }
+      >
+        {error instanceof Error ? error.message : String(error)}
+      </Alert>
+    </Box>
   ) : isLoading ? (
-    <Container>
-      <Row>
-        <div id="loaderContainer">
-          <div id="loader" />
-          <DownloadProgressPanel />
-        </div>
-      </Row>
-    </Container>
+    <Box sx={{ px: 2 }}>
+      <div id="loaderContainer">
+        <div id="loader" />
+        <DownloadProgressPanel />
+      </div>
+    </Box>
   ) : null
 
   // When the user starts editing a fresh set while a filter is active, seed

@@ -1,4 +1,5 @@
-import { Form, Button } from 'reactstrap'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 import { dataOriginTypes } from '../enums.ts'
 import type { ColorPaletteName } from '../Types.ts'
 
@@ -79,18 +80,23 @@ interface ExampleSelectButtonsProps {
 
 function ExampleSelectButtons({ showExample }: ExampleSelectButtonsProps) {
   return (
-    <Form>
+    <Box
+      component="form"
+      sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}
+      onSubmit={e => { e.preventDefault(); }}
+    >
       {EXAMPLE_BUTTONS.map(({ id, origin, label, mainPalette, readPalette }) => (
         <Button
           key={id}
-          color="primary"
+          variant="contained"
+          size="small"
           id={id}
           onClick={() => { showExample(origin, mainPalette, readPalette); }}
         >
           {label}
         </Button>
       ))}
-    </Form>
+    </Box>
   )
 }
 

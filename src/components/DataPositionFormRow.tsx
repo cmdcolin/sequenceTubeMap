@@ -1,5 +1,6 @@
 import { CopyLink } from './CopyLink.tsx'
-import { Form, Button } from 'reactstrap'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faSearchPlus,
@@ -33,11 +34,14 @@ function DataPositionFormRow({
       : 'No changes to apply; view is up to date.'
 
   return (
-    <Form>
-      &nbsp;
+    <Box
+      component="form"
+      sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1 }}
+      onSubmit={e => { e.preventDefault(); }}
+    >
       <Button
-        size="sm"
-        color="primary"
+        size="small"
+        variant="contained"
         title={goTitle}
         id="goButton"
         onClick={() => { handleGoButton(); }}
@@ -46,8 +50,8 @@ function DataPositionFormRow({
         Go
       </Button>
       <Button
-        size="sm"
-        color="primary"
+        size="small"
+        variant="contained"
         id="zoomInButton"
         aria-label="Zoom in"
         title="Zoom in"
@@ -56,8 +60,8 @@ function DataPositionFormRow({
         <FontAwesomeIcon icon={faSearchPlus} />
       </Button>
       <Button
-        size="sm"
-        color="primary"
+        size="small"
+        variant="contained"
         id="zoomOutButton"
         aria-label="Zoom out"
         title="Zoom out"
@@ -66,16 +70,16 @@ function DataPositionFormRow({
         <FontAwesomeIcon icon={faSearchMinus} />
       </Button>
       <Button
-        size="sm"
-        color="primary"
+        size="small"
+        variant="contained"
         id="downloadButton"
+        startIcon={<FontAwesomeIcon icon={faCamera} />}
         onClick={() => { downloadSvgById('svg', 'graph.svg'); }}
       >
-        <FontAwesomeIcon icon={faCamera} className="me-1" />
         Download Image
       </Button>
       <CopyLink currentViewTarget={currentViewTarget} />
-    </Form>
+    </Box>
   )
 }
 

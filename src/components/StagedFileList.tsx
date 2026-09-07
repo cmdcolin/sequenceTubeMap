@@ -1,4 +1,4 @@
-import { Button } from 'reactstrap'
+import Button from '@mui/material/Button'
 import type { FileType } from '../Types.ts'
 
 export interface StagedFile {
@@ -77,7 +77,7 @@ export function StagedFileList({
               <option value="haplotype">haplotype</option>
             </select>
           )}
-          <Button size="sm" color="link" onClick={() => { onRemove(i) }}>
+          <Button size="small" variant="text" onClick={() => { onRemove(i) }}>
             remove
           </Button>
         </li>

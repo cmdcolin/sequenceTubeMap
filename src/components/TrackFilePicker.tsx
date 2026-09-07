@@ -3,7 +3,6 @@ import Autocomplete from '@mui/material/Autocomplete'
 import TextField from '@mui/material/TextField'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import { Input } from 'reactstrap'
 import type { AvailableTrack, FileType } from '../Types.ts'
 
 interface TrackOption {
@@ -134,13 +133,13 @@ export const TrackFilePicker = ({
             alignItems: 'center',
           }}
         >
-          <Input
+          <input
             data-testid={testID}
             type="file"
-            className="customDataUpload form-control-file"
+            aria-label="Upload a track file"
             accept={acceptedExtensions}
-            innerRef={uploadFileInput}
-            onChange={() => uploadOnChange()}
+            ref={uploadFileInput}
+            onChange={() => { void uploadOnChange(); }}
           />
         </div>
         {uploadError ? (

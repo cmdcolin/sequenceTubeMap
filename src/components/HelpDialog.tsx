@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
@@ -13,14 +14,14 @@ function HelpDialog({ title, children }: HelpDialogProps) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button
-        type="button"
-        className="btn btn-link btn-sm p-0 ms-2 align-baseline"
-        style={{ fontSize: '0.8em' }}
+      <Button
+        variant="text"
+        size="small"
+        sx={{ fontSize: '0.8em', p: 0, ml: 1, minWidth: 0 }}
         onClick={e => { e.stopPropagation(); setOpen(true); }}
       >
         What is this?
-      </button>
+      </Button>
       <Dialog open={open} onClose={() => { setOpen(false); }} onClick={(e) => { e.stopPropagation(); }}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>{children}</DialogContent>

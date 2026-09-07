@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { DragEvent } from 'react'
-import { Button } from 'reactstrap'
+import Button from '@mui/material/Button'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
 import type { FileType, Track } from '../Types.ts'
@@ -219,8 +219,8 @@ export const UploadPanel = ({
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
         <Button
-          color="primary"
-          size="sm"
+          variant="contained"
+          size="small"
           onClick={() => { void upload() }}
           disabled={
             files.length === 0 ||

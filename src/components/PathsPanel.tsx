@@ -1,4 +1,16 @@
-import { Card, CardHeader, Collapse, CardBody, Button } from 'reactstrap'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import CardHeader from '@mui/material/CardHeader'
+import Chip from '@mui/material/Chip'
+import Collapse from '@mui/material/Collapse'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import Typography from '@mui/material/Typography'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronRight, faChevronDown } from '@fortawesome/free-solid-svg-icons'
 import type { PathInfo } from '../Types.ts'
@@ -22,6 +34,8 @@ interface PathsPanelProps {
 // (the tube-map layout pipeline is O(N) in nodes/bases). Warn before loading.
 const SLOW_PATH_THRESHOLD = 10_000
 
+const BADGE_SX = { fontSize: '0.7em', height: 16, ml: 0.5 }
+
 function regionFor(name: string, start: number, length: number) {
   return `${name}:${start}-${start + length - 1}`
 }
@@ -44,29 +58,42 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
   }
 
   return (
-    <Card className="mt-2">
-      <CardHeader className="d-flex justify-content-between align-items-center p-0">
-        <button
-          type="button"
-          aria-expanded={isOpen}
-          onClick={() => { onToggle(); }}
-          className="btn btn-link text-reset text-decoration-none d-flex justify-content-between align-items-center flex-grow-1 px-3 py-2"
-          style={{ userSelect: 'none' }}
-        >
-          <span>
-            <FontAwesomeIcon
-              icon={isOpen ? faChevronDown : faChevronRight}
-              className="me-2"
-              style={{ width: 12 }}
-            />
-            Paths in this graph
-          </span>
-          <span className="text-muted small">
-            {pathInfo.length} paths{' '}
-            {isOpen ? '(click to collapse)' : '(click to expand)'}
-          </span>
-        </button>
-        <span className="pe-3">
+    <Card sx={{ mt: 1 }}>
+      <CardHeader
+        disableTypography
+        sx={{
+          p: 0,
+          '& .MuiCardHeader-action': { m: 0, alignSelf: 'center', pr: 1.5 },
+        }}
+        title={
+          <Button
+            variant="text"
+            color="inherit"
+            aria-expanded={isOpen}
+            onClick={() => { onToggle(); }}
+            sx={{
+              width: '100%',
+              justifyContent: 'space-between',
+              textTransform: 'none',
+              userSelect: 'none',
+              px: 1.5,
+              py: 1,
+            }}
+          >
+            <Box component="span">
+              <FontAwesomeIcon
+                icon={isOpen ? faChevronDown : faChevronRight}
+                style={{ width: 12, marginRight: 8 }}
+              />
+              Paths in this graph
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              {pathInfo.length} paths{' '}
+              {isOpen ? '(click to collapse)' : '(click to expand)'}
+            </Typography>
+          </Button>
+        }
+        action={
           <HelpDialog title="Paths in this graph">
             <p>
               These are the named paths embedded in the pangenome graph file
@@ -82,7 +109,7 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
             <p>
               Paths longer than{' '}
               {SLOW_PATH_THRESHOLD.toLocaleString()} bp are marked{' '}
-              <span className="badge bg-warning text-dark">slow to load whole path</span> —
+              <Chip label="slow to load whole path" size="small" color="warning" /> —
               loading them can freeze the browser for several seconds, so you will be
               asked to confirm before they render.
             </p>
@@ -93,20 +120,20 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
               <code>chr1:0-5000</code>), instead of loading the entire path.
             </p>
           </HelpDialog>
-        </span>
-      </CardHeader>
-      <Collapse isOpen={isOpen}>
-        <CardBody style={{ maxHeight: '200px', overflowY: 'auto', padding: 0 }}>
-          <table className="table table-sm table-hover mb-0">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Length</th>
-                {readCounts !== undefined && <th>Reads</th>}
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
+        }
+      />
+      <Collapse in={isOpen}>
+        <CardContent sx={{ maxHeight: '200px', overflowY: 'auto', p: 0 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Length</TableCell>
+                {readCounts !== undefined && <TableCell>Reads</TableCell>}
+                <TableCell />
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {pathInfo.map(({ name, start = 0, length, cyclic }) => {
                 const slow = length !== null && length >= SLOW_PATH_THRESHOLD
                 const reads = readCounts?.[name] ?? 0
@@ -116,50 +143,45 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                 const heavyReads =
                   readCounts !== undefined && reads > DEFAULT_READ_RENDER_LIMIT
                 return (
-                  <tr key={name}>
-                    <td>
+                  <TableRow key={name} hover>
+                    <TableCell>
                       {name}
                       {cyclic && (
-                        <span
-                          className="badge bg-info ms-1"
-                          style={{ fontSize: '0.7em' }}
-                        >
-                          cyclic
-                        </span>
+                        <Chip label="cyclic" size="small" color="info" sx={BADGE_SX} />
                       )}
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       {length !== null ? `${length.toLocaleString()} bp` : '—'}
                       {slow && (
-                        <span
-                          className="badge bg-warning text-dark ms-1"
-                          style={{ fontSize: '0.7em' }}
+                        <Chip
+                          label="slow to load whole path"
+                          size="small"
+                          color="warning"
+                          sx={BADGE_SX}
                           title="Loading this path may freeze the browser for several seconds"
-                        >
-                          slow to load whole path
-                        </span>
+                        />
                       )}
-                    </td>
+                    </TableCell>
                     {readCounts !== undefined && (
-                      <td title="Approximate count of reads aligned to nodes in this path's range">
+                      <TableCell title="Approximate count of reads aligned to nodes in this path's range">
                         {reads > 0 ? `~${reads.toLocaleString()}` : '—'}
                         {heavyReads && (
-                          <span
-                            className="badge bg-warning text-dark ms-1"
-                            style={{ fontSize: '0.7em' }}
+                          <Chip
+                            label="heavy"
+                            size="small"
+                            color="warning"
+                            sx={BADGE_SX}
                             title="High coverage — will be subsampled by default to keep the browser responsive"
-                          >
-                            heavy
-                          </span>
+                          />
                         )}
-                      </td>
+                      </TableCell>
                     )}
-                    <td className="text-nowrap">
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
                       <Button
-                        size="sm"
+                        size="small"
+                        variant="outlined"
                         color="secondary"
-                        outline
-                        className="me-1"
+                        sx={{ mr: 0.5 }}
                         disabled={length === null}
                         title="Copy region into the Region field above so you can edit the range before loading"
                         onClick={() => { onCopyToRegion(regionFor(name, start, length!)); }}
@@ -167,19 +189,20 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                         Copy to region
                       </Button>
                       <Button
-                        size="sm"
+                        size="small"
+                        variant="contained"
                         disabled={length === null}
                         onClick={() => { handleLoad(name, start, length!); }}
                       >
                         Load
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )
               })}
-            </tbody>
-          </table>
-        </CardBody>
+            </TableBody>
+          </Table>
+        </CardContent>
       </Collapse>
     </Card>
   )
