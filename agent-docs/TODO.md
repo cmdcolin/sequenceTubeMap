@@ -70,6 +70,7 @@ Open questions before promoting this back to the README:
   first.
 - Default region (`chr20:30000000-30000500`) was picked semi-arbitrarily — is
   there a more biologically interesting demo region?
+
 ## Server re-sorts already-sorted .sorted.gam files
 
 `indexGamSorted` detects `.gam` (which `.sorted.gam` ends with), strips the
