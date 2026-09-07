@@ -21,9 +21,9 @@ implementations. `LocalAPI` runs `GBZBaseAPI` inside a Web Worker via Comlink
 - Any string (including `""` for same-origin) → `ServerAPI`.
 
 In development, `config-client.js` overrides `false` → `""` when
-`NODE_ENV !== 'production'`, so `pnpm start` reaches the express backend via
-the Vite dev server's `/api` proxy without flipping config.json. Production
-gh-pages builds tree-shake the override and keep `BACKEND_URL=false`.
+`NODE_ENV !== 'production'`, so `pnpm start` reaches the express backend via the
+Vite dev server's `/api` proxy without flipping config.json. Production gh-pages
+builds tree-shake the override and keep `BACKEND_URL=false`.
 
 `GBZBaseAPI` falls back to `fetch()` for non-numeric `trackFile` strings, so
 built-in `DATA_SOURCES` paths (`exampleData/cactus.vg.xg`) work in LocalAPI mode

@@ -8,10 +8,10 @@ Everything that fetches data goes through `APIInterface`
 (`src/api/APIInterface.ts`). There are two implementations, and which one is
 live is decided once, at startup, by `config.BACKEND_URL`:
 
-| `BACKEND_URL` | implementation | where the work happens |
-|---|---|---|
-| a string (`""` for same origin) | `ServerAPI` | express + `vg chunk`, over HTTP |
-| literal `false` | `LocalAPI` | the browser, in a worker |
+| `BACKEND_URL`                   | implementation | where the work happens          |
+| ------------------------------- | -------------- | ------------------------------- |
+| a string (`""` for same origin) | `ServerAPI`    | express + `vg chunk`, over HTTP |
+| literal `false`                 | `LocalAPI`     | the browser, in a worker        |
 
 `src/App.tsx` reads that once (`isLocalMode`) and constructs the interface. The
 app can also switch at runtime — the upload dialog builds a `ServerAPI` pointed
@@ -21,7 +21,8 @@ implementation it holds.
 In development `config-client.js` rewrites `false` to `""` so `pnpm start`
 reaches the local express backend through the Vite dev server's `/api` proxy;
 the `#local` hash opts out of that rewrite. Production gh-pages builds keep
-`false`. See [ADR 0004](../agent-docs/architectural-decision-records/0004-api-selection.md).
+`false`. See
+[ADR 0004](../agent-docs/architectural-decision-records/0004-api-selection.md).
 
 ## Server path
 
@@ -30,8 +31,8 @@ ServerAPI ──HTTP──> src/server.mjs ──> vg chunk / vg paths / vg gams
 ```
 
 The express server slices graphs and reads with the real `vg` toolchain and
-returns vg-style JSON. It also holds uploads (deleted on a cron), serves
-mounted data directories, and pushes filename changes over a websocket. This is
+returns vg-style JSON. It also holds uploads (deleted on a cron), serves mounted
+data directories, and pushes filename changes over a websocket. This is
 upstream's design, largely unchanged.
 
 ## In-browser path
@@ -78,13 +79,13 @@ serializes it back, which is what makes every view linkable
 ([ADR 0001](../agent-docs/architectural-decision-records/0001-no-router.md)).
 
 `TubeMapContainer` turns the current `ViewTarget` into an SWR key and fetches
-through whichever `APIInterface` it was given. Fetchers return the *processed*
+through whichever `APIInterface` it was given. Fetchers return the _processed_
 shape, so revisiting a view is a cache hit and cancellation is implicit
 ([ADR 0007](../agent-docs/architectural-decision-records/0007-swr-for-async.md)).
 
 `src/util/tubemap.ts` is the layout and drawing engine, inherited from upstream
 and ported to TypeScript. It computes node order, assigns lanes, places reads,
-and draws with d3. It is *not* a React component: it holds module-level state
+and draws with d3. It is _not_ a React component: it holds module-level state
 and is driven by `create()` plus a set of `setX()` functions that `TubeMap.tsx`
 calls. That is the largest remaining piece of technical debt — it means only one
 tube map can exist per page — and is the subject of `agent-docs/MODERNIZE.md`.
@@ -92,7 +93,8 @@ tube map can exist per page — and is the subject of `agent-docs/MODERNIZE.md`.
 ## Conventions worth knowing
 
 - React Compiler is on; manual `useMemo`/`useCallback`/`React.memo` is treated
-  as a smell ([ADR 0002](../agent-docs/architectural-decision-records/0002-react-compiler.md)).
+  as a smell
+  ([ADR 0002](../agent-docs/architectural-decision-records/0002-react-compiler.md)).
 - MUI for inputs and dialogs, reactstrap for layout only
   ([ADR 0003](../agent-docs/architectural-decision-records/0003-mui-for-inputs.md)).
 - `config` is a Proxy that reads `globalThis` on every access, so the client and

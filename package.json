@@ -43,7 +43,7 @@
     "dep": "gh-pages -d build",
     "serve": "node --experimental-strip-types ./src/server.mjs",
     "tubemap-cli": "esbuild scripts/tubemap-cli.ts --bundle --platform=node --format=esm --packages=external --outfile=build/tubemap-cli.mjs && node build/tubemap-cli.mjs",
-    "format": "prettier --write \"**/*.+(mjs|js|ts|tsx|css)\"",
+    "format": "prettier --write \"**/*.+(mjs|js|ts|tsx|css|md)\"",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "check-docs": "node scripts/check-doc-links.mjs"

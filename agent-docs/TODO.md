@@ -21,8 +21,8 @@ that sample was a reference sample at construction time.
 
 Open questions:
 
-- Should the Region field explain the "not indexed" failure with a hint to
-  pick a reference sample from the paths panel?
+- Should the Region field explain the "not indexed" failure with a hint to pick
+  a reference sample from the paths panel?
 - Worth landing a small inline help tooltip on the Region input that explains
   "query an indexed path; response includes all haplotypes"?
 
@@ -34,10 +34,10 @@ names; "HPRC chrM" does not.
 A full HPRC chromosome (e.g. chr20) is ~130 MB as a `.gbz.db` — too big to
 bundle in this repo. The bundled "HPRC chr20 (URL-hosted, full PanSN)" example
 reads it from `https://jbrowse.org/demos/ivg/hprc/` by HTTP range requests
-(`RemoteFile` through `@gmod/gbz-base`): a 500 bp window is about seven
-requests and half a megabyte, and the paths panel fills from the `Paths` table
-without a download. The hosted file has no `HaplotypeSamples` side tables yet,
-so its haplotypes are labelled `unknown#N#chr20`; running
+(`RemoteFile` through `@gmod/gbz-base`): a 500 bp window is about seven requests
+and half a megabyte, and the paths panel fills from the `Paths` table without a
+download. The hosted file has no `HaplotypeSamples` side tables yet, so its
+haplotypes are labelled `unknown#N#chr20`; running
 `gbz-haplotype-index --from-db` on it and re-uploading would give real PanSN
 names.
 
@@ -65,9 +65,8 @@ gbz-haplotype-index --from-db chr20.gbz.db   # optional, names the haplotypes
 
 Open questions before promoting this back to the README:
 
-- Read tracks (`.gam`) given by URL are still downloaded whole; the progress
-  UI covers those. Range-reading GAM would need the `.gai` index consulted
-  first.
+- Read tracks (`.gam`) given by URL are still downloaded whole; the progress UI
+  covers those. Range-reading GAM would need the `.gai` index consulted first.
 - Default region (`chr20:30000000-30000500`) was picked semi-arbitrarily — is
   there a more biologically interesting demo region?
 
@@ -82,9 +81,9 @@ Open questions before promoting this back to the README:
   doesn't match the file.
 
 - **`.gai` shown as "read" in the staged list.** `detectType` still returns
-  `'read'` for index siblings, but `StagedFileList` branches on
-  `isIndexSibling` and renders them as `index` with a "(index — skipped on
-  server)" note rather than a type dropdown, so the misleading UI is gone.
-  Changing `detectType` itself would be churn: the upload path gates on
-  `isIndex` throughout and never on the type, and returning `null` would pass
-  `null` to `handleFileUpload` for the local sibling registration.
+  `'read'` for index siblings, but `StagedFileList` branches on `isIndexSibling`
+  and renders them as `index` with a "(index — skipped on server)" note rather
+  than a type dropdown, so the misleading UI is gone. Changing `detectType`
+  itself would be churn: the upload path gates on `isIndex` throughout and never
+  on the type, and returning `null` would pass `null` to `handleFileUpload` for
+  the local sibling registration.

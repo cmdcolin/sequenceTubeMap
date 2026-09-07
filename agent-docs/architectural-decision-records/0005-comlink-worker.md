@@ -5,14 +5,14 @@ Status: Accepted
 ## Context
 
 `LocalAPI` delegates to `GBZBaseAPI` inside a Web Worker so WASM execution
-doesn't block the main thread. The original worker-rpc library was replaced
-with Comlink.
+doesn't block the main thread. The original worker-rpc library was replaced with
+Comlink.
 
 ## Decision
 
 Comlink wraps the worker as a proxied class. Every method on `WorkerAPI` is
-callable as if it were async on the main thread. Callbacks crossing the
-boundary (e.g. filename-change notifications) use `Comlink.proxy`.
+callable as if it were async on the main thread. Callbacks crossing the boundary
+(e.g. filename-change notifications) use `Comlink.proxy`.
 
 ## Consequences
 

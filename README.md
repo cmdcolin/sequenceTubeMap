@@ -10,37 +10,46 @@ public server.
 
 Live demo — https://cmdcolin.github.io/sequenceTubeMap/
 
-## Screenshot
-
 ![](doc/images/1.png)
 
 ## Quickstart
 
-Use **File → Open…** to load your own data. The dialog explains both options:
+Use **File → Open…** to load your own data. There are three ways in:
 
-- **vgteam server** (default) — drop `.xg`, `.vg`, or `.gbz` graphs and
-  `.gam`/`.gaf` reads directly; processed by `vg` on `api.tubemap.graphs.vg`. 5
-  MB limit.
-- **In-browser** — files stay on your machine, but graphs must first be
-  converted to `.gbz.db` (requires `vg` + `gbz-base`). Hosted `.gbz.db` URLs are
-  read by HTTP range requests, so whole-chromosome graphs work without a
-  download.
+|                             | Where the work happens  | Size limit    | Setup needed                  |
+| --------------------------- | ----------------------- | ------------- | ----------------------------- |
+| **vgteam server** (default) | `api.tubemap.graphs.vg` | 5 MB per file | none                          |
+| **In-browser**              | your browser            | none          | one-time `.gbz.db` conversion |
+| **Self-hosted server**      | your machine            | none          | Docker or a local checkout    |
 
-→ [Full data preparation guide](doc/uploading.md)
+The server mode takes `.xg`, `.vg`, and `.gbz` graphs plus `.gam` reads
+directly. In-browser mode keeps files on your machine but needs graphs converted
+to `.gbz.db` first (`vg` + `gbz-base`); a hosted `.gbz.db` URL is read by HTTP
+range requests, so whole-chromosome graphs browse without a download.
+
+→ [Full data loading guide](doc/data.md)
 
 ## Navigation
 
-Use `<contig>:<start>-<end>` (e.g. `Circ1:0-1320`). Open **Paths in this graph**
-to see available contig names.
+Type `<contig>:<start>-<end>` (e.g. `Circ1:0-1320`) in the region box, or open
+**Paths in this graph** to browse the contigs a graph contains. `chr1:1000+500`
+and `node:42-55` also work.
 
-## More docs
+## Documentation
 
-- [Architecture](doc/architecture.md)
-- [Differences from upstream sequenceTubeMap](doc/differences-from-upstream.md)
-- [Data preparation & hosting options](doc/uploading.md)
-- [Headless SVG rendering](doc/headless-rendering.md)
-- [In-browser gbz-base reader](doc/gbz-base.md)
-- [Deep-link URL format](doc/linking.md)
+**Using it** — [Introduction to sequence tube maps](doc/intro.md) ·
+[Loading your own data](doc/data.md) · [Deep-link URLs](doc/linking.md) ·
+[Headless SVG rendering](doc/headless-rendering.md)
+
+**Running a server** — [Server data preparation](doc/server-data.md) ·
+[Tabix indexes](doc/tabix.md) · [Docker](docker/README.md)
+
+**Under the hood** — [Architecture](doc/architecture.md) ·
+[In-browser gbz-base reader](doc/gbz-base.md) ·
+[Differences from upstream](doc/differences-from-upstream.md)
+
+**Contributing** — [Development guide](doc/development.md) ·
+[Architectural decision records](agent-docs/architectural-decision-records/)
 
 ## Thanks
 

@@ -23,9 +23,10 @@ was effectively just providing context for `SafeLink`'s `useInRouterContext()`
 branch, which itself was a fallback for "if a router exists, use `<Link>`,
 otherwise render an `<a>`."
 
-When the app was deployed to GitHub Pages at `cmdcolin.github.io/sequenceTubeMap/`,
-the `Route path="/"` no longer matched (path is `/sequenceTubeMap/`), so the
-catch-all rendered "No route found for current path" and the app was blank.
+When the app was deployed to GitHub Pages at
+`cmdcolin.github.io/sequenceTubeMap/`, the `Route path="/"` no longer matched
+(path is `/sequenceTubeMap/`), so the catch-all rendered "No route found for
+current path" and the app was blank.
 
 Adding a `basename` to `BrowserRouter` had its own problems — the value depends
 on where the bundle is served from, which means the build artifact is tied to

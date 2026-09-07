@@ -2,9 +2,9 @@
 
 ## Prerequisites
 
-- Node 22.6 or newer (`.nvmrc` pins 22). `pnpm serve` runs `src/server.mjs`
-  with `--experimental-strip-types`, which needs 22.6+; Node 24 strips types
-  without the flag and accepts it as a no-op.
+- Node 22.6 or newer (`.nvmrc` pins 22). `pnpm serve` runs `src/server.mjs` with
+  `--experimental-strip-types`, which needs 22.6+; Node 24 strips types without
+  the flag and accepts it as a no-op.
 - [pnpm](https://pnpm.io/) — the lockfile is `pnpm-lock.yaml`; npm and yarn will
   not reproduce it
 - [`vg`](https://github.com/vgteam/vg), optional. Only the tests that shell out
@@ -62,10 +62,10 @@ pnpm test -t "can retrieve the list of mounted graph files"
 
 For watch mode, `pnpm vitest` without `run`.
 
-Tests needing `vg` — `src/scripts.test.ts` and three in
-`src/end-to-end.test.js` — skip themselves when the binary is not on `PATH` or
-in `config.vgPath`, so a clean local run means the same thing whether or not you
-have it. CI installs vg, so they always run there.
+Tests needing `vg` — `src/scripts.test.ts` and three in `src/end-to-end.test.js`
+— skip themselves when the binary is not on `PATH` or in `config.vgPath`, so a
+clean local run means the same thing whether or not you have it. CI installs vg,
+so they always run there.
 
 ## Formatting
 

@@ -4,8 +4,8 @@ Status: Accepted
 
 ## Context
 
-`babel-plugin-react-compiler` runs in the vite build and dev server, as a
-Babel pass wired up through `@rolldown/plugin-babel` (`@vitejs/plugin-react` 6
+`babel-plugin-react-compiler` runs in the vite build and dev server, as a Babel
+pass wired up through `@rolldown/plugin-babel` (`@vitejs/plugin-react` 6
 transforms JSX with oxc and has no babel option of its own). It auto-memoizes
 JSX, inline objects/arrays, and inline callbacks.
 
