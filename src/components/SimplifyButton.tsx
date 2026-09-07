@@ -12,6 +12,10 @@ interface SimplifyButtonProps {
   removeSequences: boolean
   setSimplify: (next: boolean) => void
   setRemoveSequences: (next: boolean) => void
+  // `vg simplify` only exists on the server; the in-browser gbz-base backend
+  // ignores the flag, so offering the switch there just re-ran the identical
+  // query under a different key.
+  simplifyAvailable: boolean
 }
 
 export const SimplifyButton = ({
@@ -19,6 +23,7 @@ export const SimplifyButton = ({
   removeSequences,
   setSimplify,
   setRemoveSequences,
+  simplifyAvailable,
 }: SimplifyButtonProps) => {
   const [open, setOpen] = useState(false)
   return (
@@ -40,10 +45,16 @@ export const SimplifyButton = ({
           <FormControlLabel
             labelPlacement="start"
             label="Remove Small Variants"
+            title={
+              simplifyAvailable
+                ? undefined
+                : 'Needs the vg server backend; the in-browser reader cannot simplify a subgraph.'
+            }
             sx={{ justifyContent: 'space-between', ml: 0 }}
             control={
               <Switch
-                checked={simplify}
+                checked={simplify && simplifyAvailable}
+                disabled={!simplifyAvailable}
                 onChange={() => { setSimplify(!simplify); }}
               />
             }

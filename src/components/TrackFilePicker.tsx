@@ -5,6 +5,7 @@ import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { AvailableTrack, FileType } from '../Types.ts'
 import { isLocallyAccepted } from './uploadFileTypes.ts'
+import { toError } from '../util/error.ts'
 
 interface TrackOption {
   label: string
@@ -63,7 +64,7 @@ export const TrackFilePicker = ({
       handleInputChange(await handleFileUpload(fileType, file))
     } catch (e) {
       console.error('TrackFilePicker could not upload: ', e)
-      setUploadError(e instanceof Error ? e : new Error(String(e)))
+      setUploadError(toError(e))
       uploadingInput.value = ''
     }
   }

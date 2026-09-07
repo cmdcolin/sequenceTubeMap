@@ -18,6 +18,7 @@ import {
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { APIInterface } from '../api/APIInterface.ts'
+import { errorMessage, toError } from '../util/error.ts'
 import { truncateMiddle } from '../util/text.ts'
 import DataPositionFormRow from './DataPositionFormRow.tsx'
 import ExampleSelectButtons from './ExampleSelectButtons.tsx'
@@ -435,7 +436,7 @@ function HeaderForm({
           return null
         }
         console.error('API getChunkTracks failed:', e)
-        setManualError(e instanceof Error ? e : new Error(String(e)))
+        setManualError(toError(e))
         return null
       }
     }
@@ -471,7 +472,7 @@ function HeaderForm({
       const range = convertRegionToRangeRegion(parseRegion(region))
       void changeRegionAndGo(stringifyRangeRegion(transform(range)))
     } catch (e) {
-      setManualError(e instanceof Error ? e : new Error(String(e)))
+      setManualError(toError(e))
     }
   }
 
@@ -609,7 +610,7 @@ function HeaderForm({
       <Box sx={{ px: 2 }}>
         {errors.map((e, i) => (
           <Alert severity="error" key={i} sx={{ mb: 1 }}>
-            {e instanceof Error ? e.message : String(e)}
+            {errorMessage(e)}
           </Alert>
         ))}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1 }}>
@@ -780,6 +781,7 @@ function HeaderForm({
                   removeSequences={removeSequences}
                   setSimplify={(next) => { setSimplify(next); }}
                   setRemoveSequences={(next) => { setRemoveSequences(next); }}
+                  simplifyAvailable={apiMode !== 'local'}
                 />
               </Box>
             )}

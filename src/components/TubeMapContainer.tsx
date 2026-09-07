@@ -23,6 +23,7 @@ import type {
   VisOptions,
 } from '../Types.ts'
 import { mergeUnique } from '../util/array.ts'
+import { errorMessage } from '../util/error.ts'
 
 const GROUP_PALETTE_CYCLE: ColorPaletteName[] = [
   'reds',
@@ -302,7 +303,7 @@ function TubeMapContainer({
           </Button>
         }
       >
-        {error instanceof Error ? error.message : String(error)}
+        {errorMessage(error)}
       </Alert>
     </Box>
   ) : data === undefined && isValidating ? (
