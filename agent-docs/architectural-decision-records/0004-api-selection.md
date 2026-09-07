@@ -22,13 +22,13 @@ implementations. `LocalAPI` runs `GBZBaseAPI` inside a Web Worker via Comlink
 
 In development, `config-client.js` overrides `false` → `""` when
 `NODE_ENV !== 'production'`, so `pnpm start` reaches the express backend via
-webpack-dev-server's `/api` proxy without flipping config.json. Production
+the Vite dev server's `/api` proxy without flipping config.json. Production
 gh-pages builds tree-shake the override and keep `BACKEND_URL=false`.
 
 `GBZBaseAPI` falls back to `fetch()` for non-numeric `trackFile` strings, so
 built-in `DATA_SOURCES` paths (`exampleData/cactus.vg.xg`) work in LocalAPI mode
 too. The worker resolves them against `document.baseURI` (passed in via
-Comlink), not the worker script's `/static/js/` location.
+Comlink), not the worker script's `assets/` location.
 
 ## Consequences
 

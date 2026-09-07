@@ -1,11 +1,21 @@
 {
-  "BACKEND_URL": false,
+  "BACKEND_URL": "",
   "DATA_SOURCES": [
     {
       "name": "snp1kg-BRCA1",
       "tracks": [
-        {"trackFile": "exampleData/internal/snp1kg-BRCA1.vg.xg", "trackType": "graph", "trackColorSettings": {"mainPalette": "greys", "auxPalette": "ygreys"}},
-        {"trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam", "trackType": "read"}
+        {
+          "trackFile": "exampleData/internal/snp1kg-BRCA1.vg.xg",
+          "trackType": "graph",
+          "trackColorSettings": {
+            "mainPalette": "greys",
+            "auxPalette": "ygreys"
+          }
+        },
+        {
+          "trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam",
+          "trackType": "read"
+        }
       ],
       "region": "17:1-100",
       "bedFile": "exampleData/internal/snp1kg-BRCA1.bed",
@@ -16,18 +26,71 @@
     {
       "name": "HPRC Minigraph-Cactus v1.1",
       "tracks": [
-        {"trackFile": "/data/hprc.pos.bed.gz", "trackType": "graph", "trackColorSettings": {"mainPalette": "ygreys", "auxPalette": "greys"}},
-        {"trackFile": "/data/hprc.nodes.tsv.gz", "trackType": "node"},
-        {"trackFile": "/data/hprc.haps.gaf.gz", "trackType": "haplotype"},
-        {"trackFile": "/data/gene_exon.gaf.gz", "trackType": "read", "trackColorSettings": {"mainPalette": "reds", "auxPalette": "reds"}},
-        {"trackFile": "/data/rm.gaf.gz", "trackType": "read", "trackColorSettings": {"mainPalette": "blues", "auxPalette": "blues"}},
-        {"trackFile": "/data/gwasCatalog.hprc-v1.1-mc-grch38.sorted.gaf.gz",
-         "trackType": "read", "trackColorSettings": {"mainPalette": "plainColors", "auxPalette": "plainColors"}}
+        {
+          "trackFile": "/data/hprc.pos.bed.gz",
+          "trackType": "graph",
+          "trackColorSettings": {
+            "mainPalette": "ygreys",
+            "auxPalette": "greys"
+          }
+        },
+        {
+          "trackFile": "/data/hprc.nodes.tsv.gz",
+          "trackType": "node"
+        },
+        {
+          "trackFile": "/data/hprc.haps.gaf.gz",
+          "trackType": "haplotype"
+        },
+        {
+          "trackFile": "/data/gene_exon.gaf.gz",
+          "trackType": "read",
+          "trackColorSettings": {
+            "mainPalette": "reds",
+            "auxPalette": "reds"
+          }
+        },
+        {
+          "trackFile": "/data/rm.gaf.gz",
+          "trackType": "read",
+          "trackColorSettings": {
+            "mainPalette": "blues",
+            "auxPalette": "blues"
+          }
+        },
+        {
+          "trackFile": "/data/gwasCatalog.hprc-v1.1-mc-grch38.sorted.gaf.gz",
+          "trackType": "read",
+          "trackColorSettings": {
+            "mainPalette": "plainColors",
+            "auxPalette": "plainColors"
+          }
+        }
       ],
       "region": "GRCh38#0#chr17:7674450-7675333",
       "dataType": "built-in",
       "simplify": false,
       "removeSequences": false
+    },
+    {
+      "name": "snp1kg-BRCA1 (WASM-compatible)",
+      "tracks": [
+        {
+          "trackFile": "exampleData/internal/snp1kg-BRCA1.gbz.db",
+          "trackType": "graph",
+          "trackColorSettings": {
+            "mainPalette": "greys",
+            "auxPalette": "ygreys"
+          }
+        },
+        {
+          "trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam",
+          "trackType": "read"
+        }
+      ],
+      "region": "17:1-100",
+      "bedFile": "exampleData/internal/snp1kg-BRCA1.bed",
+      "dataType": "built-in"
     },
     {
       "name": "Lancet example",
@@ -58,41 +121,42 @@
           }
         }
       ],
-      "bedFile": "https://public.gi.ucsc.edu/~anovak/vg-data/lancet_2023-11-07/index.bed",
+      "bedFile": "https://lancet2-paper.storage.googleapis.com/sequence-tube-map-demo/index.bed",
       "region": "chr1:7290357-7290857",
       "dataType": "built-in"
     }
   ],
-  "vgPath": [""],
-  "chunkixPath": ["/data", "scripts"],
+  "vgPath": [
+    ""
+  ],
+  "chunkixPath": [
+    "/data",
+    "scripts"
+  ],
   "dataPath": "/data",
   "internalDataPath": "exampleData/internal/",
   "tempDirPath": "temp",
   "fetchTimeout": 15,
   "maxFileSizeBytes": 1000000000,
-
-  "defaultGraphColorPalette" : {
-    "mainPalette": "#000000", 
-    "auxPalette": "greys", 
+  "defaultGraphColorPalette": {
+    "mainPalette": "#000000",
+    "auxPalette": "greys",
     "colorReadsByMappingQuality": false,
     "alphaReadsByMappingQuality": false
   },
-
-  "defaultHaplotypeColorPalette" : {
-    "mainPalette": "plainColors", 
-    "auxPalette": "lightColors", 
+  "defaultHaplotypeColorPalette": {
+    "mainPalette": "plainColors",
+    "auxPalette": "lightColors",
     "colorReadsByMappingQuality": false,
     "alphaReadsByMappingQuality": false
   },
-  
-  "defaultReadColorPalette" : {
-    "mainPalette": "blues", 
-    "auxPalette": "reds", 
+  "defaultReadColorPalette": {
+    "mainPalette": "blues",
+    "auxPalette": "reds",
     "colorReadsByMappingQuality": false,
     "alphaReadsByMappingQuality": false
   },
-
-  "defaultTrackProps" : {
+  "defaultTrackProps": {
     "trackType": "graph",
     "trackColorSettings": {
       "mainPalette": "#000000",
@@ -101,16 +165,16 @@
       "alphaReadsByMappingQuality": false
     }
   },
-
   "fileTypeToExtensions": {
-    "graph": ".xg,.vg,.hg,.gbz,.pg,.db",
-    "haplotype": ".gbwt,.gbz",
-    "read": ".gam"
+    "graph": ".xg,.vg,.hg,.gbz.db,.pg,.db",
+    "haplotype": ".gbwt,.gbz.db",
+    "read": ".gam",
+    "translation": ".tsv,.trans"
   },
-
   "MAXUPLOADSIZE": 5242880,
-  "pickerTypeOptions": ["mounted", "upload"],
+  "pickerTypeOptions": [
+    "mounted",
+    "upload"
+  ],
   "fileExpirationTime": 86400
-
-
 }

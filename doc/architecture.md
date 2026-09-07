@@ -19,7 +19,7 @@ at the vgteam's public backend — but nothing below `App` knows which
 implementation it holds.
 
 In development `config-client.js` rewrites `false` to `""` so `pnpm start`
-reaches the local express backend through webpack-dev-server's `/api` proxy;
+reaches the local express backend through the Vite dev server's `/api` proxy;
 the `#local` hash opts out of that rewrite. Production gh-pages builds keep
 `false`. See [ADR 0004](../agent-docs/architectural-decision-records/0004-api-selection.md).
 

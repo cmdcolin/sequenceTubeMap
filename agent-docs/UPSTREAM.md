@@ -20,8 +20,8 @@ In `src/config.json`:
 "BACKEND_URL": "https://api.tubemap.graphs.vg",
 ```
 
-`App.tsx:51` keys off `BACKEND_URL === false` (literal), so any string puts
-the app into server mode. The URL is composed at `App.tsx:53` as
+`src/App.tsx:57` keys off `BACKEND_URL === false` (literal), so any string puts
+the app into server mode. The URL is composed at `src/App.tsx:59` as
 `${config.BACKEND_URL}/api/v0`.
 
 Once switched, the local-compat filtering and `x.gbz.db` autoload added in

@@ -82,7 +82,7 @@ requests rather than downloaded.
 Run the full `vg` + Express server yourself for larger files or private data.
 
 ```bash
-docker run -it -p 3210:3000 -v $(pwd):/data quay.io/jmonlong/sequencetubemap:vg1.48.0
+docker run -it -p 3210:3000 -v $(pwd):/data quay.io/jmonlong/sequencetubemap:vg1.74.1
 ```
 
 Open http://localhost:3210 and set the backend URL in **Backend configuration**

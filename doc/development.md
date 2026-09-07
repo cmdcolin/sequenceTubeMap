@@ -2,7 +2,9 @@
 
 ## Prerequisites
 
-- Node 18 or newer (`.nvmrc` pins v18.7.0)
+- Node 22.6 or newer (`.nvmrc` pins 22). `pnpm serve` runs `src/server.mjs`
+  with `--experimental-strip-types`, which needs 22.6+; Node 24 strips types
+  without the flag and accepts it as a no-op.
 - [pnpm](https://pnpm.io/) — the lockfile is `pnpm-lock.yaml`; npm and yarn will
   not reproduce it
 - [`vg`](https://github.com/vgteam/vg), optional. Only the tests that shell out
@@ -18,11 +20,11 @@ pnpm install
 pnpm start
 ```
 
-Runs two processes under `concurrently`: webpack-dev-server for the frontend
-and `src/server.mjs` for the backend. The frontend picks a free port unless
-`PORT` is set, and proxies `/api` (including websockets) to the backend. The
-backend listens on `SERVER_PORT`, else `serverPort` in `src/config.json`, else
-3000.
+Runs two processes under `concurrently`: the Vite dev server for the frontend
+and `src/server.mjs` for the backend. Vite serves on 5173 unless that is taken,
+and proxies `/api` (including websockets) to the backend. The backend listens on
+`SERVER_PORT`, else `serverPort` in `src/config.json`, else 3000; Vite reads the
+same two to find it.
 
 Use this rather than `pnpm build` + `pnpm serve` while developing — the build is
 minified and hard to debug.
@@ -33,7 +35,7 @@ To work on the browser-only path without a backend at all:
 pnpm start:local
 ```
 
-That launches webpack-dev-server alone and opens `/#local`. In development
+That launches the Vite dev server alone and opens `/#local`. In development
 `config-client.js` normally rewrites `BACKEND_URL: false` to `''` so the app
 talks to the express backend; the `#local` hash skips that rewrite, leaving
 `config.json`'s `false` in place, which selects `LocalAPI`. See
@@ -71,14 +73,15 @@ have it. CI installs vg, so they always run there.
 pnpm format
 ```
 
-Prettier, with its defaults, over `.mjs`, `.js` and `.css`. TypeScript sources
-are not covered by it; eslint governs those.
+Prettier over `.mjs`, `.js`, `.ts`, `.tsx` and `.css`, configured in
+`.prettierrc.json` to match what the tree already looks like: single quotes, no
+semicolons, trailing commas, no parens on single-argument arrows.
 
 ## Build
 
 ```
 pnpm build       # production bundle into build/
-pnpm dep         # build, publish build/ to gh-pages, push tags
+pnpm dep         # build, publish build/ to gh-pages
 ```
 
 The gh-pages build ships `BACKEND_URL: false`, which selects the in-browser

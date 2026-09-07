@@ -86,7 +86,7 @@ with contextual enable-disable and inline help per option — plus:
 |---|---|---|
 | React | 17, class components, PropTypes | 19, function components, React Compiler |
 | Language | mostly `.js` | TypeScript (`tubemap.js` → 6.2k-line typed `tubemap.ts`) |
-| Build | CRA / react-scripts | Vite + Vitest (webpack for the prod bundle) |
+| Build | CRA / react-scripts | Vite + Vitest |
 | d3 | v5 (+ `d3-selection-multi`) | v7 |
 | UI kits | MUI v4 **and** v5, react-bootstrap, reactstrap, bootstrap | MUI (inputs/dialogs) + reactstrap (layout only) |
 | Async data | hand-rolled `useEffect` + `AbortController` | SWR everywhere |

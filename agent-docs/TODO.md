@@ -71,15 +71,15 @@ Open questions before promoting this back to the README:
 - Default region (`chr20:30000000-30000500`) was picked semi-arbitrarily — is
   there a more biologically interesting demo region?
 
-## Server re-sorts already-sorted .sorted.gam files
-
-`indexGamSorted` detects `.gam` (which `.sorted.gam` ends with), strips the
-last `.gam`, and outputs `.sorted.sorted.gam`. If a user uploads a pre-sorted
-GAM, the server wastes time re-sorting and the returned path looks odd. Could
-detect the `.sorted.gam` suffix and skip the sort step, returning the file
-as-is (still creating the `.gai` with `vg gamsort -i` only).
-
 ## Resolved
+
+- **Uploading a `.sorted.gam` produced a `.sorted.sorted.gam`.**
+  `indexGamSorted` now keeps the upload's own name and sorts through a scratch
+  file it renames over it, so the returned path is sane. The sort itself still
+  runs: `vg gamsort` has no index-only mode we can rely on, and the `.gai` it
+  writes records offsets into the stream it emits rather than into the bytes it
+  was handed, so indexing a pre-sorted upload in place would give an index that
+  doesn't match the file.
 
 - **`.gai` shown as "read" in the staged list.** `detectType` still returns
   `'read'` for index siblings, but `StagedFileList` branches on

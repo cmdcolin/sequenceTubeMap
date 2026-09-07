@@ -10,7 +10,7 @@ The sequenceTubeMap in the image is configured to look for mounted files in the 
 Hence, assuming all files (pangenomes, reads) are in the current working directory, start the container with:
 
 ```sh
-docker run -it -p 3210:3000 -v `pwd`:/data quay.io/jmonlong/sequencetubemap:vg1.48.0
+docker run -it -p 3210:3000 -v `pwd`:/data quay.io/jmonlong/sequencetubemap:vg1.74.1
 ```
 
 Of note, the `-p` option redirects port 3000 to 3210. 
@@ -39,6 +39,6 @@ docker build -t sequencetubemap -f Dockerfile ..
 ### Pushing to quay.io
 
 ```sh
-docker tag sequencetubemap quay.io/jmonlong/sequencetubemap:vg1.48.0
-docker push quay.io/jmonlong/sequencetubemap:vg1.48.0
+docker tag sequencetubemap quay.io/jmonlong/sequencetubemap:vg1.74.1
+docker push quay.io/jmonlong/sequencetubemap:vg1.74.1
 ```

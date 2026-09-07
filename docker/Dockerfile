@@ -1,18 +1,17 @@
-FROM ubuntu:20.04
-MAINTAINER jmonlong@ucsc.edu
+FROM ubuntu:24.04
+LABEL maintainer="jmonlong@ucsc.edu"
 
-ENV DEBIAN_FRONTEND noninteractive
-ENV DEBCONF_NONINTERACTIVE_SEEN true
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NONINTERACTIVE_SEEN=true
 
 ENV TZ=America/Los_Angeles
 
 # install basic apt dependencies
-# note: most vg apt dependencies are installed by "make get-deps" below
 RUN apt-get -qq update && apt-get -qq install -y \
-    git \
+    ca-certificates \
+    curl \
     wget \
     less \
-    npm \
     nano \
     make \
     g++ \
@@ -20,27 +19,35 @@ RUN apt-get -qq update && apt-get -qq install -y \
     zlib1g-dev \
     libbz2-dev \
     liblzma-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
     python3 \
-    build-essential
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # install tabix/bgzip
-RUN wget --quiet --no-check-certificate https://github.com/samtools/htslib/releases/download/1.21/htslib-1.21.tar.bz2 && \
-    tar -xjvf htslib-1.21.tar.bz2 && \
+RUN wget --quiet https://github.com/samtools/htslib/releases/download/1.21/htslib-1.21.tar.bz2 && \
+    tar -xjf htslib-1.21.tar.bz2 && \
     cd htslib-1.21 && \
     ./configure && \
-    make && make install
+    make && make install && \
+    cd .. && rm -rf htslib-1.21 htslib-1.21.tar.bz2
 
-# install node
-RUN npm cache clean -f
+# install node. 22 is what CI uses, and `pnpm serve` needs 22.6+ for
+# --experimental-strip-types.
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get -qq install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g n && n stable
+# pnpm is the package manager for this repo; corepack takes the version from
+# package.json's lockfile ecosystem rather than pinning it here twice.
+RUN corepack enable && corepack prepare pnpm@11 --activate
 
-# download vg binary
-RUN wget --quiet --no-check-certificate  https://github.com/vgteam/vg/releases/download/v1.64.1/vg \
+# download vg binary. Keep this in step with .github/workflows/test.yml.
+RUN wget --quiet https://github.com/vgteam/vg/releases/download/v1.74.1/vg \
 	&& mv vg /bin/vg && chmod +x /bin/vg
 
 WORKDIR /build
-# RUN git clone https://github.com/vgteam/sequenceTubeMap.git
 COPY . /build/sequenceTubeMap/
 
 # change the config to look for files in /data
@@ -48,15 +55,8 @@ COPY docker/config.json /build/sequenceTubeMap/src/
 
 WORKDIR /build/sequenceTubeMap
 
-RUN npm install
+RUN pnpm install --frozen-lockfile
 
-RUN npx browserslist@latest --update-db
+RUN pnpm run build
 
-# RUN npm audit fix
-
-RUN npm rebuild node-sass
-
-RUN npm run build
-
-WORKDIR /build/sequenceTubeMap/
-CMD ["npm", "run", "serve"]
+CMD ["pnpm", "run", "serve"]
