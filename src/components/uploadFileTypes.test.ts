@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
+import '../config-client.js'
+import { config } from '../config-global.mjs'
 import {
+  INDEX_EXTS,
+  SERVER_ACCEPT,
   detectType,
   isIndexSibling,
   isLocallyAccepted,
@@ -66,5 +70,18 @@ describe('isLocallyAccepted', () => {
     expect(isLocallyAccepted('graph.vg')).toBe(false)
     expect(isLocallyAccepted('reads.gaf')).toBe(false)
     expect(isLocallyAccepted('h.gbwt')).toBe(false)
+  })
+})
+
+describe('config.fileTypeToExtensions', () => {
+  const serverAllowed = Object.values(
+    config.fileTypeToExtensions as Record<string, string>,
+  ).flatMap(list => list.split(','))
+
+  it('allows every non-index extension the upload panel offers to a server', () => {
+    const offered = SERVER_ACCEPT.split(',').filter(
+      ext => !INDEX_EXTS.includes(ext),
+    )
+    expect(offered.filter(ext => !serverAllowed.includes(ext))).toEqual([])
   })
 })

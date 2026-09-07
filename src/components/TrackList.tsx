@@ -17,6 +17,7 @@ interface TrackListProps {
     fileType: FileType,
     file: File,
   ) => Promise<string | undefined>
+  apiMode: 'local' | 'server' | 'upstream'
 }
 
 export const TrackList = ({
@@ -26,6 +27,7 @@ export const TrackList = ({
   onChange,
   onDelete,
   handleFileUpload,
+  apiMode,
 }: TrackListProps) => {
   return (
     <div>
@@ -39,6 +41,7 @@ export const TrackList = ({
           onDelete={onDelete}
           trackID={idx}
           handleFileUpload={handleFileUpload}
+          apiMode={apiMode}
         />
       ))}
     </div>

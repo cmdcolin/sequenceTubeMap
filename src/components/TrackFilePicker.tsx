@@ -4,6 +4,7 @@ import TextField from '@mui/material/TextField'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { AvailableTrack, FileType } from '../Types.ts'
+import { isLocallyAccepted } from './uploadFileTypes.ts'
 
 interface TrackOption {
   label: string
@@ -16,6 +17,7 @@ interface TrackFilePickerProps {
   value?: string
   handleInputChange: (newValue: string | undefined) => void
   pickerType?: 'mounted' | 'upload'
+  apiMode: 'local' | 'server' | 'upstream'
   testID?: string
   handleFileUpload: (
     fileType: FileType,
@@ -37,12 +39,17 @@ export const TrackFilePicker = ({
   value,
   handleInputChange,
   pickerType = 'mounted',
+  apiMode,
   testID = 'file-select-component',
   handleFileUpload,
 }: TrackFilePickerProps) => {
   const uploadFileInput = useRef<HTMLInputElement>(null)
   const [uploadError, setUploadError] = useState<Error>()
-  const acceptedExtensions = config.fileTypeToExtensions[fileType]
+  const configuredExtensions: string = config.fileTypeToExtensions[fileType]
+  const acceptedExtensions =
+    apiMode === 'local'
+      ? configuredExtensions.split(',').filter(isLocallyAccepted).join(',')
+      : configuredExtensions
 
   async function uploadOnChange() {
     // The ref's value can be null when the upload await finishes, so capture it.

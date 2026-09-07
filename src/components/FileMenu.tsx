@@ -74,6 +74,7 @@ export function FileMenu({
           availableTracks={availableTracks}
           onChange={(newTracks) => { onTracksChange(newTracks); }}
           handleFileUpload={handleFileUpload}
+          apiMode={apiMode}
         />
       </PopupDialog>
       <UploadDialog

@@ -25,6 +25,7 @@ interface TrackListItemProps {
     fileType: FileType,
     file: File,
   ) => Promise<string | undefined>
+  apiMode: 'local' | 'server' | 'upstream'
 }
 
 type PickerType = 'mounted' | 'upload'
@@ -45,6 +46,7 @@ export const TrackListItem = ({
   onDelete,
   trackID,
   handleFileUpload,
+  apiMode,
 }: TrackListItemProps) => {
   const [pickerType, setPickerType] = useState<PickerType>('mounted')
 
@@ -92,6 +94,7 @@ export const TrackListItem = ({
           fileType={trackProps.trackType}
           value={trackProps.trackFile}
           pickerType={pickerType}
+          apiMode={apiMode}
           handleInputChange={(trackFile) => { updateTrack({ trackFile }); }}
           testID={`file-select-component${trackID}`}
           handleFileUpload={handleFileUpload}

@@ -26,6 +26,7 @@ interface TrackPickerDisplayProps {
     fileType: FileType,
     file: File,
   ) => Promise<string | undefined>
+  apiMode: 'local' | 'server' | 'upstream'
 }
 
 function applyChanges(base: Tracks, changes: TrackChanges): Tracks {
@@ -72,6 +73,7 @@ export const TrackPickerDisplay = ({
   availableColors,
   onChange,
   handleFileUpload,
+  apiMode,
 }: TrackPickerDisplayProps) => {
   // Pending edits layered on top of the parent's tracks. We only flush to
   // the parent once every entry has a file selected, so users can stage a
@@ -108,6 +110,7 @@ export const TrackPickerDisplay = ({
           onChange={(trackID, newTrack) => { stage({ [trackID]: newTrack }); }}
           onDelete={(trackID) => { stage({ [trackID]: DELETED }); }}
           handleFileUpload={handleFileUpload}
+          apiMode={apiMode}
         />
       </Box>
       {isEmpty && (

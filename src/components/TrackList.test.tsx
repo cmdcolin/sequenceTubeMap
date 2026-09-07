@@ -75,7 +75,7 @@ describe('TrackList', () => {
     fakeOnDelete: (trackID: number) => void,
   ) {
     rerender(
-      <TrackList
+      <TrackList apiMode="server"
         tracks={newTracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -90,7 +90,7 @@ describe('TrackList', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
     const { getByTestId } = render(
-      <TrackList
+      <TrackList apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -111,7 +111,7 @@ describe('TrackList', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
     const { getByTestId, getByText, rerender } = render(
-      <TrackList
+      <TrackList apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -171,7 +171,7 @@ describe('TrackList', () => {
     const fakeOnChange2 = vi.fn()
     const fakeOnDelete = vi.fn()
     const { getByTestId, rerender } = render(
-      <TrackList
+      <TrackList apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}

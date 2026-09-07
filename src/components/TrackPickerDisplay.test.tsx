@@ -40,7 +40,7 @@ describe('TrackPickerDisplay', () => {
   it('should render without errors', () => {
     const fakeOnChange = vi.fn()
     const { queryByTestId } = render(
-      <TrackPickerDisplay
+      <TrackPickerDisplay apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -60,7 +60,7 @@ describe('TrackPickerDisplay', () => {
   it('should add track items when the add button is pressed', () => {
     const fakeOnChange = vi.fn()
     const { getByTestId, queryByTestId } = render(
-      <TrackPickerDisplay
+      <TrackPickerDisplay apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -88,7 +88,7 @@ describe('TrackPickerDisplay', () => {
   it('should call onChange when all files are selected', async () => {
     const fakeOnChange = vi.fn()
     const { getByTestId, rerender } = render(
-      <TrackPickerDisplay
+      <TrackPickerDisplay apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -136,7 +136,7 @@ describe('TrackPickerDisplay', () => {
 
     newTracks[3] = config.defaultTrackProps
     rerender(
-      <TrackPickerDisplay
+      <TrackPickerDisplay apiMode="server"
         tracks={newTracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -168,7 +168,7 @@ describe('TrackPickerDisplay', () => {
   it('should delete a trackitem when the delete button is pressed', () => {
     const fakeOnChange = vi.fn()
     const { getByTestId, queryByTestId } = render(
-      <TrackPickerDisplay
+      <TrackPickerDisplay apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}

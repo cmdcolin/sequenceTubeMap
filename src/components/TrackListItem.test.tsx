@@ -41,7 +41,7 @@ describe('TrackListItem', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
     const { getByText, getByRole } = render(
-      <TrackListItem
+      <TrackListItem apiMode="server"
         trackProps={{
           trackFile,
           trackType,
@@ -66,7 +66,7 @@ describe('TrackListItem', () => {
     const fakeOnDelete = vi.fn()
 
     const { getByText, getByTestId, rerender } = render(
-      <TrackListItem
+      <TrackListItem apiMode="server"
         trackProps={{
           trackFile,
           trackType,
@@ -91,7 +91,7 @@ describe('TrackListItem', () => {
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
 
     rerender(
-      <TrackListItem
+      <TrackListItem apiMode="server"
         trackProps={{
           trackFile,
           trackType: 'haplotype',
@@ -120,7 +120,7 @@ describe('TrackListItem', () => {
     })
 
     rerender(
-      <TrackListItem
+      <TrackListItem apiMode="server"
         trackProps={{
           trackFile: 'fileB1.gbwt',
           trackType: 'haplotype',
@@ -147,7 +147,7 @@ describe('TrackListItem', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
     const { getByTestId } = render(
-      <TrackListItem
+      <TrackListItem apiMode="server"
         trackProps={{
           trackFile,
           trackType,

@@ -129,30 +129,35 @@ fs.mkdirSync(SCRATCH_DATA_PATH, { recursive: true })
 
 // Extensions a user is allowed to upload, derived from the same config the
 // frontend's file picker filters on.
-const ALLOWED_UPLOAD_EXTENSIONS = new Set(
-  Object.values(config.fileTypeToExtensions).flatMap(list =>
-    list.split(',').map(extension => extension.trim().toLowerCase()),
+const ALLOWED_UPLOAD_EXTENSIONS = [
+  ...new Set(
+    Object.values(config.fileTypeToExtensions).flatMap(list =>
+      list.split(',').map(extension => extension.trim().toLowerCase()),
+    ),
   ),
-)
+].sort((a, b) => b.length - a.length)
+
+function allowedUploadExtension(filename) {
+  const lower = filename.toLowerCase()
+  return ALLOWED_UPLOAD_EXTENSIONS.find(extension => lower.endsWith(extension))
+}
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, UPLOAD_DATA_PATH)
   },
   filename: function (req, file, cb) {
-    const ext = file.originalname
-      .substring(file.originalname.lastIndexOf('.'))
-      .toLowerCase()
-    if (ALLOWED_UPLOAD_EXTENSIONS.has(ext)) {
+    const ext = allowedUploadExtension(file.originalname)
+    if (ext === undefined) {
+      cb(
+        new BadRequestError(
+          `Uploading "${file.originalname}" is not allowed: unsupported file extension`,
+        ),
+      )
+    } else {
       // A random name can't collide with another upload and can't be guessed
       // by another user.
       cb(null, randomUUID() + ext)
-    } else {
-      cb(
-        new BadRequestError(
-          `Uploading files with extension "${ext}" is not allowed`,
-        ),
-      )
     }
   },
 })
