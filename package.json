@@ -55,7 +55,9 @@
     "serve": "node --strip-types ./src/server.mjs",
     "tubemap-cli": "esbuild scripts/tubemap-cli.ts --bundle --platform=node --format=esm --packages=external --outfile=build/tubemap-cli.mjs && node build/tubemap-cli.mjs",
     "format": "prettier --write \"**/*.+(mjs|js|css)\"",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "check-docs": "node scripts/check-doc-links.mjs"
   },
   "engines": {
     "node": ">=18.0.0"

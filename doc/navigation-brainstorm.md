@@ -8,7 +8,7 @@ many `Circ*` contigs and reads that cycle through shared nodes.
 ## What's there today
 
 ### Region input syntax
-`src/common.mjs:36` (`parseRegion`) and `src/components/RegionInput.js` accept:
+`src/common.ts` (`parseRegion`) and `src/components/RegionInput.tsx` accept:
 
 - `path:start-end`
 - `path:start+distance`
@@ -26,12 +26,12 @@ many `Circ*` contigs and reads that cycle through shared nodes.
   and the request 500s.
 
 ### URL params already work
-`src/components/CopyLink.js:78` (`urlParamsToViewTarget`) does
+`src/urlViewTarget.ts` (`urlParamsToViewTarget`) does
 `qs.parse(parsed.search.substr(1))`. A CLI launcher just needs to construct a
 `qs.stringify`-style URL — no new URL schema needed.
 
 ### Click handlers are half-wired
-`src/util/tubemap.js`:
+`src/util/tubemap.ts`:
 
 - `nodeSingleClick` (line 3404) populates an info panel — works.
 - `nodeDoubleClick` (line 4390) writes to a legacy DOM `nodeID` input that's
@@ -93,7 +93,7 @@ fragmented mito where there's no single reference path.
 
 ### 5. CLI launcher script
 `scripts/open-tubemap.py --graph foo.xg --gam foo.gam --nodes 5,7,13 [--port 3000]`
-emits a URL using the same `qs` schema `CopyLink.js` already produces, prints
+emits a URL using the same `qs` schema `CopyLink.tsx` already produces, prints
 it, and optionally `xdg-open`s the browser. No server change needed — purely
 uses the existing URL→viewTarget plumbing. Pairs perfectly with #4.
 

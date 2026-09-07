@@ -28,6 +28,12 @@ jobs:
           cache: pnpm
       - name: Install node modules as specified in lockfile
         run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Check doc path citations
+        run: pnpm check-docs
       - name: Install vg v1.74.1
         run: |
           mkdir -p bin
