@@ -314,9 +314,15 @@ type SvgGroupSelection = d3.Selection<SVGGElement, unknown, HTMLElement, unknown
 // if they don't have the first font named here.
 const fonts = '"Courier New", "Courier", "Lucida Console", monospace'
 
+// ---------------------------------------------------------------------------
+// Module state, in three groups: the inputs from create(), the per-render
+// layout scratch (all reset together at the top of createTubeMap), and the UI
+// state that has to outlive a render. See src/util/tubemap-phase2.md for the
+// plan to thread the layout scratch through as a parameter instead.
+// ---------------------------------------------------------------------------
+
+// --- inputs, owned by create() ---
 let svgID: string // the (html-tag) ID of the svg
-let svg: AnySelection // the svg
-let zoom: d3.ZoomBehavior<Element, unknown>
 // inputNodes/nodes are 1-indexed: a hole at index 0 lets us use *signed*
 // indices to mean orientation (-i = reverse of node i). inputNodes is sparse
 // with undefined at [0]; nodes (a deep copy) inherits the same hole.
@@ -324,6 +330,8 @@ let inputNodes: (InputNode | undefined)[] = []
 let inputTracks: InputTrack[] = []
 let inputReads: InputTrack[] = []
 let inputRegion: InputRegion = []
+
+// --- per-render layout scratch ---
 let nodes: LayoutNode[] = []
 // Each track has a `path`, which is an array of Segment objects describing pieces of the path that need to be drawn, in order along the path.
 let tracks: Track[] = []
@@ -340,6 +348,10 @@ let assignments: NodeAssignment[][] = []
 let extraLeft: number[] = []
 let extraRight: number[] = []
 let maxOrder: number // horizontal order of the rightmost node
+
+// --- UI state, outlives a render ---
+let svg: AnySelection // the svg
+let zoom: d3.ZoomBehavior<Element, unknown>
 
 const config: TubeMapConfig = {
   mergeNodesFlag: true,
@@ -380,17 +392,40 @@ const config: TubeMapConfig = {
   otherReadsColor: 'greys',
 }
 
-// variables for storing info which can be directly translated into drawing instructions
-let trackRectangles: TrackRectangle[] = []
-let trackCurves: TrackCurve[] = []
-let trackCorners: TrackCorner[] = []
-let trackVerticalRectangles: TrackRectangle[] = [] // drawn separately so they don't overlap horizontal rectangles
-let trackRectanglesStep3: TrackRectangle[] = []
+// Drawing instructions accumulated by generateSVGShapesFromPath, consumed by
+// the draw* functions. Reset as a unit at the top of every createTubeMap.
+interface TrackShapes {
+  rectangles: TrackRectangle[]
+  curves: TrackCurve[]
+  corners: TrackCorner[]
+  // drawn separately so they don't overlap the horizontal rectangles
+  verticalRectangles: TrackRectangle[]
+  featureRectangles: TrackRectangle[]
+}
 
-let maxYCoordinate = 0
-let minYCoordinate = 0
-let maxXCoordinate = 0
-let minXCoordinate = 0
+function emptyTrackShapes(): TrackShapes {
+  return {
+    rectangles: [],
+    curves: [],
+    corners: [],
+    verticalRectangles: [],
+    featureRectangles: [],
+  }
+}
+
+let shapes: TrackShapes = emptyTrackShapes()
+
+// The extent of the drawn content, in layout coordinates. Outlives the draw
+// because zoomBy() (called from the toolbar, long after createTubeMap has
+// returned) needs it to clamp panning.
+interface ImageBounds {
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+}
+
+let imageBounds: ImageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
 let trackForRuler: string | undefined
 
 // alignSVG attaches a wheel listener and ResizeObserver to the parent each
@@ -741,18 +776,11 @@ export function setMappingQualityCutoff(value: number): void {
 // main. preserveViewport keeps the user's current pan/zoom; pass false only
 // when the underlying dataset changed and the old viewport is meaningless.
 function createTubeMap(preserveViewport = true): void {
-  trackRectangles = []
-  trackCurves = []
-  trackCorners = []
-  trackVerticalRectangles = []
-  trackRectanglesStep3 = []
+  shapes = emptyTrackShapes()
   assignments = []
   extraLeft = []
   extraRight = []
-  maxYCoordinate = 0
-  minYCoordinate = 0
-  maxXCoordinate = 0
-  minXCoordinate = 0
+  imageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
   trackForRuler = undefined
   svg = d3.select(svgID)
   svg.selectAll('*').remove() // clear svg for (re-)drawing
@@ -875,23 +903,23 @@ function createTubeMap(preserveViewport = true): void {
 
   // all drawn tracks are grouped
   const trackGroup = svg.append('g').attr('class', 'track')
-  drawTrackRectangles(trackRectangles, 'haplotype', trackGroup)
+  drawTrackRectangles(shapes.rectangles, 'haplotype', trackGroup)
   drawTrackCurves('haplotype', trackGroup)
   drawReversalsByColor(
-    trackCorners,
-    trackVerticalRectangles,
+    shapes.corners,
+    shapes.verticalRectangles,
     'haplotype',
     trackGroup,
   )
-  drawTrackRectangles(trackRectanglesStep3, 'haplotype', trackGroup)
-  drawTrackRectangles(trackRectangles, 'read', trackGroup)
+  drawTrackRectangles(shapes.featureRectangles, 'haplotype', trackGroup)
+  drawTrackRectangles(shapes.rectangles, 'read', trackGroup)
   drawTrackCurves('read', trackGroup)
 
   // draw only those nodes which have coords assigned to them
   const dNodes = removeUnusedNodes(nodes)
   drawReversalsByColor(
-    trackCorners,
-    trackVerticalRectangles,
+    shapes.corners,
+    shapes.verticalRectangles,
     'read',
     trackGroup,
   )
@@ -1734,42 +1762,40 @@ function removeUnusedNodes(allNodes: LayoutNode[]): LayoutNode[] {
 
 // get the minimum and maximum coordinates used in the image to calculate image dimensions
 function getImageDimensions(): void {
-  maxXCoordinate = -99
-  minXCoordinate = 99
-  minYCoordinate = 99
-  maxYCoordinate = -99
+  // Sentinels, deliberately crossed: if nothing below runs, minZoom() and
+  // alignSVG() detect the empty content rather than computing a negative scale.
+  const bounds: ImageBounds = { minX: 99, maxX: -99, minY: 99, maxY: -99 }
 
   nodes.forEach(node => {
     if (!node) return
     if (node.x !== undefined) {
-      minXCoordinate = Math.min(minXCoordinate, node.x)
-      maxXCoordinate = Math.max(maxXCoordinate, node.x + 20 + node.pixelWidth)
+      bounds.minX = Math.min(bounds.minX, node.x)
+      bounds.maxX = Math.max(bounds.maxX, node.x + 20 + node.pixelWidth)
     }
     if (node.y !== undefined) {
-      minYCoordinate = Math.min(minYCoordinate, node.y - 10)
-      maxYCoordinate = Math.max(
-        maxYCoordinate,
-        node.y + node.contentHeight + 10,
-      )
+      bounds.minY = Math.min(bounds.minY, node.y - 10)
+      bounds.maxY = Math.max(bounds.maxY, node.y + node.contentHeight + 10)
     }
   })
 
   tracks.forEach(track => {
     track.path.forEach(segment => {
       const y = segment.y ?? 0
-      maxYCoordinate = Math.max(maxYCoordinate, y + track.width)
-      minYCoordinate = Math.min(minYCoordinate, y)
+      bounds.maxY = Math.max(bounds.maxY, y + track.width)
+      bounds.minY = Math.min(bounds.minY, y)
     })
   })
+
+  imageBounds = bounds
 }
 
 // Minimum zoom is a scaling factor that determines how far the graph can be zoomed out. This function determines
 // how small the graph needs to appear to fully fit onto the screen.
-// This factor is based on maxXCoordinate and maxYCoordinate, and the size of the svg's parent.
+// This factor is based on imageBounds.maxX and imageBounds.maxY, and the size of the svg's parent.
 function minZoom(): number {
   const parentElement = getSvgParent()
-  const contentWidth = maxXCoordinate - minXCoordinate
-  const contentHeight = maxYCoordinate - minYCoordinate + RAIL_SPACE
+  const contentWidth = imageBounds.maxX - imageBounds.minX
+  const contentHeight = imageBounds.maxY - imageBounds.minY + RAIL_SPACE
   // getImageDimensions leaves the min/max sentinels crossed when no node got
   // coordinates, which would otherwise produce a negative scale factor.
   if (parentElement && contentWidth > 0 && contentHeight > 0) {
@@ -1906,7 +1932,7 @@ function alignSVG(preserveViewport: boolean): () => void {
     if (DEBUG) {
       console.log('[zoom] configureZoomBounds:', {
         viewport: { w: parentElement.clientWidth, h: parentElement.clientHeight },
-        content: { x: [minXCoordinate, maxXCoordinate], y: [minYCoordinate, maxYCoordinate] },
+        content: { x: [imageBounds.minX, imageBounds.maxX], y: [imageBounds.minY, imageBounds.maxY] },
         minScaleFactor,
       })
     }
@@ -1927,8 +1953,8 @@ function alignSVG(preserveViewport: boolean): () => void {
       ])
       .scaleExtent([minScaleFactor, MAX_ZOOM])
       .translateExtent([
-        [minXCoordinate, minYCoordinate - RAIL_SPACE],
-        [maxXCoordinate, Math.max(maxYCoordinate, parentElement.clientHeight / minScaleFactor)],
+        [imageBounds.minX, imageBounds.minY - RAIL_SPACE],
+        [imageBounds.maxX, Math.max(imageBounds.maxY, parentElement.clientHeight / minScaleFactor)],
       ])
   }
 
@@ -1969,13 +1995,13 @@ function alignSVG(preserveViewport: boolean): () => void {
   // canvas. We deliberately *don't* fit horizontally — horizontal panning is
   // the natural way to explore a tube map, so we'd rather render at natural
   // scale and let the user pan than shrink everything to unreadable widths.
-  const totalHeight = maxYCoordinate - minYCoordinate + RAIL_SPACE
+  const totalHeight = imageBounds.maxY - imageBounds.minY + RAIL_SPACE
   const initialScale = Math.min(
     1,
     totalHeight > 0 ? parentElement.clientHeight / totalHeight : 1,
   )
   const containerWidth = parentElement.clientWidth
-  const scaledWidth = (maxXCoordinate - minXCoordinate) * initialScale
+  const scaledWidth = (imageBounds.maxX - imageBounds.minX) * initialScale
   const leftMargin =
     scaledWidth + 10 < containerWidth
       ? (containerWidth - scaledWidth - 10) / 2
@@ -1985,8 +2011,8 @@ function alignSVG(preserveViewport: boolean): () => void {
       ? previousTransform
       : d3.zoomIdentity
           .translate(
-            leftMargin - minXCoordinate * initialScale,
-            RAIL_SPACE - minYCoordinate * initialScale,
+            leftMargin - imageBounds.minX * initialScale,
+            RAIL_SPACE - imageBounds.minY * initialScale,
           )
           .scale(initialScale)
   return () => {
@@ -2010,10 +2036,10 @@ export function zoomBy(zoomFactor: number): void {
   )
   let translateX =
     width / 2.0 - ((width / 2.0 - transform.x) * translateK) / transform.k
-  translateX = Math.min(translateX, -minXCoordinate * translateK)
-  translateX = Math.max(translateX, width - maxXCoordinate * translateK)
+  translateX = Math.min(translateX, -imageBounds.minX * translateK)
+  translateX = Math.max(translateX, width - imageBounds.maxX * translateK)
   // Zoom about the viewport centre vertically too. Recomputing translateY from
-  // minYCoordinate would throw away whatever the user had scrolled to.
+  // imageBounds.minY would throw away whatever the user had scrolled to.
   const translateY =
     height / 2.0 - ((height / 2.0 - transform.y) * translateK) / transform.k
   d3.select(svgID)
@@ -3363,7 +3389,7 @@ function clampedXCoordinateOfBaseWithinNode(node: Node, base: number): number {
 }
 
 // transforms the info in the tracks' path attribute into actual coordinates
-// and saves them in trackRectangles and trackCurves
+// and saves them in shapes.rectangles and shapes.curves
 function generateSVGShapesFromPath(): void {
   let xStart: number
   let xEnd: number
@@ -3457,7 +3483,7 @@ function generateSVGShapesFromPath(): void {
         }
         if (xEnd !== xStart) {
           trackColor = colorForCurrentHighlight()
-          trackRectangles.push({
+          shapes.rectangles.push({
             xStart: Math.min(xStart, xEnd),
             yStart,
             xEnd: Math.max(xStart, xEnd),
@@ -3477,7 +3503,7 @@ function generateSVGShapesFromPath(): void {
           xEnd = orderStartX[track.path[i]!.order]!
           yEnd = track.path[i]!.y!
           trackColor = colorForCurrentHighlight()
-          trackCurves.push({
+          shapes.curves.push({
             xStart,
             yStart,
             xEnd: xEnd + 1,
@@ -3500,7 +3526,7 @@ function generateSVGShapesFromPath(): void {
           xEnd = orderEndX[track.path[i]!.order]!
           yEnd = track.path[i]!.y!
           trackColor = colorForCurrentHighlight()
-          trackCurves.push({
+          shapes.curves.push({
             xStart: xStart + 1,
             yStart,
             xEnd,
@@ -3585,7 +3611,7 @@ function generateSVGShapesFromPath(): void {
     } else {
       xEnd = getReadXEnd(track)
     }
-    trackRectangles.push({
+    shapes.rectangles.push({
       xStart: Math.min(xStart, xEnd),
       yStart,
       xEnd: Math.max(xStart, xEnd),
@@ -3817,7 +3843,7 @@ function createFeatureRectangle(
             ) -
             1
           co = generateTrackColor(track, feature.type)
-          trackRectanglesStep3.push({
+          shapes.featureRectangles.push({
             xStart: featureXStart,
             yStart,
             xEnd: featureXEnd,
@@ -3830,7 +3856,7 @@ function createFeatureRectangle(
         }
 
         if (featureXStart > rectXStart + 1) {
-          trackRectanglesStep3.push({
+          shapes.featureRectangles.push({
             xStart: rectXStart,
             yStart,
             xEnd: featureXStart - 1,
@@ -3855,7 +3881,7 @@ function createFeatureRectangle(
             ) -
             1
           co = generateTrackColor(track, feature.type)
-          trackRectanglesStep3.push({
+          shapes.featureRectangles.push({
             xStart: featureXEnd,
             yStart,
             xEnd: featureXStart,
@@ -3868,7 +3894,7 @@ function createFeatureRectangle(
         }
 
         if (rectXStart > featureXStart + 1) {
-          trackRectanglesStep3.push({
+          shapes.featureRectangles.push({
             xStart: featureXStart + 1,
             yStart,
             xEnd: rectXStart,
@@ -3893,7 +3919,7 @@ function createFeatureRectangle(
             ((feature.end! + 1) * (nodeXEnd - nodeXStart + 1)) / nodeWidth,
           ) -
           1
-        trackRectanglesStep3.push({
+        shapes.featureRectangles.push({
           xStart: rectXStart,
           yStart,
           xEnd: featureXEnd,
@@ -3910,7 +3936,7 @@ function createFeatureRectangle(
             ((feature.end! + 1) * (nodeXEnd - nodeXStart + 1)) / nodeWidth,
           ) -
           1
-        trackRectanglesStep3.push({
+        shapes.featureRectangles.push({
           xStart: featureXEnd,
           yStart,
           xEnd: rectXStart,
@@ -3962,7 +3988,7 @@ function generateTurnaround(
   const stubFar = dir === 1 ? apex : x
 
   const horizontal = (segTop: number): void => {
-    trackVerticalRectangles.push({
+    shapes.verticalRectangles.push({
       xStart: stubNear,
       yStart: segTop,
       xEnd: stubFar,
@@ -3975,7 +4001,7 @@ function generateTurnaround(
   }
   // elongate the incoming and outgoing rectangles a bit past the node
   horizontal(yStart)
-  trackVerticalRectangles.push({
+  shapes.verticalRectangles.push({
     xStart: dir === 1 ? apex + radius : apex - radius - stem,
     yStart: yTop + trackWidth + radius - 1,
     xEnd: dir === 1 ? apex + radius + stem - 1 : apex - radius - 1,
@@ -3996,7 +4022,7 @@ function generateTurnaround(
   d += ` H ${outer}`
   d += ` Q ${outer} ${yBottom + trackWidth} ${apex} ${yBottom + trackWidth}`
   d += ' Z '
-  trackCorners.push({ path: d, color: trackColor, id: trackID, type })
+  shapes.corners.push({ path: d, color: trackColor, id: trackID, type })
 
   // top 90 degree bend
   d = `M ${apex} ${yTop}`
@@ -4004,7 +4030,7 @@ function generateTurnaround(
   d += ` H ${inner}`
   d += ` Q ${inner} ${yTop + trackWidth} ${apex} ${yTop + trackWidth}`
   d += ' Z '
-  trackCorners.push({ path: d, color: trackColor, id: trackID, type })
+  shapes.corners.push({ path: d, color: trackColor, id: trackID, type })
   extra[order]! += 1
 }
 
@@ -4545,7 +4571,7 @@ function drawRuler(): void {
 
   // draw horizontal line for each interval
 
-  const axisY = minYCoordinate - 10
+  const axisY = imageBounds.minY - 10
   mergedIntervals.forEach(interval => {
     svg
       .append('line')
@@ -4602,12 +4628,12 @@ function drawRulerMarking(
   xCoordinate: number,
   align: string,
 ): void {
-  const axisY = minYCoordinate - 10
+  const axisY = imageBounds.minY - 10
   svg
     .append('text')
     .attr('text-anchor', align)
     .attr('x', xCoordinate)
-    .attr('y', minYCoordinate - 18)
+    .attr('y', imageBounds.minY - 18)
     .text(`${sequencePosition}`)
     .attr('font-family', fonts)
     .attr('font-size', '12px')
@@ -4634,7 +4660,7 @@ function drawRulerMarkingRegion(ticks_region: [number, number][]): void {
   // Each tick is a base coordinate and an image coordinate
   ticks_region.forEach(tick => { drawRulerMarkingEndpoint(tick[0], tick[1]); })
 
-  const lineY = minYCoordinate - NODE_MARGIN - 6
+  const lineY = imageBounds.minY - NODE_MARGIN - 6
 
   if (ticks_region?.length === 2) {
     svg
@@ -4653,7 +4679,7 @@ function drawRulerMarkingEndpoint(
   xCoordinate: number,
 ): void {
   const pointX = xCoordinate
-  const pointY = minYCoordinate - NODE_MARGIN - 1
+  const pointY = imageBounds.minY - NODE_MARGIN - 1
   const arrowWidth = 8
   const arrowHeight = 10
 
@@ -4784,7 +4810,7 @@ function drawTrackCurves(
   // We're going to split this back into numbers so we should not use - as a separator.
   // TODO: Do we actually get negative oriented node numbers in here?
   const groupedCurves = groupBy(
-    trackCurves.filter(curve => curve.type === type),
+    shapes.curves.filter(curve => curve.type === type),
     curve => `${curve.nodeStart},${curve.nodeEnd}`,
   )
 
