@@ -17,7 +17,6 @@ import {
 import assert from 'assert'
 import { spawn } from 'child_process'
 import express from 'express'
-import bodyParser from 'body-parser'
 import multer from 'multer'
 import { v1 as uuid } from 'uuid'
 import fs from 'fs-extra'
@@ -35,10 +34,12 @@ import {
   isValidURL,
   readsExist,
 } from './common.ts'
-import { Readable } from 'stream'
+import { once } from 'events'
 import { finished } from 'stream/promises'
+import dns from 'dns/promises'
+import net from 'net'
 import sanitize from 'sanitize-filename'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import cron from 'node-cron'
 import { RWLock } from 'readers-writer-lock'
 
@@ -127,41 +128,40 @@ const ETagMap = new Map()
 // can't fight over its creation.
 fs.mkdirSync(SCRATCH_DATA_PATH, { recursive: true })
 
-if (typeof setImmediate === 'undefined') {
-  // On newer Jest/React tests, setImmediate is removed from the environment,
-  // because browsers don't have it. See
-  // <https://github.com/facebook/jest/pull/11222>.
-  // We still get to use stuff like the Node filesystem APIs, but weirdly not
-  // this builtin. To make Express work, we need to have the builtin. So we
-  // put it back.
-  // TODO: Work out a way to run end-to-end tests in the project, with the
-  // frontend and backend both running, but without loading the backend into
-  // a jsdom JS environment.
-  // TODO: Resesign the frontend components so that network access and server
-  // responses can be easily faked.
-  const timers = await import('timers')
-  window.setImmediate = timers.setImmediate
-  window.clearImmediate = timers.clearImmediate
-}
+// Extensions a user is allowed to upload, derived from the same config the
+// frontend's file picker filters on.
+const ALLOWED_UPLOAD_EXTENSIONS = new Set(
+  Object.values(config.fileTypeToExtensions).flatMap(list =>
+    list.split(',').map(extension => extension.trim().toLowerCase()),
+  ),
+)
 
-var storage = multer.diskStorage({
+const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, UPLOAD_DATA_PATH)
   },
   filename: function (req, file, cb) {
-    const ext = file.originalname.substring(
-      file.originalname.lastIndexOf('.'),
-      file.originalname.length,
-    )
-    // TODO: This can collide and can also be guessed by other users.
-    cb(null, Date.now() + ext)
+    const ext = file.originalname
+      .substring(file.originalname.lastIndexOf('.'))
+      .toLowerCase()
+    if (ALLOWED_UPLOAD_EXTENSIONS.has(ext)) {
+      // A random name can't collide with another upload and can't be guessed
+      // by another user.
+      cb(null, randomUUID() + ext)
+    } else {
+      cb(
+        new BadRequestError(
+          `Uploading files with extension "${ext}" is not allowed`,
+        ),
+      )
+    }
   },
 })
-var limits = {
+const limits = {
   files: 1, // allow only 1 file per request
   fileSize: 1024 * 1024 * 5, // 5 MB (max file size)
 }
-var upload = multer({ storage, limits })
+const upload = multer({ storage, limits })
 
 // deletes expired files given a directory, recursively calls itself for nested directories
 // expired files are files not accessed for a certain amount of time
@@ -183,7 +183,8 @@ function deleteExpiredFiles(directoryPath) {
     if (fs.statSync(filePath).isFile()) {
       // check to see if file needs to be deleted
       const lastAccessedTime = fs.statSync(filePath).atime
-      if (currentTime - lastAccessedTime >= config.fileExpirationTime) {
+      // config.fileExpirationTime is in seconds; the delta here is in ms.
+      if (currentTime - lastAccessedTime >= config.fileExpirationTime * 1000) {
         if (file !== '.gitignore' && file !== 'directory.lock') {
           fs.unlinkSync(filePath)
           console.log('Deleting file: ', filePath)
@@ -240,15 +241,15 @@ async function lockDirectories(directoryPaths, lockType, func) {
   }
 
   // attempt to acquire a lock for the next directory, and call lockDirectories on the remaining directories
-  const currDirectory = directoryPaths.pop()
+  const [currDirectory, ...remainingPaths] = directoryPaths
   return lockDirectory(currDirectory, lockType, async function () {
-    return lockDirectories(directoryPaths, lockType, func)
+    return lockDirectories(remainingPaths, lockType, func)
   })
 }
 
 // runs every hour
 // deletes any files in the download directory past the set fileExpirationTime set in config
-cron.schedule('0 * * * *', async () => {
+const expiredFileCleanupTask = cron.schedule('0 * * * *', async () => {
   console.log('cron scheduled check')
   // attempt to acquire a write lock for each on the directory before attempting to delete files
   for (const dir of [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH]) {
@@ -265,13 +266,8 @@ cron.schedule('0 * * * *', async () => {
 const app = express()
 
 // Configure global server settings
-app.use(bodyParser.json()) // to support JSON-encoded bodies
-app.use(
-  bodyParser.urlencoded({
-    // to support URL-encoded bodies
-    extended: true,
-  }),
-)
+app.use(express.json()) // to support JSON-encoded bodies
+app.use(express.urlencoded({ extended: true })) // to support URL-encoded bodies
 app.use(compression())
 
 // Serve the frontend
@@ -298,51 +294,60 @@ api.use((req, res, next) => {
 api.post(
   '/trackFileSubmission',
   upload.single('trackFile'),
-  (req, res, next) => {
-    // We would like this to be an async function, but then Express error
-    // handling doesn't work, because it doesn't detect returned promise
-    // rejections until Express 5. We have to pass an error to next() or else
-    // throw synchronously.
-    captureErrors(next, async () => {
-      console.log('/trackFileSubmission')
-      console.log(req.file)
-      // We don't get a lock because we're putting new files in and so we don't
-      // need to block using them or cleaning old files.
+  async (req, res, next) => {
+    console.log('/trackFileSubmission')
+    console.log(req.file)
+    // We don't get a lock because we're putting new files in and so we don't
+    // need to block using them or cleaning old files.
 
-      if (req.body.fileType === fileTypes['READ']) {
-        indexGamSorted(req, res, next)
-      } else {
-        res.json({ path: path.relative('.', req.file.path) })
-      }
-    })
+    if (req.file === undefined) {
+      throw new BadRequestError('No trackFile was uploaded with the request')
+    }
+    if (!Object.hasOwn(config.fileTypeToExtensions, req.body.fileType)) {
+      // multer has already written the file, so don't leave it behind.
+      await fs.remove(req.file.path)
+      throw new BadRequestError(`Unknown file type: ${req.body.fileType}`)
+    }
+
+    if (req.body.fileType === fileTypes['READ']) {
+      indexGamSorted(req, res, next)
+    } else {
+      res.json({ path: path.relative('.', req.file.path) })
+    }
   },
 )
 
 function indexGamSorted(req, res, next) {
   const readsPath = req.file.path
-  let prefix
-  let sortedSuffix
-  let indexSuffix
   if (readsPath.endsWith('.gaf') || readsPath.endsWith('.gaf.gz')) {
     throw new BadRequestError(
       `Server-side sorting and indexing not yet implemented for GAF: ${readsPath}`,
     )
-  } else if (readsPath.endsWith('.gam')) {
-    prefix = readsPath.substring(0, req.file.path.lastIndexOf('.gam'))
-    sortedSuffix = '.sorted.gam'
-    indexSuffix = '.sorted.gam.gai'
-  } else {
+  }
+  if (!readsPath.endsWith('.gam')) {
     throw new BadRequestError(`Read file is not a GAF or GAM: ${readsPath}`)
   }
 
-  const sortedReadsFile = fs.createWriteStream(prefix + sortedSuffix, {
-    encoding: 'binary',
-  })
+  // An upload that is already named .sorted.gam must not become
+  // .sorted.sorted.gam, so it keeps its own name and the sorted stream lands
+  // on a scratch file we rename over it. The .gai records offsets into
+  // whatever vg gamsort emits, so the index is only valid against that
+  // output, never against the bytes we were handed.
+  const alreadySorted = readsPath.endsWith('.sorted.gam')
+  const sortedPath = alreadySorted
+    ? readsPath
+    : readsPath.substring(0, readsPath.lastIndexOf('.gam')) + '.sorted.gam'
+  const writePath = alreadySorted ? sortedPath + '.resorting' : sortedPath
+  const indexPath = sortedPath + '.gai'
 
-  const vgGamsortParams = ['gamsort', '-i', prefix + indexSuffix, req.file.path]
+  const vgGamsortParams = ['gamsort', '-i', indexPath, readsPath]
   const vgGamsortChild = spawn(find_vg(), vgGamsortParams)
 
   req.error = Buffer.alloc(0)
+
+  const sortedReadsFile = fs.createWriteStream(writePath, {
+    encoding: 'binary',
+  })
 
   let sentResponse = false
 
@@ -357,7 +362,7 @@ function indexGamSorted(req, res, next) {
     )
     if (!sentResponse) {
       sentResponse = true
-      return next(new VgExecutionError('vg gamsort failed'))
+      next(new VgExecutionError('vg gamsort failed'))
     }
   })
 
@@ -374,18 +379,22 @@ function indexGamSorted(req, res, next) {
     console.log(`vg gamsort exited with code ${code}`)
     sortedReadsFile.end()
 
-    if (code !== 0) {
-      // Execution failed
-      if (!sentResponse) {
-        sentResponse = true
-        return next(new VgExecutionError('vg gamsort failed'))
-      }
-      return
-    }
-
     if (!sentResponse) {
       sentResponse = true
-      res.json({ path: path.relative('.', prefix + sortedSuffix) })
+      if (code === 0) {
+        finished(sortedReadsFile)
+          .then(async () => {
+            if (writePath !== sortedPath) {
+              await fs.move(writePath, sortedPath, { overwrite: true })
+            }
+            res.json({ path: path.relative('.', sortedPath) })
+          })
+          .catch(err => {
+            next(err)
+          })
+      } else {
+        next(new VgExecutionError('vg gamsort failed'))
+      }
     }
   })
 }
@@ -484,33 +493,15 @@ async function parseGFATranslation(filePath) {
   return nameMap
 }
 
-// To bridge Express next(err) error handling and async function error
-// handling, we have this adapter. It takes Express's next and an async
-// function and calls next with any error raised when the async function is
-// initially called *or* when its promise is awaited.
-async function captureErrors(next, callback) {
-  try {
-    await callback()
-  } catch (e) {
-    next(e)
-  }
-}
-
-api.post('/getChunkedData', (req, res, next) => {
-  // We would like this to be an async function, but then Express error
-  // handling doesn't work, because it doesn't detect returned promise
-  // rejections until Express 5. We have to pass an error to next() or else
-  // throw synchronously.
-  captureErrors(next, async () => {
-    // put readlock on necessary directories while processing chunked data
-    return lockDirectories(
-      [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH],
-      lockTypes.READ_LOCK,
-      async function () {
-        return getChunkedData(req, res, next)
-      },
-    )
-  })
+api.post('/getChunkedData', async (req, res, next) => {
+  // put readlock on necessary directories while processing chunked data
+  return lockDirectories(
+    [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH],
+    lockTypes.READ_LOCK,
+    async function () {
+      return getChunkedData(req, res, next)
+    },
+  )
 })
 
 /*
@@ -542,6 +533,18 @@ graph = {
   path: []
 }
 */
+
+// JSON.parse, but bad output from a subprocess becomes an error we can report
+// to the user instead of an exception thrown into Node's event machinery.
+function parseSubprocessJSON(text, source) {
+  try {
+    return JSON.parse(text)
+  } catch (e) {
+    throw new VgExecutionError(
+      `Could not parse JSON output of ${source}: ${e.message}`,
+    )
+  }
+}
 
 // read a graph object and remove "sequence" fields in place
 function removeNodeSequencesInPlace(graph) {
@@ -825,11 +828,12 @@ async function getChunkedData(req, res, next) {
         console.log(`chunkix exited with code ${code}`)
         if (code !== 0) {
           console.log('Error from python3 ' + chunkixParams.join(' '))
-          // Execution failed
+          // Execution failed, so don't go on to read output that isn't there.
           if (!sentResponse) {
             sentResponse = true
-            return next(new VgExecutionError('chunkix failed'))
+            next(new VgExecutionError('chunkix failed'))
           }
+          return
         }
 
         // read json graph output
@@ -873,15 +877,19 @@ async function getChunkedData(req, res, next) {
             }
             return
           }
-          req.graph = JSON.parse(graphAsString)
-          if (req.removeSequences) {
-            removeNodeSequencesInPlace(req.graph)
-          }
-          req.region = [rangeRegion.start, rangeRegion.end]
-          // vg chunk always puts the path we reference on first automatically
           if (!sentResponse) {
             sentResponse = true
-            processAnnotationFile(req, res, next)
+            try {
+              req.graph = parseSubprocessJSON(graphAsString, 'chunk.graph.json')
+              if (req.removeSequences) {
+                removeNodeSequencesInPlace(req.graph)
+              }
+              req.region = [rangeRegion.start, rangeRegion.end]
+              // vg chunk always puts the path we reference on first automatically
+              processAnnotationFile(req, res, next)
+            } catch (error) {
+              next(error)
+            }
           }
         })
       })
@@ -1061,10 +1069,15 @@ async function getChunkedData(req, res, next) {
         }
         if (code !== 0) {
           console.log('Error from ' + find_vg() + ' ' + vgChunkParams.join(' '))
-          // Execution failed
+          // Execution failed, so tear down the rest of the pipeline rather
+          // than letting it grind on a truncated graph.
+          if (req.simplify) {
+            vgSimplifyCall.kill()
+          }
+          vgViewCall.kill()
           if (!sentResponse) {
             sentResponse = true
-            return next(new VgExecutionError('vg chunk failed'))
+            next(new VgExecutionError('vg chunk failed'))
           }
         }
       })
@@ -1141,28 +1154,20 @@ async function getChunkedData(req, res, next) {
           }
           return
         }
-        req.graph = JSON.parse(graphAsString)
-        if (req.removeSequences) {
-          removeNodeSequencesInPlace(req.graph)
-        }
-        if (rangeRegion.contig === 'node') {
-          req.region = [null, null]
-        } else {
-          // If the query came in on a path with a subrange defined already,
-          // translate it into base path coordinates.
-          const subrangeStart = getSubrangeStart(rangeRegion.contig)
-          req.region = [
-            rangeRegion.start + subrangeStart,
-            rangeRegion.end + subrangeStart,
-          ]
-        }
-
-        // We might not have the path we are referencing on appearing first.
-        req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path)
-
         if (!sentResponse) {
           sentResponse = true
-          processAnnotationFile(req, res, next)
+          try {
+            finishGraphAndProcess(
+              req,
+              res,
+              next,
+              graphAsString,
+              rangeRegion,
+              parsedRegion,
+            )
+          } catch (error) {
+            next(error)
+          }
         }
       })
     }
@@ -1267,31 +1272,57 @@ async function getChunkedData(req, res, next) {
         }
         return
       }
-      req.graph = JSON.parse(graphAsString)
-      if (req.removeSequences) {
-        removeNodeSequencesInPlace(req.graph)
-      }
-      if (rangeRegion.contig === 'node') {
-        req.region = [null, null]
-      } else {
-        // If the query came in on a path with a subrange defined already,
-        // translate it into base path coordinates.
-        const subrangeStart = getSubrangeStart(rangeRegion.contig)
-        req.region = [
-          rangeRegion.start + subrangeStart,
-          rangeRegion.end + subrangeStart,
-        ]
-      }
-
-      // We might not have the path we are referencing on appearing first.
-      req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path)
-
       if (!sentResponse) {
         sentResponse = true
-        processAnnotationFile(req, res, next)
+        try {
+          finishGraphAndProcess(
+            req,
+            res,
+            next,
+            graphAsString,
+            rangeRegion,
+            parsedRegion,
+          )
+        } catch (error) {
+          next(error)
+        }
       }
     })
   }
+}
+
+// Turn the JSON graph text `vg view` gave us into req.graph, work out the
+// region we are showing, and hand off to the annotation-file step. Throws on
+// unparseable output.
+function finishGraphAndProcess(
+  req,
+  res,
+  next,
+  graphAsString,
+  rangeRegion,
+  parsedRegion,
+) {
+  req.graph = parseSubprocessJSON(graphAsString, 'vg view')
+  if (req.removeSequences) {
+    removeNodeSequencesInPlace(req.graph)
+  }
+  if (rangeRegion.contig === 'node') {
+    req.region = [null, null]
+  } else {
+    // If the query came in on a path with a subrange defined already,
+    // translate it into base path coordinates.
+    const subrangeStart = getSubrangeStart(rangeRegion.contig)
+    req.region = [
+      rangeRegion.start + subrangeStart,
+      rangeRegion.end + subrangeStart,
+    ]
+  }
+
+  // We might not have the path we are referencing on appearing first. A graph
+  // with no paths at all comes back from vg view without a path field.
+  req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path)
+
+  processAnnotationFile(req, res, next)
 }
 
 const SUBRANGE_REGEX = /\[([0-9]+)(-([0-9]+))?\]$/
@@ -1307,7 +1338,7 @@ function getSubrangeStart(pathName) {
 
 /// Given an array of paths, organize them so that the paths(s) corresponding
 /// to the requested region are first, and return a re-ordered array of paths.
-function organizePathsTargetFirst(region, pathList) {
+function organizePathsTargetFirst(region, pathList = []) {
   if (region.contig !== 'node') {
     // We pull the subrange off the path names when comparing them
     const targetBasePath = region.contig.replace(SUBRANGE_REGEX, '')
@@ -1499,6 +1530,12 @@ function processAnnotationFile(req, res, next) {
     }
     console.log(`annotationFile: ${req.annotationFile}`)
 
+    if (req.graph.path === undefined) {
+      // A graph with no paths comes back from vg view / chunkix without a
+      // path field at all, and everything downstream wants to iterate it.
+      req.graph.path = []
+    }
+
     // read annotation file
     const lineReader = rl.createInterface({
       input: fs.createReadStream(req.annotationFile),
@@ -1509,8 +1546,11 @@ function processAnnotationFile(req, res, next) {
       // WARNING may break normal vg chunk output if it doesn't use tabs
       const arr = line.split('\t')
       // const arr = line.replace(/\s+/g, " ").split(" ");
-      if (req.graph.path[i].name === arr[0]) {
-        req.graph.path[i].freq = arr[1]
+      const graphPath = req.graph.path[i]
+      if (graphPath === undefined) {
+        console.log('Annotation file has more lines than the graph has paths')
+      } else if (graphPath.name === arr[0]) {
+        graphPath.freq = arr[1]
       } else {
         console.log('Mismatch')
       }
@@ -1518,11 +1558,15 @@ function processAnnotationFile(req, res, next) {
     })
 
     lineReader.on('close', () => {
-      console.timeEnd(`processing annotation file-${req.reqId}`)
-      if (req.withGam === true) {
-        processGamFiles(req, res, next)
-      } else {
-        processRegionFile(req, res, next)
+      try {
+        console.timeEnd(`processing annotation file-${req.reqId}`)
+        if (req.withGam === true) {
+          processGamFiles(req, res, next)
+        } else {
+          processRegionFile(req, res, next)
+        }
+      } catch (error) {
+        next(error)
       }
     })
   } catch (error) {
@@ -1554,19 +1598,10 @@ function processGamFile(req, res, next, gamFile, gamFileNumber) {
       })
 
       catCall.on('close', () => {
-        const gamArr = gamJSON
-          .split('\n')
-          .filter(function (a) {
-            return a !== ''
-          })
-          .map(function (a) {
-            return JSON.parse(a)
-          })
-        // Organize the results by number
-        req.gamResults[gamFileNumber] = gamArr
-        req.gamRemaining -= 1
-        if (req.gamRemaining == 0) {
-          processRegionFile(req, res, next)
+        try {
+          collectGamResult(req, res, next, gamJSON, gamFileNumber, gamFile)
+        } catch (error) {
+          next(error)
         }
       })
     } else {
@@ -1626,24 +1661,29 @@ function processGamFile(req, res, next, gamFile, gamFileNumber) {
       })
 
       vgViewChild.on('close', () => {
-        const gamArr = gamJSON
-          .split('\n')
-          .filter(function (a) {
-            return a !== ''
-          })
-          .map(function (a) {
-            return JSON.parse(a)
-          })
-        // Organize the results by number
-        req.gamResults[gamFileNumber] = gamArr
-        req.gamRemaining -= 1
-        if (req.gamRemaining == 0) {
-          processRegionFile(req, res, next)
+        try {
+          collectGamResult(req, res, next, gamJSON, gamFileNumber, gamFile)
+        } catch (error) {
+          next(error)
         }
       })
     }
   } catch (error) {
     return next(error)
+  }
+}
+
+// Parse the newline-delimited JSON reads we collected for one GAM/GAF chunk,
+// store them in order, and move on once every chunk has reported. Throws on
+// unparseable output.
+function collectGamResult(req, res, next, gamJSON, gamFileNumber, gamFile) {
+  req.gamResults[gamFileNumber] = gamJSON
+    .split('\n')
+    .filter(line => line !== '')
+    .map(line => parseSubprocessJSON(line, gamFile))
+  req.gamRemaining -= 1
+  if (req.gamRemaining === 0) {
+    processRegionFile(req, res, next)
   }
 }
 
@@ -1777,8 +1817,12 @@ function processRegionFile(req, res, next) {
     })
 
     lineReader.on('close', () => {
-      console.timeEnd(`processing region file-${req.reqId}`)
-      processNodeColorsFile(req, res, next)
+      try {
+        console.timeEnd(`processing region file-${req.reqId}`)
+        processNodeColorsFile(req, res, next)
+      } catch (error) {
+        next(error)
+      }
     })
   } catch (error) {
     return next(error)
@@ -1815,8 +1859,12 @@ function processNodeColorsFile(req, res, next) {
     })
 
     lineReader.on('close', () => {
-      console.timeEnd(`processing node colors file-${req.reqId}`)
-      cleanUpAndSendResult(req, res, next)
+      try {
+        console.timeEnd(`processing node colors file-${req.reqId}`)
+        cleanUpAndSendResult(req, res, next)
+      } catch (error) {
+        next(error)
+      }
     })
   } catch (error) {
     return next(error)
@@ -1832,8 +1880,12 @@ function cleanUpChunkIfOwned(req, _res) {
     // fiddly, and we could have gotten here because we generated those paths
     // and they were outside our acceptable directory tree.
 
-    // Clean up the temp directory for the request recursively
-    fs.remove(req.chunkDir)
+    // Clean up the temp directory for the request recursively. Nothing waits
+    // on this, so a failure has to be logged rather than thrown into an
+    // unhandled rejection.
+    fs.remove(req.chunkDir).catch(err => {
+      console.error('Could not remove chunk directory ' + req.chunkDir, err)
+    })
   }
 }
 
@@ -2044,10 +2096,10 @@ api.get('/getFilenames', (req, res) => {
       }
       // We don't allow un-sorted-and-indexed plain GAF files here
       if (file.endsWith('.gaf.gz')) {
-        result.files.push({ trackFile: file, trackType: 'read' })
+        result.files.push({ trackFile: clientPath, trackType: 'read' })
       }
       if (file.endsWith('.nodes.tsv.gz')) {
-        result.files.push({ trackFile: file, trackType: 'node' })
+        result.files.push({ trackFile: clientPath, trackType: 'node' })
       }
       if (file.endsWith('.bed')) {
         result.bedFiles.push(clientPath)
@@ -2218,6 +2270,77 @@ function hashString(str) {
   return createHash('sha256').update(str).digest('hex')
 }
 
+// Return true for an IPv4 or IPv6 literal that a public server has no
+// business being asked to fetch from: loopback, link-local, unique-local,
+// carrier NAT, the RFC1918 ranges, and multicast.
+function isPrivateAddress(address) {
+  if (net.isIPv4(address)) {
+    const [a, b] = address.split('.').map(Number)
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168)
+    )
+  }
+  const lower = address.toLowerCase()
+  if (lower.startsWith('::ffff:') && net.isIPv4(lower.slice(7))) {
+    // IPv4-mapped IPv6, so judge it as the IPv4 address it wraps.
+    return isPrivateAddress(lower.slice(7))
+  }
+  return (
+    lower === '::' ||
+    lower === '::1' ||
+    lower.startsWith('fe80') ||
+    lower.startsWith('fc') ||
+    lower.startsWith('fd') ||
+    lower.startsWith('ff')
+  )
+}
+
+// Throw unless the given URL is an http(s) URL whose host is a public
+// address. This keeps a user-supplied URL from making the server fetch from
+// its own loopback interface or from a private network it can see.
+async function assertPublicURL(url) {
+  const parsed = new URL(url)
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new BadRequestError(
+      'Only http and https URLs can be fetched: ' + url,
+    )
+  }
+  // An IPv6 literal host arrives wrapped in brackets.
+  const host = parsed.hostname.startsWith('[')
+    ? parsed.hostname.slice(1, -1)
+    : parsed.hostname
+
+  let addresses
+  if (net.isIP(host)) {
+    addresses = [host]
+  } else {
+    try {
+      addresses = (await dns.lookup(host, { all: true })).map(
+        entry => entry.address,
+      )
+    } catch (e) {
+      throw new BadRequestError(
+        `Could not resolve host ${host} for ${url}: ${e.message}`,
+      )
+    }
+  }
+
+  for (const address of addresses) {
+    if (isPrivateAddress(address)) {
+      throw new BadRequestError(
+        `Refusing to fetch ${url}: ${host} resolves to the non-public address ${address}`,
+      )
+    }
+  }
+}
+
 // Given a URL and a filename, download the given URL to that filename. Assumes required directories exist.
 const downloadFile = async (fileURL, destination) => {
   if (!isAllowedPath(destination)) {
@@ -2226,100 +2349,147 @@ const downloadFile = async (fileURL, destination) => {
     )
   }
 
-  const response = await fetchAndValidate(
+  const written = await fetchToFile(
     fileURL,
     config.maxFileSizeBytes,
     destination,
   )
-
-  // file has already been downloaded and has not been updated since last fetch
-  if (!response) {
+  if (!written) {
+    // file has already been downloaded and has not been updated since last fetch
     console.log('File has already been downloaded at ', destination)
-    return
   }
-
-  console.log('Save to:', destination)
-
-  // overwrites file if it already exists
-  const fileStream = fs.createWriteStream(destination, { flags: 'w' })
-  await finished(Readable.fromWeb(response.body).pipe(fileStream))
 }
 
-// url: url destination to fetch from
-// maxBytes: maxBytes before aborting fetch
-// existingLocation: the existing location of a file, to prevent duplicate fetches of a file already on disk
-//                   leaving it empty will result in always fetching
-const fetchAndValidate = async (url, maxBytes, existingLocation = null) => {
-  let fetchHeader = {}
-  // We don't want to fetch again if we have a copy on disk
-  // Use a "If-None-Match" header to only fetch if our copy is outdated
-  if (existingLocation && fs.existsSync(existingLocation)) {
-    fetchHeader = {
-      'If-None-Match': ETagMap.get(url) || '-1',
-    }
+// Start a size- and host-checked GET. Returns the response along with the
+// timer that will abort it, which the caller must clear once it is done with
+// the body. `existingLocation`, when it names a file already on disk, turns
+// the request into a conditional one so an unchanged file isn't re-downloaded.
+async function beginValidatedFetch(url, maxBytes, existingLocation) {
+  await assertPublicURL(url)
+
+  const headers = {}
+  if (existingLocation !== undefined && fs.existsSync(existingLocation)) {
+    // We don't want to fetch again if we have an up to date copy on disk.
+    headers['If-None-Match'] = ETagMap.has(url) ? ETagMap.get(url) : '-1'
   }
-  const controller = timeoutController(config.fetchTimeout)
-  const options = {
-    method: 'GET',
-    credentials: 'omit',
-    cache: 'default',
-    signal: controller.signal,
-    headers: fetchHeader,
-  }
+
+  const controller = new AbortController()
+  const timer = setTimeout(
+    () => controller.abort(),
+    config.fetchTimeout * 1000,
+  )
 
   console.log('Fetching URL:', url)
-  const response = await fetch(url, options)
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'omit',
+      cache: 'default',
+      signal: controller.signal,
+      headers,
+    })
 
-  // file exists on disk and file has not been updated since last fetch
-  if (response.status === 304) {
-    console.log('file not modified since last fetch')
-    return 0
-  }
-
-  // update our eTag for this url
-  ETagMap.set(url, response.headers.get('ETag'))
-
-  // check for unsuccessful response codes
-  if (!response.ok) {
-    throw new BadRequestError(
-      `Fetch request for ${url} failed: ` + response.status,
-    )
-  }
-
-  // check for size specified in header
-  const contentLength = response.headers.get('Content-Length')
-
-  if (contentLength > maxBytes) {
-    throw new Error(
-      `Fetch request for ${url} failed: Content-Length exceeds maximum file size of ${maxBytes} bytes`,
-    )
-  }
-
-  // use a reader to make sure we're not reading past the max size allowed
-  const reader = response.body.getReader()
-
-  let bytesRead = 0
-  const dataRead = []
-
-  while (true) {
-    const { done, value } = await reader.read()
-
-    if (done) {
-      break
+    if (response.status === 304) {
+      // file exists on disk and file has not been updated since last fetch
+      console.log('file not modified since last fetch')
+      return { notModified: true, response, timer }
     }
 
-    dataRead.push(value)
-    bytesRead += new Blob([value]).size
+    const eTag = response.headers.get('ETag')
+    if (eTag !== null) {
+      ETagMap.set(url, eTag)
+    }
 
-    if (bytesRead > maxBytes) {
-      reader.cancel()
-      throw new Error(
-        `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`,
+    if (!response.ok) {
+      throw new BadRequestError(
+        `Fetch request for ${url} failed: ` + response.status,
       )
     }
-  }
 
-  return new Response(new Blob(dataRead), { headers: response.headers })
+    const contentLength = response.headers.get('Content-Length')
+    if (contentLength !== null && Number(contentLength) > maxBytes) {
+      throw new BadRequestError(
+        `Fetch request for ${url} failed: Content-Length exceeds maximum file size of ${maxBytes} bytes`,
+      )
+    }
+
+    return { notModified: false, response, timer }
+  } catch (e) {
+    clearTimeout(timer)
+    throw e
+  }
+}
+
+// Read a fetch response body, handing each chunk to `onChunk`, and abort once
+// more than maxBytes have arrived.
+async function readBodyUpTo(url, response, maxBytes, onChunk) {
+  const reader = response.body.getReader()
+  let bytesRead = 0
+  let done = false
+  while (!done) {
+    const result = await reader.read()
+    done = result.done
+    if (!done) {
+      bytesRead += result.value.byteLength
+      if (bytesRead > maxBytes) {
+        await reader.cancel()
+        throw new BadRequestError(
+          `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`,
+        )
+      }
+      await onChunk(result.value)
+    }
+  }
+}
+
+// Download a URL straight to a file, without ever holding the whole body in
+// memory. Returns true if the file was written, or false if our copy on disk
+// was already current.
+async function fetchToFile(url, maxBytes, destination) {
+  const { notModified, response, timer } = await beginValidatedFetch(
+    url,
+    maxBytes,
+    destination,
+  )
+  try {
+    if (notModified) {
+      return false
+    }
+    console.log('Save to:', destination)
+    // overwrites file if it already exists
+    const fileStream = fs.createWriteStream(destination, { flags: 'w' })
+    try {
+      await readBodyUpTo(url, response, maxBytes, async chunk => {
+        if (!fileStream.write(chunk)) {
+          await once(fileStream, 'drain')
+        }
+      })
+      fileStream.end()
+      await finished(fileStream)
+    } catch (e) {
+      fileStream.destroy()
+      // Don't leave a truncated file where a good one is expected.
+      await fs.remove(destination)
+      throw e
+    }
+    return true
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// Download a small text document (a BED file, a chunk index) as a string.
+async function fetchText(url, maxBytes) {
+  const { response, timer } = await beginValidatedFetch(url, maxBytes)
+  try {
+    const chunks = []
+    await readBodyUpTo(url, response, maxBytes, chunk => {
+      chunks.push(chunk)
+    })
+    return Buffer.concat(chunks).toString('utf-8')
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 // Download files for the specified relative chunk path, for the BED file at
@@ -2347,12 +2517,7 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
   // Each chunk has an index in "chunk_contents.txt"
   const chunkContentURL = new URL('chunk_contents.txt', chunkURL).toString()
 
-  const response = await fetchAndValidate(
-    chunkContentURL,
-    config.maxFileSizeBytes,
-  )
-
-  const chunkContent = await response.text()
+  const chunkContent = await fetchText(chunkContentURL, config.maxFileSizeBytes)
   const fileNames = chunkContent.split('\n')
 
   // download all the files in the chunk
@@ -2377,13 +2542,6 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
       await downloadFile(chunkFileURL, chunkFilePath)
     }
   }
-}
-
-// aborts fetch request after certain amount of time
-const timeoutController = seconds => {
-  const controller = new AbortController()
-  setTimeout(() => controller.abort(), seconds * 1000)
-  return controller
 }
 
 // Expects a bed file and a chunk name
@@ -2413,43 +2571,50 @@ async function getChunkTracks(bedFile, chunk) {
 
 // Expects a request with a bed file and a chunk name
 // Returns tracks retrieved from getChunkTracks
-api.post('/getChunkTracks', (req, res, next) => {
-  captureErrors(next, async () => {
-    console.log('received request for chunk tracks')
-    if (!req.body.bedFile || !req.body.chunk) {
-      throw new BadRequestError(
-        'Invalid request format',
-        req.body.bedFile,
-        req.body.chunk,
-      )
-    }
+api.post('/getChunkTracks', async (req, res) => {
+  console.log('received request for chunk tracks')
+  if (!req.body.bedFile || !req.body.chunk) {
+    throw new BadRequestError(
+      `Invalid request format: bedFile ${req.body.bedFile}, chunk ${req.body.chunk}`,
+    )
+  }
+  assertBedFileReadable(req.body.bedFile)
 
-    // tracks are falsy if fetch is unsuccessful
+  // tracks are falsy if fetch is unsuccessful
 
-    // TODO: This operation needs to hold a reader lock on the upload/download directories.
-    // waiting for lock changes to be merged
-    const tracks = await getChunkTracks(req.body.bedFile, req.body.chunk)
-    res.json({ tracks: tracks })
-  })
+  // TODO: This operation needs to hold a reader lock on the upload/download directories.
+  // waiting for lock changes to be merged
+  const tracks = await getChunkTracks(req.body.bedFile, req.body.chunk)
+  res.json({ tracks: tracks })
 })
 
-api.post('/getBedRegions', (req, res, next) => {
-  captureErrors(next, async () => {
-    console.log('received request for bedRegions')
-    const result = {
-      bedRegions: [],
+api.post('/getBedRegions', async (req, res) => {
+  console.log('received request for bedRegions')
+  if (req.body.bedFile) {
+    res.json({
+      bedRegions: await getBedRegions(req.body.bedFile),
       error: null,
-    }
-
-    if (req.body.bedFile) {
-      const bed_info = await getBedRegions(req.body.bedFile)
-      result.bedRegions = bed_info
-      res.json(result)
-    } else {
-      throw new BadRequestError('No BED file specified')
-    }
-  })
+    })
+  } else {
+    throw new BadRequestError('No BED file specified')
+  }
 })
+
+// Throw unless the given BED file is a URL, or a local path we are willing to
+// read on a user's behalf.
+function assertBedFileReadable(bed) {
+  if (!isValidURL(bed)) {
+    if (!bed.endsWith('.bed')) {
+      throw new BadRequestError('BED file path does not end in .bed: ' + bed)
+    }
+    if (!isAllowedPath(bed)) {
+      throw new BadRequestError('BED file path not allowed: ' + bed)
+    }
+    if (!fs.existsSync(bed)) {
+      throw new BadRequestError('BED file not found: ' + bed)
+    }
+  }
+}
 
 // Load up the given BED file by URL or path, and
 // return a data structure describing all the pre-cached regions it defines.
@@ -2465,22 +2630,11 @@ async function getBedRegions(bed) {
   }
   let bed_data
   console.log('bed file received ', bed)
+  assertBedFileReadable(bed)
   if (isValidURL(bed)) {
-    const response = await fetchAndValidate(bed, config.maxFileSizeBytes)
-    bed_data = await response.text()
+    bed_data = await fetchText(bed, config.maxFileSizeBytes)
   } else {
-    // otherwise search for bed file in dataPath
-    if (!bed.endsWith('.bed')) {
-      throw new BadRequestError('BED file path does not end in .bed: ' + bed)
-    }
-    if (!isAllowedPath(bed)) {
-      throw new BadRequestError('BED file path not allowed: ' + bed)
-    }
-    if (!fs.existsSync(bed)) {
-      throw new BadRequestError('BED file not found: ' + bed)
-    }
-
-    // Load and parse the BED file
+    // Load and parse the BED file from dataPath
     bed_data = fs.readFileSync(bed).toString()
   }
 
@@ -2514,8 +2668,8 @@ async function getBedRegions(bed) {
     bed_info['chunk'].push(chunk)
   }
 
-  if (bed_info.length === 0) {
-    BadRequestError('BED file is empty')
+  if (bed_info.chr.length === 0) {
+    throw new BadRequestError('BED file is empty: ' + bed)
   }
 
   // check for a tracks.json file to prefill tracks configuration
@@ -2585,6 +2739,9 @@ export function start() {
       connections: undefined,
       // Shut down the server
       close: async () => {
+        console.log('[shutdown] stopping expired file cleanup task')
+        await expiredFileCleanupTask.destroy()
+
         console.log('[shutdown] removing temp dir')
         fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
 
@@ -2707,6 +2864,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 process.on('SIGINT', function () {
   console.log('\nshutting down from SIGINT')
+  expiredFileCleanupTask.stop()
   // remove the temporary directory
   fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
 
