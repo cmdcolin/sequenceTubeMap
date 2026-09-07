@@ -81,8 +81,8 @@ semicolons, trailing commas, no parens on single-argument arrows.
 
 ```
 pnpm build       # production bundle into build/
-pnpm dep         # build, publish build/ to gh-pages
 ```
 
-The gh-pages build ships `BACKEND_URL: false`, which selects the in-browser
-backend. See [gbz-base.md](gbz-base.md).
+CI builds and publishes `build/` to the `gh-pages` branch automatically on every
+push to `master`. That build ships `BACKEND_URL: false`, which selects the
+in-browser backend. See [gbz-base.md](gbz-base.md).

@@ -88,7 +88,7 @@ and ported to TypeScript. It computes node order, assigns lanes, places reads,
 and draws with d3. It is _not_ a React component: it holds module-level state
 and is driven by `create()` plus a set of `setX()` functions that `TubeMap.tsx`
 calls. That is the largest remaining piece of technical debt — it means only one
-tube map can exist per page — and is the subject of `agent-docs/MODERNIZE.md`.
+tube map can exist per page — and is tracked in `src/util/tubemap-phase2.md`.
 
 ## Conventions worth knowing
 

@@ -69,8 +69,9 @@ with no browser involved. Samples in
 ## Interface
 
 Upstream puts every control in one long form down the page. This fork moves them
-into a MUI AppBar — File / Examples / View / Reads / Visibility menus, with
-contextual enable-disable and inline help per option — plus:
+into a MUI AppBar — Examples / File / View menus, with contextual enable-disable
+and inline help per option (View holds the display flags and the read options,
+and opens the per-track visibility checklist as a dialog) — plus:
 
 - a **paths panel** listing the contigs in the graph, so a region can be clicked
   rather than typed (with a warning before loading a slow path);
