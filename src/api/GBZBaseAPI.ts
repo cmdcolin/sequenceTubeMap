@@ -8,7 +8,13 @@
 
 import '../config-client.js'
 import { BlobFile, RemoteFile } from 'generic-filehandle2'
-import { GBZBase, GENERIC_SAMPLE, nodes as gbzNodes } from '@gmod/gbz-base'
+import {
+  GBZBase,
+  GENERIC_SAMPLE,
+  SCHEMA_VERSION,
+  SchemaVersionError,
+  nodes as gbzNodes,
+} from '@gmod/gbz-base'
 import type { PathName, PathQuery } from '@gmod/gbz-base'
 
 import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
@@ -262,11 +268,20 @@ export class GBZBaseAPI implements APIInterface {
           return await GBZBase.open(source)
         } catch (e) {
           this.graphs.delete(key)
-          throw new Error(
-            `Could not open "${trackFile}" as a gbz-base database: ${errorMessage(e)}\n` +
-              'The in-browser backend reads .gbz.db files; .vg, .xg and .gbz are not supported.',
-            { cause: e },
-          )
+          if (e instanceof SchemaVersionError) {
+            const found =
+              e.found === undefined ? 'unreadable' : `"${e.found}"`
+            throw new Error(
+              `"${trackFile}" is a gbz-base database, but its schema version is ${found} and this app reads "${SCHEMA_VERSION}". Rebuild it with a gbz-base release that writes that version, or update this app to a reader that understands yours.`,
+              { cause: e },
+            )
+          } else {
+            throw new Error(
+              `Could not open "${trackFile}" as a gbz-base database: ${errorMessage(e)}\n` +
+                'The in-browser backend reads .gbz.db files; .vg, .xg and .gbz are not supported.',
+              { cause: e },
+            )
+          }
         }
       })()
       this.graphs.set(key, opened)
