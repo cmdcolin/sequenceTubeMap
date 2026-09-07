@@ -35,6 +35,7 @@ to see available contig names.
 
 ## More docs
 
+- [Architecture](doc/architecture.md)
 - [Differences from upstream sequenceTubeMap](doc/differences-from-upstream.md)
 - [Data preparation & hosting options](doc/uploading.md)
 - [Headless SVG rendering](doc/headless-rendering.md)
