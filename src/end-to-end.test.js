@@ -301,6 +301,20 @@ describe('When we wait for it to load', () => {
   )
 })
 
+// Deep links carry their parameters in whatever order the form happens to
+// serialize them, which is not part of the contract, so compare the parameter
+// sets rather than the exact string.
+function expectSameLink(actual, expected) {
+  const params = url => {
+    const parsed = new URL(url)
+    return {
+      origin: parsed.origin + parsed.pathname,
+      search: [...new URLSearchParams(parsed.search)].sort(),
+    }
+  }
+  expect(params(actual)).toEqual(params(expected))
+}
+
 it('produces correct link when data source is changed', async () => {
   // Selecting a data source auto-commits; copy link updates immediately.
   const expectedLinkBRCA1 =
@@ -308,14 +322,14 @@ it('produces correct link when data source is changed', async () => {
   await selectExample('snp1kg-BRCA1')
   await waitForLoadEnd()
   await clickCopyLink()
-  expect(fakeClipboard).toEqual(expectedLinkBRCA1)
+  expectSameLink(fakeClipboard, expectedLinkBRCA1)
 
   const expectedLinkCactus =
     'http://localhost/?tracks[0][trackFile]=exampleData%2Fcactus.vg.xg&tracks[0][trackType]=graph&tracks[1][trackFile]=exampleData%2Fcactus-NA12879.sorted.gam&tracks[1][trackType]=read&bedFile=exampleData%2Fcactus.bed&name=cactus&region=ref%3A1-100&dataType=built-in&simplify=false&removeSequences=false'
   await selectExample('cactus')
   await waitForLoadEnd()
   await clickCopyLink()
-  expect(fakeClipboard).toEqual(expectedLinkCactus)
+  expectSameLink(fakeClipboard, expectedLinkCactus)
 }, 20000)
 
 it('can retrieve the list of mounted graph files', async () => {

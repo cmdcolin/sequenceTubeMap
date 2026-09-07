@@ -20,6 +20,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const EXAMPLE_DATA = join(__dirname, '..', 'exampleData')
 const SCRIPTS = join(__dirname, '..', 'scripts')
 
+// Everything here shells out to vg, so the whole file skips when it isn't
+// installed, the same way the network tests in src/api/GBZBaseAPI.test.ts opt
+// in.
+const HAS_VG = vg_available()
+
 let workDir = ''
 
 beforeEach(async () => {
@@ -32,32 +37,34 @@ afterEach(async () => {
   }
 })
 
-it.skipIf(!vg_available())('can run prepare_vg.sh', async () => {
-  for (const filename of ['x.fa', 'x.vcf.gz', 'x.vcf.gz.tbi']) {
-    await cp(join(EXAMPLE_DATA, filename), join(workDir, filename))
-  }
+describe.skipIf(!HAS_VG)('data import scripts', () => {
+  it('can run prepare_vg.sh', async () => {
+    for (const filename of ['x.fa', 'x.vcf.gz', 'x.vcf.gz.tbi']) {
+      await cp(join(EXAMPLE_DATA, filename), join(workDir, filename))
+    }
 
-  const vgBuffer = (
-    await execFile(
-      find_vg(),
-      [
-        'construct',
-        '-r',
-        join(workDir, 'x.fa'),
-        '-v',
-        join(workDir, 'x.vcf.gz'),
-        '-a',
-      ],
-      { encoding: 'buffer' },
-    )
-  ).stdout
-  const graphPath = join(workDir, 'x.vg')
-  const file = await open(graphPath, 'w')
-  await file.writeFile(vgBuffer)
-  await file.close()
+    const vgBuffer = (
+      await execFile(
+        find_vg(),
+        [
+          'construct',
+          '-r',
+          join(workDir, 'x.fa'),
+          '-v',
+          join(workDir, 'x.vcf.gz'),
+          '-a',
+        ],
+        { encoding: 'buffer' },
+      )
+    ).stdout
+    const graphPath = join(workDir, 'x.vg')
+    const file = await open(graphPath, 'w')
+    await file.writeFile(vgBuffer)
+    await file.close()
 
-  // We can't use expect here because await expect(...).resolves doesn't actually detect rejections.
-  await execFile(join(SCRIPTS, 'prepare_vg.sh'), [join(workDir, 'x.vg')])
-  await access(join(workDir, 'x.vg.xg'))
-  await access(join(workDir, 'x.vg.gbwt'))
-}, 30000)
+    // We can't use expect here because await expect(...).resolves doesn't actually detect rejections.
+    await execFile(join(SCRIPTS, 'prepare_vg.sh'), [join(workDir, 'x.vg')])
+    await access(join(workDir, 'x.vg.xg'))
+    await access(join(workDir, 'x.vg.gbwt'))
+  }, 30000)
+})
