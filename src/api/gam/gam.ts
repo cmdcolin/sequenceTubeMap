@@ -168,17 +168,57 @@ export async function readAlignmentsForRuns(
   visits?: ReadonlySet<bigint>,
 ): Promise<VgRead[]> {
   const { size } = await source.stat()
+  const perRun = new Array<VgRead[]>(runs.length)
+  let nextRun = 0
+  const worker = async () => {
+    let i = nextRun++
+    while (i < runs.length) {
+      perRun[i] = await alignmentsInRun(
+        source,
+        size,
+        runs[i]!,
+        minNode,
+        maxNode,
+        visits,
+      )
+      i = nextRun++
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(RUN_FETCH_CONCURRENCY, runs.length) }, () =>
+      worker(),
+    ),
+  )
+  // Concatenating in run order keeps the reads in the order the file has
+  // them, which for a sorted GAM is roughly node position. TubeMapContainer's
+  // subsampleReads relies on that to take a spatially even sample.
+  return perRun.flat()
+}
+
+// Runs are fetched a few at a time so a query spanning several of them pays
+// roughly one round trip's latency instead of one per run, which is the
+// difference between fast and sluggish over HTTP. Capped rather than
+// unbounded so a query over a large file doesn't hold every run's
+// decompressed bytes at once.
+const RUN_FETCH_CONCURRENCY = 6
+
+async function alignmentsInRun(
+  source: GenericFilehandle,
+  fileSize: number,
+  run: IndexRun,
+  minNode: bigint,
+  maxNode: bigint,
+  visits: ReadonlySet<bigint> | undefined,
+): Promise<VgRead[]> {
   const out: VgRead[] = []
-  for (const run of runs) {
-    for (const msg of await messagesInRun(source, size, run)) {
-      if (isAlignmentTag(msg.tag)) {
-        const aln = decodeAlignment(msg.bytes)
-        const wanted = alignmentNodeIds(aln).some(id =>
-          visits ? visits.has(id) : id >= minNode && id <= maxNode,
-        )
-        if (wanted) {
-          out.push(aln)
-        }
+  for (const msg of await messagesInRun(source, fileSize, run)) {
+    if (isAlignmentTag(msg.tag)) {
+      const aln = decodeAlignment(msg.bytes)
+      const wanted = alignmentNodeIds(aln).some(id =>
+        visits ? visits.has(id) : id >= minNode && id <= maxNode,
+      )
+      if (wanted) {
+        out.push(aln)
       }
     }
   }

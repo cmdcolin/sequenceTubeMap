@@ -15,12 +15,20 @@ function loadAsBlob(path: string): Blob {
 class CountingFile implements GenericFilehandle {
   bytesRead = 0
   reads = 0
+  inFlight = 0
+  maxInFlight = 0
   constructor(private readonly inner: GenericFilehandle) {}
   async read(length: number, position: number) {
     this.reads++
-    const bytes = await this.inner.read(length, position)
-    this.bytesRead += bytes.length
-    return bytes
+    this.inFlight++
+    this.maxInFlight = Math.max(this.maxInFlight, this.inFlight)
+    try {
+      const bytes = await this.inner.read(length, position)
+      this.bytesRead += bytes.length
+      return bytes
+    } finally {
+      this.inFlight--
+    }
   }
   readFile(): never {
     throw new Error('readFile would defeat the point of a range read')
@@ -169,9 +177,23 @@ describe('readGamRegion', () => {
     const filtered = all.filter(inRange)
     const indexed = await readGamRegion(new BlobFile(gam), gai, 1n, 24n)
     expect(indexed.length).toBeGreaterThan(0)
-    const names = (xs: { name?: string }[]) =>
-      xs.map(x => x.name ?? '').sort()
+    // Not just the same set but the same order. Runs are read concurrently,
+    // so this is what catches a result assembled in completion order rather
+    // than file order — the ordering subsampleReads depends on.
+    const names = (xs: { name?: string }[]) => xs.map(x => x.name ?? '')
     expect(names(indexed)).toEqual(names(filtered))
+  })
+
+  // Several runs in flight at once, so a query spanning them costs about one
+  // round trip rather than one per run.
+  it('fetches several runs concurrently', async () => {
+    const source = countingSource(
+      'exampleData/internal/NA12878-BRCA1.sorted.gam',
+    )
+    const gai = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam.gai')
+    await readGamRegion(source, gai, 1n, 24n)
+    expect(source.reads).toBeGreaterThan(1)
+    expect(source.maxInFlight).toBeGreaterThan(1)
   })
 
   // The reason the index exists: a narrow query has to touch a small part of
