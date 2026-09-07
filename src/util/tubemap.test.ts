@@ -1,7 +1,12 @@
 import {
   cigar_string,
+  compareIncomingReadKeys,
   coverage,
   axisIntervals,
+  fillUnassignedOrders,
+  reverseMismatches,
+  UNREACHABLE_ORDER,
+  type IncomingReadKey,
   type Mismatch,
 } from './tubemap.ts'
 
@@ -998,5 +1003,106 @@ describe('axisIntervals', () => {
       [0, 29],
       [53, 117],
     ])
+  })
+})
+
+describe('compareIncomingReadKeys', () => {
+  const key = (decisionStep: number, y?: number): IncomingReadKey => ({
+    decisionStep,
+    y,
+  })
+
+  it('prefers the smaller decisionStep', () => {
+    expect(compareIncomingReadKeys(key(1, 50), key(3, 10))).toBeLessThan(0)
+    expect(compareIncomingReadKeys(key(3, 10), key(1, 50))).toBeGreaterThan(0)
+  })
+
+  it('ties two entries that both walked off the front of the path', () => {
+    expect(compareIncomingReadKeys(key(2), key(2))).toBe(0)
+  })
+
+  it('is antisymmetric when only one entry walked off the front', () => {
+    const off = key(2)
+    const onPath = key(2, 40)
+    expect(compareIncomingReadKeys(off, onPath)).toBeLessThan(0)
+    expect(compareIncomingReadKeys(onPath, off)).toBeGreaterThan(0)
+  })
+
+  it('falls back to y within a decisionStep', () => {
+    expect(compareIncomingReadKeys(key(2, 10), key(2, 40))).toBeLessThan(0)
+    expect(compareIncomingReadKeys(key(2, 40), key(2, 10))).toBeGreaterThan(0)
+    expect(compareIncomingReadKeys(key(2, 40), key(2, 40))).toBe(0)
+  })
+})
+
+describe('fillUnassignedOrders', () => {
+  it('fills array holes, which forEach would silently skip', () => {
+    // This is exactly the shape generateNodeOrder starts from: `new Array(n)`.
+    const sparse: (number | undefined)[] = new Array<number | undefined>(4)
+    sparse[2] = 7
+    expect(fillUnassignedOrders(sparse)).toStrictEqual([
+      UNREACHABLE_ORDER,
+      UNREACHABLE_ORDER,
+      7,
+      UNREACHABLE_ORDER,
+    ])
+  })
+
+  it('fills explicit undefined entries and keeps assigned orders', () => {
+    expect(fillUnassignedOrders([undefined, 0, 3, undefined])).toStrictEqual([
+      UNREACHABLE_ORDER,
+      0,
+      3,
+      UNREACHABLE_ORDER,
+    ])
+  })
+
+  it('returns a dense array of the same length', () => {
+    const filled = fillUnassignedOrders(new Array<number | undefined>(5))
+    expect(filled.length).toBe(5)
+    expect(Object.keys(filled).length).toBe(5)
+  })
+})
+
+describe('reverseMismatches', () => {
+  it('measures insertion positions from the far end of the node', () => {
+    const mismatches: Mismatch[] = [{ type: 'insertion', pos: 2, seq: 'AC' }]
+    reverseMismatches(mismatches, 10)
+    expect(mismatches[0]!.pos).toBe(8)
+    expect(mismatches[0]!.seq).toBe('TG')
+  })
+
+  it('accounts for the deleted length when flipping a deletion', () => {
+    const mismatches: Mismatch[] = [{ type: 'deletion', pos: 2, length: 3 }]
+    reverseMismatches(mismatches, 10)
+    expect(mismatches[0]!.pos).toBe(5)
+  })
+
+  it('accounts for the substituted length when flipping a substitution', () => {
+    const mismatches: Mismatch[] = [
+      { type: 'substitution', pos: 2, seq: 'AGG' },
+    ]
+    reverseMismatches(mismatches, 10)
+    expect(mismatches[0]!.pos).toBe(5)
+    expect(mismatches[0]!.seq).toBe('TCC')
+  })
+
+  it('uses the given sequence length as the pivot, not any node width', () => {
+    // Regression: the caller used to pass node.width, which in compressed
+    // node-width mode is log2(sequenceLength) rather than the base count.
+    const short: Mismatch[] = [{ type: 'substitution', pos: 10, seq: 'A' }]
+    reverseMismatches(short, 100)
+    expect(short[0]!.pos).toBe(89)
+  })
+
+  it('is an involution on positions', () => {
+    const mismatches: Mismatch[] = [
+      { type: 'insertion', pos: 4, seq: 'AC' },
+      { type: 'deletion', pos: 4, length: 2 },
+      { type: 'substitution', pos: 4, seq: 'GT' },
+    ]
+    reverseMismatches(mismatches, 20)
+    reverseMismatches(mismatches, 20)
+    expect(mismatches.map(m => m.pos)).toStrictEqual([4, 4, 4])
   })
 })

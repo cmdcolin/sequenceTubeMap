@@ -98,6 +98,65 @@ describe('tubemap.create — structural details', () => {
     )
   })
 
+  it('draws exactly one <path> per input node when merging is off', () => {
+    const { nodes, tracks } = dataForExample('1')
+    // Node merging collapses chains, so the 1:1 correspondence only holds with
+    // it disabled.
+    tubeMap.setMergeNodesFlag(false)
+    try {
+      const svg = render(nodes, tracks)
+      const nodePaths = svg.querySelectorAll('g.node path[id]')
+      expect(nodePaths.length).toBe(nodes.length)
+      // Every node is drawn exactly once, under its own name.
+      const drawnNames = Array.from(nodePaths, p => p.getAttribute('id'))
+      expect(new Set(drawnNames).size).toBe(nodes.length)
+      expect(new Set(drawnNames)).toEqual(new Set(nodes.map(n => n.name)))
+    } finally {
+      tubeMap.setMergeNodesFlag(true)
+    }
+  })
+
+  it('lays the reference path out left to right', () => {
+    const { nodes, tracks } = dataForExample('1')
+    tubeMap.setMergeNodesFlag(false)
+    try {
+      const svg = render(nodes, tracks)
+      const startX = new Map<string, number>()
+      for (const path of svg.querySelectorAll('g.node path[id]')) {
+        const id = path.getAttribute('id')
+        const match = /M (-?[\d.]+)/.exec(path.getAttribute('d') ?? '')
+        if (id !== null && match?.[1] !== undefined) {
+          startX.set(id, Number(match[1]))
+        }
+      }
+      // Example 1's reference path visits every node forward, so its nodes
+      // must appear in strictly increasing x order.
+      const referenceSequence = tracks[0]!.sequence
+      expect(referenceSequence.some(name => name.startsWith('-'))).toBe(false)
+      const xs = referenceSequence.map(name => startX.get(name))
+      expect(xs.every(x => x !== undefined)).toBe(true)
+      for (let i = 1; i < xs.length; i++) {
+        expect(xs[i]!).toBeGreaterThan(xs[i - 1]!)
+      }
+    } finally {
+      tubeMap.setMergeNodesFlag(true)
+    }
+  })
+
+  it('never emits NaN geometry, even with reads', () => {
+    for (const n of EXAMPLE_NUMBERS) {
+      setupSvg()
+      const { nodes, tracks, reads } = dataForExample(n)
+      const svg = render(nodes, tracks, reads)
+      const withNaN = Array.from(svg.querySelectorAll('*')).filter(el =>
+        Array.from(el.attributes).some(attr => attr.value.includes('NaN')),
+      )
+      expect(
+        withNaN.map(el => `${el.tagName}[${el.getAttribute('d') ?? ''}]`),
+      ).toEqual([])
+    }
+  })
+
   it('cleans the dummytext probe after measuring character width', () => {
     const { nodes, tracks } = dataForExample('1')
     render(nodes, tracks)

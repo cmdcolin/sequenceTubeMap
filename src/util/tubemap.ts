@@ -408,6 +408,8 @@ function releaseDomBindings(): void {
   }
   hoverTooltip?.remove()
   hoverTooltip = undefined
+  // The highlighted elements are about to be removed along with the old SVG.
+  highlightedTrack = null
 }
 
 let bed: BedRecord[] | null = null
@@ -1163,15 +1165,7 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
     }
     return { entry, decisionStep, y: foundY }
   })
-  incomingKeys.sort((a, b) => {
-    if (a.decisionStep !== b.decisionStep) {
-      return a.decisionStep - b.decisionStep
-    }
-    if (a.y === undefined || b.y === undefined) {
-      return (a.y === undefined ? 0 : 1) - (b.y === undefined ? 0 : 1)
-    }
-    return a.y - b.y
-  })
+  incomingKeys.sort(compareIncomingReadKeys)
   incomingReads = incomingKeys.map(k => k.entry)
 
   // place incoming reads
@@ -1253,6 +1247,28 @@ function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): v
   const heightIncrease = maxY - node.y - node.contentHeight
   node.contentHeight += heightIncrease
   adjustVertically3(node, heightIncrease)
+}
+
+// The decorated sort key for one incoming read segment; see the comment in
+// placeReadSet for how it is derived. Exported for testing.
+export interface IncomingReadKey {
+  decisionStep: number
+  y: number | undefined
+}
+
+// Smaller decisionStep wins. On a tie, entries that walked off the front of the
+// path (no defined y) sort first and tie with each other; otherwise compare y.
+export function compareIncomingReadKeys(
+  a: IncomingReadKey,
+  b: IncomingReadKey,
+): number {
+  if (a.decisionStep !== b.decisionStep) {
+    return a.decisionStep - b.decisionStep
+  }
+  if (a.y === undefined || b.y === undefined) {
+    return (a.y === undefined ? 0 : 1) - (b.y === undefined ? 0 : 1)
+  }
+  return a.y - b.y
 }
 
 // keeps track of where reads end within nodes
@@ -1619,21 +1635,10 @@ function reverseReversedReads(): void {
       for (let i = 0; i < sequenceNew.length; i += 1) {
         const entry = sequenceNew[i]!
         entry.nodeName = forward(entry.nodeName) // visit nodes forward
-        const seqLen = nodeByName(entry.nodeName).sequenceLength
-        entry.mismatches.forEach(mm => {
-          if (mm.type === 'insertion') {
-            mm.pos = seqLen - mm.pos
-            mm.seq = mm.seq === undefined ? undefined : getReverseComplement(mm.seq)
-          } else if (mm.type === 'deletion') {
-            mm.pos = seqLen - mm.pos - (mm.length ?? 0)
-          } else if (mm.type === 'substitution') {
-            mm.pos = seqLen - mm.pos - (mm.seq?.length ?? 0)
-            mm.seq = mm.seq === undefined ? undefined : getReverseComplement(mm.seq)
-          }
-          if (mm.seq !== undefined) {
-            mm.seq = mm.seq.split('').reverse().join('')
-          }
-        })
+        reverseMismatches(
+          entry.mismatches,
+          nodeByName(entry.nodeName).sequenceLength,
+        )
       }
 
       // adjust firstNodeOffset and finalNodeCoverLength
@@ -1643,6 +1648,31 @@ function reverseReversedReads(): void {
       const lastLen =
         nodeByName(read.sequence[read.sequence.length - 1]!).sequenceLength
       read.finalNodeCoverLength = lastLen - temp
+    }
+  })
+}
+
+// Flip a node's mismatches onto the opposite strand: positions are measured
+// from the other end of the node, and sequences are complemented.
+// sequenceLength (not node.width, which is only equal to it in 'normal'
+// node-width mode) is the right pivot because mismatch positions are base
+// offsets. Exported for testing.
+export function reverseMismatches(
+  mismatches: Mismatch[],
+  sequenceLength: number,
+): void {
+  mismatches.forEach(mm => {
+    if (mm.type === 'insertion') {
+      mm.pos = sequenceLength - mm.pos
+    } else if (mm.type === 'deletion') {
+      mm.pos = sequenceLength - mm.pos - (mm.length ?? 0)
+    } else if (mm.type === 'substitution') {
+      mm.pos = sequenceLength - mm.pos - (mm.seq?.length ?? 0)
+    }
+    if (mm.seq !== undefined) {
+      // NOTE: reverse-complement followed by reverse is a plain complement.
+      // Preserved verbatim from the original code rather than "fixed" here.
+      mm.seq = getReverseComplement(mm.seq).split('').reverse().join('')
     }
   })
 }
@@ -2115,7 +2145,21 @@ function generateNodeOrderTrackBeginning(sequence: number[]): number | null {
 }
 
 // Sentinel order for nodes no track or read reaches.
-const UNREACHABLE_ORDER = -1
+export const UNREACHABLE_ORDER = -1
+
+// Replace every unassigned entry with UNREACHABLE_ORDER, producing a dense
+// array. Holes matter here: `new Array(n)` is all holes and forEach/map skip
+// them, so an in-place forEach would leave the sentinel unset.
+export function fillUnassignedOrders(
+  orders: readonly (number | undefined)[],
+): number[] {
+  const filled: number[] = []
+  for (let i = 0; i < orders.length; i += 1) {
+    const order = orders[i]
+    filled.push(order === undefined ? UNREACHABLE_ORDER : order)
+  }
+  return filled
+}
 
 // generate global sequence of nodes from left to right, starting with first track and adding other tracks sequentially
 function generateNodeOrder(): void {
@@ -2126,6 +2170,10 @@ function generateNodeOrder(): void {
   let minOrder = 0
   const tracksAndReads =
     config.showReads && reads.length > 0 ? tracks.concat(reads) : tracks
+  const reachability: ReachabilityScratch = {
+    stamp: new Int32Array(nodes.length),
+    generation: 0,
+  }
 
   // fill() makes the array dense: `new Array(n)` alone is all holes, which
   // forEach skips, so neither the sentinel pass nor the copy-back below ran.
@@ -2196,6 +2244,7 @@ function generateNodeOrder(): void {
             !isSuccessor(
               modifiedSequence[rightIndex]!,
               modifiedSequence[leftIndex]!,
+              reachability,
             )
           ) {
             // no real reversal
@@ -2253,28 +2302,39 @@ function generateNodeOrder(): void {
 
   // Nodes unreachable from any track get UNREACHABLE_ORDER so every node ends
   // up with a defined order; downstream code uses `order >= 0` to skip them.
-  for (let i = 0; i < nodeOrders.length; i += 1) {
-    const assigned = nodeOrders[i]
-    const order = assigned === undefined ? UNREACHABLE_ORDER : assigned
-    nodeOrders[i] = order
+  const finalOrders = fillUnassignedOrders(nodeOrders)
+  nodeOrders = finalOrders
+  finalOrders.forEach((order, i) => {
     const node = nodes[i]
     if (node !== undefined) {
       node.order = order
     }
-  }
+  })
 }
 
-function isSuccessor(first: number, second: number): boolean {
-  const visited: boolean[] = new Array<boolean>(nodes.length).fill(false)
+// Reusable visited-set for the reachability searches in generateNodeOrder.
+// Stamping with a generation counter avoids reallocating (and re-zeroing) an
+// array of nodes.length booleans on every call.
+interface ReachabilityScratch {
+  stamp: Int32Array
+  generation: number
+}
+
+function isSuccessor(
+  first: number,
+  second: number,
+  scratch: ReachabilityScratch,
+): boolean {
+  scratch.generation += 1
+  const { stamp, generation } = scratch
   const stack: number[] = [first]
-  visited[first] = true
+  stamp[first] = generation
   while (stack.length > 0) {
     const current = stack.pop()!
     if (current === second) return true
-    for (let i = 0; i < nodes[current]!.successors.length; i += 1) {
-      const childIndex = nodes[current]!.successors[i]!
-      if (!visited[childIndex]) {
-        visited[childIndex] = true
+    for (const childIndex of nodes[current]!.successors) {
+      if (stamp[childIndex] !== generation) {
+        stamp[childIndex] = generation
         stack.push(childIndex)
       }
     }
@@ -2310,10 +2370,13 @@ function increaseOrderForSuccessors(
   newOrder: number,
 ): void {
   const increasedOrders = new Map<number, number>()
+  // Walked with a head pointer rather than shift(), which is O(length) per pop.
   const queue: [number, number][] = [[startingNode, newOrder]]
+  let head = 0
 
-  while (queue.length > 0) {
-    const [currentNode, currentOrder] = queue.shift()!
+  while (head < queue.length) {
+    const [currentNode, currentOrder] = queue[head]!
+    head += 1
     const currentNodeOrder = nodeOrders[currentNode]
 
     if (currentNodeOrder !== undefined && currentNodeOrder < currentOrder) {
@@ -2396,79 +2459,67 @@ function switchNodeOrientation(): void {
 function switchNodeOrientationForPaths(paths: Track[], pivotPath: Track | null): void {
   const toSwitch = new Map<string, number>()
   const pivotNames = pivotPath ? new Set(pivotPath.sequence) : null
-  let nodeName: string
-  let prevNode: LayoutNode | undefined
-  let nextNode: LayoutNode | undefined
-  let currentNode: LayoutNode
 
-  for (let i = 0; i < paths.length; i += 1) {
-    for (let j = 0; j < paths[i]!.sequence.length; j += 1) {
-      nodeName = paths[i]!.sequence[j]!
-      nodeName = forward(nodeName)
-      currentNode = nodes[nodeMap.get(nodeName)!]!
+  for (const path of paths) {
+    const sequence = path.sequence
+    for (let j = 0; j < sequence.length; j += 1) {
+      const nodeName = forward(sequence[j]!)
+      const currentNode = nodeByName(nodeName)
       if (pivotNames && !pivotNames.has(nodeName)) {
         // do not change orientation for nodes which are part of the pivot path
-        if (j > 0) {
-          prevNode = nodes[nodeMap.get(forward(paths[i]!.sequence[j - 1]!))!]!
-        }
-        if (j < paths[i]!.sequence.length - 1) {
-          nextNode = nodes[nodeMap.get(forward(paths[i]!.sequence[j + 1]!))!]!
+        const prevOrder =
+          j > 0 ? nodeByName(sequence[j - 1]!).order : undefined
+        const nextOrder =
+          j < sequence.length - 1
+            ? nodeByName(sequence[j + 1]!).order
+            : undefined
+        if (
+          (prevOrder === undefined || prevOrder < currentNode.order) &&
+          (nextOrder === undefined || currentNode.order < nextOrder)
+        ) {
+          // Node is visited in increasing order along the path. Reverse
+          // visits count towards switching, forward visits against it.
+          addToSwitchScore(toSwitch, nodeName, isReverse(sequence[j]!) ? 1 : -1)
         }
         if (
-          (j === 0 || prevNode!.order < currentNode.order) &&
-          (j === paths[i]!.sequence.length - 1 ||
-            currentNode.order < nextNode!.order)
+          (prevOrder === undefined || prevOrder > currentNode.order) &&
+          (nextOrder === undefined || currentNode.order > nextOrder)
         ) {
-          // Node is visited in increasing order along the path
-          if (!toSwitch.has(nodeName)) toSwitch.set(nodeName, 0)
-          if (isReverse(paths[i]!.sequence[j]!)) {
-            // Node is reverse, so increment
-            toSwitch.set(nodeName, toSwitch.get(nodeName)! + 1)
-          } else {
-            // Node is forward, so decrement
-            toSwitch.set(nodeName, toSwitch.get(nodeName)! - 1)
-          }
-        }
-        if (
-          (j === 0 || prevNode!.order > currentNode.order) &&
-          (j === paths[i]!.sequence.length - 1 ||
-            currentNode.order > nextNode!.order)
-        ) {
-          // Node is visited in *decreasing* order along the path, so is already backward
-          if (!toSwitch.has(nodeName)) toSwitch.set(nodeName, 0)
-          if (isReverse(paths[i]!.sequence[j]!)) {
-            // Node is reverse, so decrement
-            toSwitch.set(nodeName, toSwitch.get(nodeName)! - 1)
-          } else {
-            // Node is forward, so increment
-            toSwitch.set(nodeName, toSwitch.get(nodeName)! + 1)
-          }
+          // Node is visited in *decreasing* order along the path, so is already
+          // backward: the votes are the other way round.
+          addToSwitchScore(toSwitch, nodeName, isReverse(sequence[j]!) ? -1 : 1)
         }
       }
     }
   }
 
-  paths.forEach((path, pathIndex) => {
+  for (const path of paths) {
     path.sequence.forEach((node, nodeIndex) => {
-      nodeName = forward(node)
-      if (toSwitch.has(nodeName) && toSwitch.get(nodeName)! > 0) {
+      const score = toSwitch.get(forward(node))
+      if (score !== undefined && score > 0) {
         // This node is backward more so flip it around
-        paths[pathIndex]!.sequence[nodeIndex] = flip(node)
-        paths[pathIndex]!.indexSequence[nodeIndex] =
-          -paths[pathIndex]!.indexSequence[nodeIndex]!
+        path.sequence[nodeIndex] = flip(node)
+        path.indexSequence[nodeIndex] = -path.indexSequence[nodeIndex]!
       }
     })
-  })
+  }
 
   // invert the sequence within the nodes and mark them as "switched"
   toSwitch.forEach((value, key) => {
     if (value > 0) {
-      const nodeIdx = nodeMap.get(key)!
-      const newSeq = getReverseComplement(nodes[nodeIdx]!.seq)
-      nodes[nodeIdx]!.seq = newSeq
-      nodes[nodeIdx]!.switched = true
+      const node = nodeByName(key)
+      node.seq = getReverseComplement(node.seq)
+      node.switched = true
     }
   })
+}
+
+function addToSwitchScore(
+  scores: Map<string, number>,
+  nodeName: string,
+  delta: number,
+): void {
+  scores.set(nodeName, (scores.get(nodeName) ?? 0) + delta)
 }
 
 // calculates the concrete values for the nodes' x-coordinates
@@ -2558,10 +2609,14 @@ function generateLaneAssignment(): void {
   // When an order slot is visited multiple times, holds whatever
   // SegmentAssignment was created most recently.
   const prevSegmentPerOrderPerTrack: (SegmentAssignment | null)[][] = []
+  // Index into assignments[order] by node, so addToAssignment can find an
+  // existing entry without scanning the whole order slot.
+  const assignmentByOrderAndNode: Map<number, NodeAssignment>[] = []
 
   // create empty variables
   for (let i = 0; i <= maxOrder; i += 1) {
     assignments[i] = []
+    assignmentByOrderAndNode[i] = new Map()
     prevSegmentPerOrderPerTrack[i] = []
     for (let j = 0; j < tracks.length; j += 1) {
       prevSegmentPerOrderPerTrack[i]![j] = null
@@ -2594,6 +2649,7 @@ function generateLaneAssignment(): void {
       trackNo,
       0,
       prevSegmentPerOrderPerTrack,
+      assignmentByOrderAndNode,
     )
 
     segmentNumber = 1
@@ -2620,6 +2676,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         }
@@ -2637,6 +2694,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         }
@@ -2654,6 +2712,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
           track.path.push({
@@ -2668,6 +2727,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         } else {
@@ -2684,6 +2744,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         }
@@ -2702,6 +2763,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         }
@@ -2719,6 +2781,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         }
@@ -2736,6 +2799,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
           track.path.push({
@@ -2750,6 +2814,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         } else {
@@ -2766,6 +2831,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         }
@@ -2783,6 +2849,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         } else {
@@ -2798,6 +2865,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
           track.path.push({
@@ -2812,6 +2880,7 @@ function generateLaneAssignment(): void {
             trackNo,
             segmentNumber,
             prevSegmentPerOrderPerTrack,
+            assignmentByOrderAndNode,
           )
           segmentNumber += 1
         }
@@ -2831,41 +2900,36 @@ function addToAssignment(
   trackNo: number,
   segmentID: number,
   prevSegmentPerOrderPerTrack: (SegmentAssignment | null)[][],
+  assignmentByOrderAndNode: Map<number, NodeAssignment>[],
 ): void {
-  const compareToFromSame = prevSegmentPerOrderPerTrack[order]![trackNo] ?? null
+  const segment: SegmentAssignment = {
+    trackID: trackNo,
+    segmentID,
+    compareToFromSame: prevSegmentPerOrderPerTrack[order]![trackNo] ?? null,
+  }
+  // A null node means the track is passing through / turning around here rather
+  // than visiting a node, so such segments never share a NodeAssignment.
+  const existing =
+    nodeIndex === null
+      ? undefined
+      : assignmentByOrderAndNode[order]!.get(nodeIndex)
 
-  if (nodeIndex === null) {
-    assignments[order]!.push({
-      type: 'single',
-      node: null,
-      tracks: [{ trackID: trackNo, segmentID, compareToFromSame }],
-    })
-    prevSegmentPerOrderPerTrack[order]![trackNo] =
-      assignments[order]![assignments[order]!.length - 1]!.tracks[0]!
-  } else {
-    for (let i = 0; i < assignments[order]!.length; i += 1) {
-      if (assignments[order]![i]!.node === nodeIndex) {
-        // add to existing node in assignment
-        assignments[order]![i]!.type = 'multiple'
-        assignments[order]![i]!.tracks.push({
-          trackID: trackNo,
-          segmentID,
-          compareToFromSame,
-        })
-        prevSegmentPerOrderPerTrack[order]![trackNo] =
-          assignments[order]![i]!.tracks[assignments[order]![i]!.tracks.length - 1]!
-        return
-      }
-    }
-    // create new node in assignment
-    assignments[order]!.push({
+  if (existing === undefined) {
+    const assignment: NodeAssignment = {
       type: 'single',
       node: nodeIndex,
-      tracks: [{ trackID: trackNo, segmentID, compareToFromSame }],
-    })
-    prevSegmentPerOrderPerTrack[order]![trackNo] =
-      assignments[order]![assignments[order]!.length - 1]!.tracks[0]!
+      tracks: [segment],
+    }
+    assignments[order]!.push(assignment)
+    if (nodeIndex !== null) {
+      assignmentByOrderAndNode[order]!.set(nodeIndex, assignment)
+    }
+  } else {
+    // add to existing node in assignment
+    existing.type = 'multiple'
+    existing.tracks.push(segment)
   }
+  prevSegmentPerOrderPerTrack[order]![trackNo] = segment
 }
 
 // looks at assignment and sets idealY and idealLane by looking at where the tracks come from
@@ -4910,6 +4974,19 @@ function positionHoverTooltip(event: MouseEvent): void {
   el.style.top = `${Math.max(0, y)}px`
 }
 
+// The elements making up the track currently under the cursor, remembered so
+// mouseout can restore them without re-running the class selector over an SVG
+// that may hold hundreds of thousands of elements.
+let highlightedTrack: d3.Selection<d3.BaseType, unknown, HTMLElement, unknown> | null = null
+
+function clearTrackHighlight(): void {
+  highlightedTrack?.each(function restoreFill() {
+    const element = d3.select(this)
+    element.style('fill', element.attr('color'))
+  })
+  highlightedTrack = null
+}
+
 // Highlight track on mouseover and show the hover tooltip.
 function trackMouseOver(this: SVGElement, event: MouseEvent): void {
   /* jshint validthis: true */
@@ -4917,7 +4994,10 @@ function trackMouseOver(this: SVGElement, event: MouseEvent): void {
   // TODO: We want to also .raise() here, but it makes Firefox 124.0.2 on Mac
   // lose the mouseout and immediately trigger another mouseover, if the mouse
   // is over a curved section of a read.
-  d3.selectAll(`.track${trackID}`).style('fill', 'url(#patternA)')
+  // Clearing first also covers the Firefox case where mouseout never arrives.
+  clearTrackHighlight()
+  highlightedTrack = d3.selectAll(`.track${trackID}`)
+  highlightedTrack.style('fill', 'url(#patternA)')
 
   const el = ensureHoverTooltip()
   const id = Number(trackID)
@@ -4941,12 +5021,8 @@ function nodeMouseOver(this: SVGElement): void {
 }
 
 // Restore original track appearance on mouseout and hide tooltip.
-function trackMouseOut(this: SVGElement): void {
-  const trackID = d3.select(this).attr('trackID')
-  d3.selectAll(`.track${trackID}`).each(function clearTrackHighlight() {
-    const c = d3.select(this).attr('color')
-    d3.select(this).style('fill', c)
-  })
+function trackMouseOut(): void {
+  clearTrackHighlight()
   if (hoverTooltip) hoverTooltip.style.display = 'none'
 }
 
