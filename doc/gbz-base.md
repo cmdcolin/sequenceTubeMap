@@ -23,9 +23,12 @@ No WebAssembly, no Rust toolchain, no vendored patches.
 reader, which is worth stating plainly for anyone comparing implementations:
 
 - `GBZBase.open(source)` once per graph, cached for the session.
-- `db.getSubgraphForRange(pathQuery, start, end, { haplotypes: 'distinct' })`
-  for every view. `distinct` means the app always wants *every* haplotype
-  through the window, never a chosen subset.
+- `db.getSubgraphForRange(pathQuery, start, end + 1, { haplotypes:
+  'distinct', signal })` for every view. `distinct` means the app always wants
+  *every* haplotype through the window, never a chosen subset. The `+ 1` is
+  the coordinate convention: the server's `vg chunk -p contig:start-end`
+  includes `end`, gbz-base treats it as exclusive, and the Region field means
+  the same thing whichever backend answers it.
 - `subgraph.toSubgraphJson({ names: db.hasHaplotypeIndex ? 'resolved' :
   'anonymous' })`, converted to vg-style JSON in `src/api/gbz/schema.ts`.
 - `db.paths()` for the "Paths in this graph" panel.
@@ -59,6 +62,11 @@ gbz-base construct --output other.db --overwrite input.gbz
 
 Releases up to 0.5.1 call the binary `gbz2db` instead of
 `gbz-base construct`.
+
+Either name works: the app recognizes any graph track ending in `.db`, not
+only `.gbz.db`, since `--output` will call the database whatever you like.
+A file that turns out not to be a gbz-base database is refused when it is
+opened, not when it is named.
 
 ## Version compatibility
 

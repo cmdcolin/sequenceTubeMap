@@ -1,4 +1,10 @@
-import { GBZBaseAPI } from './GBZBaseAPI.ts'
+import { GENERIC_SAMPLE } from '@gmod/gbz-base'
+import {
+  GBZBaseAPI,
+  displayName,
+  isUserFacingPath,
+  pathQueryFor,
+} from './GBZBaseAPI.ts'
 import type { ConvertedGraph } from './gbz/schema.ts'
 import type { ViewTarget } from '../Types.ts'
 import { readFileSync } from 'node:fs'
@@ -103,6 +109,33 @@ describe('when a file is uploaded', () => {
     expect(pathInfo).toEqual([
       { name: 'x', start: 0, length: 1001, cyclic: false },
     ])
+  })
+
+  // `vg chunk -p contig:start-end` includes `end`, and gbz-base treats it as
+  // exclusive, so a one-base region used to come back as "no fragment covers
+  // it" in local mode while the server drew a base.
+  it('treats the end coordinate as inclusive, like the server does', async () => {
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [{ trackFile: uploadName!, trackType: 'graph' }],
+      region: 'x:5-5',
+    }
+    const view = await api.getChunkedData(viewTarget, null)
+    expect(view.graph?.node.length).toBeGreaterThan(0)
+    // The region handed back stays in the server's inclusive form.
+    expect(view.region).toEqual([5, 5])
+  })
+
+  it('can query the last base of the path', async () => {
+    const { pathInfo } = await api.getPathInfo(uploadName!, null)
+    const lastBase = pathInfo[0]!.length! - 1
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [{ trackFile: uploadName!, trackType: 'graph' }],
+      region: `x:${lastBase}-${lastBase}`,
+    }
+    const view = await api.getChunkedData(viewTarget, null)
+    expect(view.graph?.node.length).toBeGreaterThan(0)
   })
 
   it('reports a readable error for a region off the end of the path', async () => {
@@ -275,4 +308,153 @@ describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC chr20', () => {
     expect(names.some(n => n.startsWith('GRCh38'))).toBe(true)
     expect(paths.length).toBeGreaterThan(1)
   }, 60000)
+})
+
+// The Region field's path syntax. gbz-base ships `parsePathName`, but it only
+// accepts a bare contig or the full PanSN triple, and the tube map has always
+// also taken `sample#contig` for a haplotype-0 reference path.
+describe('pathQueryFor', () => {
+  it('reads a bare contig as the generic reference path', () => {
+    expect(pathQueryFor('chr1')).toEqual({ contig: 'chr1' })
+  })
+
+  it('reads sample#contig as a sample with no haplotype', () => {
+    expect(pathQueryFor('GRCh38#chr6')).toEqual({
+      sample: 'GRCh38',
+      contig: 'chr6',
+    })
+  })
+
+  it('reads the full PanSN triple', () => {
+    expect(pathQueryFor('HG002#1#chr1')).toEqual({
+      sample: 'HG002',
+      haplotype: 1,
+      contig: 'chr1',
+    })
+  })
+
+  it('keeps the rest of the name as the contig when it contains a hash', () => {
+    expect(pathQueryFor('HG002#1#chr1#frag')).toEqual({
+      sample: 'HG002',
+      haplotype: 1,
+      contig: 'chr1#frag',
+    })
+  })
+
+  it('treats a non-numeric middle field as part of the contig', () => {
+    expect(pathQueryFor('sample#scaffold#7')).toEqual({
+      sample: 'sample',
+      contig: 'scaffold#7',
+    })
+  })
+})
+
+describe('displayName', () => {
+  it('drops the generic sample so the name round-trips as a bare contig', () => {
+    const name = { sample: GENERIC_SAMPLE, contig: 'x', haplotype: 0, fragment: 0 }
+    expect(displayName(name)).toBe('x')
+    expect(pathQueryFor(displayName(name))).toEqual({ contig: 'x' })
+  })
+
+  it('drops haplotype 0 from a reference path name', () => {
+    const name = { sample: 'GRCh38', contig: 'chr6', haplotype: 0, fragment: 0 }
+    expect(displayName(name)).toBe('GRCh38#chr6')
+    expect(pathQueryFor(displayName(name))).toEqual({
+      sample: 'GRCh38',
+      contig: 'chr6',
+    })
+  })
+
+  it('keeps a non-zero haplotype', () => {
+    const name = { sample: 'HG002', contig: 'chr1', haplotype: 2, fragment: 0 }
+    expect(displayName(name)).toBe('HG002#2#chr1')
+    expect(pathQueryFor(displayName(name))).toEqual({
+      sample: 'HG002',
+      haplotype: 2,
+      contig: 'chr1',
+    })
+  })
+})
+
+describe('isUserFacingPath', () => {
+  it('hides internal and vg-chunk thread paths', () => {
+    expect(isUserFacingPath('_gbwt_ref')).toBe(false)
+    expect(isUserFacingPath('thread_0')).toBe(false)
+    expect(isUserFacingPath('thread_12')).toBe(false)
+  })
+
+  it('keeps real contig names', () => {
+    expect(isUserFacingPath('x')).toBe(true)
+    expect(isUserFacingPath('GRCh38#chr6')).toBe(true)
+    expect(isUserFacingPath('thread_like_name')).toBe(true)
+  })
+})
+
+// The subgraph's node ids are not necessarily contiguous, so bounding reads by
+// the id range alone lets through reads that touch nothing on screen.
+describe('reads returned with a graph view', () => {
+  const api = new GBZBaseAPI()
+  let graphId: string
+  let gamId: string
+
+  beforeAll(async () => {
+    graphId = await api.putFile(
+      'graph',
+      fixtureFile('exampleData/cactus.gbz.db', 'cactus.gbz.db'),
+      null,
+    )
+    gamId = await api.putFile(
+      'read',
+      fixtureFile('exampleData/cactus0_10.sorted.gam', 'cactus0_10.sorted.gam'),
+      null,
+    )
+    await api.putFile(
+      'read',
+      fixtureFile(
+        'exampleData/cactus0_10.sorted.gam.gai',
+        'cactus0_10.sorted.gam.gai',
+      ),
+      null,
+    )
+  })
+
+  it('only returns reads that visit a node in the subgraph', async () => {
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [
+        { trackFile: graphId, trackType: 'graph' },
+        { trackFile: gamId, trackType: 'read' },
+      ],
+      region: 'ref:1-100',
+    }
+    const view = await api.getChunkedData(viewTarget, null)
+    const nodeIds = new Set((view.graph?.node ?? []).map(n => `${n.id}`))
+    expect(nodeIds.size).toBeGreaterThan(0)
+    const reads = view.gam?.[0] ?? []
+    expect(reads.length).toBeGreaterThan(0)
+    for (const read of reads) {
+      const visits = (read.path?.mapping ?? []).some(m =>
+        m.position === undefined
+          ? false
+          : nodeIds.has(`${m.position.node_id}`),
+      )
+      expect(visits).toBe(true)
+    }
+  })
+
+  it('returns one gam entry per read track, even without a file', async () => {
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [
+        { trackFile: graphId, trackType: 'graph' },
+        { trackType: 'read' },
+        { trackFile: gamId, trackType: 'read' },
+      ],
+      region: 'ref:1-100',
+    }
+    const view = await api.getChunkedData(viewTarget, null)
+    expect(view.gam).toHaveLength(2)
+    expect(view.gam?.[0]).toEqual([])
+    expect(view.gam?.[1]?.length).toBeGreaterThan(0)
+  })
 })

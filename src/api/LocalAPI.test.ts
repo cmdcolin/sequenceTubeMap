@@ -69,3 +69,67 @@ describe('when a file is uploaded', () => {
     expect((view.graph as { node?: unknown }).node).toBeTruthy()
   })
 })
+
+// The worker has no way to learn about a filename change on its own, so the
+// only real source of one is an upload made through this object. The old
+// plumbing subscribed inside the worker and never fired.
+describe('filename change notifications', () => {
+  function gbzFile() {
+    return new window.File([readFileSync('exampleData/x.gbz.db')], 'x.gbz.db', {
+      type: 'application/octet-stream',
+    })
+  }
+
+  it('fires when a file is uploaded', async () => {
+    const api = new LocalAPI()
+    const handler = vi.fn()
+    api.subscribeToFilenameChanges(handler, new AbortController().signal)
+    await api.putFile('graph', gbzFile(), null)
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops firing after the returned unsubscribe is called', async () => {
+    const api = new LocalAPI()
+    const handler = vi.fn()
+    const unsubscribe = api.subscribeToFilenameChanges(
+      handler,
+      new AbortController().signal,
+    )
+    unsubscribe()
+    await api.putFile('graph', gbzFile(), null)
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('stops firing after the signal is aborted', async () => {
+    const api = new LocalAPI()
+    const handler = vi.fn()
+    const controller = new AbortController()
+    api.subscribeToFilenameChanges(handler, controller.signal)
+    controller.abort()
+    await api.putFile('graph', gbzFile(), null)
+    expect(handler).not.toHaveBeenCalled()
+  })
+})
+
+describe('cancellation', () => {
+  it('rejects a request whose signal was already aborted', async () => {
+    const api = new LocalAPI()
+    const uploadName = await api.putFile(
+      'graph',
+      new window.File([readFileSync('exampleData/x.gbz.db')], 'x.gbz.db', {
+        type: 'application/octet-stream',
+      }),
+      null,
+    )
+    const controller = new AbortController()
+    controller.abort()
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [{ trackFile: uploadName, trackType: 'graph' }],
+      region: 'x:1-10',
+    }
+    await expect(
+      api.getChunkedData(viewTarget, controller.signal),
+    ).rejects.toThrow(/cancelled/)
+  })
+})
