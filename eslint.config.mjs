@@ -12,13 +12,13 @@ export default defineConfig(
     ignores: [
       'build',
       'dist',
+      'tmp',
       'public',
       'node_modules',
       'eslint.config.mjs',
       'vite.config.mjs',
       'src/util/tubemap.js',
       'src/util/tubemap.ts',
-      'scripts',
     ],
   },
   {

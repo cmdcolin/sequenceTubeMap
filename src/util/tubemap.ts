@@ -1760,6 +1760,11 @@ function removeUnusedNodes(allNodes: LayoutNode[]): LayoutNode[] {
   return dNodes
 }
 
+// Tracks enter and leave a node this far outside it horizontally. Note that
+// getImageDimensions() below only adds it on the right: the pannable area
+// understates the left edge of the drawing by this much.
+const NODE_HORIZONTAL_SLACK = 20
+
 // get the minimum and maximum coordinates used in the image to calculate image dimensions
 function getImageDimensions(): void {
   // Sentinels, deliberately crossed: if nothing below runs, minZoom() and
@@ -1770,7 +1775,10 @@ function getImageDimensions(): void {
     if (!node) return
     if (node.x !== undefined) {
       bounds.minX = Math.min(bounds.minX, node.x)
-      bounds.maxX = Math.max(bounds.maxX, node.x + 20 + node.pixelWidth)
+      bounds.maxX = Math.max(
+        bounds.maxX,
+        node.x + NODE_HORIZONTAL_SLACK + node.pixelWidth,
+      )
     }
     if (node.y !== undefined) {
       bounds.minY = Math.min(bounds.minY, node.y - 10)

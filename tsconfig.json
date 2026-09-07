@@ -28,6 +28,6 @@
 
     "types": ["vitest/globals"]
   },
-  "include": ["src", "vite.config.mjs"],
+  "include": ["src", "scripts", "vite.config.mjs"],
   "exclude": ["node_modules", "build", "dist"]
 }

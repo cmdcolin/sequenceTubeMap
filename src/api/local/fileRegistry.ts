@@ -7,7 +7,7 @@
 
 // Suffixes of files that ride alongside another file as its index. They are
 // stored by the registry but never registered as their own track.
-const SIBLING_INDEX_SUFFIXES = ['.gai', '.tbi', '.csi']
+export const SIBLING_INDEX_SUFFIXES = ['.gai', '.tbi', '.csi']
 
 export function isSiblingIndex(name: string): boolean {
   const lower = name.toLowerCase()

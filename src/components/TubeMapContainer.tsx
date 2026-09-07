@@ -22,7 +22,7 @@ import type {
   ViewTarget,
   VisOptions,
 } from '../Types.ts'
-import { mergeUnique } from '../util/array.ts'
+import { mergeUnique, subsampleReads } from '../util/array.ts'
 import { errorMessage } from '../util/error.ts'
 
 const GROUP_PALETTE_CYCLE: ColorPaletteName[] = [
@@ -52,22 +52,6 @@ export const DEFAULT_READ_RENDER_LIMIT = READ_LIMIT_PRESETS[0]
 
 // The presets plus "render everything", as offered by the banner's buttons.
 const READ_LIMIT_CHOICES: (number | null)[] = [...READ_LIMIT_PRESETS, null]
-
-// Subsample reads to at most `limit` by taking every k-th read (k chosen so
-// the output count lands at `limit`). Preserves the original ordering, which
-// for indexed gam queries is roughly node-position-sorted, so the subsample
-// stays spatially representative rather than biasing to one end of the
-// region (which `slice(0, limit)` would do).
-export function subsampleReads<T>(reads: T[], limit: number): T[] {
-  if (reads.length <= limit) return reads
-  const stride = reads.length / limit
-  const out: T[] = []
-  for (let i = 0; out.length < limit && Math.floor(i) < reads.length; i += stride) {
-    const r = reads[Math.floor(i)]
-    if (r !== undefined) out.push(r)
-  }
-  return out
-}
 
 function ReadRenderLimitBanner({
   totalReads,

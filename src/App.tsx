@@ -27,6 +27,10 @@ import ServerAPI from './api/ServerAPI.ts'
 import { LocalAPI } from './api/LocalAPI.ts'
 import type { APIInterface } from './api/APIInterface.ts'
 import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
+import {
+  DEFAULT_VIS_OPTIONS,
+  type StoredVisOptions,
+} from './util/visOptions.ts'
 import type {
   ColorPaletteName,
   ColorScheme,
@@ -40,27 +44,9 @@ import type {
 
 type APIMode = APIInterface['mode']
 
-// Everything in VisOptions except the color schemes, which are derived from
-// the loaded tracks and so can't be meaningfully restored on their own.
-type StoredVisOptions = Omit<VisOptions, 'colorSchemes'>
-
 const VIS_OPTIONS_KEY = 'visOptions'
 const LEGEND_VISIBLE_KEY = 'legendVisible'
 const READ_RENDER_LIMIT_KEY = 'readRenderLimit'
-
-const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
-  removeRedundantNodes: true,
-  compressedView: false,
-  transparentNodes: false,
-  showNodeLabels: false,
-  showReads: true,
-  showSoftClips: true,
-  colorReadsByMappingQuality: false,
-  alphaReadsByMappingQuality: false,
-  mappingQualityCutoff: 0,
-  coarsenedReadView: false,
-  ignoreStrand: false,
-}
 
 const VIS_OPTION_FLAGS = [
   'removeRedundantNodes',

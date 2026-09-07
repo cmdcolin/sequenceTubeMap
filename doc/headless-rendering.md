@@ -17,12 +17,60 @@ pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' \
                  --region 17:1-200 --out brca1-zoom.svg
 ```
 
-Sample outputs live in [tubemap-cli-samples/](tubemap-cli-samples/) — e.g. the
-BRCA1 render ([SVG](tubemap-cli-samples/snp1kg-BRCA1.svg) ·
-[PNG](tubemap-cli-samples/snp1kg-BRCA1.png)) and demo example 6
-([SVG](tubemap-cli-samples/demo-example-6.svg) ·
-[PNG](tubemap-cli-samples/demo-example-6.png)).
+## Sizing
 
-Caveats: interactive features (zoom, context menus) are inert in headless mode,
-and content past `--width` is clipped to the viewBox — pass a larger
-`--width`/`--height` to capture more of wide layouts.
+`--width`/`--height` set the viewport the map is laid out in, which is what
+decides how far the drawing is scaled down to fit. The exported `viewBox` is
+then cropped to the drawing itself, so nothing is clipped and there is no dead
+space around it. Pass `--viewport` to export the whole canvas instead.
+
+## Reads
+
+Unlike the browser, which subsamples to 100 reads by default to stay responsive,
+the CLI draws every read in the region. `--read-limit N` applies the same even
+subsampling when a high-coverage region would otherwise produce an unusably
+large SVG:
+
+```bash
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' \
+                 --region 17:1-300 --read-limit 100 --out brca1-sampled.svg
+```
+
+## Sample output
+
+Everything below was produced by the commands above and lives in
+[tubemap-cli-samples/](tubemap-cli-samples/), SVG alongside PNG.
+
+`--source 'snp1kg-BRCA1 (WASM-compatible)' --width 3000`
+([SVG](tubemap-cli-samples/snp1kg-BRCA1.svg))
+
+![snp1kg-BRCA1 tube map](tubemap-cli-samples/snp1kg-BRCA1.png)
+
+`--example 6` — reads aligned to a graph
+([SVG](tubemap-cli-samples/demo-example-6.svg))
+
+![Demo example 6](tubemap-cli-samples/demo-example-6.png)
+
+`--example 8` — a cyclic graph, whose loops are drawn outside the node bounds
+([SVG](tubemap-cli-samples/demo-example-8.svg))
+
+![Demo example 8](tubemap-cli-samples/demo-example-8.png)
+
+`--example 7` — mixed forward and reverse alignments
+([SVG](tubemap-cli-samples/demo-example-7.svg))
+
+![Demo example 7](tubemap-cli-samples/demo-example-7.png)
+
+`--example 1` — haplotypes only, no reads
+([SVG](tubemap-cli-samples/demo-example-1.svg))
+
+![Demo example 1](tubemap-cli-samples/demo-example-1.png)
+
+The remaining demo datasets render the same way: examples
+[2](tubemap-cli-samples/demo-example-2.png),
+[3](tubemap-cli-samples/demo-example-3.png),
+[4](tubemap-cli-samples/demo-example-4.png),
+[5](tubemap-cli-samples/demo-example-5.png) and
+[9](tubemap-cli-samples/demo-example-9.png).
+
+Caveat: interactive features (zoom, context menus) are inert in headless mode.

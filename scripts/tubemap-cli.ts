@@ -1,5 +1,6 @@
 // Headless tube-map renderer. Boots a jsdom DOM, installs minimal browser
-// globals, then drives the existing tubemap.ts d3 code to emit static SVG.
+// globals, then drives the same data pipeline and d3 renderer the web app
+// uses, and emits the resulting SVG.
 //
 // Two modes:
 //   - --example N         render one of the bundled demo datasets (1..9)
@@ -12,18 +13,51 @@
 //   pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' \
 //                    --region 17:1-200 --width 3000 --out brca1.svg
 
-import { readFileSync, writeFileSync } from 'node:fs'
-import { parseArgs } from 'node:util'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 import { JSDOM } from 'jsdom'
+import type { GBZBaseAPI } from '../src/api/GBZBaseAPI.ts'
+import type { FetchKey } from '../src/components/tubeMapData.ts'
+import type { Tracks, ViewTarget } from '../src/Types.ts'
+
+const USAGE = `tubemap-cli [--example 1..9 | --source <config name>] [--region X:S-E]
+             [--out file.svg] [--width N] [--height N] [--viewport]
+             [--read-limit N]
+
+The tube map is laid out in a --width by --height viewport, which is what
+decides how much the drawing is scaled down. The exported viewBox is then
+cropped to the drawing; pass --viewport to export the whole canvas instead.
+
+Every read in the region is drawn unless --read-limit caps it, in which case
+reads are evenly subsampled the way the app's read-render limit does.
+`
+
+// Breathing room around the cropped drawing so edge strokes and the outermost
+// sequence labels aren't shaved off.
+const CROP_MARGIN = 10
+
+type RenderTarget =
+  | { example: string }
+  | { source: string; region: string | undefined }
 
 interface CliArgs {
-  example: string | undefined
-  source: string | undefined
-  region: string | undefined
+  target: RenderTarget
   out: string
   width: number
   height: number
+  // Export the whole laid-out canvas rather than cropping to the drawing.
+  viewport: boolean
+  // Most reads to draw, or undefined to draw them all.
+  readLimit: number | undefined
+}
+
+function parsePositive(name: string, raw: string): number {
+  const value = Number(raw)
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`--${name} must be a positive number, got "${raw}"`)
+  }
+  return value
 }
 
 function parseCli(): CliArgs {
@@ -32,26 +66,44 @@ function parseCli(): CliArgs {
       example: { type: 'string' },
       source: { type: 'string' },
       region: { type: 'string' },
-      out: { type: 'string', default: 'tubemap.svg' },
-      width: { type: 'string', default: '1800' },
-      height: { type: 'string', default: '1200' },
+      out: { type: 'string' },
+      width: { type: 'string' },
+      height: { type: 'string' },
+      viewport: { type: 'boolean', default: false },
+      'read-limit': { type: 'string' },
       help: { type: 'boolean', default: false },
     },
   })
-  if (values.help || (!values.example && !values.source)) {
-    console.log(
-      'tubemap-cli [--example 1..9 | --source <config name>] [--region X:S-E] [--out file.svg] [--width N] [--height N]',
-    )
-    process.exit(values.help ? 0 : 1)
+  if (values.help) {
+    process.stdout.write(USAGE)
+    process.exit(0)
   }
-  return {
-    example: values.example,
-    source: values.source,
-    region: values.region,
-    out: String(values.out),
-    width: Number(values.width),
-    height: Number(values.height),
+  const common = {
+    out: values.out ?? 'tubemap.svg',
+    width: parsePositive('width', values.width ?? '1800'),
+    height: parsePositive('height', values.height ?? '1200'),
+    viewport: values.viewport,
+    readLimit:
+      values['read-limit'] === undefined
+        ? undefined
+        : parsePositive('read-limit', values['read-limit']),
   }
+  if (values.example !== undefined && values.source !== undefined) {
+    throw new Error(`pass either --example or --source, not both\n${USAGE}`)
+  }
+  if (values.example !== undefined) {
+    if (values.region !== undefined) {
+      throw new Error('--region only applies to --source renders')
+    }
+    return { target: { example: values.example }, ...common }
+  }
+  if (values.source !== undefined) {
+    return {
+      target: { source: values.source, region: values.region },
+      ...common,
+    }
+  }
+  throw new Error(`pass one of --example or --source\n${USAGE}`)
 }
 
 function installBrowserGlobals(args: CliArgs): JSDOM {
@@ -62,7 +114,9 @@ function installBrowserGlobals(args: CliArgs): JSDOM {
   const { window } = dom
 
   const parent = window.document.getElementById('container')
-  if (!parent) throw new Error('jsdom: failed to find #container')
+  if (!parent) {
+    throw new Error('jsdom: failed to find #container')
+  }
   Object.defineProperty(parent, 'clientWidth', {
     value: args.width,
     configurable: true,
@@ -95,146 +149,183 @@ function installBrowserGlobals(args: CliArgs): JSDOM {
   return dom
 }
 
-async function loadDemoExample(example: string) {
-  const demo = await import('../src/util/demo-data.js')
-  const { computeExampleData } = await import('../src/components/tubeMapData.ts')
+// dataOriginTypes keys the examples as EXAMPLE_1..EXAMPLE_9; the value is what
+// the fetch layer wants.
+async function exampleOrigin(example: string): Promise<string> {
   const { dataOriginTypes } = await import('../src/enums.ts')
-  const key = `EXAMPLE_${example}` as keyof typeof dataOriginTypes
-  const origin = dataOriginTypes[key]
-  if (!origin) throw new Error(`Unknown example: ${example} (try 1-9)`)
-  return computeExampleData(origin, demo as Parameters<typeof computeExampleData>[1])
+  const match = Object.entries(dataOriginTypes).find(
+    ([key]) => key === `EXAMPLE_${example}`,
+  )
+  if (!match) {
+    throw new Error(`unknown example "${example}", expected 1-9`)
+  }
+  return match[1]
 }
 
-interface ConfigDataSource {
-  name: string
-  region?: string
-  tracks: { trackFile: string | null; trackType: string }[]
+function fileFromPath(localPath: string): File {
+  return new File([readFileSync(localPath)], path.basename(localPath), {
+    type: 'application/octet-stream',
+  })
 }
 
-async function loadSourceFromConfig(
-  dom: JSDOM,
-  sourceName: string,
-  regionOverride: string | undefined,
-) {
-  const configPath = path.resolve('src/config.json')
-  const config = JSON.parse(readFileSync(configPath, 'utf8')) as {
-    DATA_SOURCES: ConfigDataSource[]
-  }
-  const src = config.DATA_SOURCES.find(s => s.name === sourceName)
-  if (!src) {
-    const names = config.DATA_SOURCES.map(s => `  - ${s.name}`).join('\n')
-    throw new Error(
-      `Unknown source "${sourceName}". Available:\n${names}`,
-    )
-  }
-
-  const region = regionOverride ?? src.region
-  if (!region) throw new Error(`Source "${sourceName}" has no region`)
-
-  const { GBZBaseAPI } = await import('../src/api/GBZBaseAPI.ts')
-  const api = new GBZBaseAPI()
-
-  // Stage each track file (and any sibling .gai) into the API's upload
-  // registry. resolveTrackFile prefers numeric ids, so once we've uploaded a
-  // file the API doesn't try to fetch() it from the network.
-  const uploadedTracks: { trackFile: string; trackType: string }[] = []
-  for (const t of src.tracks) {
-    if (!t.trackFile) continue
-    const localPath = path.resolve(t.trackFile)
-    const data = readFileSync(localPath)
-    const file = new dom.window.File([data], path.basename(t.trackFile), {
-      type: 'application/octet-stream',
-    })
-    const id = await api.putFile(t.trackType as 'graph' | 'haplotype' | 'read', file, null)
-    uploadedTracks.push({ trackFile: id, trackType: t.trackType })
-
-    // Sibling indexes (e.g. .gai for .gam) need to be uploaded with their
-    // real filename so resolveSibling can find them by `<gam>.gai`.
-    if (t.trackType === 'read') {
-      const gaiPath = localPath + '.gai'
-      try {
-        const gaiData = readFileSync(gaiPath)
-        const gaiFile = new dom.window.File(
-          [gaiData],
-          path.basename(t.trackFile) + '.gai',
-          { type: 'application/octet-stream' },
-        )
-        await api.putFile('read', gaiFile, null)
-      } catch {
-        // No sibling index — full-scan filter will run instead.
+// Hand each local track file (and any sibling index beside it) to the API's
+// upload registry and rewrite the track to point at the upload id.
+// resolveTrackFile prefers ids, so an uploaded file is never fetch()ed from the
+// network, and resolveSibling finds an index by `<track filename><suffix>` —
+// which is why siblings are uploaded under their real basename. A URL track is
+// left alone so the API reads it by range requests, as it does in the browser.
+async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
+  const { SIBLING_INDEX_SUFFIXES } =
+    await import('../src/api/local/fileRegistry.ts')
+  const staged: Tracks = []
+  for (const track of tracks) {
+    if (track.trackFile && !/^https?:\/\//.test(track.trackFile)) {
+      const localPath = path.resolve(track.trackFile)
+      const id = await api.putFile(
+        track.trackType,
+        fileFromPath(localPath),
+        null,
+      )
+      for (const suffix of SIBLING_INDEX_SUFFIXES) {
+        if (existsSync(localPath + suffix)) {
+          await api.putFile(
+            track.trackType,
+            fileFromPath(localPath + suffix),
+            null,
+          )
+        }
       }
+      staged.push({ ...track, trackFile: id })
+    } else {
+      staged.push(track)
     }
   }
+  return staged
+}
 
-  console.error(`querying ${sourceName} @ ${region} ...`)
-  const chunked = await api.getChunkedData(
-    {
-      region,
-      tracks: uploadedTracks as Parameters<typeof api.getChunkedData>[0]['tracks'],
-      dataType: 'built-in',
-    },
-    null,
-  )
-  if (!chunked.graph) throw new Error('API returned no graph data')
+async function viewTargetForSource(
+  api: GBZBaseAPI,
+  sourceName: string,
+  regionOverride: string | undefined,
+): Promise<ViewTarget> {
+  await import('../src/config-client.js')
+  const { config } = await import('../src/config-global.mjs')
+  const { isLocalCompatibleDataSource } = await import('../src/common.ts')
+  const sources: ViewTarget[] = config.DATA_SOURCES
 
-  // Convert vg JSON into tubemap inputs the same way TubeMapContainer does.
-  const tubeMap = await import('../src/util/tubemap.ts')
-  const readTrackIds: number[] = []
-  let graphTrackId = 0
-  let haplotypeTrackId = 0
-  uploadedTracks.forEach((t, i) => {
-    if (t.trackType === 'read') readTrackIds.push(i)
-    else if (t.trackType === 'graph') graphTrackId = i
-    else if (t.trackType === 'haplotype') haplotypeTrackId = i
-  })
-
-  const nodes = tubeMap.vgExtractNodes(chunked.graph)
-  const tracks = tubeMap.vgExtractTracks(chunked.graph, graphTrackId, haplotypeTrackId)
-  const reads: ReturnType<typeof tubeMap.vgExtractReads> = []
-  let totalReads = 0
-  for (const [i, gam] of (chunked.gam ?? []).entries()) {
-    const sourceTrackId = readTrackIds[i] ?? 0
-    const r = tubeMap.vgExtractReads(nodes, tracks, gam, totalReads, sourceTrackId)
-    reads.push(...r)
-    totalReads += r.length
+  const source = sources.find(s => s.name === sourceName)
+  if (!source) {
+    const names = sources
+      .filter(isLocalCompatibleDataSource)
+      .map(s => `  - ${s.name}`)
+      .join('\n')
+    throw new Error(`unknown source "${sourceName}". Renderable:\n${names}`)
   }
+  if (!isLocalCompatibleDataSource(source)) {
+    throw new Error(
+      `source "${sourceName}" has no .gbz.db graph; this renderer uses the in-browser backend, which cannot read .vg/.xg/.gbz`,
+    )
+  }
+  const region = regionOverride ?? source.region
+  if (!region) {
+    throw new Error(`source "${sourceName}" has no region, pass --region`)
+  }
+  return { ...source, region, tracks: await stageTracks(api, source.tracks) }
+}
 
-  return { nodes, tracks, reads, region: chunked.region }
+// The SWR key the web app would use for this render, plus the view target it
+// was built from — the demo datasets don't have one, and the renderer options
+// it carries only apply to a source render.
+async function resolveFetch(
+  api: GBZBaseAPI,
+  target: RenderTarget,
+): Promise<{ key: FetchKey; viewTarget: ViewTarget | undefined }> {
+  if ('example' in target) {
+    const key: FetchKey = [
+      'tubeMap.example',
+      await exampleOrigin(target.example),
+    ]
+    return { key, viewTarget: undefined }
+  }
+  const viewTarget = await viewTargetForSource(
+    api,
+    target.source,
+    target.region,
+  )
+  console.error(`querying ${target.source} @ ${viewTarget.region} ...`)
+  return { key: ['tubeMap.api', api.mode, viewTarget], viewTarget }
 }
 
 async function main(): Promise<void> {
   const args = parseCli()
   const dom = installBrowserGlobals(args)
 
-  // Import tubemap AFTER globals are installed: config-client.js touches
-  // `typeof window` at import time, and d3 binds to the ambient document on
-  // first selection.
+  // Import the app modules AFTER the globals are installed: config-client.js
+  // touches `typeof window` at import time, and d3 binds to the ambient
+  // document on first selection.
   const tubeMap = await import('../src/util/tubemap.ts')
+  const { fetchTubeMapData } = await import('../src/components/tubeMapData.ts')
+  const { GBZBaseAPI } = await import('../src/api/GBZBaseAPI.ts')
+  const { defaultTrackColors } = await import('../src/common.ts')
+  const { subsampleReads } = await import('../src/util/array.ts')
+  const { svgContentBounds } = await import('../src/util/svgBounds.ts')
+  const { applyVisOptions, DEFAULT_VIS_OPTIONS } =
+    await import('../src/util/visOptions.ts')
 
-  const { nodes, tracks, reads, region } = args.example
-    ? { ...(await loadDemoExample(args.example)), region: undefined }
-    : await loadSourceFromConfig(dom, args.source!, args.region)
+  const api = new GBZBaseAPI()
+  const { key, viewTarget } = await resolveFetch(api, args.target)
+  const data = await fetchTubeMapData(key, api)
+
+  // Configure the renderer through the same path the app does, rather than
+  // leaning on tubemap's module defaults happening to agree with it. The color
+  // schemes are derived exactly as App does, so a source that pins its
+  // palettes in config.json renders here in those palettes too.
+  applyVisOptions(
+    {
+      ...DEFAULT_VIS_OPTIONS,
+      colorSchemes: (viewTarget?.tracks ?? []).map(
+        t => t.trackColorSettings ?? defaultTrackColors(t.trackType),
+      ),
+      coloredNodes: data.coloredNodes,
+    },
+    viewTarget?.removeSequences !== true,
+  )
+
+  const reads =
+    args.readLimit === undefined
+      ? data.reads
+      : subsampleReads(data.reads, args.readLimit)
+  if (reads.length < data.reads.length) {
+    console.error(
+      `subsampled ${reads.length.toLocaleString()} of ${data.reads.length.toLocaleString()} reads`,
+    )
+  }
 
   tubeMap.create({
     svgID: '#tubemap',
-    nodes,
-    tracks,
+    nodes: data.nodes,
+    tracks: data.tracks,
     reads,
-    region,
-    clickableNodes: false,
-    hideLegend: false,
+    region: data.region,
   })
 
   const svg = dom.window.document.getElementById('tubemap')
-  if (!svg) throw new Error('SVG element vanished after render')
+  if (!svg) {
+    throw new Error('SVG element vanished after render')
+  }
 
-  // Replace the viewport-fixed width/height with a viewBox so viewers scale
-  // the content fluidly. The actual rendered content may extend past the
-  // viewBox (clipped on display) — pass a larger --width/--height to capture
-  // more of the layout horizontally.
-  const renderedWidth = svg.getAttribute('width') ?? String(args.width)
-  const renderedHeight = svg.getAttribute('height') ?? String(args.height)
-  svg.setAttribute('viewBox', `0 0 ${renderedWidth} ${renderedHeight}`)
+  // The renderer draws the whole layout but sizes the <svg> to the viewport it
+  // laid out in, so exporting that size would clip a wide map and leave dead
+  // space under a short one. Crop to what was actually drawn instead, and
+  // trade width/height for the viewBox so viewers scale the map fluidly.
+  const bounds = svgContentBounds(svg)
+  const pad = CROP_MARGIN
+  svg.setAttribute(
+    'viewBox',
+    bounds && !args.viewport
+      ? `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + 2 * pad} ${bounds.height + 2 * pad}`
+      : `0 0 ${args.width} ${args.height}`,
+  )
   svg.removeAttribute('width')
   svg.removeAttribute('height')
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
@@ -244,7 +335,20 @@ async function main(): Promise<void> {
   console.error(`wrote ${args.out} (${xml.length.toLocaleString()} bytes)`)
 }
 
+// A bad flag or an unreadable source is a user error, so report the message
+// (plus whatever the failure was caused by) rather than a jsdom-deep stack.
+// GBZBASE_DEBUG=1 turns the raw error back on, matching GBZBaseAPI's logging.
 main().catch((err: unknown) => {
-  console.error(err)
+  if (err instanceof Error && process.env.GBZBASE_DEBUG !== '1') {
+    for (
+      let cause: unknown = err;
+      cause instanceof Error;
+      cause = cause.cause
+    ) {
+      console.error(cause.message)
+    }
+  } else {
+    console.error(err)
+  }
   process.exit(1)
 })

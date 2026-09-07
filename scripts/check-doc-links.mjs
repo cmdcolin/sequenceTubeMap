@@ -45,7 +45,11 @@ if (stale.length > 0) {
   for (const { doc, path } of stale) {
     console.error('  ' + doc + ' cites ' + path + ' — no such file')
   }
-  console.error('\nUpdate the doc, or point the citation at the file that replaced it.')
+  console.error(
+    '\nUpdate the doc, or point the citation at the file that replaced it.',
+  )
   process.exit(1)
 }
-console.log('checked ' + docs.length + ' markdown files, all cited repo paths exist')
+console.error(
+  'checked ' + docs.length + ' markdown files, all cited repo paths exist',
+)

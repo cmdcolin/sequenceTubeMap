@@ -1,67 +1,14 @@
 import { useEffect } from 'react'
 import * as tubeMap from '../util/tubemap.ts'
-import type {
-  InputNode,
-  InputTrack,
-  InputRegion,
-  ReadGroup as TubeMapReadGroup,
-} from '../util/tubemap.ts'
-import type { VisOptions } from '../Types.ts'
-
-interface ReadGroupInput {
-  color: string
-  reads: string[] | Set<string>
-}
-
-interface TubeMapInternalOptions extends VisOptions {
-  coloredNodes?: string[]
-  focusReadNames?: string[] | null
-  readGroups?: (ReadGroupInput | TubeMapReadGroup)[]
-  otherReadsColor?: string
-}
-
-function updateVisOptions(
-  visOptions: TubeMapInternalOptions,
-  nodeSequences: boolean,
-) {
-  if (nodeSequences) {
-    if (visOptions.compressedView) {
-      tubeMap.setNodeWidthOption('compressed')
-    } else {
-      tubeMap.setNodeWidthOption('normal')
-    }
-  } else {
-    tubeMap.setNodeWidthOption('fixed')
-  }
-  tubeMap.setMergeNodesFlag(visOptions.removeRedundantNodes)
-  tubeMap.setTransparentNodesFlag(visOptions.transparentNodes)
-  tubeMap.setShowReadsFlag(visOptions.showReads)
-  tubeMap.setSoftClipsFlag(visOptions.showSoftClips)
-  tubeMap.setCoarsenedReadViewFlag(visOptions.coarsenedReadView)
-  tubeMap.setIgnoreStrandFlag(visOptions.ignoreStrand)
-  tubeMap.setColoredNodes(visOptions.coloredNodes)
-  tubeMap.setShowNodeLabels(visOptions.showNodeLabels)
-
-  visOptions.colorSchemes.forEach((scheme, idx) => {
-    tubeMap.setColorSet(idx, {
-      mainPalette: scheme.mainPalette,
-      auxPalette: scheme.auxPalette,
-      colorReadsByMappingQuality: visOptions.colorReadsByMappingQuality,
-      alphaReadsByMappingQuality: visOptions.alphaReadsByMappingQuality,
-    })
-  })
-  tubeMap.setMappingQualityCutoff(visOptions.mappingQualityCutoff)
-  tubeMap.setFocusReadNames(visOptions.focusReadNames)
-  tubeMap.setReadGroups(visOptions.readGroups)
-  tubeMap.setOtherReadsColor(visOptions.otherReadsColor)
-}
+import type { InputNode, InputTrack, InputRegion } from '../util/tubemap.ts'
+import { applyVisOptions, type TubeMapVisOptions } from '../util/visOptions.ts'
 
 interface TubeMapProps {
   nodes: InputNode[]
   tracks: InputTrack[]
   reads?: InputTrack[] | null
   region?: InputRegion
-  visOptions: TubeMapInternalOptions
+  visOptions: TubeMapVisOptions
   nodeSequences?: boolean
 }
 
@@ -74,7 +21,7 @@ function TubeMap({
   nodeSequences = true,
 }: TubeMapProps) {
   useEffect(() => {
-    updateVisOptions(visOptions, nodeSequences)
+    applyVisOptions(visOptions, nodeSequences)
     tubeMap.create({ svgID: '#svg', nodes, tracks, reads, region })
   }, [nodes, tracks, reads, region, visOptions, nodeSequences])
 

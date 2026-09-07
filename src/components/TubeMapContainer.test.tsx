@@ -1,6 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import TubeMapContainer, { subsampleReads } from './TubeMapContainer.tsx'
+import TubeMapContainer from './TubeMapContainer.tsx'
+import { subsampleReads } from '../util/array.ts'
 import type { TubeMapData } from './tubeMapData.ts'
 import type { InputTrack } from '../util/tubemap.ts'
 import type { ViewTarget, VisOptions } from '../Types.ts'
