@@ -26,11 +26,19 @@ space around it. Pass `--viewport` to export the whole canvas instead.
 
 ## View options
 
-`--compressed`, `--no-reads`, `--node-labels`, `--coarsened` and `--mapq N`
-mirror the app's View menu. `--compressed` is the one to reach for on a graph
-whose nodes hold long sequences: node width becomes logarithmic in sequence
-length, which is often the difference between a legible figure and a drawing
-tens of thousands of units wide.
+Every option in the app's View menu has a flag: `--compressed`, `--no-reads`,
+`--no-soft-clips`, `--no-merge-nodes`, `--node-labels`, `--transparent-nodes`,
+`--coarsened`, `--ignore-strand`, `--color-by-mapq`, `--alpha-by-mapq` and
+`--mapq N`. The two mapping-quality colouring flags ride on a track's colour
+scheme, so they apply to `--source` renders rather than `--example` ones, and
+they only show up when the reads actually differ in mapping quality.
+
+`--compressed` is the one to reach for whenever a figure comes out unreadably
+wide. Node width scales with sequence length, so any region spanning many bases
+lays out far wider than tall and the detail disappears; making width logarithmic
+pulls it back. snp1kg-BRCA1 at `17:1-1000` goes from 10122 units across to 1099
+at the same height, and it rescues a dense read pileup just as much as a graph
+with long nodes.
 
 Example 6 at natural node widths is 4376 units across
 ([SVG](tubemap-cli-samples/demo-example-6.svg)):

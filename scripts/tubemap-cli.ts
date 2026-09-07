@@ -24,8 +24,20 @@ import type { StoredVisOptions } from '../src/util/visOptions.ts'
 
 const USAGE = `tubemap-cli [--example 1..9 | --source <config name>] [--region X:S-E]
              [--out file.svg] [--width N] [--height N] [--viewport]
-             [--read-limit N] [--compressed] [--no-reads] [--node-labels]
-             [--coarsened] [--mapq N]
+             [--read-limit N]
+
+View options, mirroring the app's View menu:
+  --compressed        logarithmic node widths
+  --no-reads          draw the graph without read alignments
+  --no-soft-clips     hide soft-clipped read ends
+  --no-merge-nodes    keep redundant nodes instead of merging chains
+  --node-labels       label nodes with their ids
+  --transparent-nodes draw node outlines without fill
+  --coarsened         one band per node-to-node transition, not per read
+  --ignore-strand     treat forward and reverse as equivalent
+  --color-by-mapq     colour reads by mapping quality
+  --alpha-by-mapq     fade reads by mapping quality
+  --mapq N            drop reads below mapping quality N
 
 The tube map is laid out in a --width by --height viewport, which is what
 decides how much the drawing is scaled down. The exported viewBox is then
@@ -34,10 +46,11 @@ cropped to the drawing; pass --viewport to export the whole canvas instead.
 Every read in the region is drawn unless --read-limit caps it, in which case
 reads are evenly subsampled the way the app's read-render limit does.
 
-The view flags mirror the app's View menu. --compressed is the one to reach for
-on a graph whose nodes hold long sequences: node width becomes logarithmic in
-sequence length, which is often the difference between a legible figure and a
-drawing tens of thousands of units wide.
+--compressed is the flag to reach for whenever a figure comes out unreadably
+wide. Node width scales with sequence length, so any region spanning many bases
+lays out far wider than tall and the detail disappears; making width
+logarithmic pulls it back. snp1kg-BRCA1 at 17:1-1000 goes from 10122 units
+across to 1099, at the same height.
 `
 
 // Breathing room around the cropped drawing so edge strokes and the outermost
@@ -69,6 +82,14 @@ function parsePositive(name: string, raw: string): number {
   return value
 }
 
+function parseCount(name: string, raw: string): number {
+  const value = Number(raw)
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`--${name} must be zero or a positive number, got "${raw}"`)
+  }
+  return value
+}
+
 function parseCli(): CliArgs {
   const { values } = parseArgs({
     options: {
@@ -82,8 +103,14 @@ function parseCli(): CliArgs {
       'read-limit': { type: 'string' },
       compressed: { type: 'boolean', default: false },
       'no-reads': { type: 'boolean', default: false },
+      'no-soft-clips': { type: 'boolean', default: false },
+      'no-merge-nodes': { type: 'boolean', default: false },
       'node-labels': { type: 'boolean', default: false },
+      'transparent-nodes': { type: 'boolean', default: false },
       coarsened: { type: 'boolean', default: false },
+      'ignore-strand': { type: 'boolean', default: false },
+      'color-by-mapq': { type: 'boolean', default: false },
+      'alpha-by-mapq': { type: 'boolean', default: false },
       mapq: { type: 'string' },
       help: { type: 'boolean', default: false },
     },
@@ -104,10 +131,17 @@ function parseCli(): CliArgs {
     visOptions: {
       ...(values.compressed && { compressedView: true }),
       ...(values['no-reads'] && { showReads: false }),
+      ...(values['no-soft-clips'] && { showSoftClips: false }),
+      ...(values['no-merge-nodes'] && { removeRedundantNodes: false }),
       ...(values['node-labels'] && { showNodeLabels: true }),
+      ...(values['transparent-nodes'] && { transparentNodes: true }),
       ...(values.coarsened && { coarsenedReadView: true }),
+      ...(values['ignore-strand'] && { ignoreStrand: true }),
+      ...(values['color-by-mapq'] && { colorReadsByMappingQuality: true }),
+      ...(values['alpha-by-mapq'] && { alphaReadsByMappingQuality: true }),
       ...(values.mapq !== undefined && {
-        mappingQualityCutoff: parsePositive('mapq', values.mapq),
+        // 0 is the default "no cutoff", so it has to be accepted.
+        mappingQualityCutoff: parseCount('mapq', values.mapq),
       }),
     },
   }
@@ -307,6 +341,19 @@ async function main(): Promise<void> {
   const api = new GBZBaseAPI()
   const { key, viewTarget } = await resolveFetch(api, args.target)
   const data = await fetchTubeMapData(key, api)
+
+  // The mapping-quality colouring rides on a track's colour scheme, and the
+  // bundled examples have no tracks to carry one, so the flags would otherwise
+  // be accepted and quietly do nothing.
+  if (
+    viewTarget === undefined &&
+    (args.visOptions.colorReadsByMappingQuality === true ||
+      args.visOptions.alphaReadsByMappingQuality === true)
+  ) {
+    console.error(
+      'warning: --color-by-mapq/--alpha-by-mapq have no effect on --example renders',
+    )
+  }
 
   // Configure the renderer through the same path the app does, rather than
   // leaning on tubemap's module defaults happening to agree with it. The color
