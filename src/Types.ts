@@ -99,12 +99,6 @@ export type ColorHex = `#${string}`
 // A palette is either a known palette name or a custom hex color.
 export type Palette = ColorPaletteName | ColorHex
 
-// An object created by the React-Color library, contains information on the
-// color selected. Has more properties than this, but only `hex` is consumed.
-export interface ReactColor {
-  hex: ColorHex
-}
-
 // Describes the coloring information for a track.
 export interface ColorScheme {
   mainPalette: Palette

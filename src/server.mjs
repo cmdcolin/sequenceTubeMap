@@ -18,7 +18,6 @@ import assert from 'assert'
 import { spawn } from 'child_process'
 import express from 'express'
 import multer from 'multer'
-import { v1 as uuid } from 'uuid'
 import fs from 'fs-extra'
 import path from 'path'
 import pathIsInside from 'path-is-inside'
@@ -564,7 +563,7 @@ function removeNodeSequencesInPlace(graph) {
 // rewrite the flow of talking to vg in terms of async/await or abandon
 // async/await altogether in order to get out of it.
 async function getChunkedData(req, res, next) {
-  const reqId = uuid()
+  const reqId = randomUUID()
   req.reqId = reqId
   console.time(`request-duration-${reqId}`)
   console.log('http POST getChunkedData received')
@@ -629,7 +628,7 @@ async function getChunkedData(req, res, next) {
   // Assign each request a UUID. v1 UUIDs can be very similar for similar
   // timestamps on the same node, but are still guaranteed to be unique within
   // a given nodejs process.
-  req.uuid = uuid()
+  req.uuid = randomUUID()
 
   // Make a temp directory for vg output files for this request
   req.chunkDir = path.join(SCRATCH_DATA_PATH, `tmp-${req.uuid}`)

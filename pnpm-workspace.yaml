@@ -5,3 +5,4 @@ allowBuilds:
   utf-8-validate: true
 minimumReleaseAgeExclude:
   - '@gmod/gbz-base'
+  - '@rolldown/plugin-babel@0.2.4'

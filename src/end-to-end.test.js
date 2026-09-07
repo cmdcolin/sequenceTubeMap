@@ -174,9 +174,10 @@ describe('When we wait for it to load', () => {
     let loader = document.getElementById('loader')
     expect(loader).toBeFalsy()
 
+    const go = document.getElementById('goButton')
+    expect(go.disabled).toBe(true)
     act(() => {
-      const go = document.getElementById('goButton')
-      userEvent.click(go)
+      fireEvent.click(go)
     })
 
     loader = document.getElementById('loader')
