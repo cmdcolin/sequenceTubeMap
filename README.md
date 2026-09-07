@@ -37,22 +37,9 @@ to see available contig names.
 
 - [Differences from upstream sequenceTubeMap](doc/differences-from-upstream.md)
 - [Data preparation & hosting options](doc/uploading.md)
-- [Headless SVG/PNG rendering](doc/headless-rendering.md)
+- [Headless SVG rendering](doc/headless-rendering.md)
 - [In-browser gbz-base reader](doc/gbz-base.md)
 - [Deep-link URL format](doc/linking.md)
-
-## Features added vs. upstream
-
-- Serverless in-browser mode — `.gbz.db` graphs read in pure TypeScript
-  ([`@gmod/gbz-base`](https://github.com/GMOD/gbz-base-js), range requests for
-  hosted files) + GAM parsing, no server needed
-- Upload to vgteam server — File → Open sends `.xg`/`.vg` to
-  `api.tubemap.graphs.vg` (CORS-compatible, wildcard `*`)
-- App-bar GUI — all settings on one screen, contextual visibility
-- Path picker — one-click path loading, no need to hand-type contig names
-- Node labels, hover tooltips, right-click actions on reads and nodes
-- React + TypeScript, React Compiler, MUI AppBar, SWR
-- And more — see commit history
 
 ## Thanks
 
