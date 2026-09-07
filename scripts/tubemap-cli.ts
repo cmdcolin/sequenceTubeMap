@@ -279,6 +279,14 @@ async function resolveFetch(
   return { key: ['tubeMap.api', api.mode, viewTarget], viewTarget }
 }
 
+// Layout and measurement are the two phases that can get slow on a dense
+// region, so keep them measurable. GBZBASE_DEBUG=1 matches GBZBaseAPI.
+function debugTiming(phase: string, since: number): void {
+  if (process.env.GBZBASE_DEBUG === '1') {
+    console.error(`[timing] ${phase} ${Date.now() - since}ms`)
+  }
+}
+
 async function main(): Promise<void> {
   const args = parseCli()
   const dom = installBrowserGlobals(args)
@@ -326,6 +334,7 @@ async function main(): Promise<void> {
     )
   }
 
+  const tCreate = Date.now()
   tubeMap.create({
     svgID: '#tubemap',
     nodes: data.nodes,
@@ -334,6 +343,9 @@ async function main(): Promise<void> {
     region: data.region,
   })
 
+  debugTiming('create()', tCreate)
+
+  const tBounds = Date.now()
   const svg = dom.window.document.getElementById('tubemap')
   if (!svg) {
     throw new Error('SVG element vanished after render')
@@ -354,6 +366,7 @@ async function main(): Promise<void> {
   }
 
   const bounds = svgContentBounds(svg)
+  debugTiming('measure', tBounds)
   const pad = CROP_MARGIN
   svg.setAttribute(
     'viewBox',

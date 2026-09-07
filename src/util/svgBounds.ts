@@ -169,6 +169,18 @@ function elementPoints(element: Element): Point[] {
   }
 }
 
+// Sibling links rather than `element.children`: that returns a live
+// HTMLCollection, and reading its length goes through jsdom's named-property
+// lookup, which rescans the subtree on every access. Walking a drawing with
+// tens of thousands of elements that way is quadratic and takes minutes.
+function forEachChild(element: Element, visit: (child: Element) => void): void {
+  let child = element.firstElementChild
+  while (child) {
+    visit(child)
+    child = child.nextElementSibling
+  }
+}
+
 export function svgContentBounds(root: Element): Box | null {
   let minX = Infinity
   let minY = Infinity
@@ -193,14 +205,14 @@ export function svgContentBounds(root: Element): Box | null {
           maxY = Math.max(maxY, y)
         }
       }
-      for (const child of element.children) {
+      forEachChild(element, child => {
         walk(child, here)
-      }
+      })
     }
   }
-  for (const child of root.children) {
+  forEachChild(root, child => {
     walk(child, { tx: 0, ty: 0, k: 1 })
-  }
+  })
 
   return minX <= maxX && minY <= maxY
     ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
@@ -221,13 +233,9 @@ export function nonFiniteGeometryCount(root: Element): number {
       ) {
         broken += 1
       }
-      for (const child of element.children) {
-        walk(child)
-      }
+      forEachChild(element, walk)
     }
   }
-  for (const child of root.children) {
-    walk(child)
-  }
+  forEachChild(root, walk)
   return broken
 }
