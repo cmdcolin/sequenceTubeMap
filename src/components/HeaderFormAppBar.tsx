@@ -7,7 +7,6 @@ import type { AvailableTrack, FileType, Track, Tracks, ViewTarget } from '../Typ
 import HelpButton from './HelpButton.tsx'
 import { ExamplesMenu } from './ExamplesMenu.tsx'
 import { FileMenu } from './FileMenu.tsx'
-import { VisibilityMenu } from './VisibilityMenu.tsx'
 
 interface HeaderFormAppBarProps {
   visibleDataSources: ViewTarget[]
@@ -25,8 +24,8 @@ interface HeaderFormAppBarProps {
   apiMode: 'local' | 'server' | 'upstream'
   serverModeId: 'server' | 'upstream'
   onDestChange: (mode: string) => void
-  // Menus owned by the app (the visualization options), rendered between the
-  // form's own menus and the visibility popover.
+  // Menus owned by the app (the visualization options), rendered after the
+  // form's own menus.
   visMenus: ReactNode
 }
 
@@ -72,7 +71,6 @@ export function HeaderFormAppBar({
           onDestChange={onDestChange}
         />
         {visMenus}
-        <VisibilityMenu />
         <Box sx={{ flexGrow: 1 }} />
         <Typography
           variant="body2"

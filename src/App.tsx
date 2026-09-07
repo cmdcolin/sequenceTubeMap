@@ -12,7 +12,6 @@ import {
 } from './urlViewTarget.ts'
 import BackendSelector from './components/BackendSelector.tsx'
 import Footer from './components/Footer.tsx'
-import { ReadsMenu } from './components/ReadsMenu.tsx'
 import { ViewMenu } from './components/ViewMenu.tsx'
 import { viewTargetsEqual } from './components/headerFormUtils.ts'
 import {
@@ -336,20 +335,14 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         loading={isValidating}
         onEscape={() => { setLegend(false); }}
         visMenus={
-          <>
-            <ViewMenu
-              legendVisible={legendVisible}
-              toggleLegend={() => { setLegend(!legendVisible); }}
-              visOptions={visOptions}
-              toggleVisOptionFlag={toggleVisOptionFlag}
-              compressedViewLocked={viewTarget.removeSequences}
-            />
-            <ReadsMenu
-              visOptions={visOptions}
-              toggleVisOptionFlag={toggleVisOptionFlag}
-              handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
-            />
-          </>
+          <ViewMenu
+            legendVisible={legendVisible}
+            toggleLegend={() => { setLegend(!legendVisible); }}
+            visOptions={visOptions}
+            toggleVisOptionFlag={toggleVisOptionFlag}
+            handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
+            compressedViewLocked={viewTarget.removeSequences}
+          />
         }
       />
       <div style={{ margin: '8px 0' }}>
