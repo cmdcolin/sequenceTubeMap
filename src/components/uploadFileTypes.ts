@@ -1,7 +1,11 @@
 import type { FileType } from '../Types.ts'
 
 export const GRAPH_EXTS = ['.xg', '.vg', '.hg', '.pg', '.gbz', '.gbz.db', '.db']
-export const READ_EXTS = ['.gam', '.gaf', '.gaf.gz']
+// Upload only. A .gaf/.gaf.gz can be a read track when it is mounted in the
+// server's data directory already sorted and tabix-indexed, but the upload
+// route has no way to produce that index, so offering it here only produced a
+// server-side rejection after the file had been sent.
+export const READ_EXTS = ['.gam']
 export const HAPLOTYPE_EXTS = ['.gbwt']
 // .gai is the sibling index for a sorted .gam, .tbi for a tabixed .gaf.gz.
 // In server mode the server creates these itself so they're silently skipped;

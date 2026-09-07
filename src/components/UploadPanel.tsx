@@ -3,6 +3,7 @@ import type { DragEvent } from 'react'
 import Button from '@mui/material/Button'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
+import { errorMessage } from '../util/error.ts'
 import type { FileType, Track } from '../Types.ts'
 import {
   GRAPH_EXTS,
@@ -110,8 +111,8 @@ export const UploadPanel = ({
           continue
         }
         // In server/upstream mode the server creates the .gai itself via vg
-        // gamsort — uploading the index separately would cause a
-        // "not a GAF or GAM" error.
+        // gamsort — uploading the index separately would be rejected as a
+        // read file it can't sort.
         if (!isLocal && isIndex) {
           continue
         }
@@ -134,7 +135,7 @@ export const UploadPanel = ({
       setFiles([])
       setUploading(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorMessage(e))
       setUploading(false)
     }
   }

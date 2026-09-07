@@ -68,9 +68,11 @@ export function UploadModeToggle({
               <>your self-hosted server</>
             )}
             . Accepts the full vg toolchain: <code>.xg</code>,{' '}
-            <code>.vg</code>, <code>.gbz</code> graphs and <code>.gam</code> /{' '}
-            <code>.gaf</code> reads. You can include a <code>.gam.gai</code>{' '}
-            index — it's silently ignored because the server builds its own.
+            <code>.vg</code>, <code>.gbz</code> graphs and <code>.gam</code>{' '}
+            reads. You can include a <code>.gam.gai</code> index — it's
+            silently ignored because the server builds its own.{' '}
+            <code>.gaf</code> reads have to be sorted and tabix-indexed
+            beforehand and mounted in the server's data directory.
           </>
         )}
       </div>

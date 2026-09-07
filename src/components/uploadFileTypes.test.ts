@@ -19,8 +19,14 @@ describe('detectType', () => {
 
   it('classifies read formats', () => {
     expect(detectType('example.gam')).toBe('read')
-    expect(detectType('example.gaf')).toBe('read')
-    expect(detectType('example.gaf.gz')).toBe('read')
+  })
+
+  // GAF has no upload route: the server can neither sort nor tabix-index one,
+  // so it is only usable as an already-indexed file mounted in the data
+  // directory. Claiming it here sent the file and then failed.
+  it('does not offer GAF as an uploadable read format', () => {
+    expect(detectType('example.gaf')).toBeNull()
+    expect(detectType('example.gaf.gz')).toBeNull()
   })
 
   it('classifies haplotype formats', () => {

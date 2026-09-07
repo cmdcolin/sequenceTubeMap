@@ -314,6 +314,13 @@ api.post(
     }
 
     if (req.body.fileType === fileTypes['READ']) {
+      // Only .gam can be sorted and indexed here. Anything else has already
+      // been written to disk by multer, so clear it before rejecting.
+      const rejection = readUploadRejection(req.file.path)
+      if (rejection !== null) {
+        await fs.remove(req.file.path)
+        throw new BadRequestError(rejection)
+      }
       indexGamSorted(req, res, next)
     } else {
       res.json({ path: path.relative('.', req.file.path) })
@@ -321,16 +328,24 @@ api.post(
   },
 )
 
-function indexGamSorted(req, res, next) {
-  const readsPath = req.file.path
+// Why an uploaded read file can't be used, or null when it can. A mounted
+// .gaf.gz that is already tabix-indexed works fine as a track; it is only the
+// upload route that has no way to sort and index one.
+export function readUploadRejection(readsPath) {
   if (readsPath.endsWith('.gaf') || readsPath.endsWith('.gaf.gz')) {
-    throw new BadRequestError(
-      `Server-side sorting and indexing not yet implemented for GAF: ${readsPath}`,
+    return (
+      `Server-side sorting and indexing is not implemented for GAF: ${readsPath}. ` +
+      'Sort and tabix-index it yourself and mount it in the data directory instead.'
     )
   }
   if (!readsPath.endsWith('.gam')) {
-    throw new BadRequestError(`Read file is not a GAF or GAM: ${readsPath}`)
+    return `Read file is not a GAM: ${readsPath}`
   }
+  return null
+}
+
+function indexGamSorted(req, res, next) {
+  const readsPath = req.file.path
 
   // An upload that is already named .sorted.gam must not become
   // .sorted.sorted.gam, so it keeps its own name and the sorted stream lands
