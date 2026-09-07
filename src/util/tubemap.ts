@@ -149,7 +149,10 @@ export interface InputNode {
 
 // Layout-complete node — fields used by drawing code after the pipeline.
 // (Marked optional only for the genuinely conditional fields like switched/d.)
+// generateNodeWidth() derives sequenceLength from seq.length when the input
+// omitted it, so from that point on it is always a number.
 export interface Node extends InputNode {
+  sequenceLength: number
   width: number
   pixelWidth: number
   order?: number
@@ -1265,7 +1268,7 @@ function setOccupiedUntil(
     map.set(y, read.finalNodeCoverLength ?? 0)
   } else {
     // read covers the whole node
-    map.set(y, node.sequenceLength ?? 0)
+    map.set(y, node.sequenceLength)
   }
 }
 
@@ -1616,7 +1619,7 @@ function reverseReversedReads(): void {
       for (let i = 0; i < sequenceNew.length; i += 1) {
         const entry = sequenceNew[i]!
         entry.nodeName = forward(entry.nodeName) // visit nodes forward
-        const seqLen = nodeByName(entry.nodeName).sequenceLength ?? 0
+        const seqLen = nodeByName(entry.nodeName).sequenceLength
         entry.mismatches.forEach(mm => {
           if (mm.type === 'insertion') {
             mm.pos = seqLen - mm.pos
@@ -1635,10 +1638,10 @@ function reverseReversedReads(): void {
 
       // adjust firstNodeOffset and finalNodeCoverLength
       const temp = read.firstNodeOffset ?? 0
-      const firstLen = nodeByName(read.sequence[0]!).sequenceLength ?? 0
+      const firstLen = nodeByName(read.sequence[0]!).sequenceLength
       read.firstNodeOffset = firstLen - (read.finalNodeCoverLength ?? 0)
       const lastLen =
-        nodeByName(read.sequence[read.sequence.length - 1]!).sequenceLength ?? 0
+        nodeByName(read.sequence[read.sequence.length - 1]!).sequenceLength
       read.finalNodeCoverLength = lastLen - temp
     }
   })
@@ -3092,11 +3095,7 @@ function addTrackFeatures(): void {
       tracks[i]!.path.forEach(node => {
         if (node.node !== null) {
           feature = {}
-          if (nodes[node.node]!.sequenceLength !== undefined) {
-            nodeEnd = nodeStart + nodes[node.node]!.sequenceLength! - 1
-          } else {
-            nodeEnd = nodeStart + nodes[node.node]!.width - 1
-          }
+          nodeEnd = nodeStart + nodes[node.node]!.sequenceLength - 1
 
           if (nodeStart >= line.start && nodeStart <= line.end) {
             feature.start = 0
@@ -3269,7 +3268,7 @@ function getReadXStart(read: Track): number | null {
   // read starts in backward direction
   return getXCoordinateOfBaseWithinNode(
     node,
-    node.sequenceLength! - read.firstNodeOffset!,
+    node.sequenceLength - (read.firstNodeOffset ?? 0),
   )
 }
 
@@ -3283,16 +3282,16 @@ function getReadXEnd(read: Track): number | null {
   // read ends in backward direction
   return getXCoordinateOfBaseWithinNode(
     node,
-    node.sequenceLength! - read.finalNodeCoverLength!,
+    node.sequenceLength - (read.finalNodeCoverLength ?? 0),
   )
 }
 
 // returns the x coordinate (in pixels) of (the left side) of the given base
 // position within the given node
 function getXCoordinateOfBaseWithinNode(node: Node, base: number): number | null {
-  if (base > node.sequenceLength!) return null // equality is allowed
+  if (base > node.sequenceLength) return null // equality is allowed
   const [nodeLeftX, nodeRightX] = nodePixelCoordinatesInX(node)
-  return nodeLeftX + (base / node.sequenceLength!) * (nodeRightX - nodeLeftX)
+  return nodeLeftX + (base / node.sequenceLength) * (nodeRightX - nodeLeftX)
 }
 
 // transforms the info in the tracks' path attribute into actual coordinates
@@ -3454,7 +3453,8 @@ function generateSVGShapesFromPath(): void {
           // change of direction
           if (track.path[i - 1]!.isForward) {
             yEnd = track.path[i]!.y!
-            generateForwardToReverse(
+            generateTurnaround(
+              1,
               xEnd,
               yStart,
               yEnd,
@@ -3469,7 +3469,8 @@ function generateSVGShapesFromPath(): void {
             yStart = track.path[i]!.y!
           } else {
             yEnd = track.path[i]!.y!
-            generateReverseToForward(
+            generateTurnaround(
+              -1,
               xEnd,
               yStart,
               yEnd,
@@ -3657,7 +3658,7 @@ function buildCoarsenedSyntheticReads(): Track[] {
     // for fully-reverse synthetics. The math works out: pre-flip values of
     // (srcLen, 0) become post-flip (newSrcLen, 0), which is the same pattern
     // — bands stay edge-only regardless of orientation.
-    const srcLen = nodes[Math.abs(edge.sSigned)]?.sequenceLength ?? 0
+    const srcLen = nodes[Math.abs(edge.sSigned)]?.sequenceLength ?? 0  // node may be absent for a dangling edge
     synthetic.push({
       id,
       sourceTrackID: edge.sourceTrackID,
@@ -3728,11 +3729,7 @@ function createFeatureRectangle(
 
   nodeXStart -= 8
   nodeXEnd += 8
-  if (nodes[node.node!]!.sequenceLength !== undefined) {
-    nodeWidth = nodes[node.node!]!.sequenceLength!
-  } else {
-    nodeWidth = nodes[node.node!]!.width
-  }
+  nodeWidth = nodes[node.node!]!.sequenceLength
 
   node.features!.sort((a, b) => a.start! - b.start!)
   node.features!.forEach(feature => {
@@ -3866,7 +3863,13 @@ function createFeatureRectangle(
 
 const MIN_BEND_WIDTH = 7
 
-function generateForwardToReverse(
+// Emit the vertical rectangles + rounded corners for a track turning around at
+// one end of an order slot. The two directions are mirror images of each other:
+// a forward-to-reverse turn bulges out to the right of the node and consumes an
+// `extraRight` slot, a reverse-to-forward turn bulges out to the left and
+// consumes an `extraLeft` slot. `dir` is +1 for right, -1 for left.
+function generateTurnaround(
+  dir: 1 | -1,
   x: number,
   yStart: number,
   yEnd: number,
@@ -3877,131 +3880,65 @@ function generateForwardToReverse(
   type: TrackType | undefined,
   trackName: string | undefined,
 ): void {
-  x += 10 * extraRight[order]!
+  const extra = dir === 1 ? extraRight : extraLeft
+  const offset = 10 * extra[order]!
+  // The turn's apex, and the outward direction from it.
+  const apex = x + dir * (offset + 5)
+  const radius = MIN_BEND_WIDTH
+  const stem = Math.min(MIN_BEND_WIDTH, trackWidth)
   const yTop = Math.min(yStart, yEnd)
   const yBottom = Math.max(yStart, yEnd)
-  const radius = MIN_BEND_WIDTH
+  // The incoming/outgoing stubs run from the node's edge out to the apex. The
+  // one-pixel asymmetry between the two directions is carried over verbatim
+  // from the original pair of functions.
+  const stubNear = dir === 1 ? x : apex - 1
+  const stubFar = dir === 1 ? apex : x
 
+  const horizontal = (segTop: number): void => {
+    trackVerticalRectangles.push({
+      xStart: stubNear,
+      yStart: segTop,
+      xEnd: stubFar,
+      yEnd: segTop + trackWidth - 1,
+      color: trackColor,
+      id: trackID,
+      name: trackName,
+      type,
+    })
+  }
+  // elongate the incoming and outgoing rectangles a bit past the node
+  horizontal(yStart)
   trackVerticalRectangles.push({
-    // elongate incoming rectangle a bit to the right
-    xStart: x - 10 * extraRight[order]!,
-    yStart,
-    xEnd: x + 5,
-    yEnd: yStart + trackWidth - 1,
-    color: trackColor,
-    id: trackID,
-    name: trackName,
-    type,
-  })
-  trackVerticalRectangles.push({
-    // vertical rectangle
-    xStart: x + 5 + radius,
+    xStart: dir === 1 ? apex + radius : apex - radius - stem,
     yStart: yTop + trackWidth + radius - 1,
-    xEnd: x + 5 + radius + Math.min(MIN_BEND_WIDTH, trackWidth) - 1,
+    xEnd: dir === 1 ? apex + radius + stem - 1 : apex - radius - 1,
     yEnd: yBottom - radius + 1,
     color: trackColor,
     id: trackID,
     name: trackName,
     type,
   })
-  trackVerticalRectangles.push({
-    xStart: x - 10 * extraRight[order]!,
-    yStart: yEnd,
-    xEnd: x + 5,
-    yEnd: yEnd + trackWidth - 1,
-    color: trackColor,
-    id: trackID,
-    name: trackName,
-    type,
-  }) // elongate outgoing rectangle a bit to the right
+  horizontal(yEnd)
 
-  let d = `M ${x + 5} ${yBottom}`
-  d += ` Q ${x + 5 + radius} ${yBottom} ${x + 5 + radius} ${yBottom - radius}`
-  d += ` H ${x + 5 + radius + Math.min(MIN_BEND_WIDTH, trackWidth)}`
-  d += ` Q ${x + 5 + radius + Math.min(MIN_BEND_WIDTH, trackWidth)} ${
-    yBottom + trackWidth
-  } ${x + 5} ${yBottom + trackWidth}`
+  const inner = apex + dir * radius
+  const outer = apex + dir * (radius + stem)
+
+  // bottom 90 degree bend
+  let d = `M ${apex} ${yBottom}`
+  d += ` Q ${inner} ${yBottom} ${inner} ${yBottom - radius}`
+  d += ` H ${outer}`
+  d += ` Q ${outer} ${yBottom + trackWidth} ${apex} ${yBottom + trackWidth}`
   d += ' Z '
   trackCorners.push({ path: d, color: trackColor, id: trackID, type })
 
-  d = `M ${x + 5} ${yTop}`
-  d += ` Q ${x + 5 + radius + Math.min(MIN_BEND_WIDTH, trackWidth)} ${yTop} ${
-    x + 5 + radius + Math.min(MIN_BEND_WIDTH, trackWidth)
-  } ${yTop + trackWidth + radius}`
-  d += ` H ${x + 5 + radius}`
-  d += ` Q ${x + 5 + radius} ${yTop + trackWidth} ${x + 5} ${yTop + trackWidth}`
+  // top 90 degree bend
+  d = `M ${apex} ${yTop}`
+  d += ` Q ${outer} ${yTop} ${outer} ${yTop + trackWidth + radius}`
+  d += ` H ${inner}`
+  d += ` Q ${inner} ${yTop + trackWidth} ${apex} ${yTop + trackWidth}`
   d += ' Z '
   trackCorners.push({ path: d, color: trackColor, id: trackID, type })
-  extraRight[order]! += 1
-}
-
-function generateReverseToForward(
-  x: number,
-  yStart: number,
-  yEnd: number,
-  trackWidth: number,
-  trackColor: string,
-  trackID: number,
-  order: number,
-  type: TrackType | undefined,
-  trackName: string | undefined,
-): void {
-  const yTop = Math.min(yStart, yEnd)
-  const yBottom = Math.max(yStart, yEnd)
-  const radius = MIN_BEND_WIDTH
-  x -= 10 * extraLeft[order]!
-
-  trackVerticalRectangles.push({
-    xStart: x - 6,
-    yStart,
-    xEnd: x + 10 * extraLeft[order]!,
-    yEnd: yStart + trackWidth - 1,
-    color: trackColor,
-    id: trackID,
-    name: trackName,
-    type,
-  }) // elongate incoming rectangle a bit to the left
-  trackVerticalRectangles.push({
-    xStart: x - 5 - radius - Math.min(MIN_BEND_WIDTH, trackWidth),
-    yStart: yTop + trackWidth + radius - 1,
-    xEnd: x - 5 - radius - 1,
-    yEnd: yBottom - radius + 1,
-    color: trackColor,
-    id: trackID,
-    name: trackName,
-    type,
-  }) // vertical rectangle
-  trackVerticalRectangles.push({
-    xStart: x - 6,
-    yStart: yEnd,
-    xEnd: x + 10 * extraLeft[order]!,
-    yEnd: yEnd + trackWidth - 1,
-    color: trackColor,
-    id: trackID,
-    name: trackName,
-    type,
-  }) // elongate outgoing rectangle a bit to the left
-
-  // Path for bottom 90 degree bend
-  let d = `M ${x - 5} ${yBottom}`
-  d += ` Q ${x - 5 - radius} ${yBottom} ${x - 5 - radius} ${yBottom - radius}`
-  d += ` H ${x - 5 - radius - Math.min(MIN_BEND_WIDTH, trackWidth)}`
-  d += ` Q ${x - 5 - radius - Math.min(MIN_BEND_WIDTH, trackWidth)} ${
-    yBottom + trackWidth
-  } ${x - 5} ${yBottom + trackWidth}`
-  d += ' Z '
-  trackCorners.push({ path: d, color: trackColor, id: trackID, type })
-
-  // Path for top 90 degree bend
-  d = `M ${x - 5} ${yTop}`
-  d += ` Q ${x - 5 - radius - Math.min(MIN_BEND_WIDTH, trackWidth)} ${yTop} ${
-    x - 5 - radius - Math.min(MIN_BEND_WIDTH, trackWidth)
-  } ${yTop + trackWidth + radius}`
-  d += ` H ${x - 5 - radius}`
-  d += ` Q ${x - 5 - radius} ${yTop + trackWidth} ${x - 5} ${yTop + trackWidth}`
-  d += ' Z '
-  trackCorners.push({ path: d, color: trackColor, id: trackID, type })
-  extraLeft[order]! += 1
+  extra[order]! += 1
 }
 
 // to avoid problems with wrong overlapping of tracks, draw them in order of their color
@@ -4011,22 +3948,20 @@ function drawReversalsByColor(
   type: TrackType | undefined,
   groupTrack: SvgGroupSelection,
 ): void {
-  const co = new Set<string>()
-  rectangles.forEach(rect => {
-    co.add(rect.color)
-  })
-  co.forEach(c => {
-    drawTrackRectangles(
-      rectangles.filter(filterObjectByAttribute('color', c)),
-      type,
-      groupTrack,
-    )
-    drawTrackCorners(
-      corners.filter(filterObjectByAttribute('color', c)),
-      type,
-      groupTrack,
-    )
-  })
+  // One pass to bucket by colour rather than a full scan of both lists per
+  // colour. Colours are visited in first-appearance order, as before.
+  const rectsByColor = groupBy(
+    rectangles.filter(rect => rect.type === type),
+    rect => rect.color,
+  )
+  const cornersByColor = groupBy(
+    corners.filter(corner => corner.type === type),
+    corner => corner.color,
+  )
+  for (const [color, colorRectangles] of rectsByColor) {
+    appendTrackRectangles(colorRectangles, groupTrack)
+    appendTrackCorners(cornersByColor.get(color) ?? [], groupTrack)
+  }
 }
 
 // draws nodes by building svg-path for border and filling it with transparent white
@@ -4135,7 +4070,7 @@ function nodeSingleClick(this: SVGElement): void {
   }
   const nodeAttributes: InfoAttribute[] = [
     ['Node ID:', currentNode.name + (currentNode.switched ? '(reversed)' : '')],
-    ['Node Length:', (currentNode.sequenceLength ?? 0) + ' bases'],
+    ['Node Length:', currentNode.sequenceLength + ' bases'],
     ['Haplotypes:', currentNode.degree],
     [
       'Aligned Reads:',
@@ -4144,7 +4079,7 @@ function nodeSingleClick(this: SVGElement): void {
         currentNode.outgoingReads.length,
     ],
     ['Total Visits:', numReadsVisitNode(currentNode)],
-    ['Coverage:', coverage({ ...currentNode, sequenceLength: currentNode.sequenceLength ?? 0 }, reads)],
+    ['Coverage:', coverage(currentNode, reads)],
   ]
 
   config.showInfoCallback(nodeAttributes)
@@ -4409,7 +4344,7 @@ function drawRuler(): void {
     // What base along our traversal of this node should we be marking?
     const indexIntoVisitToMark = position - indexOfFirstBaseInNode
 
-    const nodeSeqLen = currentNode.sequenceLength ?? 0
+    const nodeSeqLen = currentNode.sequenceLength
     // What offset into the node should we mark at, relative to its forward-strand start?
     let offsetIntoNodeForward = currentNodeIsReverse
       ? // If going in reverse, take off bases of the node we use from the right side
@@ -4463,7 +4398,7 @@ function drawRuler(): void {
     // For some displayus we want to mark each node only once.
     let alreadyMarkedNode = false
 
-    const nodeSeqLen = currentNode.sequenceLength ?? 0
+    const nodeSeqLen = currentNode.sequenceLength
     if (
       start_region !== null &&
       start_region >= indexOfFirstBaseInNode &&
@@ -4673,11 +4608,18 @@ function drawRulerMarkingEndpoint(
     .style('pointer-events', 'none')
 }
 
-function filterObjectByAttribute<T>(
-  attribute: keyof T,
-  value: T[keyof T],
-): (item: T) => boolean {
-  return item => item[attribute] === value
+function groupBy<T, K>(items: readonly T[], key: (item: T) => K): Map<K, T[]> {
+  const buckets = new Map<K, T[]>()
+  for (const item of items) {
+    const k = key(item)
+    const bucket = buckets.get(k)
+    if (bucket === undefined) {
+      buckets.set(k, [item])
+    } else {
+      bucket.push(item)
+    }
+  }
+  return buckets
 }
 
 function drawTrackRectangles(
@@ -4685,8 +4627,16 @@ function drawTrackRectangles(
   type: TrackType | undefined,
   groupTrack: SvgGroupSelection,
 ): void {
-  rectangles = rectangles.filter(filterObjectByAttribute('type', type))
+  appendTrackRectangles(
+    rectangles.filter(rect => rect.type === type),
+    groupTrack,
+  )
+}
 
+function appendTrackRectangles(
+  rectangles: TrackRectangle[],
+  groupTrack: SvgGroupSelection,
+): void {
   groupTrack
     .selectAll('trackRectangles')
     .data(rectangles)
@@ -4718,216 +4668,64 @@ function compareCurvesByXYStartValue(a: TrackCurve, b: TrackCurve): number {
   return 0
 }
 
+// The diagonal cross-hatch patterns used to highlight a hovered track
+// (patternA), plus the per-track plaid fills. All eight share one geometry:
+// a white tile with four small squares, rotated 45°.
+interface HatchPattern {
+  id: string
+  tile: number
+  dot: number
+  gap: number
+  color: string
+}
+
+const HATCH_PATTERNS: readonly HatchPattern[] = [
+  { id: 'patternA', tile: 7, dot: 3, gap: 4, color: '#505050' },
+  { id: 'patternB', tile: 8, dot: 3, gap: 5, color: '#1f77b4' },
+  { id: 'plaid0', tile: 6, dot: 2, gap: 4, color: '#1f77b4' },
+  { id: 'plaid1', tile: 6, dot: 2, gap: 4, color: '#ff7f0e' },
+  { id: 'plaid2', tile: 6, dot: 2, gap: 4, color: '#2ca02c' },
+  { id: 'plaid3', tile: 6, dot: 2, gap: 4, color: '#d62728' },
+  { id: 'plaid4', tile: 6, dot: 2, gap: 4, color: '#9467bd' },
+  { id: 'plaid5', tile: 6, dot: 2, gap: 4, color: '#8c564b' },
+]
+
 function defineSVGPatterns(): void {
   const defs = svg.append('defs')
-  let pattern = defs.append('pattern').call(applyAttrs, {
-    id: 'patternA',
-    width: '7',
-    height: '7',
-    patternUnits: 'userSpaceOnUse',
-    patternTransform: 'rotate(45)',
-  })
-
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '7', height: '7', fill: '#FFFFFF' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '3', height: '3', fill: '#505050' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '4', width: '3', height: '3', fill: '#505050' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '0', width: '3', height: '3', fill: '#505050' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '4', width: '3', height: '3', fill: '#505050' })
-
-  pattern = defs.append('pattern').call(applyAttrs, {
-    id: 'patternB',
-    width: '8',
-    height: '8',
-    patternUnits: 'userSpaceOnUse',
-    patternTransform: 'rotate(45)',
-  })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '8', height: '8', fill: '#FFFFFF' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '3', height: '3', fill: '#1f77b4' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '5', width: '3', height: '3', fill: '#1f77b4' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '5', y: '0', width: '3', height: '3', fill: '#1f77b4' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '5', y: '5', width: '3', height: '3', fill: '#1f77b4' })
-
-  pattern = defs.append('pattern').call(applyAttrs, {
-    id: 'plaid0',
-    width: '6',
-    height: '6',
-    patternUnits: 'userSpaceOnUse',
-    patternTransform: 'rotate(45)',
-  })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '6', height: '6', fill: '#FFFFFF' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '2', height: '2', fill: '#1f77b4' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '4', width: '2', height: '2', fill: '#1f77b4' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '0', width: '2', height: '2', fill: '#1f77b4' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '4', width: '2', height: '2', fill: '#1f77b4' })
-
-  pattern = defs.append('pattern').call(applyAttrs, {
-    id: 'plaid1',
-    width: '6',
-    height: '6',
-    patternUnits: 'userSpaceOnUse',
-    patternTransform: 'rotate(45)',
-  })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '6', height: '6', fill: '#FFFFFF' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '2', height: '2', fill: '#ff7f0e' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '4', width: '2', height: '2', fill: '#ff7f0e' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '0', width: '2', height: '2', fill: '#ff7f0e' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '4', width: '2', height: '2', fill: '#ff7f0e' })
-
-  pattern = defs.append('pattern').call(applyAttrs, {
-    id: 'plaid2',
-    width: '6',
-    height: '6',
-    patternUnits: 'userSpaceOnUse',
-    patternTransform: 'rotate(45)',
-  })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '6', height: '6', fill: '#FFFFFF' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '2', height: '2', fill: '#2ca02c' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '4', width: '2', height: '2', fill: '#2ca02c' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '0', width: '2', height: '2', fill: '#2ca02c' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '4', width: '2', height: '2', fill: '#2ca02c' })
-
-  pattern = defs.append('pattern').call(applyAttrs, {
-    id: 'plaid3',
-    width: '6',
-    height: '6',
-    patternUnits: 'userSpaceOnUse',
-    patternTransform: 'rotate(45)',
-  })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '6', height: '6', fill: '#FFFFFF' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '2', height: '2', fill: '#d62728' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '4', width: '2', height: '2', fill: '#d62728' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '0', width: '2', height: '2', fill: '#d62728' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '4', width: '2', height: '2', fill: '#d62728' })
-
-  pattern = defs.append('pattern').call(applyAttrs, {
-    id: 'plaid4',
-    width: '6',
-    height: '6',
-    patternUnits: 'userSpaceOnUse',
-    patternTransform: 'rotate(45)',
-  })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '6', height: '6', fill: '#FFFFFF' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '2', height: '2', fill: '#9467bd' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '4', width: '2', height: '2', fill: '#9467bd' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '0', width: '2', height: '2', fill: '#9467bd' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '4', width: '2', height: '2', fill: '#9467bd' })
-
-  pattern = defs.append('pattern').call(applyAttrs, {
-    id: 'plaid5',
-    width: '6',
-    height: '6',
-    patternUnits: 'userSpaceOnUse',
-    patternTransform: 'rotate(45)',
-  })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '6', height: '6', fill: '#FFFFFF' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '0', width: '2', height: '2', fill: '#8c564b' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '0', y: '4', width: '2', height: '2', fill: '#8c564b' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '0', width: '2', height: '2', fill: '#8c564b' })
-  pattern
-    .append('rect')
-    .call(applyAttrs, { x: '4', y: '4', width: '2', height: '2', fill: '#8c564b' })
+  for (const { id, tile, dot, gap, color } of HATCH_PATTERNS) {
+    const pattern = defs.append('pattern').call(applyAttrs, {
+      id,
+      width: tile,
+      height: tile,
+      patternUnits: 'userSpaceOnUse',
+      patternTransform: 'rotate(45)',
+    })
+    pattern
+      .append('rect')
+      .call(applyAttrs, { x: 0, y: 0, width: tile, height: tile, fill: '#FFFFFF' })
+    for (const y of [0, gap]) {
+      for (const x of [0, gap]) {
+        pattern
+          .append('rect')
+          .call(applyAttrs, { x, y, width: dot, height: dot, fill: color })
+      }
+    }
+  }
 }
 
 function drawTrackCurves(
   type: TrackType | undefined,
   groupTrack: SvgGroupSelection,
 ): void {
-  const filteredTrackCurves = trackCurves.filter(
-    filterObjectByAttribute('type', type),
+  // Group track curves based on if they have the same start and end node.
+  // We're going to split this back into numbers so we should not use - as a separator.
+  // TODO: Do we actually get negative oriented node numbers in here?
+  const groupedCurves = groupBy(
+    trackCurves.filter(curve => curve.type === type),
+    curve => `${curve.nodeStart},${curve.nodeEnd}`,
   )
 
-  const groupedCurves: Record<string, TrackCurve[]> = {}
-
-  // Group track curves based on if they have the same start and end node
-  filteredTrackCurves.forEach(curve => {
-    // We're going to split this back into numbers so we should not use - as a separator.
-    // TODO: Do we actually get negative oriented node numbers in here?
-    const key = `${curve.nodeStart},${curve.nodeEnd}`
-    if (!groupedCurves[key]) {
-      groupedCurves[key] = []
-    }
-    groupedCurves[key].push(curve)
-  })
-
-  Object.values(groupedCurves).forEach(curveGroup => {
+  groupedCurves.forEach(curveGroup => {
     // Control point adjustment range: 30% to 70% of the original x values
     let adjustValue = 0.3
     let adjustIncrement = 0.4 / curveGroup.length
@@ -4969,10 +4767,7 @@ function drawTrackCurves(
   })
 
   // Rebuild one flat list of curves ordered by group and then using the within-group sort.
-  const groupKeys = []
-  for (const key in groupedCurves) {
-    groupKeys.push(key)
-  }
+  const groupKeys = Array.from(groupedCurves.keys())
   groupKeys.sort(function (a, b) {
     const aParts = a.split(',').map(Number)
     const bParts = b.split(',').map(Number)
@@ -4994,9 +4789,12 @@ function drawTrackCurves(
       }
     }
   })
-  let flattenedGroups: TrackCurve[] = []
+  const flattenedGroups: TrackCurve[] = []
   for (const key of groupKeys) {
-    flattenedGroups = flattenedGroups.concat(groupedCurves[key] ?? [])
+    const group = groupedCurves.get(key)
+    if (group !== undefined) {
+      flattenedGroups.push(...group)
+    }
   }
 
   groupTrack
@@ -5019,13 +4817,10 @@ function drawTrackCurves(
     .on('contextmenu', trackRightClick)
 }
 
-function drawTrackCorners(
+function appendTrackCorners(
   corners: TrackCorner[],
-  type: TrackType | undefined,
   groupTrack: SvgGroupSelection,
 ): void {
-  corners = corners.filter(filterObjectByAttribute('type', type))
-
   groupTrack
     .selectAll('trackCorners')
     .data(corners)
@@ -5279,7 +5074,9 @@ export function vgExtractNodes(
 
 // calculate node widths depending on sequence lengths and chosen calculation method
 function generateNodeWidth(): void {
-  nodes.forEach(node => {
+  // Promote the input's optional sequenceLength; Node declares it required, so
+  // widen to InputNode to make the still-possibly-undefined read explicit.
+  nodes.forEach((node: InputNode) => {
     if (node.sequenceLength === undefined) {
       node.sequenceLength = node.seq.length
     }
@@ -5288,13 +5085,13 @@ function generateNodeWidth(): void {
   switch (config.nodeWidthOption) {
     case 'compressed':
       nodes.forEach(node => {
-        node.width = 1 + Math.log(node.sequenceLength!) / Math.log(2)
+        node.width = 1 + Math.log(node.sequenceLength) / Math.log(2)
         node.pixelWidth = Math.round((node.width - 1) * 8.401)
       })
       break
     case 'small':
       nodes.forEach(node => {
-        node.width = node.sequenceLength! / 100
+        node.width = node.sequenceLength / 100
         node.pixelWidth = Math.round((node.width - 1) * 8.401)
       })
       break
@@ -5326,7 +5123,7 @@ function generateNodeWidth(): void {
       probe?.remove()
 
       nodes.forEach(node => {
-        node.width = node.sequenceLength!
+        node.width = node.sequenceLength
         const len = node.seq?.length ?? 1
         node.pixelWidth = Math.round(charWidth * len)
       })
@@ -5416,11 +5213,8 @@ export function cigar_string(readPath: VgPath): string {
     for (const edit of mapping.edit) {
       const from = edit.from_length
       const to = edit.to_length
-      // from_length is not 0, and from_length = to_length, this indicates a match
-      if (from !== undefined && from !== 0 && from === to) {
-        cigar = append_cigar_operation(from, 'M', cigar)
-      } else if (from !== undefined && to !== undefined && from === to) {
-        // from_length can be 0, and from_length = to_length, this indicates a match
+      // from_length = to_length indicates a match (both may be 0)
+      if (from !== undefined && from === to) {
         cigar = append_cigar_operation(from, 'M', cigar)
       } else if (from !== undefined && to !== undefined && from > to) {
         // if from_length > to_length, this indicates a deletion
@@ -5745,7 +5539,7 @@ function mergeNodes(): void {
         // Nodes are visited in order, so the predecessor of a merge cascade is
         // always recorded before the node that follows it.
         const offset =
-          offsetOf(predecessor) + (nodeByName(predecessor).sequenceLength ?? 0)
+          offsetOf(predecessor) + nodeByName(predecessor).sequenceLength
         mergeOffset.set(node.name, offset)
         mergeOffset.set(reverse(node.name), offset)
         mergeOrigin.set(node.name, originOf(predecessor))
@@ -5772,7 +5566,7 @@ function mergeNodes(): void {
           if (i > 0) {
             read.sequence.splice(i, 1)
             // adjust position of mismatches
-            const predLength = nodeByName(predecessor).sequenceLength ?? 0
+            const predLength = nodeByName(predecessor).sequenceLength
             sequenceNew[i]!.mismatches.forEach(mismatch => {
               mismatch.pos += predLength
             })
@@ -5801,11 +5595,7 @@ function mergeNodes(): void {
       let donor = i
       while (mergeableWithSucc(donor, pred, succ)) {
         donor = nodeMap.get(forward(succ[donor]![0]!))!
-        if (nodes[i]!.sequenceLength !== undefined) {
-          nodes[i]!.sequenceLength! += nodes[donor]!.sequenceLength!
-        } else {
-          nodes[i]!.width += nodes[donor]!.width
-        }
+        nodes[i]!.sequenceLength += nodes[donor]!.sequenceLength
         nodes[i]!.seq += nodes[donor]!.seq
       }
     }
