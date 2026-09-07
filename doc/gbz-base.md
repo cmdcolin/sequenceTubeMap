@@ -8,11 +8,11 @@ and fetches only the pages a query touches, so:
 - uploaded files are read in place from the `File` object (`BlobFile`);
 - URL-hosted files are read by HTTP range requests (`RemoteFile`). A 500 bp
   window on the 134 MB HPRC v1.1 chr20 database (the bundled URL-hosted example,
-  no side tables, default context) costs about seven requests and half a
-  megabyte, not a 134 MB download. Bigger windows on the full HPRC v2.1 database
-  cost proportionally more — the reader's README has numbers for MHC- and
-  LPA-scale queries. The host needs CORS (`Access-Control-Allow-Origin`) and
-  range support, which S3 and CloudFront provide.
+  default context) costs about seven requests and half a megabyte, not a 134 MB
+  download. Bigger windows on the full HPRC v2.1 database cost proportionally
+  more — the reader's README has numbers for MHC- and LPA-scale queries. The
+  host needs CORS (`Access-Control-Allow-Origin`) and range support, which S3
+  and CloudFront provide.
 
 No WebAssembly, no Rust toolchain, no vendored patches.
 
@@ -109,8 +109,9 @@ same for `HaplotypeAnchors`.
 
 Upstream `gbz-base query` keeps working on the augmented database. The bundled
 `exampleData/micb-kir3dl1.gbz.db` (an HPRC slice from the package's test data)
-has the side tables; `hprc-chrM.gbz.db` and the URL-hosted chr20 example do not,
-so their haplotypes still read `unknown#N`.
+and the URL-hosted chr20 example both have the side tables, so their haplotypes
+read as real `sample#haplotype#contig` names; `hprc-chrM.gbz.db` does not, so
+its haplotypes still read `unknown#N`.
 
 ## Region syntax
 

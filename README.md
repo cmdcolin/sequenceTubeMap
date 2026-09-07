@@ -12,6 +12,29 @@ Live demo — https://cmdcolin.github.io/sequenceTubeMap/
 
 ![](doc/images/1.png)
 
+## What it looks like
+
+**A pangenome, not a reference.** 81 haplotypes from 46 HPRC samples through a
+CT microsatellite at `chr20:48,000,600-48,001,000`. Every haplotype takes a
+distinct route; the 32 allele lengths run 608-678 bp and step by 2 bp, the
+repeat unit. Streamed from a 134 MB hosted `.gbz.db` by range requests, with no
+server.
+
+![HPRC chr20 microsatellite](doc/images/hprc-chr20-str.png)
+
+The same locus a little to the left, where the haplotypes are still in register
+before they fan out:
+
+![HPRC chr20 haplotypes in register](doc/images/hprc-chr20-haplotypes.png)
+
+**Reads over a graph.** 262 GAM alignments across the snp1kg BRCA1 graph, blue
+and red for forward and reverse strand:
+
+![BRCA1 reads](doc/images/brca1-reads.png)
+
+Every figure here was produced headlessly with `pnpm tubemap-cli` — see
+[headless SVG rendering](doc/headless-rendering.md).
+
 ## Quickstart
 
 Use **File → Open…** to load your own data. There are three ways in:
