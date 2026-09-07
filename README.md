@@ -27,8 +27,9 @@ before they fan out:
 
 ![HPRC chr20 haplotypes in register](doc/images/hprc-chr20-haplotypes.png)
 
-**Reads over a graph.** GAM alignments across the snp1kg BRCA1 graph, blue and
-red for forward and reverse strand:
+**Reads over a graph.** GAM alignments across the snp1kg BRCA1 graph. Red marks
+reads whose every node visit is on the reverse strand; a read in mixed
+orientation is drawn forward, in blue:
 
 ![BRCA1 reads](doc/images/brca1-reads.png)
 
