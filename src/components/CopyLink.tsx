@@ -47,8 +47,13 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
 
   return (
     <>
-      <Button id="copyLinkButton" color="primary" onClick={() => { handleCopyLink(); }}>
-        <FontAwesomeIcon icon={faLink} size="lg" />
+      <Button
+        size="sm"
+        id="copyLinkButton"
+        color="primary"
+        onClick={() => { handleCopyLink(); }}
+      >
+        <FontAwesomeIcon icon={faLink} />
         {text}
       </Button>
       <PopupDialog open={dialogLink != null} close={() => { setDialogLink(undefined); }}>

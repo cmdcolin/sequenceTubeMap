@@ -17,7 +17,7 @@ export const TrackAddButton = ({
       aria-label="TrackAdd"
       onClick={() => { onChange(); }}
       data-testid={testID}
-      style={{ width: '40px', marginLeft: '25px', marginTop: '5px' }}
+      style={{ marginLeft: '25px', marginTop: '5px' }}
     >
       <FontAwesomeIcon icon={faPlus} />
     </Button>

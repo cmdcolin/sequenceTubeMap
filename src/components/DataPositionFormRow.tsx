@@ -69,7 +69,7 @@ function DataPositionFormRow({
         id="zoomInButton"
         onClick={() => { tubeMap.zoomBy(ZOOM_FACTOR); }}
       >
-        <FontAwesomeIcon icon={faSearchPlus} size="lg" />
+        <FontAwesomeIcon icon={faSearchPlus} />
       </Button>
       <Button
         size="sm"
@@ -77,7 +77,7 @@ function DataPositionFormRow({
         id="zoomOutButton"
         onClick={() => { tubeMap.zoomBy(1.0 / ZOOM_FACTOR); }}
       >
-        <FontAwesomeIcon icon={faSearchMinus} size="lg" />
+        <FontAwesomeIcon icon={faSearchMinus} />
       </Button>
       <Button
         size="sm"

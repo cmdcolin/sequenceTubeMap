@@ -22,6 +22,7 @@ export const SimplifyButton = ({
   return (
     <>
       <Button
+        size="sm"
         onClick={() => { setOpen(o => !o); }}
         outline
         active={simplify || removeSequences}
