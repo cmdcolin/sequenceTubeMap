@@ -50,10 +50,12 @@ export type ConvertedGraph = VgJson & {
  */
 export function removeNodeSequencesInPlace(graph: ConvertedGraph): void {
   for (const node of graph.node) {
-    node.sequenceLength = node.sequence.length
-    // @ts-expect-error -- mirroring the server, which produces nodes with no
-    // `sequence` field when sequences are removed.
-    delete node.sequence
+    // VgNode declares `sequence` as required because the tube map's own
+    // loader always supplies it; the server's removeSequences response and
+    // this one leave it off, so write through a view that says it's optional.
+    const stripped: { sequence?: string; sequenceLength?: number } = node
+    stripped.sequenceLength = node.sequence.length
+    delete stripped.sequence
   }
 }
 

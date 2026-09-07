@@ -18,9 +18,9 @@ export interface ChunkedDataResponse {
   coloredNodes?: string[]
 }
 
-// Opaque handle returned by subscribeToFilenameChanges; the caller just holds
-// a reference for as long as updates are wanted.
-export type FilenameSubscription = unknown
+// Returned by subscribeToFilenameChanges. Callers may either call it to stop
+// listening or abort the signal they passed in, whichever fits.
+export type FilenameSubscription = () => void
 
 // Contract implemented by LocalAPI and ServerAPI. All methods take an optional
 // AbortSignal that cancels the underlying request.

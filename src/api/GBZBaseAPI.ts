@@ -17,11 +17,21 @@ import {
 } from '@gmod/gbz-base'
 import type { PathName, PathQuery } from '@gmod/gbz-base'
 
-import { parseRegion, convertRegionToRangeRegion } from '../common.ts'
+import {
+  isGbzDbFilename,
+  parseRegion,
+  convertRegionToRangeRegion,
+} from '../common.ts'
 
 import { convertSchema, removeNodeSequencesInPlace } from './gbz/schema.ts'
-import { clearProgress, report } from './downloadProgress.ts'
-import { readGam, readGamRegion, scanReadNodeIds } from './gam/gam.ts'
+import { applyProgress } from './downloadProgress.ts'
+import type { ProgressListener } from './downloadProgress.ts'
+import {
+  alignmentVisitsAny,
+  readGam,
+  readGamRegion,
+  scanReadNodeIds,
+} from './gam/gam.ts'
 import { UploadRegistry, isUploadId } from './local/fileRegistry.ts'
 
 import type {
@@ -30,6 +40,7 @@ import type {
   FilenameSubscription,
 } from './APIInterface.ts'
 import type {
+  AvailableTrack,
   FileType,
   FilenamesResponse,
   PathInfo,
@@ -40,39 +51,40 @@ import type {
 import type { VgNode, VgRead } from '../util/tubemap.ts'
 
 // Set GBZBASE_DEBUG=1 / localStorage.gbzBaseDebug = '1' to re-enable the
-// chatty per-call logging that was unconditional in the original .mjs.
-const DEBUG = (() => {
+// chatty per-call logging that was unconditional in the original .mjs. A Web
+// Worker has no localStorage, so LocalAPI also forwards the page's
+// `?gbzBaseDebug` flag through setDebug().
+function debugFromEnvironment(): boolean {
   if (typeof process !== 'undefined' && process.env.GBZBASE_DEBUG === '1') {
     return true
   }
-  if (typeof globalThis !== 'undefined') {
-    const ls = (globalThis as { localStorage?: Storage }).localStorage
-    if (ls?.getItem('gbzBaseDebug') === '1') return true
-  }
-  return false
-})()
+  return (
+    typeof localStorage !== 'undefined' &&
+    localStorage.getItem('gbzBaseDebug') === '1'
+  )
+}
 
-const debugLog: (...args: unknown[]) => void = DEBUG
-  ? (...args) => {
-      console.warn(...args)
-    }
-  : () => {
-      /* no-op */
-    }
+// Nodes of the subgraph a view resolved to. The id set is what a read has to
+// touch to be worth drawing; min/max only bound the .gam.gai lookup, which
+// can't express a set.
+interface SubgraphNodes {
+  ids: Set<bigint>
+  min: bigint
+  max: bigint
+}
 
 interface NodeIdRange {
   min: bigint
   max: bigint
 }
 
-function nodeIdRange(nodes: VgNode[]): NodeIdRange | null {
-  if (nodes.length === 0) {
-    return null
-  }
+function subgraphNodes(nodes: VgNode[]): SubgraphNodes | null {
+  const ids = new Set<bigint>()
   let min: bigint | null = null
   let max: bigint | null = null
-  for (const n of nodes) {
-    const id = typeof n.id === 'bigint' ? n.id : BigInt(n.id)
+  for (const node of nodes) {
+    const id = BigInt(node.id)
+    ids.add(id)
     if (min === null || id < min) {
       min = id
     }
@@ -80,34 +92,36 @@ function nodeIdRange(nodes: VgNode[]): NodeIdRange | null {
       max = id
     }
   }
-  return min === null || max === null ? null : { min, max }
-}
-
-function alignmentInRange(
-  aln: VgRead,
-  min: bigint,
-  max: bigint,
-): boolean {
-  for (const m of aln.path?.mapping ?? []) {
-    const id = m.position?.node_id
-    if (id === undefined) {
-      continue
-    }
-    const n = typeof id === 'bigint' ? id : BigInt(id)
-    if (n >= min && n <= max) {
-      return true
-    }
-  }
-  return false
+  return min === null || max === null ? null : { ids, min, max }
 }
 
 function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
+class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'HttpError'
+  }
+}
+
+function throwIfCancelled(cancelSignal: AbortSignal | null): void {
+  if (cancelSignal?.aborted) {
+    throw new Error('Request was cancelled')
+  }
+}
+
 // The Region field takes `contig`, `sample#contig` or
 // `sample#haplotype#contig`. A bare contig is the generic `_gbwt_ref` path.
-function pathQueryFor(contig: string): PathQuery {
+//
+// gbz-base ships `parsePathName`, but it only accepts the full PanSN triple or
+// a bare contig; the tube map's Region field has always taken the two-part
+// `sample#contig` form for a haplotype-0 reference path too.
+export function pathQueryFor(contig: string): PathQuery {
   const parts = contig.split('#')
   const [sample, second] = parts
   if (parts.length === 1 || sample === undefined || second === undefined) {
@@ -117,17 +131,15 @@ function pathQueryFor(contig: string): PathQuery {
     return { sample, contig: second }
   }
   const haplotype = Number(second)
-  return {
-    sample,
-    contig: parts.slice(2).join('#'),
-    ...(Number.isInteger(haplotype) ? { haplotype } : {}),
-  }
+  return Number.isInteger(haplotype)
+    ? { sample, haplotype, contig: parts.slice(2).join('#') }
+    : { sample, contig: parts.slice(1).join('#') }
 }
 
 // gbz-base path names follow the GBWT `sample#haplotype#contig` convention.
 // Reference paths carry the `_gbwt_ref` sample, which is stripped so the
 // surfaced name is what the Region field accepts.
-function displayName({ sample, contig, haplotype }: PathName): string {
+export function displayName({ sample, contig, haplotype }: PathName): string {
   if (sample === GENERIC_SAMPLE) {
     return contig
   }
@@ -137,16 +149,20 @@ function displayName({ sample, contig, haplotype }: PathName): string {
 // Match the server-side filtering: skip internal `_…` paths and the
 // `thread_N` names vg gbwt -G emits for haplotypes that came through
 // `vg chunk -T`. Neither is a meaningful contig for the path picker.
-function isUserFacingPath(name: string): boolean {
+export function isUserFacingPath(name: string): boolean {
   return !name.startsWith('_') && !/^thread_\d+$/.test(name)
 }
 
 // Per-path node-id range from the ReferenceIndex samples. Approximate — the
 // index samples nodes, so a path can in principle traverse ids outside
 // MIN/MAX; for typical reference paths this is rare.
-async function pathNodeRanges(db: GBZBase): Promise<Map<number, NodeIdRange>> {
+async function pathNodeRanges(
+  db: GBZBase,
+  cancelSignal: AbortSignal | null,
+): Promise<Map<number, NodeIdRange>> {
   const ranges = new Map<number, NodeIdRange>()
   for await (const { values } of db.sqlite.scan('ReferenceIndex')) {
+    throwIfCancelled(cancelSignal)
     const [pathHandle, , nodeHandle] = values
     if (typeof pathHandle === 'number' && typeof nodeHandle === 'number') {
       const id = BigInt(gbzNodes.nodeId(nodeHandle))
@@ -188,9 +204,30 @@ export class GBZBaseAPI implements APIInterface {
   // /static/js/Worker.ts, not the page; the host LocalAPI passes the page's
   // baseURI via setBaseUrl().
   private baseUrl: string | null = null
+  // Sibling URLs the host answered "absent" for, so a view doesn't re-request
+  // a missing `.gai` on every region change.
+  private missingSiblings = new Set<string>()
+  private debugEnabled = debugFromEnvironment()
+  // Defaults to this module's own store, which is what the main thread reads.
+  // In a worker LocalAPI replaces it with a proxy back across Comlink.
+  private progressListener: ProgressListener = applyProgress
 
   setBaseUrl(url: string): void {
     this.baseUrl = url
+  }
+
+  setDebug(enabled: boolean): void {
+    this.debugEnabled = enabled
+  }
+
+  setProgressListener(listener: ProgressListener): void {
+    this.progressListener = listener
+  }
+
+  private debugLog(...args: unknown[]): void {
+    if (this.debugEnabled) {
+      console.warn(...args)
+    }
   }
 
   private resolveUrl(trackFile: string): string {
@@ -207,50 +244,78 @@ export class GBZBaseAPI implements APIInterface {
 
   // Resolve a trackFile string to a Blob: a numeric ID points at the uploads
   // array; anything else is fetched from the URL (cached). Large URL fetches
-  // stream the body and publish progress via `downloadProgress.report` so the
-  // loader spinner can show "downloading X / Y MB" instead of looking frozen.
-  private async resolveTrackFile(trackFile: string): Promise<Blob> {
+  // stream the body and publish progress so the loader spinner can show
+  // "downloading X / Y MB" instead of looking frozen.
+  //
+  // The cache is keyed by URL and holds the in-flight promise, so a second
+  // caller joins the first caller's download rather than starting its own —
+  // which also means it inherits the first caller's cancel signal.
+  private async resolveTrackFile(
+    trackFile: string,
+    cancelSignal: AbortSignal | null,
+  ): Promise<Blob> {
     if (isUploadId(trackFile)) {
       return this.uploadedBlob(trackFile)
     }
     const resolved = this.resolveUrl(trackFile)
     let cached = this.urlCache.get(resolved)
     if (!cached) {
-      cached = (async () => {
-        const response = await fetch(resolved)
-        if (!response.ok) {
-          throw new Error(
-            `Could not load ${trackFile}: HTTP ${response.status}`,
-          )
-        }
-        const contentLength = response.headers.get('content-length')
-        const total = contentLength === null ? null : Number(contentLength)
-        // Stream the body so we can publish progress. Fall through to the
-        // plain .blob() path if the body isn't readable (older browsers /
-        // jsdom test env / opaque responses).
-        if (response.body) {
-          const reader = response.body.getReader()
-          const chunks: Uint8Array[] = []
-          let received = 0
-          report(resolved, 0, total)
-          try {
-            for (;;) {
-              const { done, value } = await reader.read()
-              if (done) break
-              chunks.push(value)
-              received += value.length
-              report(resolved, received, total)
-            }
-          } finally {
-            clearProgress(resolved)
-          }
-          return new Blob(chunks as BlobPart[])
-        }
-        return response.blob()
-      })()
+      cached = this.downloadBlob(trackFile, resolved, cancelSignal)
       this.urlCache.set(resolved, cached)
     }
     return cached
+  }
+
+  private async downloadBlob(
+    trackFile: string,
+    resolved: string,
+    cancelSignal: AbortSignal | null,
+  ): Promise<Blob> {
+    try {
+      const response = await fetch(resolved, { signal: cancelSignal })
+      if (!response.ok) {
+        throw new HttpError(
+          response.status,
+          `Could not load ${trackFile}: HTTP ${response.status} ${response.statusText}`,
+        )
+      }
+      const contentLength = response.headers.get('content-length')
+      const total = contentLength === null ? null : Number(contentLength)
+      // Stream the body so we can publish progress. Fall through to the
+      // plain .blob() path if the body isn't readable (older browsers /
+      // jsdom test env / opaque responses).
+      if (response.body) {
+        const reader = response.body.getReader()
+        const chunks: Uint8Array[] = []
+        let received = 0
+        this.progressListener({ url: resolved, received: 0, total, done: false })
+        try {
+          for (;;) {
+            const { done, value } = await reader.read()
+            if (done) {
+              break
+            }
+            chunks.push(value)
+            received += value.length
+            this.progressListener({
+              url: resolved,
+              received,
+              total,
+              done: false,
+            })
+          }
+        } finally {
+          this.progressListener({ url: resolved, received, total, done: true })
+        }
+        return new Blob(chunks as BlobPart[])
+      }
+      return await response.blob()
+    } catch (e) {
+      // A rejected promise left in the cache would fail every later attempt,
+      // including retries after a transient network error or a cancellation.
+      this.urlCache.delete(resolved)
+      throw e
+    }
   }
 
   // Open a graph database once per file. Uploads are read from their Blob;
@@ -295,7 +360,7 @@ export class GBZBaseAPI implements APIInterface {
     const checkName = isUploadId(graphFile)
       ? this.registry.getName(graphFile)
       : graphFile
-    return checkName === null ? false : checkName.endsWith('.gbz.db')
+    return checkName === null ? false : isGbzDbFilename(checkName)
   }
 
   /////////
@@ -304,27 +369,33 @@ export class GBZBaseAPI implements APIInterface {
 
   async getChunkedData(
     viewTarget: ViewTarget,
-    _cancelSignal: AbortSignal | null,
+    cancelSignal: AbortSignal | null,
   ): Promise<ChunkedDataResponse> {
-    debugLog('Got view target:', viewTarget)
+    this.debugLog('Got view target:', viewTarget)
 
-    const graphTrack = viewTarget.tracks.find(t => t.trackType === 'graph') ?? null
-    if (!graphTrack?.trackFile) {
+    const graphFile = viewTarget.tracks.find(t => t.trackType === 'graph')
+      ?.trackFile
+    if (!graphFile) {
       throw new Error('No graph track selected')
     }
 
     const region = convertRegionToRangeRegion(parseRegion(viewTarget.region))
-    const db = await this.openGraph(graphTrack.trackFile)
+    const db = await this.openGraph(graphFile)
+    throwIfCancelled(cancelSignal)
 
     let result
     try {
       // gbz-base resolves which fragment of a split contig covers the window
       // and names the haplotypes itself when the database has the index.
+      //
+      // The server's `vg chunk -p contig:start-end` includes `end`, while
+      // gbz-base treats it as exclusive, so ask for one more base to keep
+      // both backends showing the same sequence for the same region string.
       const subgraph = await db.getSubgraphForRange(
         pathQueryFor(region.contig),
         region.start,
-        region.end,
-        { haplotypes: 'distinct' },
+        region.end + 1,
+        { haplotypes: 'distinct', signal: cancelSignal ?? undefined },
       )
       if (!subgraph) {
         throw new Error(
@@ -338,20 +409,21 @@ export class GBZBaseAPI implements APIInterface {
       )
     } catch (e) {
       throw new Error(
-        `Failed to query "${graphTrack.trackFile}" at ${region.contig}:${region.start}-${region.end}: ${errorMessage(e)}`,
+        `Failed to query "${graphFile}" at ${region.contig}:${region.start}-${region.end}: ${errorMessage(e)}`,
         { cause: e },
       )
     }
-    const readTracks = viewTarget.tracks.filter(t => t.trackType === 'read')
-    const nodeRange = nodeIdRange(result.node)
-    const gam: ChunkedDataResponse['gam'] = []
-    for (const track of readTracks) {
-      if (!track.trackFile) {
-        gam.push([])
-        continue
-      }
-      gam.push(await this.readsForTrack(track.trackFile, nodeRange))
-    }
+
+    const nodes = subgraphNodes(result.node)
+    const gam = await Promise.all(
+      viewTarget.tracks
+        .filter(t => t.trackType === 'read')
+        .map(async track =>
+          track.trackFile
+            ? await this.readsForTrack(track.trackFile, nodes, cancelSignal)
+            : [],
+        ),
+    )
 
     if (viewTarget.removeSequences) {
       removeNodeSequencesInPlace(result)
@@ -377,61 +449,76 @@ export class GBZBaseAPI implements APIInterface {
   private async resolveSibling(
     trackFile: string,
     suffix: string,
+    cancelSignal: AbortSignal | null,
   ): Promise<Blob | null> {
     if (isUploadId(trackFile)) {
       return this.registry.sibling(trackFile, suffix)
     }
-    try {
-      return await this.resolveTrackFile(trackFile + suffix)
-    } catch {
+    const sibling = trackFile + suffix
+    if (this.missingSiblings.has(sibling)) {
       return null
+    }
+    try {
+      return await this.resolveTrackFile(sibling, cancelSignal)
+    } catch (e) {
+      // No index beside the track is normal and means "scan the whole file".
+      // S3 answers 403 rather than 404 for a missing key in a bucket that
+      // doesn't grant ListBucket, so treat that as absent too. Anything else
+      // (CORS, DNS, a broken proxy) is a real problem worth surfacing.
+      if (e instanceof HttpError && (e.status === 404 || e.status === 403)) {
+        this.missingSiblings.add(sibling)
+        return null
+      }
+      throw e
     }
   }
 
   private async readsForTrack(
     trackFile: string,
-    nodeRange: NodeIdRange | null,
+    nodes: SubgraphNodes | null,
+    cancelSignal: AbortSignal | null,
   ): Promise<VgRead[]> {
-    const gamBlob = await this.resolveTrackFile(trackFile)
-    if (nodeRange) {
-      const gaiBlob = await this.resolveSibling(trackFile, '.gai')
-      if (gaiBlob) {
-        return readGamRegion(gamBlob, gaiBlob, nodeRange.min, nodeRange.max)
-      }
+    // An empty subgraph has no node a read could be drawn against, so there
+    // is nothing to show — returning the whole file put every read in the
+    // view instead.
+    if (nodes === null) {
+      return []
     }
-    const all = await readGam(gamBlob)
-    if (!nodeRange) {
-      return all
-    }
-    return all.filter(r => alignmentInRange(r, nodeRange.min, nodeRange.max))
+    const gamBlob = await this.resolveTrackFile(trackFile, cancelSignal)
+    const gaiBlob = await this.resolveSibling(trackFile, '.gai', cancelSignal)
+    throwIfCancelled(cancelSignal)
+    const candidates = gaiBlob
+      ? await readGamRegion(gamBlob, gaiBlob, nodes.min, nodes.max)
+      : await readGam(gamBlob)
+    // The index and the whole-file scan can only prefilter by node-id range,
+    // which over-selects whenever the subgraph's ids aren't contiguous.
+    return candidates.filter(read => alignmentVisitsAny(read, nodes.ids))
   }
 
   async getFilenames(
     _cancelSignal: AbortSignal | null,
   ): Promise<FilenamesResponse> {
-    const response: FilenamesResponse = {
-      files: [],
-      bedFiles: [],
-    }
-
-    for (const [type, files] of this.filesByType) {
-      if (type === 'bed') {
-        response.bedFiles = files
+    const files: AvailableTrack[] = []
+    const bedFiles: string[] = []
+    for (const [trackType, uploadIds] of this.filesByType) {
+      if (trackType === 'bed') {
+        bedFiles.push(...uploadIds)
       } else {
-        for (const fileName of files) {
-          response.files!.push({ trackFile: fileName, trackType: type })
-        }
+        files.push(...uploadIds.map(trackFile => ({ trackFile, trackType })))
       }
     }
-
-    return response
+    return { files, bedFiles }
   }
 
+  // Nothing outside this object can change the file list, so there is nothing
+  // to notify about: LocalAPI raises the event for its own putFile calls.
   subscribeToFilenameChanges(
     _handler: () => void,
     _cancelSignal: AbortSignal,
   ): FilenameSubscription {
-    return {}
+    return () => {
+      /* nothing subscribed */
+    }
   }
 
   async putFile(
@@ -443,21 +530,19 @@ export class GBZBaseAPI implements APIInterface {
       name: file.name,
       blob: file,
     })
-    debugLog(`Store ${file.size} byte upload:`, file)
+    this.debugLog(`Store ${file.size} byte upload:`, file)
 
     // Sibling index files (.gai for .gam, .tbi for .gaf.gz) get uploaded so
     // they're available for region queries, but they aren't tracks in their
     // own right; `resolveSibling` looks them up by name later.
-    if (isSibling) {
-      return id
+    if (!isSibling) {
+      let list = this.filesByType.get(fileType)
+      if (!list) {
+        list = []
+        this.filesByType.set(fileType, list)
+      }
+      list.push(id)
     }
-
-    let list = this.filesByType.get(fileType)
-    if (!list) {
-      list = []
-      this.filesByType.set(fileType, list)
-    }
-    list.push(id)
 
     return id
   }
@@ -471,39 +556,36 @@ export class GBZBaseAPI implements APIInterface {
 
   async getPathNames(
     graphFile: string,
-    _cancelSignal: AbortSignal | null,
+    cancelSignal: AbortSignal | null,
   ): Promise<{ pathNames: string[] }> {
-    const { pathInfo } = await this.getPathInfo(graphFile, null)
+    const { pathInfo } = await this.getPathInfo(graphFile, cancelSignal)
     return { pathNames: pathInfo.map(p => p.name) }
   }
 
   async getPathInfo(
     graphFile: string,
-    _cancelSignal: AbortSignal | null,
+    cancelSignal: AbortSignal | null,
   ): Promise<{ pathInfo: PathInfo[] }> {
+    // Files this backend can't read at all aren't an error — the picker asks
+    // about every selected graph, including .gbz/.xg served for the vg server.
     if (!this.isGbzDb(graphFile)) {
       return { pathInfo: [] }
     }
-    try {
-      const db = await this.openGraph(graphFile)
-      const paths = (await db.paths())
-        .filter(p => p.isIndexed)
-        .map(p => ({ path: p, name: displayName(p.name) }))
-        .filter(({ name }) => isUserFacingPath(name))
-      const pathInfo: PathInfo[] = []
-      for (const { path, name } of paths) {
-        pathInfo.push({
-          name,
-          start: path.name.fragment,
-          length: await db.pathLength(path.handle),
-          cyclic: false,
-        })
-      }
-      return { pathInfo }
-    } catch (e) {
-      debugLog('getPathInfo failed:', e)
-      return { pathInfo: [] }
-    }
+    const db = await this.openGraph(graphFile)
+    throwIfCancelled(cancelSignal)
+    const paths = (await db.paths())
+      .filter(p => p.isIndexed)
+      .map(p => ({ path: p, name: displayName(p.name) }))
+      .filter(({ name }) => isUserFacingPath(name))
+    const pathInfo = await Promise.all(
+      paths.map(async ({ path, name }) => ({
+        name,
+        start: path.name.fragment,
+        length: await db.pathLength(path.handle),
+        cyclic: false,
+      })),
+    )
+    return { pathInfo }
   }
 
   async getChunkTracks(
@@ -525,56 +607,81 @@ export class GBZBaseAPI implements APIInterface {
   async getReadCountsPerPath(
     graphFile: string,
     readFile: string,
-    _cancelSignal: AbortSignal | null,
+    cancelSignal: AbortSignal | null,
   ): Promise<{ counts: Record<string, number> } | null> {
     const cacheKey = `${graphFile}|${readFile}`
     const cached = this.readCountCache.get(cacheKey)
-    if (cached) return cached
-    const promise = this.computeReadCountsPerPath(graphFile, readFile)
+    if (cached) {
+      return cached
+    }
+    const promise = this.computeReadCountsPerPath(
+      graphFile,
+      readFile,
+      cancelSignal,
+    )
     this.readCountCache.set(cacheKey, promise)
-    return promise
+    try {
+      const counts = await promise
+      // "No answer" is not worth remembering: the file may become readable, or
+      // the ReferenceIndex may just have had nothing to say this time.
+      if (counts === null) {
+        this.readCountCache.delete(cacheKey)
+      }
+      return counts
+    } catch (e) {
+      this.readCountCache.delete(cacheKey)
+      throw e
+    }
   }
 
   private async computeReadCountsPerPath(
     graphFile: string,
     readFile: string,
+    cancelSignal: AbortSignal | null,
   ): Promise<{ counts: Record<string, number> } | null> {
-    if (!this.isGbzDb(graphFile)) return null
-    try {
-      const db = await this.openGraph(graphFile)
-      const ranges = await pathNodeRanges(db)
-      const paths = (await db.paths())
-        .filter(p => p.isIndexed)
-        .map(p => ({ name: displayName(p.name), range: ranges.get(p.handle) }))
-        .filter(
-          (p): p is { name: string; range: NodeIdRange } =>
-            p.range !== undefined && isUserFacingPath(p.name),
-        )
-      if (paths.length === 0) return null
-
-      const gamBlob = await this.resolveTrackFile(readFile)
-      const readNodes = await scanReadNodeIds(gamBlob)
-
-      const counts: Record<string, number> = {}
-      for (const { name, range } of paths) {
-        let n = 0
-        for (const nodes of readNodes) {
-          // De-dup per read: increment once even if multiple visited nodes
-          // fall inside the path's range.
-          for (const id of nodes) {
-            if (id >= range.min && id <= range.max) {
-              n++
-              break
-            }
-          }
-        }
-        counts[name] = n
-      }
-      return { counts }
-    } catch (e) {
-      debugLog('getReadCountsPerPath failed:', e)
+    if (!this.isGbzDb(graphFile)) {
       return null
     }
+    const db = await this.openGraph(graphFile)
+    const ranges = await pathNodeRanges(db, cancelSignal)
+    const paths = (await db.paths())
+      .filter(p => p.isIndexed)
+      .map(p => ({ name: displayName(p.name), range: ranges.get(p.handle) }))
+      .filter(
+        (p): p is { name: string; range: NodeIdRange } =>
+          p.range !== undefined && isUserFacingPath(p.name),
+      )
+    if (paths.length === 0) {
+      return null
+    }
+
+    const gamBlob = await this.resolveTrackFile(readFile, cancelSignal)
+    throwIfCancelled(cancelSignal)
+    // Bounding each read by its own min/max id lets most (path, read) pairs be
+    // settled by two comparisons instead of a walk over the read's nodes.
+    const reads = (await scanReadNodeIds(gamBlob))
+      .filter(ids => ids.length > 0)
+      .map(ids => ({
+        ids,
+        min: ids.reduce((a, b) => (b < a ? b : a)),
+        max: ids.reduce((a, b) => (b > a ? b : a)),
+      }))
+
+    const counts: Record<string, number> = {}
+    for (const { name, range } of paths) {
+      let n = 0
+      for (const read of reads) {
+        if (read.max >= range.min && read.min <= range.max) {
+          // De-dup per read: count it once however many of its nodes land
+          // inside the path's range.
+          if (read.ids.some(id => id >= range.min && id <= range.max)) {
+            n++
+          }
+        }
+      }
+      counts[name] = n
+    }
+    return { counts }
   }
 }
 

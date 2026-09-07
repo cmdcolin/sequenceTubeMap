@@ -1,10 +1,22 @@
 import * as Comlink from 'comlink'
 import type { APIInterface, FilenameSubscription } from './APIInterface.ts'
+import { applyProgress } from './downloadProgress.ts'
+import type { ProgressUpdate } from './downloadProgress.ts'
 import { makeWorker } from './local/WorkerFactory.js'
 import type { WorkerAPIShape } from './local/WorkerImplementation.ts'
 import type { FileType, ViewTarget } from '../Types.ts'
 
 type WorkerProxy = Comlink.Remote<WorkerAPIShape>
+
+// The worker can't read localStorage, so the page decides whether the
+// gbz-base backend logs and tells it.
+function debugRequested(): boolean {
+  const { search, hash } = window.location
+  return (
+    new URLSearchParams(search).has('gbzBaseDebug') ||
+    hash.includes('gbzBaseDebug')
+  )
+}
 
 /**
  * API implementation that uses a web worker to run a GBZBaseAPI.
@@ -24,80 +36,107 @@ export class LocalAPI implements APIInterface {
     // the page baseURI so relative trackFile paths resolve correctly.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.workerAPI.setBaseUrl(document.baseURI)
-
-    // Forward filename changes from worker to local EventTarget.
+    if (debugRequested()) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.workerAPI.setDebug(true)
+    }
+    // Download progress is published by the module inside the worker, so
+    // bridge it into this thread's copy for DownloadProgressPanel to read.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.workerAPI.subscribeToFilenameChanges(
-      Comlink.proxy(() => {
-        this.nameChangeEvents.dispatchEvent(new CustomEvent('change'))
+    this.workerAPI.setProgressListener(
+      Comlink.proxy((update: ProgressUpdate) => {
+        applyProgress(update)
       }),
     )
   }
 
-  private getCancelID(signal: AbortSignal | null | undefined): number | undefined {
+  // Register an id the worker can match a `cancel` message to, and keep it
+  // wired to `signal` only for as long as the request runs. An
+  // already-aborted signal still gets an id and an immediate cancel, which
+  // the worker remembers until the request it belongs to arrives.
+  private async withCancel<T>(
+    signal: AbortSignal | null | undefined,
+    run: (cancelID: number | undefined) => Promise<T>,
+  ): Promise<T> {
     if (!signal) {
-      return undefined
+      return await run(undefined)
     }
     const cancelID = this.nextCancelID++
-    signal.addEventListener('abort', () => {
+    const onAbort = () => {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.workerAPI.cancel(cancelID)
-    })
-    return cancelID
+    }
+    if (signal.aborted) {
+      onAbort()
+    } else {
+      signal.addEventListener('abort', onAbort)
+    }
+    try {
+      return await run(cancelID)
+    } finally {
+      signal.removeEventListener('abort', onAbort)
+    }
   }
 
   getChunkedData(viewTarget: ViewTarget, cancelSignal: AbortSignal | null) {
-    return this.workerAPI.getChunkedData(
-      viewTarget,
-      this.getCancelID(cancelSignal),
+    return this.withCancel(cancelSignal, cancelID =>
+      this.workerAPI.getChunkedData(viewTarget, cancelID),
     )
   }
 
   getFilenames(cancelSignal: AbortSignal | null) {
-    return this.workerAPI.getFilenames(this.getCancelID(cancelSignal))
+    return this.withCancel(cancelSignal, cancelID =>
+      this.workerAPI.getFilenames(cancelID),
+    )
   }
 
   subscribeToFilenameChanges(
     handler: () => void,
     cancelSignal: AbortSignal,
   ): FilenameSubscription {
-    const eventHandler = () => {
+    const onChange = () => {
       if (!cancelSignal.aborted) {
         handler()
       }
     }
     const unsubscribe = () => {
-      this.nameChangeEvents.removeEventListener('change', eventHandler)
+      this.nameChangeEvents.removeEventListener('change', onChange)
       cancelSignal.removeEventListener('abort', unsubscribe)
     }
-    this.nameChangeEvents.addEventListener('change', eventHandler)
+    this.nameChangeEvents.addEventListener('change', onChange)
     cancelSignal.addEventListener('abort', unsubscribe)
-    return {}
+    return unsubscribe
   }
 
-  putFile(fileType: FileType, file: File, cancelSignal: AbortSignal | null) {
-    return this.workerAPI.putFile(
-      fileType,
-      file,
-      this.getCancelID(cancelSignal),
+  async putFile(
+    fileType: FileType,
+    file: File,
+    cancelSignal: AbortSignal | null,
+  ) {
+    const id = await this.withCancel(cancelSignal, cancelID =>
+      this.workerAPI.putFile(fileType, file, cancelID),
     )
+    // Uploading is the only thing that changes the worker's file list, so
+    // this is where the "filenames changed" notification comes from.
+    this.nameChangeEvents.dispatchEvent(new Event('change'))
+    return id
   }
 
   getBedRegions(bedFile: string, cancelSignal: AbortSignal | null) {
-    return this.workerAPI.getBedRegions(bedFile, this.getCancelID(cancelSignal))
+    return this.withCancel(cancelSignal, cancelID =>
+      this.workerAPI.getBedRegions(bedFile, cancelID),
+    )
   }
 
   getPathNames(graphFile: string, cancelSignal: AbortSignal | null) {
-    return this.workerAPI.getPathNames(
-      graphFile,
-      this.getCancelID(cancelSignal),
+    return this.withCancel(cancelSignal, cancelID =>
+      this.workerAPI.getPathNames(graphFile, cancelID),
     )
   }
 
   getPathInfo(graphFile: string, cancelSignal: AbortSignal | null) {
-    return this.workerAPI.getPathInfo(
-      graphFile,
-      this.getCancelID(cancelSignal),
+    return this.withCancel(cancelSignal, cancelID =>
+      this.workerAPI.getPathInfo(graphFile, cancelID),
     )
   }
 
@@ -106,10 +145,8 @@ export class LocalAPI implements APIInterface {
     chunk: string,
     cancelSignal: AbortSignal | null,
   ) {
-    return this.workerAPI.getChunkTracks(
-      bedFile,
-      chunk,
-      this.getCancelID(cancelSignal),
+    return this.withCancel(cancelSignal, cancelID =>
+      this.workerAPI.getChunkTracks(bedFile, chunk, cancelID),
     )
   }
 
@@ -118,10 +155,8 @@ export class LocalAPI implements APIInterface {
     readFile: string,
     cancelSignal: AbortSignal | null,
   ) {
-    return this.workerAPI.getReadCountsPerPath(
-      graphFile,
-      readFile,
-      this.getCancelID(cancelSignal),
+    return this.withCancel(cancelSignal, cancelID =>
+      this.workerAPI.getReadCountsPerPath(graphFile, readFile, cancelID),
     )
   }
 }

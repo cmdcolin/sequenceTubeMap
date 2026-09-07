@@ -114,10 +114,17 @@ export function isEmpty(obj: object): boolean {
   return Object.keys(obj).length === 0
 }
 
-// The in-browser backend (@gmod/gbz-base) only reads SQLite-backed .gbz.db
-// files. Used to autoload a compatible source in local mode and to hide
-// dropdown entries that would silently fail to parse.
+// The in-browser backend (@gmod/gbz-base) only reads SQLite-backed gbz-base
+// databases. `gbz-base construct --output` will name one anything, so a bare
+// `.db` counts too — the reader reports a SchemaVersionError if the contents
+// turn out not to be one.
+export function isGbzDbFilename(name: string): boolean {
+  return /\.db$/i.test(name)
+}
+
+// Used to autoload a compatible source in local mode and to hide dropdown
+// entries that would silently fail to parse.
 export function isLocalCompatibleDataSource(ds: ViewTarget): boolean {
   const trackFile = ds.tracks.find(t => t.trackType === 'graph')?.trackFile
-  return !!trackFile && /\.(gbz\.db|db)$/i.test(trackFile)
+  return trackFile !== undefined && isGbzDbFilename(trackFile)
 }
