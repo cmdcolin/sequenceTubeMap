@@ -1,18 +1,6 @@
-
-// ~1206 baseline) — mostly noUncheckedIndexedAccess in the lower half of
-// the file (layout algorithms, drawing). Top-level signatures, top half,
-// reads normalization, and hasOwnProperty narrowing are all done. See
-// src/util/tubemap-phase2.md for the full plan.
-/* eslint no-param-reassign: "off" */
-/* eslint no-lonely-if: "off" */
-/* eslint no-prototype-builtins: "off" */
-/* eslint no-console: "off" */
-/* eslint no-continue: "off" */
-
-/* eslint max-len: "off" */
-/* eslint no-loop-func: "off" */
-/* eslint no-unused-vars: "off" */
-/* eslint no-return-assign: "off" */
+// The tube map layout + d3 drawing engine. Ported from the original
+// sequenceTubeMap JS; see src/util/tubemap-phase2.md for the remaining
+// clean-up plan.
 import * as d3 from 'd3'
 import '../config-client.js'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -325,7 +313,7 @@ const fonts = '"Courier New", "Courier", "Lucida Console", monospace'
 
 let svgID: string // the (html-tag) ID of the svg
 let svg: AnySelection // the svg
-export let zoom: d3.ZoomBehavior<Element, unknown>  
+let zoom: d3.ZoomBehavior<Element, unknown>
 // inputNodes/nodes are 1-indexed: a hole at index 0 lets us use *signed*
 // indices to mean orientation (-i = reverse of node i). inputNodes is sparse
 // with undefined at [0]; nodes (a deep copy) inherits the same hole.
@@ -338,8 +326,6 @@ let nodes: LayoutNode[] = []
 let tracks: Track[] = []
 // Each read also has a `path` list of Segments, but reads are organized vertically using a different system than non-read tracks.
 let reads: Track[] = []
-let numberOfNodes: number
-let numberOfTracks: number
 let nodeMap: Map<string, number>
 let nodesPerOrder: number[][]
 // Scratch array used only during generateNodeOrder. Indexed by node index;
@@ -601,11 +587,6 @@ function emitTrackVisibility(): void {
   for (const cb of visibilitySubscribers) cb()
 }
 
-export function changeExonVisibility(): void {
-  config.showExonsFlag = !config.showExonsFlag
-  createTubeMap()
-}
-
 // Every setter below only mutates `config`. `create()` is the single render
 // trigger, so a batch of visOptions changes costs one layout instead of one
 // per changed option.
@@ -823,11 +804,9 @@ function createTubeMap(preserveViewport = true): void {
     if (config.showReads && reads.length > 0) generateTrackIndexSequences(reads)
   }
 
-  numberOfNodes = nodes.length
-  numberOfTracks = tracks.length
   generateNodeSuccessors()
   generateNodeDegree()
-  if (DEBUG) console.log(`${numberOfNodes} nodes.`)
+  if (DEBUG) console.log(`${nodes.length} nodes.`)
   generateNodeOrder()
   maxOrder = getMaxOrder()
 
@@ -1012,18 +991,6 @@ function assignReadsToNodes(): void {
   })
 }
 
-function removeNonPathNodesFromReads(): void {
-  reads.forEach(read => {
-    for (let i = read.sequence.length - 1; i >= 0; i -= 1) {
-      const nodeName = forward(read.sequence[i]!)
-      const idx = nodeMap.get(nodeName)
-      if (idx === undefined || nodes[idx]!.degree === 0) {
-        read.sequence.splice(i, 1)
-      }
-    }
-  })
-}
-
 // calculate paths (incl. correct y coordinate) for all reads
 function placeReads(): void {
   generateBasicPathsForReads()
@@ -1144,19 +1111,14 @@ function placeReads(): void {
 // Makes the given node bigger if needed and moves other nodes down if needed.
 // If topMargin is set, applies that amount of spacing down from whatever is above the reads.
 function placeReadSet(readIDs: number[], node: LayoutNode, topMargin: number): void {
-  // Parse arguments
-  if (!topMargin) {
-    topMargin = 0
-  }
-
   // Turn the read IDs into a set
   const toPlace = new Set(readIDs)
 
   // Get arrays of the read entry/exit/internal-ness records we want to work on
-  let incomingReads = node.incomingReads.filter(([readID, pathIndex]) =>
+  let incomingReads = node.incomingReads.filter(([readID]) =>
     toPlace.has(readID),
   )
-  const outgoingReads = node.outgoingReads.filter(([readID, pathIndex]) =>
+  const outgoingReads = node.outgoingReads.filter(([readID]) =>
     toPlace.has(readID),
   )
   const internalReads = node.internalReads.filter(readID => toPlace.has(readID))
@@ -1523,8 +1485,8 @@ function generateBasicPathsForReads(): void {
     let currentNodeIndex = Math.abs(read.indexSequence[0]!)
     let currentNodeIsForward = isForwardIndex(read.indexSequence[0]!)
     let currentNode = nodes[currentNodeIndex]!
-    let previousNode = currentNode
-    let previousNodeIsForward = currentNodeIsForward
+    let previousNode: LayoutNode
+    let previousNodeIsForward: boolean
 
     read.path = []
     read.path.push({
@@ -2300,7 +2262,7 @@ function generateNodeOrder(): void {
 }
 
 function isSuccessor(first: number, second: number): boolean {
-  const visited: boolean[] = new Array(numberOfNodes).fill(false)
+  const visited: boolean[] = new Array<boolean>(nodes.length).fill(false)
   const stack: number[] = [first]
   visited[first] = true
   while (stack.length > 0) {
@@ -2598,7 +2560,7 @@ function generateLaneAssignment(): void {
   for (let i = 0; i <= maxOrder; i += 1) {
     assignments[i] = []
     prevSegmentPerOrderPerTrack[i] = []
-    for (let j = 0; j < numberOfTracks; j += 1) {
+    for (let j = 0; j < tracks.length; j += 1) {
       prevSegmentPerOrderPerTrack[i]![j] = null
     }
   }
@@ -3124,8 +3086,8 @@ function addTrackFeatures(): void {
 
   bed!.forEach(line => {
     let i = 0
-    while (i < numberOfTracks && tracks[i]!.name !== line.track) i += 1
-    if (i < numberOfTracks) {
+    while (i < tracks.length && tracks[i]!.name !== line.track) i += 1
+    if (i < tracks.length) {
       nodeStart = 0
       tracks[i]!.path.forEach(node => {
         if (node.node !== null) {
@@ -3587,7 +3549,7 @@ interface CoarsenedEdgeMeta {
   count: number
   label: string
 }
-let coarsenedEdgeMeta: Map<number, CoarsenedEdgeMeta> = new Map()
+let coarsenedEdgeMeta = new Map<number, CoarsenedEdgeMeta>()
 
 // Build one synthetic read per (srcSigned → dstSigned) edge in `reads`. The
 // synthetic reads replace the real ones BEFORE placeReads runs, so:
@@ -4070,8 +4032,8 @@ function drawReversalsByColor(
 // draws nodes by building svg-path for border and filling it with transparent white
 
 function drawNodes(dNodes: Node[], groupNode: SvgGroupSelection): void {
-  let x
-  let y
+  let x: number
+  let y: number
 
   dNodes.forEach(node => {
     // top left arc
@@ -4156,15 +4118,8 @@ function colorNodes(nodeName: string): Record<string, string> {
   return nodesColors
 }
 
-function getPopUpNodeText(node: Node): string {
-  return `Node ID: ${node.name}` + (node.switched ? ` (reversed)` : ``) + `\n`
-}
-
-// Get any node object by name.
-function getNodeByName(nodeName: string): Node | undefined {
-  if (typeof nodeName !== 'string') {
-    throw new Error('Node Names must be strings')
-  }
+// Get any node object by name, or undefined if the graph has no such node.
+function getNodeByName(nodeName: string): LayoutNode | undefined {
   const index = nodeMap.get(nodeName)
   return index === undefined ? undefined : nodes[index]
 }
@@ -4202,7 +4157,7 @@ export interface NodeReadAttachments {
   internalReads: number[]
 }
 
-export function numReadsVisitNode(node: NodeReadAttachments): number {
+function numReadsVisitNode(node: NodeReadAttachments): number {
   const countReads = new Set<number>()
   // incoming reads are reads that enter the node but don't start within it. They are represented as
   // an array of subarrays which have 2 elements: an index indicating the read index and read path's index.
@@ -4987,9 +4942,9 @@ function drawTrackCurves(
     curveGroup.sort(compareCurvesByXYStartValue)
 
     curveGroup.forEach(curve => {
-      let xAdjusted = null
+      let xAdjusted: number
       // NextAdjusted is used to try to draw a parallel curve on the way back
-      let xNextAdjusted = null
+      let xNextAdjusted: number
       // Determine if the curve is going up or down
       if (curve.yStart < curve.yEnd) {
         xAdjusted =
@@ -5107,9 +5062,6 @@ function getInputTrackIndexByID(trackID: number | string): number | undefined {
 // Get any track object by ID.
 // Because of reordering of input tracks, the ID doesn't always match the index.
 function getTrackByID(trackID: number): Track | undefined {
-  if (typeof trackID !== 'number') {
-    throw new Error('Track IDs must be numbers')
-  }
   return tracks.find(t => t.id === trackID)
 }
 
@@ -5288,15 +5240,6 @@ function trackRightClick(this: SVGElement, event: MouseEvent): void {
   }
 }
 
-// show track name when hovering mouse
-// Long-hover (native) SVG tooltip text. The d3 datum binds the track name
-// directly, so we don't need an inputTracks lookup here — but `freq` is on
-// the InputTrack, so we fall back to the formatter without it.
-function getPopUpTrackText(trackName: string | number | undefined): string {
-  if (trackName === undefined) return ''
-  return formatTrackDisplayName(String(trackName))
-}
-
 // Right-click on a node. Fires the node context-menu callback with the list of
 // read names (from the unfiltered input) that pass through the node.
 function nodeRightClick(this: SVGElement, event: MouseEvent): void {
@@ -5458,85 +5401,6 @@ export function vgExtractTracks(
     result.push(track)
   })
   return result
-}
-
-function compareReadsByLeftEnd(a: Track, b: Track): number {
-  let leftNodeA: string
-  let leftNodeB: string
-  let leftIndexA: number
-  let leftIndexB: number
-
-  if (isReverse(a.sequence[0]!)) {
-    if (isReverse(a.sequence[a.sequence.length - 1]!)) {
-      leftNodeA = forward(a.sequence[a.sequence.length - 1]!)
-      leftIndexA =
-        nodes[nodeMap.get(leftNodeA)!]!.sequenceLength! - a.finalNodeCoverLength!
-    } else {
-      leftNodeA = a.sequence[a.sequence.length - 1]!
-      leftIndexA = 0
-    }
-  } else {
-    leftNodeA = a.sequence[0]!
-    leftIndexA = a.firstNodeOffset!
-  }
-
-  if (isReverse(b.sequence[0]!)) {
-    if (isReverse(b.sequence[b.sequence.length - 1]!)) {
-      leftNodeB = forward(b.sequence[b.sequence.length - 1]!)
-      leftIndexB =
-        nodes[nodeMap.get(leftNodeB)!]!.sequenceLength! - b.finalNodeCoverLength!
-    } else {
-      leftNodeB = b.sequence[b.sequence.length - 1]!
-      leftIndexB = 0
-    }
-  } else {
-    leftNodeB = b.sequence[0]!
-    leftIndexB = b.firstNodeOffset!
-  }
-
-  if (leftNodeA < leftNodeB) return -1
-  else if (leftNodeA > leftNodeB) return 1
-  if (leftIndexA < leftIndexB) return -1
-  else if (leftIndexA > leftIndexB) return 1
-  return 0
-}
-
-function compareReadsByLeftEnd2(a: Track, b: Track): number {
-  // compare by order of first node
-  if (
-    nodes[Math.abs(a.indexSequence[0]!)]!.order <
-    nodes[Math.abs(b.indexSequence[0]!)]!.order
-  ) {
-    return -1
-  } else if (
-    nodes[Math.abs(a.indexSequence[0]!)]!.order >
-    nodes[Math.abs(b.indexSequence[0]!)]!.order
-  ) {
-    return 1
-  }
-
-  // compare by first base within first node
-  if (a.firstNodeOffset! < b.firstNodeOffset!) return -1
-  else if (a.firstNodeOffset! > b.firstNodeOffset!) return 1
-
-  // compare by order of last node
-  if (
-    nodes[Math.abs(a.indexSequence[a.indexSequence.length - 1]!)]!.order <
-    nodes[Math.abs(b.indexSequence[b.indexSequence.length - 1]!)]!.order
-  ) {
-    return -1
-  } else if (
-    nodes[Math.abs(a.indexSequence[a.indexSequence.length - 1]!)]!.order >
-    nodes[Math.abs(b.indexSequence[b.indexSequence.length - 1]!)]!.order
-  ) {
-    return 1
-  }
-
-  // compare by last base within last node
-  if (a.finalNodeCoverLength! < b.finalNodeCoverLength!) return -1
-  else if (a.finalNodeCoverLength! > b.finalNodeCoverLength!) return 1
-
-  return 0
 }
 
 // converts readPath, a vg Path object expressed as a JS object, to a CIGAR string
@@ -5855,23 +5719,37 @@ function mergeNodes(): void {
     sortedNodes.sort(compareNodesByOrder)
 
     // iterate over all nodes and calculate their position within the new merged node
-    const mergeOffset = new Map()
-    const mergeOrigin = new Map() // maps to leftmost node of a node's "merging cascade"
+    // Both maps carry an entry for each orientation of every node name ("7"
+    // and "-7"), because the read update below looks up whichever orientation
+    // the read happens to visit.
+    const mergeOffset = new Map<string, number>()
+    // maps to leftmost node of a node's "merging cascade"
+    const mergeOrigin = new Map<string, string>()
+    const offsetOf = (nodeName: string): number => {
+      const offset = mergeOffset.get(nodeName)
+      if (offset === undefined) {
+        throw new Error(`No merge offset recorded for node ${nodeName}`)
+      }
+      return offset
+    }
+    const originOf = (nodeName: string): string => {
+      const origin = mergeOrigin.get(nodeName)
+      if (origin === undefined) {
+        throw new Error(`No merge origin recorded for node ${nodeName}`)
+      }
+      return origin
+    }
     sortedNodes.forEach(node => {
       const predecessor = mergeableWithPred(nodeMap.get(node.name)!, pred, succ)
       if (predecessor) {
-        mergeOffset.set(
-          node.name,
-          mergeOffset.get(predecessor) +
-            nodes[nodeMap.get(predecessor)!]!.sequenceLength,
-        )
-        mergeOffset.set(
-          '-' + node.name,
-          mergeOffset.get(predecessor) +
-            nodes[nodeMap.get(predecessor)!]!.sequenceLength,
-        )
-        mergeOrigin.set(node.name, mergeOrigin.get(predecessor))
-        mergeOrigin.set(reverse(node.name), mergeOrigin.get(predecessor))
+        // Nodes are visited in order, so the predecessor of a merge cascade is
+        // always recorded before the node that follows it.
+        const offset =
+          offsetOf(predecessor) + (nodeByName(predecessor).sequenceLength ?? 0)
+        mergeOffset.set(node.name, offset)
+        mergeOffset.set(reverse(node.name), offset)
+        mergeOrigin.set(node.name, originOf(predecessor))
+        mergeOrigin.set(reverse(node.name), originOf(predecessor))
       } else {
         mergeOffset.set(node.name, 0)
         mergeOffset.set(reverse(node.name), 0)
@@ -5881,35 +5759,36 @@ function mergeNodes(): void {
     })
 
     reads.forEach(read => {
-      read.firstNodeOffset! += mergeOffset.get(read.sequence[0]!)
-      read.finalNodeCoverLength! += mergeOffset.get(
-        read.sequence[read.sequence.length - 1]!,
-      )
+      const sequenceNew = read.sequenceNew ?? []
+      read.firstNodeOffset =
+        (read.firstNodeOffset ?? 0) + offsetOf(read.sequence[0]!)
+      read.finalNodeCoverLength =
+        (read.finalNodeCoverLength ?? 0) +
+        offsetOf(read.sequence[read.sequence.length - 1]!)
       for (let i = read.sequence.length - 1; i >= 0; i -= 1) {
         const nodeName = forward(read.sequence[i]!)
         const predecessor = mergeableWithPred(nodeMap.get(nodeName)!, pred, succ)
-        if (predecessor) {
-          if (mergeableWithSucc(nodeMap.get(predecessor)!, pred, succ)) {
-            if (i > 0) {
-              read.sequence.splice(i, 1)
-              // adjust position of mismatches
-              read.sequenceNew![i]!.mismatches.forEach(mismatch => {
-                mismatch.pos += nodes[nodeMap.get(predecessor)!]!.sequenceLength!
-              })
-              // append mismatches to previous entry's mismatches
-              read.sequenceNew![i - 1]!.mismatches = read.sequenceNew![
-                i - 1
-              ]!.mismatches.concat(read.sequenceNew![i]!.mismatches)
-              read.sequenceNew!.splice(i, 1)
-            } else {
-              read.sequence[0] = mergeOrigin.get(read.sequence[0]!)
-              read.sequenceNew![i]!.mismatches.forEach(mismatch => {
-                mismatch.pos += mergeOffset.get(read.sequenceNew![0]!.nodeName)
-              })
-              read.sequenceNew![0]!.nodeName = mergeOrigin.get(
-                read.sequenceNew![0]!.nodeName,
-              )
-            }
+        if (predecessor && mergeableWithSucc(nodeMap.get(predecessor)!, pred, succ)) {
+          if (i > 0) {
+            read.sequence.splice(i, 1)
+            // adjust position of mismatches
+            const predLength = nodeByName(predecessor).sequenceLength ?? 0
+            sequenceNew[i]!.mismatches.forEach(mismatch => {
+              mismatch.pos += predLength
+            })
+            // append mismatches to previous entry's mismatches
+            sequenceNew[i - 1]!.mismatches = sequenceNew[
+              i - 1
+            ]!.mismatches.concat(sequenceNew[i]!.mismatches)
+            sequenceNew.splice(i, 1)
+          } else {
+            read.sequence[0] = originOf(read.sequence[0]!)
+            const firstEntry = sequenceNew[0]!
+            const firstOffset = offsetOf(firstEntry.nodeName)
+            firstEntry.mismatches.forEach(mismatch => {
+              mismatch.pos += firstOffset
+            })
+            firstEntry.nodeName = originOf(firstEntry.nodeName)
           }
         }
       }
