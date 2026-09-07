@@ -2308,9 +2308,7 @@ function isPrivateAddress(address) {
 async function assertPublicURL(url) {
   const parsed = new URL(url)
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new BadRequestError(
-      'Only http and https URLs can be fetched: ' + url,
-    )
+    throw new BadRequestError('Only http and https URLs can be fetched: ' + url)
   }
   // An IPv6 literal host arrives wrapped in brackets.
   const host = parsed.hostname.startsWith('[')
@@ -2374,10 +2372,7 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
   }
 
   const controller = new AbortController()
-  const timer = setTimeout(
-    () => controller.abort(),
-    config.fetchTimeout * 1000,
-  )
+  const timer = setTimeout(() => controller.abort(), config.fetchTimeout * 1000)
 
   console.log('Fetching URL:', url)
   try {

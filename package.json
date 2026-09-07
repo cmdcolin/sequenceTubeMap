@@ -2,7 +2,6 @@
   "name": "sequence-tube-maps",
   "version": "0.1.0",
   "type": "module",
-  "homepage": ".",
   "author": "Wolfgang Beyer",
   "license": "MIT",
   "dependencies": {
@@ -15,8 +14,6 @@
     "@gmod/bgzf-filehandle": "^6.0.23",
     "@gmod/gbz-base": "^2.6.0",
     "@mui/material": "^9.0.1",
-    "@streamparser/json": "^0.0.22",
-    "body-parser": "^2.2.2",
     "bootstrap": "^5.3.8",
     "comlink": "^4.4.2",
     "compression": "^1.8.1",
@@ -45,28 +42,26 @@
     "which": "^6.0.1"
   },
   "scripts": {
-    "start": "concurrently -n frontend,backend -c cyan,green 'webpack serve' 'pnpm:serve'",
-    "start:local": "webpack serve --open '/#local'",
-    "build": "webpack --mode production",
+    "start": "concurrently -n frontend,backend -c cyan,green 'vite' 'pnpm:serve'",
+    "start:local": "vite --open '/#local'",
+    "build": "vite build",
     "test": "vitest run",
     "predep": "pnpm run build",
     "dep": "gh-pages -d build",
-    "postdep": "git push --follow-tags",
-    "serve": "node --strip-types ./src/server.mjs",
+    "serve": "node --experimental-strip-types ./src/server.mjs",
     "tubemap-cli": "esbuild scripts/tubemap-cli.ts --bundle --platform=node --format=esm --packages=external --outfile=build/tubemap-cli.mjs && node build/tubemap-cli.mjs",
-    "format": "prettier --write \"**/*.+(mjs|js|css)\"",
+    "format": "prettier --write \"**/*.+(mjs|js|ts|tsx|css)\"",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "check-docs": "node scripts/check-doc-links.mjs"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.6.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
-    "@babel/preset-react": "^7.28.5",
-    "@babel/preset-typescript": "^7.28.5",
     "@eslint/js": "^10.0.1",
+    "@rolldown/plugin-babel": "^0.2.4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -77,11 +72,8 @@
     "@types/react-color": "^3.0.13",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
-    "babel-loader": "^10.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "concurrently": "^9.2.1",
-    "copy-webpack-plugin": "^14.0.0",
-    "css-loader": "^7.1.4",
     "esbuild": "^0.28.0",
     "eslint": "^10.4.0",
     "eslint-plugin-import": "^2.32.0",
@@ -90,19 +82,12 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "gh-pages": "^6.3.0",
     "globals": "^17.6.0",
-    "html-webpack-plugin": "^5.6.7",
     "jsdom": "^29.1.1",
-    "mini-css-extract-plugin": "^2.10.2",
     "prettier": "^3.8.3",
-    "rollup": "^4.60.4",
-    "style-loader": "^4.0.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.4",
     "vite": "^8.0.13",
     "vitest": "^4.1.6",
-    "vitest-fetch-mock": "^0.4.5",
-    "webpack": "^5.106.2",
-    "webpack-cli": "^7.0.2",
-    "webpack-dev-server": "^5.2.4"
+    "vitest-fetch-mock": "^0.4.5"
   }
 }
