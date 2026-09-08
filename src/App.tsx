@@ -135,8 +135,10 @@ const localDefaultViewTarget: ViewTarget = removeUndefined(
     { tracks: [], region: '' },
 )
 
+// Passing the configured sources lets `?name=<data source>` stand in for the
+// tracks, colors and BED that source already spells out.
 const defaultViewTarget: ViewTarget = removeUndefined(
-  urlParamsToViewTarget(document.location) ??
+  urlParamsToViewTarget(document.location, config.DATA_SOURCES) ??
     (isLocalMode ? localDefaultViewTarget : config.DATA_SOURCES[0]),
 )
 

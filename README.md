@@ -111,10 +111,10 @@ And the original sequenceTubeMap developers!
 _Claude Code AI was used during this work._
 
 [demo-brca1]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20%28WASM-compatible%29&dataType=built-in&tracks%5B0%5D%5BtrackFile%5D=exampleData%2Finternal%2Fsnp1kg-BRCA1.gbz.db&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=greys&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=ygreys&tracks%5B1%5D%5BtrackFile%5D=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks%5B1%5D%5BtrackType%5D=read&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&region=17%3A1-100
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-100
 [demo-chr20]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20chr20%20%28URL-hosted%2C%20full%20PanSN%29&dataType=built-in&tracks%5B0%5D%5BtrackFile%5D=https%3A%2F%2Fjbrowse.org%2Fdemos%2Fivg%2Fhprc%2Fhprc-chr20.gbz.db&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=plainColors&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=lightColors&region=GRCh38%23chr20%3A48000600-48001000
+  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20chr20%20(URL-hosted%2C%20full%20PanSN)&region=GRCh38%23chr20:48000600-48001000
 [demo-reads]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20%28WASM-compatible%29&dataType=built-in&tracks%5B0%5D%5BtrackFile%5D=exampleData%2Finternal%2Fsnp1kg-BRCA1.gbz.db&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=greys&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=ygreys&tracks%5B1%5D%5BtrackFile%5D=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks%5B1%5D%5BtrackType%5D=read&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&region=17%3A1-1000&visOptions%5BcompressedView%5D=true
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-1000&vis=compressedView
 [demo-coarsened]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20%28WASM-compatible%29&dataType=built-in&tracks%5B0%5D%5BtrackFile%5D=exampleData%2Finternal%2Fsnp1kg-BRCA1.gbz.db&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=greys&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=ygreys&tracks%5B1%5D%5BtrackFile%5D=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks%5B1%5D%5BtrackType%5D=read&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&region=17%3A1-1000&visOptions%5BcompressedView%5D=true&visOptions%5BcoarsenedReadView%5D=true
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-1000&vis=compressedView,coarsenedReadView

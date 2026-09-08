@@ -313,15 +313,17 @@ describe('When we wait for it to load', () => {
   )
 })
 
-// Deep links carry their parameters in whatever order the form happens to
+// Deep links carry their parameters in whatever order the view happens to
 // serialize them, which is not part of the contract, so compare the parameter
-// sets rather than the exact string.
+// sets rather than the exact string. Order *within* a value is part of the
+// contract -- `tracks=` and `colors=` line up positionally -- so only the
+// params themselves are sorted.
 function expectSameLink(actual, expected) {
   const params = url => {
     const parsed = new URL(url)
     return {
       origin: parsed.origin + parsed.pathname,
-      search: [...new URLSearchParams(parsed.search)].sort(),
+      search: parsed.search.replace(/^\?/, '').split('&').sort(),
     }
   }
   expect(params(actual)).toEqual(params(expected))
@@ -330,14 +332,14 @@ function expectSameLink(actual, expected) {
 it('produces correct link when data source is changed', async () => {
   // Selecting a data source auto-commits; copy link updates immediately.
   const expectedLinkBRCA1 =
-    'http://localhost/?name=snp1kg-BRCA1&tracks[0][trackFile]=exampleData%2Finternal%2Fsnp1kg-BRCA1.vg.xg&tracks[0][trackType]=graph&tracks[0][trackColorSettings][mainPalette]=greys&tracks[0][trackColorSettings][auxPalette]=ygreys&tracks[1][trackFile]=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks[1][trackType]=read&region=17%3A1-100&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&dataType=built-in&simplify=false&removeSequences=false'
+    'http://localhost/?region=17:1-100&tracks=graph:exampleData/internal/snp1kg-BRCA1.vg.xg,read:exampleData/internal/NA12878-BRCA1.sorted.gam&colors=greys/ygreys,&bedFile=exampleData/internal/snp1kg-BRCA1.bed&name=snp1kg-BRCA1&dataType=built-in'
   await selectExample('snp1kg-BRCA1')
   await waitForLoadEnd()
   await clickCopyLink()
   expectSameLink(fakeClipboard, expectedLinkBRCA1)
 
   const expectedLinkCactus =
-    'http://localhost/?tracks[0][trackFile]=exampleData%2Fcactus.vg.xg&tracks[0][trackType]=graph&tracks[1][trackFile]=exampleData%2Fcactus-NA12879.sorted.gam&tracks[1][trackType]=read&bedFile=exampleData%2Fcactus.bed&name=cactus&region=ref%3A1-100&dataType=built-in&simplify=false&removeSequences=false'
+    'http://localhost/?region=ref:1-100&tracks=graph:exampleData/cactus.vg.xg,read:exampleData/cactus-NA12879.sorted.gam&bedFile=exampleData/cactus.bed&name=cactus&dataType=built-in'
   await selectExample('cactus')
   await waitForLoadEnd()
   await clickCopyLink()

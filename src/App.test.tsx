@@ -160,15 +160,15 @@ it('puts the committed view in the address bar', async () => {
   await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
 
   await waitFor(() => {
-    expect(window.location.search).toContain('region=ref%3A1-100')
+    expect(window.location.search).toContain('region=ref:1-100')
   })
-  expect(window.location.search).toContain('tracks[0][trackType]=graph')
+  expect(window.location.search).toContain('tracks=graph:')
 })
 
 // App reads the URL once, at module scope, so a URL-driven start needs the
 // module re-imported after the address bar is set.
 it('starts from the view options in the URL', async () => {
-  window.history.replaceState(null, '', '/?visOptions[compressedView]=true')
+  window.history.replaceState(null, '', '/?vis=compressedView')
   vi.resetModules()
   const { default: UrlApp } = await import('./App.tsx')
   render(
@@ -193,7 +193,7 @@ it('puts the View menu settings in the address bar, and only the changed ones', 
   )
 
   await waitFor(() => {
-    expect(window.location.search).toContain('visOptions[compressedView]=true')
+    expect(window.location.search).toContain('vis=compressedView')
   })
   expect(window.location.search).not.toContain('showNodeLabels')
 })
