@@ -167,16 +167,3 @@ http://localhost:3000?
   tracks=graph:https://example.com/graph.gbz.db,read:https://example.com/reads.gam&
   dataType=mounted%20files
 ```
-
-## The older bracket format
-
-Links written before the short form spelled every field out with `qs` bracket
-notation, and are still parsed:
-
-```
-tracks[0][trackFile]=path/to/graph.gbz.db&tracks[0][trackType]=graph
-visOptions[compressedView]=true
-```
-
-Nothing generates it any more. Where a link somehow carries both, `tracks=` and
-`tracksJson=` win over the bracketed form.

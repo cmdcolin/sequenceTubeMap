@@ -68,9 +68,6 @@ importers:
       path-is-inside:
         specifier: ^1.0.2
         version: 1.0.2
-      qs:
-        specifier: ^6.15.2
-        version: 6.15.2
       react:
         specifier: ^19.2.6
         version: 19.2.6
@@ -120,9 +117,6 @@ importers:
       '@types/jsdom':
         specifier: ^30.0.0
         version: 30.0.0
-      '@types/qs':
-        specifier: ^6.15.1
-        version: 6.15.1
       '@types/react':
         specifier: ^19.2.15
         version: 19.2.15
@@ -1064,9 +1058,6 @@ packages:
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
-
-  '@types/qs@6.15.1':
-    resolution: {integrity: sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -4073,8 +4064,6 @@ snapshots:
   '@types/parse-json@4.0.2': {}
 
   '@types/prop-types@15.7.15': {}
-
-  '@types/qs@6.15.1': {}
 
   '@types/react-dom@19.2.3(@types/react@19.2.15)':
     dependencies:

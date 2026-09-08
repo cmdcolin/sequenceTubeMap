@@ -1,4 +1,3 @@
-import * as qs from 'qs'
 import {
   DEFAULT_VIS_OPTIONS,
   VIS_OPTION_FLAGS,
@@ -57,7 +56,6 @@ const VIEW_PARAM_KEYS = [
   'simplify',
   'removeSequences',
   'skipAutoLoad',
-  'visOptions',
 ]
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -178,12 +176,8 @@ function parseColorScheme(value: unknown): ColorScheme | undefined {
       return {
         mainPalette,
         auxPalette,
-        colorReadsByMappingQuality:
-          value.colorReadsByMappingQuality === true ||
-          value.colorReadsByMappingQuality === 'true',
-        alphaReadsByMappingQuality:
-          value.alphaReadsByMappingQuality === true ||
-          value.alphaReadsByMappingQuality === 'true',
+        colorReadsByMappingQuality: value.colorReadsByMappingQuality === true,
+        alphaReadsByMappingQuality: value.alphaReadsByMappingQuality === true,
       }
     }
   }
@@ -251,36 +245,19 @@ function parseJsonTracks(value: string): Tracks | undefined {
   }
 }
 
-// Links published before the short form used qs bracket notation
-// (`tracks[0][trackFile]=…`). `parseArrays: false` keeps qs from switching
-// between an array and `{ '0': … }` at arrayLimit, so there is one shape here.
-function parseLegacyTracks(params: Map<string, string>): Tracks | undefined {
-  const bracketed = [...params]
-    .filter(([key]) => key.startsWith('tracks['))
-    .map(([key, value]) => `${key}=${value}`)
-    .join('&')
-  const value = qs.parse(bracketed, { parseArrays: false }).tracks
-  return isRecord(value)
-    ? Object.keys(value)
-        .sort((a, b) => Number(a) - Number(b))
-        .map(key => parseTrackObject(value[key]))
-        .filter((track): track is Track => track !== undefined)
-    : undefined
-}
-
 function parseTracks(params: Map<string, string>): Tracks | undefined {
   const json = readScalar(params, 'tracksJson')
   const short = readList(params, 'tracks')
   return json !== undefined
     ? parseJsonTracks(json)
-    : short !== undefined
-      ? applyShortColors(
+    : short === undefined
+      ? undefined
+      : applyShortColors(
           short
             .map(entry => parseShortTrack(entry))
             .filter((track): track is Track => track !== undefined),
           readList(params, 'colors'),
         )
-      : parseLegacyTracks(params)
 }
 
 // Everything a link can say about a view apart from its tracks. Split out so
@@ -338,23 +315,7 @@ export function urlParamsToVisOptions(
   const params = parseUrlParams(url)
   const flags: Partial<Record<(typeof VIS_OPTION_FLAGS)[number], boolean>> = {}
 
-  // Legacy `visOptions[compressedView]=true`, still in published links.
-  const legacy = qs.parse(
-    [...params]
-      .filter(([key]) => key.startsWith('visOptions['))
-      .map(([key, value]) => `${key}=${value}`)
-      .join('&'),
-  ).visOptions
-  if (isRecord(legacy)) {
-    for (const flag of VIS_OPTION_FLAGS) {
-      const parsed = asBoolean(legacy[flag])
-      if (parsed !== undefined) {
-        flags[flag] = parsed
-      }
-    }
-  }
-
-  // `vis=compressedView,-showReads`: named on to turn on, `-` prefixed to turn
+  // `vis=compressedView,-showReads`: named to turn on, `-` prefixed to turn
   // off. Later entries win, so a list that names one flag twice is not an
   // error.
   for (const entry of readList(params, 'vis') ?? []) {
@@ -367,10 +328,7 @@ export function urlParamsToVisOptions(
     }
   }
 
-  const legacyCutoff = isRecord(legacy)
-    ? asString(legacy.mappingQualityCutoff)
-    : undefined
-  const cutoff = Number(readScalar(params, 'mapq') ?? legacyCutoff)
+  const cutoff = Number(readScalar(params, 'mapq'))
   return {
     ...flags,
     ...(Number.isFinite(cutoff) &&

@@ -69,12 +69,10 @@ describe('urlViewTarget round trip', () => {
 
   it('drops tracks with an unknown track type', () => {
     const parsed = urlParamsToViewTarget(
-      'http://localhost/?region=x:1-100&tracks[0][trackType]=bogus&tracks[1][trackType]=graph&tracks[1][trackFile]=x.vg',
+      'http://localhost/?region=x:1-100&tracksJson=[{"trackType":"bogus"},{"trackType":"graph","trackFile":"x.vg"}]',
     )
 
-    expect(parsed?.tracks).toEqual([
-      { trackType: 'graph', trackFile: 'x.vg' },
-    ])
+    expect(parsed?.tracks).toEqual([{ trackType: 'graph', trackFile: 'x.vg' }])
   })
 
   it('round trips a view with no tracks selected', () => {
@@ -86,13 +84,13 @@ describe('urlViewTarget round trip', () => {
 
   it('rejects a bed track, which has no color scheme and cannot render', () => {
     const parsed = urlParamsToViewTarget(
-      'http://localhost/?region=x:1-100&tracks[0][trackType]=bed&tracks[0][trackFile]=x.bed',
+      'http://localhost/?region=x:1-100&tracks=bed:x.bed',
     )
 
     expect(parsed?.tracks).toEqual([])
   })
 
-  it('keeps track order past qs arrayLimit', () => {
+  it('keeps track order for a long list', () => {
     const tracks = Array.from({ length: 25 }, (_, i) => ({
       trackType: 'graph' as const,
       trackFile: `t${i}.vg`,
@@ -103,7 +101,7 @@ describe('urlViewTarget round trip', () => {
 
   it('ignores a color setting with an unknown palette', () => {
     const parsed = urlParamsToViewTarget(
-      'http://localhost/?region=x:1-100&tracks[0][trackType]=graph&tracks[0][trackColorSettings][mainPalette]=bogus&tracks[0][trackColorSettings][auxPalette]=reds',
+      'http://localhost/?region=x:1-100&tracks=graph:x.vg&colors=bogus/reds',
     )
 
     expect(parsed?.tracks[0]?.trackColorSettings).toBe(undefined)
@@ -130,9 +128,7 @@ describe('urlViewTarget vis options', () => {
       {},
     )
     expect(
-      urlParamsToVisOptions(
-        'http://localhost/?visOptions[showReads]=false&visOptions[mappingQualityCutoff]=20',
-      ),
+      urlParamsToVisOptions('http://localhost/?vis=-showReads&mapq=20'),
     ).toEqual({ showReads: false, mappingQualityCutoff: 20 })
   })
 })
@@ -174,7 +170,7 @@ describe('README demo links', () => {
 describe('urlViewTarget fragment params', () => {
   it('reads a view out of the fragment', () => {
     const parsed = urlParamsToViewTarget(
-      'http://localhost/#?region=x:1-100&tracks[0][trackType]=graph&tracks[0][trackFile]=x.vg&visOptions[compressedView]=true',
+      'http://localhost/#?region=x:1-100&tracks=graph:x.vg&vis=compressedView',
     )
 
     expect(parsed).toEqual({
@@ -192,14 +188,14 @@ describe('urlViewTarget fragment params', () => {
   it('reads vis options out of the fragment, past the #local dev flag', () => {
     expect(
       urlParamsToVisOptions(
-        'http://localhost/#local&region=x:1-100&visOptions[compressedView]=true',
+        'http://localhost/#local&region=x:1-100&vis=compressedView',
       ),
     ).toEqual({ compressedView: true })
   })
 
   it('reads a fragment view past an appended tracking param', () => {
     const parsed = urlParamsToViewTarget(
-      'http://localhost/?utm_source=email#?region=x:1-100&tracks[0][trackType]=graph&tracks[0][trackFile]=x.vg',
+      'http://localhost/?utm_source=email#?region=x:1-100&tracks=graph:x.vg',
     )
 
     expect(parsed?.region).toBe('x:1-100')
@@ -209,7 +205,7 @@ describe('urlViewTarget fragment params', () => {
   it('prefers the query string when both carry a view', () => {
     expect(
       urlParamsToViewTarget(
-        'http://localhost/?region=q:1-2&tracks[0][trackType]=graph#?region=h:1-2&tracks[0][trackType]=graph',
+        'http://localhost/?region=q:1-2&tracks=graph:x.vg#?region=h:1-2&tracks=graph:x.vg',
       )?.region,
     ).toBe('q:1-2')
   })
@@ -218,9 +214,7 @@ describe('urlViewTarget fragment params', () => {
 describe('fragmentWithoutView', () => {
   it('drops the view params and keeps the dev flag valueless', () => {
     expect(
-      fragmentWithoutView(
-        '#local&region=x:1-100&tracks[0][trackType]=graph&visOptions[compressedView]=true',
-      ),
+      fragmentWithoutView('#local&region=x:1-100&tracks=graph:x.vg&vis=compressedView'),
     ).toBe('local')
   })
 
@@ -231,9 +225,7 @@ describe('fragmentWithoutView', () => {
   })
 
   it('drops percent-encoded view params too', () => {
-    expect(
-      fragmentWithoutView('#tracks%5B0%5D%5BtrackType%5D=graph&local'),
-    ).toBe('local')
+    expect(fragmentWithoutView('#tracks=graph%3Ax.vg&local')).toBe('local')
   })
 
   it('empties a fragment that is nothing but a view', () => {
@@ -413,45 +405,6 @@ describe('vis short form', () => {
 
     expect(params).toContain('mapq=30')
     expect(visOf(params)).toEqual({ mappingQualityCutoff: 30 })
-  })
-})
-
-// The bracket form was the only form until the short form replaced it, and
-// links written then are in the README, in talks and in other people's notes.
-describe('legacy bracket links', () => {
-  it('still parses a bracketed view', () => {
-    expect(
-      urlParamsToViewTarget(
-        'http://localhost/?region=x:1-100&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackFile%5D=x.vg&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=greys&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=ygreys',
-      )?.tracks,
-    ).toEqual([
-      {
-        trackType: 'graph',
-        trackFile: 'x.vg',
-        trackColorSettings: {
-          mainPalette: 'greys',
-          auxPalette: 'ygreys',
-          colorReadsByMappingQuality: false,
-          alphaReadsByMappingQuality: false,
-        },
-      },
-    ])
-  })
-
-  it('still parses bracketed vis options', () => {
-    expect(
-      urlParamsToVisOptions(
-        'http://localhost/?visOptions[showReads]=false&visOptions[mappingQualityCutoff]=20',
-      ),
-    ).toEqual({ showReads: false, mappingQualityCutoff: 20 })
-  })
-
-  it('lets the short form win when a link somehow carries both', () => {
-    expect(
-      urlParamsToViewTarget(
-        'http://localhost/?region=x:1-100&tracks=read:new.gam&tracks[0][trackType]=graph&tracks[0][trackFile]=old.vg',
-      )?.tracks,
-    ).toEqual([{ trackType: 'read', trackFile: 'new.gam' }])
   })
 })
 
