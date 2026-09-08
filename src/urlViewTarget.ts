@@ -15,29 +15,41 @@ import {
   type ViewTarget,
 } from './Types.ts'
 
-const FILE_TYPES = [
+// `bed` is deliberately absent: a BED goes in `bedFile`, never in `tracks`,
+// and defaultTrackColors() throws for it, so accepting it here let a crafted
+// URL crash the first render.
+const TRACK_TYPES = [
   'graph',
   'node',
   'haplotype',
   'read',
-  'bed',
   'translation',
 ] as const satisfies readonly FileType[]
 
+// The params a saved view owns. Anything else in the URL belongs to whoever
+// put it there (analytics, the `#local` dev flag) and is left alone.
+const VIEW_PARAM_KEYS = [
+  'region',
+  'tracks',
+  'bedFile',
+  'name',
+  'dataType',
+  'simplify',
+  'removeSequences',
+  'skipAutoLoad',
+  'visOptions',
+]
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function asArray(value: unknown): unknown[] | undefined {
-  return Array.isArray(value) ? [...value] : undefined
 }
 
 function asString(value: unknown) {
   return typeof value === 'string' ? value : undefined
 }
 
-// qs has no way to tell the boolean true from the string "true", so every
-// boolean in the query arrives as a string and has to be coerced back.
+// A query string has no types, so every boolean arrives as a string and has
+// to be coerced back.
 function asBoolean(value: unknown) {
   return typeof value === 'boolean'
     ? value
@@ -77,7 +89,7 @@ function parseColorScheme(value: unknown): ColorScheme | undefined {
 
 function parseTrack(value: unknown): Track | undefined {
   if (isRecord(value)) {
-    const trackType = FILE_TYPES.find(known => known === value.trackType)
+    const trackType = TRACK_TYPES.find(known => known === value.trackType)
     if (trackType !== undefined) {
       return {
         trackType,
@@ -90,29 +102,53 @@ function parseTrack(value: unknown): Track | undefined {
   return undefined
 }
 
-// qs parses array-style params (tracks[0][...]=...) into { '0': …, '1': … },
-// so accept both an object with numeric keys and a real array.
+// `parseArrays: false` in parseUrlParams makes qs hand back `tracks[0][…]` as
+// `{ '0': … }` every time. Left to itself qs switches between an array and
+// that object at `arrayLimit` (20 tracks), which meant supporting both shapes.
+//
+// An empty `tracks=` is a view with no tracks selected, which is a state the
+// app can be in and so has to survive a reload.
 function parseTracks(value: unknown): Tracks | undefined {
-  const entries =
-    asArray(value) ??
-    (isRecord(value)
+  return value === ''
+    ? []
+    : isRecord(value)
       ? Object.keys(value)
           .sort((a, b) => Number(a) - Number(b))
-          .map(key => value[key])
-      : undefined)
-  return entries
-    ?.map(entry => parseTrack(entry))
-    .filter((track): track is Track => track !== undefined)
+          .map(key => parseTrack(value[key]))
+          .filter((track): track is Track => track !== undefined)
+      : undefined
 }
 
 // The same params are accepted in the fragment (`#?region=…`, or `#region=…`)
 // as in the query string, so a view survives hosts and embedders that drop or
-// rewrite query strings. The query wins when both carry a view. `#local`, the
-// dev-mode backend switch, parses to a valueless key and is ignored here.
+// rewrite query strings. The two are merged rather than one winning outright:
+// a mailer or analytics redirect that appends `?utm_source=…` to a
+// fragment-encoded link must not destroy the view it carries. Where both name
+// the same param the query wins. `#local`, the dev-mode backend switch, parses
+// to a valueless key and is ignored here.
 function parseUrlParams(url: string | Location) {
   const { search, hash } = new URL(url.toString())
-  const query = search.slice(1)
-  return qs.parse(query === '' ? hash.replace(/^#\??/, '') : query)
+  const parse = (input: string) => qs.parse(input, { parseArrays: false })
+  return {
+    ...parse(hash.replace(/^#\??/, '')),
+    ...parse(search.slice(1)),
+  }
+}
+
+// Strip a view out of a fragment, keeping whatever else it carries. Writing
+// the query without this leaves the fragment describing an older view, which
+// is invisible locally (the query wins) but is the whole view for an embedder
+// that keeps only the fragment. Operates on the raw text so valueless flags
+// stay valueless: `#local` has to survive as `local`, not `local=`.
+export function fragmentWithoutView(hash: string) {
+  return hash
+    .replace(/^#\??/, '')
+    .split('&')
+    .filter(part => part !== '')
+    .filter(
+      part => !VIEW_PARAM_KEYS.includes(decodeURIComponent(part).split(/[=[]/)[0]!),
+    )
+    .join('&')
 }
 
 // Parse a ViewTarget from the URL's params. Returns null when the URL carries
@@ -185,6 +221,9 @@ export function viewTargetToUrlParams(
   return qs.stringify(
     {
       ...target,
+      // qs drops an empty array, which would make a no-tracks view parse back
+      // as "no view at all". An empty string round trips through parseTracks.
+      ...(target.tracks.length === 0 && { tracks: '' }),
       ...(Object.keys(changed).length > 0 && { visOptions: changed }),
     },
     { encodeValuesOnly: true },

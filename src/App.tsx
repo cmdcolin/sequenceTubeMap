@@ -7,6 +7,7 @@ import TubeMapContainer, {
   DEFAULT_READ_RENDER_LIMIT,
 } from './components/TubeMapContainer.tsx'
 import {
+  fragmentWithoutView,
   urlParamsToViewTarget,
   urlParamsToVisOptions,
   viewTargetToUrlParams,
@@ -114,6 +115,10 @@ function removeUndefined(target: ViewTarget): ViewTarget {
 function syncUrlToViewState(target: ViewTarget, visOptions: StoredVisOptions) {
   const url = new URL(window.location.href)
   url.search = `?${viewTargetToUrlParams(target, visOptions)}`
+  // The query now describes the view, so a view left in the fragment is stale.
+  // It stays invisible here (the query wins) but is all an embedder that keeps
+  // only the fragment would see.
+  url.hash = fragmentWithoutView(url.hash)
   window.history.replaceState(null, '', url.toString())
 }
 

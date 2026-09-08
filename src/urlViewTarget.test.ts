@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs'
 import {
+  fragmentWithoutView,
   urlParamsToViewTarget,
   urlParamsToVisOptions,
   viewTargetToUrlParams,
@@ -73,6 +74,30 @@ describe('urlViewTarget round trip', () => {
     expect(parsed?.tracks).toEqual([
       { trackType: 'graph', trackFile: 'x.vg' },
     ])
+  })
+
+  it('round trips a view with no tracks selected', () => {
+    const parsed = roundTrip({ region: 'x:1-100', tracks: [] })
+
+    expect(parsed).not.toBe(null)
+    expect(parsed?.tracks).toEqual([])
+  })
+
+  it('rejects a bed track, which has no color scheme and cannot render', () => {
+    const parsed = urlParamsToViewTarget(
+      'http://localhost/?region=x:1-100&tracks[0][trackType]=bed&tracks[0][trackFile]=x.bed',
+    )
+
+    expect(parsed?.tracks).toEqual([])
+  })
+
+  it('keeps track order past qs arrayLimit', () => {
+    const tracks = Array.from({ length: 25 }, (_, i) => ({
+      trackType: 'graph' as const,
+      trackFile: `t${i}.vg`,
+    }))
+
+    expect(roundTrip({ region: 'x:1-100', tracks })?.tracks).toEqual(tracks)
   })
 
   it('ignores a color setting with an unknown palette', () => {
@@ -171,11 +196,46 @@ describe('urlViewTarget fragment params', () => {
     ).toEqual({ compressedView: true })
   })
 
+  it('reads a fragment view past an appended tracking param', () => {
+    const parsed = urlParamsToViewTarget(
+      'http://localhost/?utm_source=email#?region=x:1-100&tracks[0][trackType]=graph&tracks[0][trackFile]=x.vg',
+    )
+
+    expect(parsed?.region).toBe('x:1-100')
+    expect(parsed?.tracks).toEqual([{ trackType: 'graph', trackFile: 'x.vg' }])
+  })
+
   it('prefers the query string when both carry a view', () => {
     expect(
       urlParamsToViewTarget(
         'http://localhost/?region=q:1-2&tracks[0][trackType]=graph#?region=h:1-2&tracks[0][trackType]=graph',
       )?.region,
     ).toBe('q:1-2')
+  })
+})
+
+describe('fragmentWithoutView', () => {
+  it('drops the view params and keeps the dev flag valueless', () => {
+    expect(
+      fragmentWithoutView(
+        '#local&region=x:1-100&tracks[0][trackType]=graph&visOptions[compressedView]=true',
+      ),
+    ).toBe('local')
+  })
+
+  it('keeps params it does not own', () => {
+    expect(fragmentWithoutView('#?region=x:1-100&utm_source=email')).toBe(
+      'utm_source=email',
+    )
+  })
+
+  it('drops percent-encoded view params too', () => {
+    expect(
+      fragmentWithoutView('#tracks%5B0%5D%5BtrackType%5D=graph&local'),
+    ).toBe('local')
+  })
+
+  it('empties a fragment that is nothing but a view', () => {
+    expect(fragmentWithoutView('#?region=x:1-100')).toBe('')
   })
 })
