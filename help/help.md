@@ -34,4 +34,4 @@ Use **Paths in this graph** to browse contig names.
 ---
 
 [Docs & source →](https://github.com/cmdcolin/sequenceTubeMap) ·
-[Deep-link URLs →](https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/linking.md)
+[URL parameters →](https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/urlparams.md)
