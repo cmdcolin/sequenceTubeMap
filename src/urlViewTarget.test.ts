@@ -7,7 +7,7 @@ import {
   urlParamsToVisOptions,
   viewTargetToUrlParams,
 } from './urlViewTarget.ts'
-import { DEFAULT_VIS_OPTIONS } from './util/visOptions.ts'
+import { DEFAULT_VIS_OPTIONS, VIS_OPTION_FLAGS } from './util/visOptions.ts'
 import type { Track, ViewTarget } from './Types.ts'
 
 const roundTrip = (target: ViewTarget) =>
@@ -451,5 +451,58 @@ describe('name resolution against configured data sources', () => {
         dataSources,
       )?.tracks,
     ).toEqual([{ trackType: 'graph', trackFile: 'other.gbz.db' }])
+  })
+})
+
+// doc/urlparams.md is the contract for what a link may say, and a documented
+// syntax that no longer parses is worse than none, so the examples in it are
+// run rather than trusted.
+describe('doc/urlparams.md examples', () => {
+  const examples = [
+    ...readFileSync('doc/urlparams.md', 'utf8').matchAll(/```\n([\s\S]*?)```/g),
+  ]
+    .map(match => match[1]!.trim().replace(/\n\s*/g, ''))
+    .map(block => block.replace(/^https?:\/\/[^?]*\??/, '').replace(/^\?/, ''))
+
+  it('has examples to check', () => {
+    expect(examples.length).toBeGreaterThan(5)
+  })
+
+  // Several examples show one parameter in isolation, which cannot make a view
+  // on its own, so they are read against a view that supplies the rest. An
+  // example naming its own tracks overrides the base ones.
+  const base = 'region=x:1-2&tracks=graph:a.gbz.db,read:b.gam,haplotype:c.gbwt'
+
+  it.each(examples)('%s makes a view', example => {
+    const target = urlParamsToViewTarget(
+      `http://localhost/?${base}&${example}`,
+      config.DATA_SOURCES,
+    )
+
+    expect(target?.tracks.length).toBeGreaterThan(0)
+  })
+
+  // Every flag a `vis=` example names, not merely one of them: a doc that
+  // renames a flag still parses, because the entries it got right carry it.
+  it.each(examples.filter(example => /(^|&)vis=/.test(example)))(
+    '%s names only real View menu flags',
+    example => {
+      const named = /(?:^|&)vis=([^&]*)/
+        .exec(example)![1]!
+        .split(',')
+        .map(entry => entry.replace(/^-/, ''))
+      const unknown = named.filter(
+        flag => !VIS_OPTION_FLAGS.some(known => known === flag),
+      )
+
+      expect(unknown).toEqual([])
+    },
+  )
+
+  it('documents every View menu flag', () => {
+    const doc = readFileSync('doc/urlparams.md', 'utf8')
+    const undocumented = VIS_OPTION_FLAGS.filter(flag => !doc.includes(flag))
+
+    expect(undocumented).toEqual([])
   })
 })

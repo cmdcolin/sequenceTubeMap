@@ -16,7 +16,7 @@ Live demo — https://cmdcolin.github.io/sequenceTubeMap/
 
 Every figure below links to the same data and region in the live demo — the view
 is a URL, so any tube map you get to can be shared as one
-([how the links are built](doc/linking.md)).
+([every parameter a link can carry](doc/urlparams.md)).
 
 **A pangenome, not a reference.** 81 haplotypes from 46 HPRC samples through a
 CT microsatellite at `chr20:48,000,600-48,001,000`. Every haplotype takes a
@@ -83,7 +83,7 @@ and `node:42-55` also work.
 ## Documentation
 
 **Using it** — [Introduction to sequence tube maps](doc/intro.md) ·
-[Loading your own data](doc/data.md) · [Deep-link URLs](doc/linking.md) ·
+[Loading your own data](doc/data.md) · [URL parameters](doc/urlparams.md) ·
 [Headless SVG rendering](doc/headless-rendering.md)
 
 **Running a server** — [Server data preparation](doc/server-data.md) ·

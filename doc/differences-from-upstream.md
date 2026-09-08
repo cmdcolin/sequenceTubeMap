@@ -77,7 +77,7 @@ and opens the per-track visibility checklist as a dialog) — plus:
   rather than typed (with a warning before loading a slow path);
 - a **region input** with format help and Enter-to-submit;
 - **Copy link**, encoding the full view state as a URL (see
-  [linking.md](linking.md));
+  [urlparams.md](urlparams.md));
 - download progress for large remote files.
 
 ## Codebase

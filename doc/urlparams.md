@@ -1,8 +1,11 @@
-# Deep-linking to a view
+# URL parameters
 
-URLs encode a full view state as query parameters, so you can share or bookmark
-any visualization. The app also has a **Copy link** button that hands you the
-URL for whatever is on screen.
+The Tube Map reads its whole view state from the URL, so any view you get to can
+be shared or bookmarked as a link. **Copy link** hands you the URL for whatever
+is on screen; everything below is what that URL can say, and what you can write
+by hand.
+
+## Query string or fragment
 
 Every parameter works in the query string or in the fragment — `?region=…` or
 `#?region=…` — for hosts and embedders that drop or rewrite query strings. The
@@ -39,13 +42,13 @@ a URL or it starts the fragment: `region=GRCh38%23chr20:48000600-48001000`.
 
 Labels the view. When a link carries **no** tracks and this matches a
 `DATA_SOURCES` entry in `config.json`, the view is that data source — its
-tracks, palettes and BED — with any parameters beside it layered on top. That
-is what makes `?name=…&region=…` a complete link.
+tracks, palettes and BED — with any parameters beside it layered on top. That is
+what makes `?name=…&region=…` a complete link.
 
 A name matching nothing in the config does not resolve, and the app falls back
-to its default view rather than showing different data under the requested
-name. This means a `name=`-only link is tied to a deployment whose config
-defines that source; a link that spells out its `tracks` works anywhere.
+to its default view rather than showing different data under the requested name.
+This means a `name=`-only link is tied to a deployment whose config defines that
+source; a link that spells out its `tracks` works anywhere.
 
 ### `tracks`
 
@@ -60,12 +63,12 @@ Each entry is `type:path`, where `path` is relative to the server root or any
 
 The `type:` prefix is optional — omit it and the extension decides:
 
-| Type          | Extensions                            |
-| ------------- | ------------------------------------- |
+| Type          | Extensions                                     |
+| ------------- | ---------------------------------------------- |
 | `graph`       | `.xg` `.vg` `.hg` `.pg` `.gbz` `.gbz.db` `.db` |
-| `read`        | `.gam` `.gaf` `.gaf.gz`               |
-| `haplotype`   | `.gbwt`                               |
-| `translation` | `.tsv` `.trans`                       |
+| `read`        | `.gam` `.gaf` `.gaf.gz`                        |
+| `haplotype`   | `.gbwt`                                        |
+| `translation` | `.tsv` `.trans`                                |
 
 A `.gbz` carries a graph and maybe haplotypes, so it reads as a `graph` unless
 the link says `haplotype:` outright. Only a known type counts as a prefix, so
@@ -91,8 +94,8 @@ Each entry is `mainPalette/auxPalette`, drawn from `greys` `ygreys` `blues`
 
 The full track array as JSON, for the views the short form cannot express: a
 track resolved from a BED rather than a path, an uploaded track with a display
-name, or a per-track mapping-quality color flag. Copy link falls back to this
-by itself when it has to.
+name, or a per-track mapping-quality color flag. Copy link falls back to this by
+itself when it has to.
 
 ```
 tracksJson=[{"trackType":"graph","trackColorSettings":{"mainPalette":"blues","auxPalette":"reds"}}]
@@ -155,9 +158,9 @@ Omitted means false.
 http://localhost:3000?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-1000
 ```
 
-The README's figures link into the live demo this way; `src/urlViewTarget.test.ts`
-resolves those links against the real config, so renaming a data source fails a
-test rather than quietly breaking four links.
+The README's figures link into the live demo this way;
+`src/urlViewTarget.test.ts` resolves those links against the real config, so
+renaming a data source fails a test rather than quietly breaking four links.
 
 **Custom files by URL:**
 

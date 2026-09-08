@@ -75,7 +75,7 @@ urlViewTarget ──> App ──> HeaderForm        (choose data + region)
 A **`ViewTarget`** — tracks, region, BED file, data type — is the unit of
 navigation. `src/urlViewTarget.ts` parses one out of the query string and
 serializes it back, which is what makes every view linkable
-([linking.md](linking.md)). There is no router
+([urlparams.md](urlparams.md)). There is no router
 ([ADR 0001](../agent-docs/architectural-decision-records/0001-no-router.md)).
 
 `TubeMapContainer` turns the current `ViewTarget` into an SWR key and fetches

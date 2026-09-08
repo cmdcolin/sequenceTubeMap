@@ -7,7 +7,7 @@ Start at the [project README](../README.md).
 - [Introduction to the Sequence Tube Map](intro.md) — what a sequence graph is
   and what the visualization shows
 - [Loading your own data](data.md) — the three ways to get a graph in
-- [Deep-link URL format](linking.md) — sharing and bookmarking a view
+- [URL parameters](urlparams.md) — every parameter a link can carry
 - [Headless SVG rendering](headless-rendering.md) — `pnpm tubemap-cli`
 
 ## Running a server
