@@ -1,5 +1,11 @@
 import * as qs from 'qs'
 import {
+  DEFAULT_VIS_OPTIONS,
+  VIS_OPTION_FLAGS,
+  VIS_OPTION_KEYS,
+  type StoredVisOptions,
+} from './util/visOptions.ts'
+import {
   DEFAULT_AVAILABLE_COLORS,
   type ColorScheme,
   type FileType,
@@ -99,19 +105,27 @@ function parseTracks(value: unknown): Tracks | undefined {
     .filter((track): track is Track => track !== undefined)
 }
 
-// Parse a ViewTarget from the URL's query params. Returns null when the query
-// carries something other than a saved view (e.g. analytics params) — callers
+// The same params are accepted in the fragment (`#?region=…`, or `#region=…`)
+// as in the query string, so a view survives hosts and embedders that drop or
+// rewrite query strings. The query wins when both carry a view. `#local`, the
+// dev-mode backend switch, parses to a valueless key and is ignored here.
+function parseUrlParams(url: string | Location) {
+  const { search, hash } = new URL(url.toString())
+  const query = search.slice(1)
+  return qs.parse(query === '' ? hash.replace(/^#\??/, '') : query)
+}
+
+// Parse a ViewTarget from the URL's params. Returns null when the URL carries
+// something other than a saved view (e.g. analytics params) — callers
 // default-fill rather than getting a half-populated target.
 export function urlParamsToViewTarget(
   url: string | Location,
 ): ViewTarget | null {
-  const query = new URL(url.toString()).search.slice(1)
-  if (query) {
-    const parsed = qs.parse(query)
-    const region = asString(parsed.region)
-    const tracks = parseTracks(parsed.tracks)
-    if (region !== undefined && tracks !== undefined) {
-      return {
+  const parsed = parseUrlParams(url)
+  const region = asString(parsed.region)
+  const tracks = parseTracks(parsed.tracks)
+  return region !== undefined && tracks !== undefined
+    ? {
         region,
         tracks,
         bedFile: asString(parsed.bedFile),
@@ -121,14 +135,58 @@ export function urlParamsToViewTarget(
         removeSequences: asBoolean(parsed.removeSequences),
         skipAutoLoad: asBoolean(parsed.skipAutoLoad),
       }
-    }
-  }
-  return null
+    : null
 }
 
-// Serialize a ViewTarget into a URL-safe query string for the "copy link"
-// feature. qs encodeValuesOnly=true keeps keys readable; see
-// https://github.com/ljharb/qs#stringifying.
-export function viewTargetToUrlParams(target: ViewTarget): string {
-  return qs.stringify(target, { encodeValuesOnly: true })
+// Parse the View menu settings out of `visOptions[...]` params. Every option
+// is optional, so this returns the ones the URL actually names and leaves the
+// rest to the stored preference.
+export function urlParamsToVisOptions(
+  url: string | Location,
+): Partial<StoredVisOptions> {
+  const value = parseUrlParams(url).visOptions
+  if (isRecord(value)) {
+    const flags: Partial<Record<(typeof VIS_OPTION_FLAGS)[number], boolean>> =
+      {}
+    for (const flag of VIS_OPTION_FLAGS) {
+      const parsed = asBoolean(value[flag])
+      if (parsed !== undefined) {
+        flags[flag] = parsed
+      }
+    }
+    const cutoff = Number(asString(value.mappingQualityCutoff))
+    return {
+      ...flags,
+      ...(Number.isFinite(cutoff) &&
+        cutoff >= 0 && { mappingQualityCutoff: cutoff }),
+    }
+  }
+  return {}
+}
+
+// Only the options that differ from the defaults go in the URL, so a link to a
+// plain view stays as short as it was before the View menu was linkable.
+function changedVisOptions(visOptions: StoredVisOptions) {
+  return Object.fromEntries(
+    VIS_OPTION_KEYS.filter(
+      key => visOptions[key] !== DEFAULT_VIS_OPTIONS[key],
+    ).map(key => [key, visOptions[key]]),
+  )
+}
+
+// Serialize a ViewTarget, and optionally the View menu settings, into a
+// URL-safe query string for the "copy link" feature. qs encodeValuesOnly=true
+// keeps keys readable; see https://github.com/ljharb/qs#stringifying.
+export function viewTargetToUrlParams(
+  target: ViewTarget,
+  visOptions?: StoredVisOptions,
+): string {
+  const changed = visOptions === undefined ? {} : changedVisOptions(visOptions)
+  return qs.stringify(
+    {
+      ...target,
+      ...(Object.keys(changed).length > 0 && { visOptions: changed }),
+    },
+    { encodeValuesOnly: true },
+  )
 }

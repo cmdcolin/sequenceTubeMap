@@ -8,6 +8,7 @@ import TubeMapContainer, {
 } from './components/TubeMapContainer.tsx'
 import {
   urlParamsToViewTarget,
+  urlParamsToVisOptions,
   viewTargetToUrlParams,
 } from './urlViewTarget.ts'
 import BackendSelector from './components/BackendSelector.tsx'
@@ -29,6 +30,7 @@ import type { APIInterface } from './api/APIInterface.ts'
 import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
 import {
   DEFAULT_VIS_OPTIONS,
+  VIS_OPTION_FLAGS,
   type StoredVisOptions,
 } from './util/visOptions.ts'
 import type {
@@ -47,19 +49,6 @@ type APIMode = APIInterface['mode']
 const VIS_OPTIONS_KEY = 'visOptions'
 const LEGEND_VISIBLE_KEY = 'legendVisible'
 const READ_RENDER_LIMIT_KEY = 'readRenderLimit'
-
-const VIS_OPTION_FLAGS = [
-  'removeRedundantNodes',
-  'compressedView',
-  'transparentNodes',
-  'showNodeLabels',
-  'showReads',
-  'showSoftClips',
-  'colorReadsByMappingQuality',
-  'alphaReadsByMappingQuality',
-  'coarsenedReadView',
-  'ignoreStrand',
-] as const satisfies readonly VisOptionFlag[]
 
 // A stored preference comes from an older build or a hand-edited value, so
 // keep only the fields that still have the expected type and default the rest.
@@ -122,9 +111,9 @@ function removeUndefined(target: ViewTarget): ViewTarget {
 // Put the view on screen in the address bar so a reload (or the browser's own
 // back button, which restores the query) comes back to the same view, and so
 // "copy link" is just the current URL.
-function syncUrlToViewTarget(target: ViewTarget) {
+function syncUrlToViewState(target: ViewTarget, visOptions: StoredVisOptions) {
   const url = new URL(window.location.href)
-  url.search = `?${viewTargetToUrlParams(target)}`
+  url.search = `?${viewTargetToUrlParams(target, visOptions)}`
   window.history.replaceState(null, '', url.toString())
 }
 
@@ -145,6 +134,10 @@ const defaultViewTarget: ViewTarget = removeUndefined(
   urlParamsToViewTarget(document.location) ??
     (isLocalMode ? localDefaultViewTarget : config.DATA_SOURCES[0]),
 )
+
+// View menu settings named by the URL win over the stored preference, so a
+// shared link shows the view its author was looking at.
+const urlVisOptions = urlParamsToVisOptions(document.location)
 
 interface AppProps {
   apiUrl?: string
@@ -172,6 +165,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   const [visOptions, setVisOptions] = useState<VisOptions>(() => ({
     ...(readStored(VIS_OPTIONS_KEY, validateVisOptions) ??
       DEFAULT_VIS_OPTIONS),
+    ...urlVisOptions,
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
   }))
   const [apiInterface, setApiInterface] = useState<APIInterface>(
@@ -254,8 +248,9 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   // view as well as every later one, so this belongs in an effect rather than
   // in the commit path.
   useEffect(() => {
-    syncUrlToViewTarget(viewTarget)
-  }, [viewTarget])
+    const { colorSchemes, ...storedVisOptions } = visOptions
+    syncUrlToViewState(viewTarget, storedVisOptions)
+  }, [viewTarget, visOptions])
 
   const updateVisOptions = (next: VisOptions) => {
     setVisOptions(next)

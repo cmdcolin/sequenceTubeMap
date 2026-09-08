@@ -13,9 +13,12 @@ const GLOBAL_HOME = globalThis
 // Append `#local` to the dev URL to skip this override and run LocalAPI mode
 // in dev without needing the express backend up. Paired with
 // `pnpm start:local`, which launches only webpack-dev-server. We use the URL
-// hash so saved view-target query strings never collide with the mode flag.
+// hash so saved view-target query strings never collide with the mode flag,
+// and read it as one `&`-separated flag among the fragment's params so
+// `#local&region=...` works alongside a fragment-encoded view.
 const forceLocal =
-  typeof window !== 'undefined' && window.location.hash === '#local'
+  typeof window !== 'undefined' &&
+  window.location.hash.replace(/^#\??/, '').split('&').includes('local')
 if (
   process.env.NODE_ENV !== 'production' &&
   !forceLocal &&

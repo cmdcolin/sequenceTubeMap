@@ -10,9 +10,13 @@ public server.
 
 Live demo — https://cmdcolin.github.io/sequenceTubeMap/
 
-![](doc/images/1.png)
+[![](doc/images/1.png)][demo-brca1]
 
 ## What it looks like
+
+Every figure below links to the same data and region in the live demo — the view
+is a URL, so any tube map you get to can be shared as one
+([how the links are built](doc/linking.md)).
 
 **A pangenome, not a reference.** 81 haplotypes from 46 HPRC samples through a
 CT microsatellite at `chr20:48,000,600-48,001,000`. Every haplotype takes a
@@ -27,11 +31,19 @@ before they fan out:
 
 ![HPRC chr20 haplotypes in register](doc/images/hprc-chr20-haplotypes.png)
 
+[Open chr20:48,000,600-48,001,000 in the live demo][demo-chr20] — both figures
+are crops of that one drawing, which the app lays out end to end and lets you
+scroll.
+
 **Reads over a graph.** GAM alignments across the snp1kg BRCA1 graph. Red marks
 reads whose every node visit is on the reverse strand; a read in mixed
 orientation is drawn forward, in blue:
 
 ![BRCA1 reads](doc/images/brca1-reads.png)
+
+[Open BRCA1 17:1-1000 in the live demo][demo-reads] — the link carries the View
+menu's compressed node widths as well as the region. The browser subsamples to
+100 reads to stay responsive; the banner above the map raises that.
 
 **The same reads, coarsened.** The Sankey view collapses per-read ribbons into
 one band per node-to-node edge, scaled by how many reads traverse it, so
@@ -39,6 +51,8 @@ rendering is O(edges) rather than O(reads). Allele balance at each bubble
 becomes readable at a glance:
 
 ![BRCA1 reads, coarsened](doc/images/brca1-reads-coarsened.png)
+
+[Open the coarsened view in the live demo][demo-coarsened]
 
 Every figure here was produced headlessly with `pnpm tubemap-cli` — see
 [headless SVG rendering](doc/headless-rendering.md).
@@ -95,3 +109,12 @@ And the original sequenceTubeMap developers!
 ---
 
 _Claude Code AI was used during this work._
+
+[demo-brca1]:
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20%28WASM-compatible%29&dataType=built-in&tracks%5B0%5D%5BtrackFile%5D=exampleData%2Finternal%2Fsnp1kg-BRCA1.gbz.db&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=greys&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=ygreys&tracks%5B1%5D%5BtrackFile%5D=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks%5B1%5D%5BtrackType%5D=read&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&region=17%3A1-100
+[demo-chr20]:
+  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20chr20%20%28URL-hosted%2C%20full%20PanSN%29&dataType=built-in&tracks%5B0%5D%5BtrackFile%5D=https%3A%2F%2Fjbrowse.org%2Fdemos%2Fivg%2Fhprc%2Fhprc-chr20.gbz.db&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=plainColors&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=lightColors&region=GRCh38%23chr20%3A48000600-48001000
+[demo-reads]:
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20%28WASM-compatible%29&dataType=built-in&tracks%5B0%5D%5BtrackFile%5D=exampleData%2Finternal%2Fsnp1kg-BRCA1.gbz.db&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=greys&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=ygreys&tracks%5B1%5D%5BtrackFile%5D=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks%5B1%5D%5BtrackType%5D=read&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&region=17%3A1-1000&visOptions%5BcompressedView%5D=true
+[demo-coarsened]:
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20%28WASM-compatible%29&dataType=built-in&tracks%5B0%5D%5BtrackFile%5D=exampleData%2Finternal%2Fsnp1kg-BRCA1.gbz.db&tracks%5B0%5D%5BtrackType%5D=graph&tracks%5B0%5D%5BtrackColorSettings%5D%5BmainPalette%5D=greys&tracks%5B0%5D%5BtrackColorSettings%5D%5BauxPalette%5D=ygreys&tracks%5B1%5D%5BtrackFile%5D=exampleData%2Finternal%2FNA12878-BRCA1.sorted.gam&tracks%5B1%5D%5BtrackType%5D=read&bedFile=exampleData%2Finternal%2Fsnp1kg-BRCA1.bed&region=17%3A1-1000&visOptions%5BcompressedView%5D=true&visOptions%5BcoarsenedReadView%5D=true

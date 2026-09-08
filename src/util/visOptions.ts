@@ -5,7 +5,7 @@
 
 import * as tubeMap from './tubemap.ts'
 import type { ReadGroup as TubeMapReadGroup } from './tubemap.ts'
-import type { VisOptions } from '../Types.ts'
+import type { VisOptions, VisOptionFlag } from '../Types.ts'
 
 interface ReadGroupInput {
   color: string
@@ -24,6 +24,24 @@ export interface TubeMapVisOptions extends VisOptions {
 // Everything in VisOptions except the color schemes, which are derived from
 // the loaded tracks and so can't be meaningfully restored on their own.
 export type StoredVisOptions = Omit<VisOptions, 'colorSchemes'>
+
+export const VIS_OPTION_FLAGS = [
+  'removeRedundantNodes',
+  'compressedView',
+  'transparentNodes',
+  'showNodeLabels',
+  'showReads',
+  'showSoftClips',
+  'colorReadsByMappingQuality',
+  'alphaReadsByMappingQuality',
+  'coarsenedReadView',
+  'ignoreStrand',
+] as const satisfies readonly VisOptionFlag[]
+
+export const VIS_OPTION_KEYS = [
+  ...VIS_OPTION_FLAGS,
+  'mappingQualityCutoff',
+] as const satisfies readonly (keyof StoredVisOptions)[]
 
 export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   removeRedundantNodes: true,

@@ -165,6 +165,39 @@ it('puts the committed view in the address bar', async () => {
   expect(window.location.search).toContain('tracks[0][trackType]=graph')
 })
 
+// App reads the URL once, at module scope, so a URL-driven start needs the
+// module re-imported after the address bar is set.
+it('starts from the view options in the URL', async () => {
+  window.history.replaceState(null, '', '/?visOptions[compressedView]=true')
+  vi.resetModules()
+  const { default: UrlApp } = await import('./App.tsx')
+  render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <UrlApp api={fakeAPI()} />
+    </SWRConfig>,
+  )
+
+  await userEvent.click(screen.getByTestId('viewMenuButton'))
+  const compressed = screen.getByRole('menuitem', { name: /Compressed view/ })
+
+  expect(compressed.querySelector('input[type=checkbox]')).toBeChecked()
+})
+
+it('puts the View menu settings in the address bar, and only the changed ones', async () => {
+  window.history.replaceState(null, '', '/')
+  renderApp()
+
+  await userEvent.click(screen.getByTestId('viewMenuButton'))
+  await userEvent.click(
+    screen.getByRole('menuitem', { name: /Compressed view/ }),
+  )
+
+  await waitFor(() => {
+    expect(window.location.search).toContain('visOptions[compressedView]=true')
+  })
+  expect(window.location.search).not.toContain('showNodeLabels')
+})
+
 describe('remembered preferences', () => {
   beforeEach(() => {
     localStorage.clear()
