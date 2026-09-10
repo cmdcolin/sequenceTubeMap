@@ -103,7 +103,7 @@ and `node:42-55` also work.
 
 - [Architecture](doc/architecture.md)
 - [In-browser gbz-base reader](doc/gbz-base.md)
-- [Differences from upstream](doc/differences-from-upstream.md)
+- [Differences from upstream vgteam/sequenceTubeMap](doc/differences-from-upstream.md)
 
 **Contributing**
 
