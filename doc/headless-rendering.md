@@ -5,16 +5,32 @@ static SVG — useful for scripting, headless servers, or pasting a tube map int
 a paper without a browser screenshot.
 
 ```bash
-# bundled demo data (1–9)
-pnpm tubemap-cli --example 6 --out demo6.svg
+# whatever a link from the app describes
+pnpm tubemap-cli --url 'https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000' \
+                 --out brca1.svg
 
-# real data via the in-browser API (any source from src/config.json)
+# a source from src/config.json by name, with the region it names or your own
 pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
-
-# region override
 pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
                  --region 17:1-200 --out brca1-zoom.svg
+
+# bundled demo data (1–9)
+pnpm tubemap-cli --example 6 --out demo6.svg
 ```
+
+## Rendering a link
+
+`--url` takes what the app's **Copy link** button produces, or the address bar
+itself, and draws it: the region, the tracks, the colors and the View menu
+settings the link carries are the ones the app would have shown
+([what a link can say](urlparams.md)). `--region` and the view options below
+override it, so a link is a starting point rather than the whole command.
+
+Two things a link does not carry into a headless render. Its data has to be
+readable by the in-browser backend, which means a `.gbz.db` graph — a link to a
+`.vg`/`.xg`/`.gbz` source is refused rather than half-drawn. And the browser
+subsamples reads where the CLI does not, so a dense region draws every read here
+unless `--read-limit` says otherwise.
 
 ## Sizing
 
@@ -33,9 +49,9 @@ show — rather than the cropped figure.
 Every option in the app's View menu has a flag: `--compressed`, `--no-reads`,
 `--no-soft-clips`, `--no-merge-nodes`, `--node-labels`, `--transparent-nodes`,
 `--coarsened`, `--ignore-strand`, `--color-by-mapq`, `--alpha-by-mapq` and
-`--mapq N`. The two mapping-quality colouring flags ride on a track's colour
-scheme, so they apply to `--source` renders rather than `--example` ones, and
-they only show up when the reads actually differ in mapping quality.
+`--mapq N` — `--help` lists them, from the same table that reads them, so the
+two cannot drift apart. The mapping-quality flags only show up when the reads
+actually differ in mapping quality.
 
 `--ignore-strand` is quiet on all nine bundled `--example` datasets, which is
 those datasets rather than the flag. What it moves in the normal view is reads
@@ -81,6 +97,10 @@ pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
                  --region 17:1-300 --read-limit 100 --out brca1-sampled.svg
 ```
 
+The cap does not apply under `--coarsened`, which weighs each band by how many
+reads traverse it: thinning the reads there would redraw the picture rather than
+simplify it. The app leaves the coarsened view uncapped for the same reason.
+
 ## Hosted graphs
 
 A source whose graph is a URL is read by range request here as it is in the
@@ -109,8 +129,8 @@ sources render the same way with no network at all.
 
 ## Sample output
 
-Everything below was produced by the commands above and lives in
-[tubemap-cli-samples/](tubemap-cli-samples/), SVG alongside PNG.
+Everything below lives in [tubemap-cli-samples/](tubemap-cli-samples/), SVG
+alongside PNG, and `scripts/make-cli-samples.sh` regenerates the lot.
 
 `--source 'snp1kg-BRCA1 (gbz-base)'`
 ([SVG](tubemap-cli-samples/snp1kg-BRCA1.svg))

@@ -2,42 +2,102 @@
 // globals, then drives the same data pipeline and d3 renderer the web app
 // uses, and emits the resulting SVG.
 //
-// Two modes:
-//   - --example N         render one of the bundled demo datasets (1..9)
+// Three ways to say what to draw:
+//   - --url <link>        render the view a shared app link describes
 //   - --source <name>     render a built-in source from src/config.json
 //                         (e.g. "snp1kg-BRCA1 (gbz-base)")
+//   - --example N         render one of the bundled demo datasets (1..9)
 //
 // Examples:
 //   pnpm tubemap-cli --example 1 --out out.svg
 //   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
-//   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
-//                    --region 17:1-200 --out brca1.svg
+//   pnpm tubemap-cli --url '<a link copied from the app>' --out link.svg
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { JSDOM } from 'jsdom'
 import type { GBZBaseAPI } from '../src/api/GBZBaseAPI.ts'
 import type { FetchKey } from '../src/components/tubeMapData.ts'
-import type { Tracks, ViewTarget } from '../src/Types.ts'
-import type { StoredVisOptions } from '../src/util/visOptions.ts'
+import type { ColorScheme, Tracks, ViewTarget, VisOptionFlag } from '../src/Types.ts'
+import { VIS_OPTION_FLAGS, type StoredVisOptions } from '../src/util/visOptions.ts'
 
-const USAGE = `tubemap-cli [--example 1..9 | --source <config name>] [--region X:S-E]
-             [--out file.svg] [--width N] [--height N] [--viewport]
-             [--read-limit N]
+// Every View-menu flag, as the CLI spelling that sets it. Keyed by the option
+// so a new one added to the app cannot quietly go missing here.
+const FLAG_OPTIONS: Record<
+  VisOptionFlag,
+  { flag: string; value: boolean; help: string }
+> = {
+  compressedView: {
+    flag: 'compressed',
+    value: true,
+    help: 'logarithmic node widths',
+  },
+  showReads: {
+    flag: 'no-reads',
+    value: false,
+    help: 'draw the graph without read alignments',
+  },
+  showSoftClips: {
+    flag: 'no-soft-clips',
+    value: false,
+    help: 'hide soft-clipped read ends',
+  },
+  removeRedundantNodes: {
+    flag: 'no-merge-nodes',
+    value: false,
+    help: 'keep redundant nodes instead of merging chains',
+  },
+  showNodeLabels: {
+    flag: 'node-labels',
+    value: true,
+    help: 'label nodes with their ids',
+  },
+  transparentNodes: {
+    flag: 'transparent-nodes',
+    value: true,
+    help: 'draw node outlines without fill',
+  },
+  coarsenedReadView: {
+    flag: 'coarsened',
+    value: true,
+    help: 'one band per node-to-node transition, not per read',
+  },
+  ignoreStrand: {
+    flag: 'ignore-strand',
+    value: true,
+    help: 'treat forward and reverse as equivalent',
+  },
+  colorReadsByMappingQuality: {
+    flag: 'color-by-mapq',
+    value: true,
+    help: 'colour reads by mapping quality',
+  },
+  alphaReadsByMappingQuality: {
+    flag: 'alpha-by-mapq',
+    value: true,
+    help: 'fade reads by mapping quality',
+  },
+}
+
+function flagHelp(): string {
+  return VIS_OPTION_FLAGS.map(option => {
+    const { flag, help } = FLAG_OPTIONS[option]
+    return `  --${flag.padEnd(18)}${help}\n`
+  }).join('')
+}
+
+const USAGE = `tubemap-cli [--url <link> | --source <config name> | --example 1..9]
+             [--region X:S-E] [--out file.svg] [--width N] [--height N]
+             [--viewport] [--read-limit N]
+
+--url takes a link the app itself produced (its Copy link button, or the
+address bar), and draws what that link describes. --region and the view options
+below override what it carries.
 
 View options, mirroring the app's View menu:
-  --compressed        logarithmic node widths
-  --no-reads          draw the graph without read alignments
-  --no-soft-clips     hide soft-clipped read ends
-  --no-merge-nodes    keep redundant nodes instead of merging chains
-  --node-labels       label nodes with their ids
-  --transparent-nodes draw node outlines without fill
-  --coarsened         one band per node-to-node transition, not per read
-  --ignore-strand     treat forward and reverse as equivalent
-  --color-by-mapq     colour reads by mapping quality
-  --alpha-by-mapq     fade reads by mapping quality
-  --mapq N            drop reads below mapping quality N
+${flagHelp()}  --mapq N            drop reads below mapping quality N
 
 The exported viewBox is cropped to the drawing at natural scale, so a figure
 depends on the data and the view options alone. --width/--height size the
@@ -56,10 +116,13 @@ across to 1099, at the same height.
 
 type RenderTarget =
   | { example: string }
-  | { source: string; region: string | undefined }
+  | { source: string }
+  | { url: string }
 
 interface CliArgs {
   target: RenderTarget
+  // Region to draw, overriding whatever the target names.
+  region: string | undefined
   out: string
   width: number
   height: number
@@ -87,36 +150,87 @@ function parseCount(name: string, raw: string): number {
   return value
 }
 
+// Booleans parseArgs is told to accept, one per View-menu option.
+function flagArgOptions(): Record<
+  string,
+  { type: 'boolean'; default: boolean }
+> {
+  return Object.fromEntries(
+    VIS_OPTION_FLAGS.map(option => [
+      FLAG_OPTIONS[option].flag,
+      { type: 'boolean' as const, default: false },
+    ]),
+  )
+}
+
+function flagOverrides(
+  values: Record<string, string | boolean | undefined>,
+): Partial<StoredVisOptions> {
+  const overrides: Partial<StoredVisOptions> = {}
+  for (const option of VIS_OPTION_FLAGS) {
+    if (values[FLAG_OPTIONS[option].flag] === true) {
+      overrides[option] = FLAG_OPTIONS[option].value
+    }
+  }
+  return overrides
+}
+
+// Exactly one of the three ways to say what to draw.
+function parseTarget(values: {
+  example?: string
+  source?: string
+  url?: string
+}): RenderTarget {
+  const named = [
+    ...(values.example === undefined ? [] : ['--example']),
+    ...(values.source === undefined ? [] : ['--source']),
+    ...(values.url === undefined ? [] : ['--url']),
+  ]
+  if (named.length > 1) {
+    throw new Error(
+      `pass one of --example, --source or --url, not ${named.join(' and ')}`,
+    )
+  }
+  if (values.example !== undefined) {
+    return { example: values.example }
+  }
+  if (values.source !== undefined) {
+    return { source: values.source }
+  }
+  if (values.url !== undefined) {
+    return { url: values.url }
+  }
+  throw new Error(`pass one of --example, --source or --url\n${USAGE}`)
+}
+
 function parseCli(): CliArgs {
   const { values } = parseArgs({
     options: {
       example: { type: 'string' },
       source: { type: 'string' },
+      url: { type: 'string' },
       region: { type: 'string' },
       out: { type: 'string' },
       width: { type: 'string' },
       height: { type: 'string' },
       viewport: { type: 'boolean', default: false },
       'read-limit': { type: 'string' },
-      compressed: { type: 'boolean', default: false },
-      'no-reads': { type: 'boolean', default: false },
-      'no-soft-clips': { type: 'boolean', default: false },
-      'no-merge-nodes': { type: 'boolean', default: false },
-      'node-labels': { type: 'boolean', default: false },
-      'transparent-nodes': { type: 'boolean', default: false },
-      coarsened: { type: 'boolean', default: false },
-      'ignore-strand': { type: 'boolean', default: false },
-      'color-by-mapq': { type: 'boolean', default: false },
-      'alpha-by-mapq': { type: 'boolean', default: false },
       mapq: { type: 'string' },
       help: { type: 'boolean', default: false },
+      ...flagArgOptions(),
     },
   })
   if (values.help) {
     process.stdout.write(USAGE)
     process.exit(0)
   }
-  const common = {
+  const target = parseTarget(values)
+  if ('example' in target && values.region !== undefined) {
+    throw new Error('--region has nothing to override on an --example render')
+  }
+  return {
+    target,
+    region: values.region,
     out: values.out ?? 'tubemap.svg',
     width: parsePositive('width', values.width ?? '1800'),
     height: parsePositive('height', values.height ?? '1200'),
@@ -126,38 +240,13 @@ function parseCli(): CliArgs {
         ? undefined
         : parsePositive('read-limit', values['read-limit']),
     visOptions: {
-      ...(values.compressed && { compressedView: true }),
-      ...(values['no-reads'] && { showReads: false }),
-      ...(values['no-soft-clips'] && { showSoftClips: false }),
-      ...(values['no-merge-nodes'] && { removeRedundantNodes: false }),
-      ...(values['node-labels'] && { showNodeLabels: true }),
-      ...(values['transparent-nodes'] && { transparentNodes: true }),
-      ...(values.coarsened && { coarsenedReadView: true }),
-      ...(values['ignore-strand'] && { ignoreStrand: true }),
-      ...(values['color-by-mapq'] && { colorReadsByMappingQuality: true }),
-      ...(values['alpha-by-mapq'] && { alphaReadsByMappingQuality: true }),
+      ...flagOverrides(values),
       ...(values.mapq !== undefined && {
         // 0 is the default "no cutoff", so it has to be accepted.
         mappingQualityCutoff: parseCount('mapq', values.mapq),
       }),
     },
   }
-  if (values.example !== undefined && values.source !== undefined) {
-    throw new Error(`pass either --example or --source, not both\n${USAGE}`)
-  }
-  if (values.example !== undefined) {
-    if (values.region !== undefined) {
-      throw new Error('--region only applies to --source renders')
-    }
-    return { target: { example: values.example }, ...common }
-  }
-  if (values.source !== undefined) {
-    return {
-      target: { source: values.source, region: values.region },
-      ...common,
-    }
-  }
-  throw new Error(`pass one of --example or --source\n${USAGE}`)
 }
 
 function installBrowserGlobals(args: CliArgs): JSDOM {
@@ -208,13 +297,27 @@ function installBrowserGlobals(args: CliArgs): JSDOM {
 // the fetch layer wants.
 async function exampleOrigin(example: string): Promise<string> {
   const { dataOriginTypes } = await import('../src/enums.ts')
-  const match = Object.entries(dataOriginTypes).find(
+  const origin = Object.entries(dataOriginTypes).find(
     ([key]) => key === `EXAMPLE_${example}`,
-  )
-  if (!match) {
+  )?.[1]
+  if (origin === undefined) {
     throw new Error(`unknown example "${example}", expected 1-9`)
   }
-  return match[1]
+  return origin
+}
+
+// config.json names its files relative to the site root, which is this repo, so
+// resolve them the way the browser resolves them against the page rather than
+// against the working directory -- which would only work when run from the
+// checkout. One level up holds for this file and for the bundle the pnpm
+// script builds beside it in tmp/.
+const REPO_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+)
+
+function localFilePath(file: string): string {
+  return path.resolve(REPO_ROOT, file)
 }
 
 function fileFromPath(localPath: string): File {
@@ -243,13 +346,13 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
         ? {
             haplotypeIndexFile: await api.putFile(
               track.trackType,
-              fileFromPath(path.resolve(track.haplotypeIndexFile)),
+              fileFromPath(localFilePath(track.haplotypeIndexFile)),
               null,
             ),
           }
         : {}
     if (track.trackFile && isLocal(track.trackFile)) {
-      const localPath = path.resolve(track.trackFile)
+      const localPath = localFilePath(track.trackFile)
       const id = await api.putFile(
         track.trackType,
         fileFromPath(localPath),
@@ -272,16 +375,42 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
   return staged
 }
 
+// The app's own config, as the browser would have loaded it.
+async function loadDataSources(): Promise<ViewTarget[]> {
+  await import('../src/config-client.js')
+  const { config } = await import('../src/config-global.mjs')
+  return config.DATA_SOURCES
+}
+
+// A view target from the app is only half usable here: its files are paths the
+// browser would fetch, and its graph may be one the in-browser backend cannot
+// open. Check it, apply the region override, and stage its files as uploads.
+async function prepareViewTarget(
+  api: GBZBaseAPI,
+  target: ViewTarget,
+  regionOverride: string | undefined,
+  describe: string,
+): Promise<ViewTarget> {
+  const { isLocalCompatibleDataSource } = await import('../src/common.ts')
+  if (!isLocalCompatibleDataSource(target)) {
+    throw new Error(
+      `${describe} has no .gbz.db graph; this renderer uses the in-browser backend, which cannot read .vg/.xg/.gbz`,
+    )
+  }
+  const region = regionOverride ?? target.region
+  if (!region) {
+    throw new Error(`${describe} names no region, pass --region`)
+  }
+  return { ...target, region, tracks: await stageTracks(api, target.tracks) }
+}
+
 async function viewTargetForSource(
   api: GBZBaseAPI,
   sourceName: string,
   regionOverride: string | undefined,
 ): Promise<ViewTarget> {
-  await import('../src/config-client.js')
-  const { config } = await import('../src/config-global.mjs')
+  const sources = await loadDataSources()
   const { isLocalCompatibleDataSource } = await import('../src/common.ts')
-  const sources: ViewTarget[] = config.DATA_SOURCES
-
   const source = sources.find(s => s.name === sourceName)
   if (!source) {
     const names = sources
@@ -290,39 +419,95 @@ async function viewTargetForSource(
       .join('\n')
     throw new Error(`unknown source "${sourceName}". Renderable:\n${names}`)
   }
-  if (!isLocalCompatibleDataSource(source)) {
-    throw new Error(
-      `source "${sourceName}" has no .gbz.db graph; this renderer uses the in-browser backend, which cannot read .vg/.xg/.gbz`,
-    )
-  }
-  const region = regionOverride ?? source.region
-  if (!region) {
-    throw new Error(`source "${sourceName}" has no region, pass --region`)
-  }
-  return { ...source, region, tracks: await stageTracks(api, source.tracks) }
+  return prepareViewTarget(
+    api,
+    source,
+    regionOverride,
+    `source "${sourceName}"`,
+  )
 }
 
-// The SWR key the web app would use for this render, plus the view target it
-// was built from — the demo datasets don't have one, and the renderer options
-// it carries only apply to a source render.
-async function resolveFetch(
+// A link the app produced, read by the app's own parser: `?name=` resolves
+// against the configured sources exactly as it does in the browser, and a link
+// that spells its tracks out works without one.
+async function viewTargetForUrl(
   api: GBZBaseAPI,
-  target: RenderTarget,
-): Promise<{ key: FetchKey; viewTarget: ViewTarget | undefined }> {
-  if ('example' in target) {
-    const key: FetchKey = [
-      'tubeMap.example',
-      await exampleOrigin(target.example),
-    ]
-    return { key, viewTarget: undefined }
+  link: string,
+  regionOverride: string | undefined,
+): Promise<ViewTarget> {
+  const { urlParamsToViewTarget } = await import('../src/urlViewTarget.ts')
+  const target = urlParamsToViewTarget(absoluteUrl(link), await loadDataSources())
+  if (target === null) {
+    throw new Error(
+      'the link names neither a known data source (?name=) nor a region and tracks of its own',
+    )
   }
-  const viewTarget = await viewTargetForSource(
-    api,
-    target.source,
-    target.region,
+  return prepareViewTarget(api, target, regionOverride, 'the link')
+}
+
+// A pasted link is usually whole, but a bare query string is a reasonable
+// thing to hand a CLI, and the app's parser wants something absolute.
+function absoluteUrl(link: string): string {
+  return /^[a-z][a-z0-9+.-]*:/i.test(link)
+    ? link
+    : `http://localhost/${link.replace(/^\//, '')}`
+}
+
+// The View-menu settings a link carries, under the flags this run passed. A
+// flag is the more explicit of the two, so it wins.
+async function urlVisOptions(
+  target: RenderTarget,
+): Promise<Partial<StoredVisOptions>> {
+  const { urlParamsToVisOptions } = await import('../src/urlViewTarget.ts')
+  return 'url' in target ? urlParamsToVisOptions(absoluteUrl(target.url)) : {}
+}
+
+interface Render {
+  // The SWR key the web app would use for this render.
+  key: FetchKey
+  // Absent for the demo datasets, which aren't a view of anything.
+  viewTarget: ViewTarget | undefined
+  visOptions: StoredVisOptions
+  colorSchemes: ColorScheme[]
+}
+
+async function resolveRender(api: GBZBaseAPI, args: CliArgs): Promise<Render> {
+  const { defaultTrackColors } = await import('../src/common.ts')
+  const { DEFAULT_VIS_OPTIONS, exampleColorSchemes } =
+    await import('../src/util/visOptions.ts')
+  const visOptions = {
+    ...DEFAULT_VIS_OPTIONS,
+    ...(await urlVisOptions(args.target)),
+    ...args.visOptions,
+  }
+
+  if ('example' in args.target) {
+    const origin = await exampleOrigin(args.target.example)
+    return {
+      key: ['tubeMap.example', origin],
+      viewTarget: undefined,
+      visOptions,
+      colorSchemes: exampleColorSchemes(origin),
+    }
+  }
+
+  const viewTarget =
+    'source' in args.target
+      ? await viewTargetForSource(api, args.target.source, args.region)
+      : await viewTargetForUrl(api, args.target.url, args.region)
+  console.error(
+    `querying ${viewTarget.name ?? 'the link'} @ ${viewTarget.region} ...`,
   )
-  console.error(`querying ${target.source} @ ${viewTarget.region} ...`)
-  return { key: ['tubeMap.api', api.mode, viewTarget], viewTarget }
+  return {
+    key: ['tubeMap.api', api.mode, viewTarget],
+    viewTarget,
+    visOptions,
+    // Derived exactly as App does, so a source that pins its palettes in
+    // config.json renders here in those palettes too.
+    colorSchemes: viewTarget.tracks.map(
+      t => t.trackColorSettings ?? defaultTrackColors(t.trackType),
+    ),
+  }
 }
 
 // Layout and export are the two phases that can get slow on a dense region, so
@@ -343,49 +528,35 @@ async function main(): Promise<void> {
   const tubeMap = await import('../src/util/tubemap.ts')
   const { fetchTubeMapData } = await import('../src/components/tubeMapData.ts')
   const { GBZBaseAPI } = await import('../src/api/GBZBaseAPI.ts')
-  const { defaultTrackColors } = await import('../src/common.ts')
   const { subsampleReads } = await import('../src/util/array.ts')
   const { exportSvg } = await import('../src/util/svgExport.ts')
-  const { applyVisOptions, DEFAULT_VIS_OPTIONS } =
-    await import('../src/util/visOptions.ts')
+  const { applyVisOptions } = await import('../src/util/visOptions.ts')
 
   const api = new GBZBaseAPI()
-  const { key, viewTarget } = await resolveFetch(api, args.target)
+  const { key, viewTarget, visOptions, colorSchemes } = await resolveRender(
+    api,
+    args,
+  )
   const data = await fetchTubeMapData(key, api)
 
-  // The mapping-quality colouring rides on a track's colour scheme, and the
-  // bundled examples have no tracks to carry one, so the flags would otherwise
-  // be accepted and quietly do nothing.
-  if (
-    viewTarget === undefined &&
-    (args.visOptions.colorReadsByMappingQuality === true ||
-      args.visOptions.alphaReadsByMappingQuality === true)
-  ) {
-    console.error(
-      'warning: --color-by-mapq/--alpha-by-mapq have no effect on --example renders',
-    )
-  }
-
   // Configure the renderer through the same path the app does, rather than
-  // leaning on tubemap's module defaults happening to agree with it. The color
-  // schemes are derived exactly as App does, so a source that pins its
-  // palettes in config.json renders here in those palettes too.
+  // leaning on tubemap's module defaults happening to agree with it.
   applyVisOptions(
-    {
-      ...DEFAULT_VIS_OPTIONS,
-      ...args.visOptions,
-      colorSchemes: (viewTarget?.tracks ?? []).map(
-        t => t.trackColorSettings ?? defaultTrackColors(t.trackType),
-      ),
-      coloredNodes: data.coloredNodes,
-    },
+    { ...visOptions, colorSchemes, coloredNodes: data.coloredNodes },
     viewTarget?.removeSequences !== true,
   )
 
+  // The coarsened view weighs each band by how many reads traverse it, so a cap
+  // would quietly redraw the picture rather than thin it. The app doesn't apply
+  // its own read limit there either.
+  const { readLimit } = args
+  if (readLimit !== undefined && visOptions.coarsenedReadView) {
+    console.error('warning: --read-limit does not apply to --coarsened renders')
+  }
   const reads =
-    args.readLimit === undefined
+    readLimit === undefined || visOptions.coarsenedReadView
       ? data.reads
-      : subsampleReads(data.reads, args.readLimit)
+      : subsampleReads(data.reads, readLimit)
   if (reads.length < data.reads.length) {
     console.error(
       `subsampled ${reads.length.toLocaleString()} of ${data.reads.length.toLocaleString()} reads`,
