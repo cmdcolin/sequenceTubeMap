@@ -17,7 +17,12 @@ class CountingFile implements GenericFilehandle {
   reads = 0
   inFlight = 0
   maxInFlight = 0
-  constructor(private readonly inner: GenericFilehandle) {}
+  private readonly inner: GenericFilehandle
+
+  constructor(inner: GenericFilehandle) {
+    this.inner = inner
+  }
+
   async read(length: number, position: number) {
     this.reads++
     this.inFlight++

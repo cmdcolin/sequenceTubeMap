@@ -1,6 +1,6 @@
 // config-client.js: Must be run on the client before config-global.mjs will work.
 
-import config from './config.json'
+import config from './config.json' with { type: 'json' }
 
 const GLOBAL_NAME = '__sequence_tube_map_config'
 const GLOBAL_HOME = globalThis

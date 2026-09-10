@@ -11,8 +11,10 @@ class FakeWebSocket {
   onclose: Handler = null
   onerror: Handler = null
   closed = false
+  readonly url: string
 
-  constructor(readonly url: string) {
+  constructor(url: string) {
+    this.url = url
     FakeWebSocket.opened.push(this)
   }
 

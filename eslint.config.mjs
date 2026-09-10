@@ -2,7 +2,6 @@ import eslint from '@eslint/js'
 import { defineConfig } from 'eslint/config'
 import eslintPluginImport from 'eslint-plugin-import'
 import eslintPluginReact from 'eslint-plugin-react'
-import reactCompiler from 'eslint-plugin-react-compiler'
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
@@ -35,10 +34,6 @@ export default defineConfig(
     settings: {
       react: { version: '19' },
     },
-  },
-  {
-    plugins: { 'react-compiler': reactCompiler },
-    rules: { 'react-compiler/react-compiler': 'error' },
   },
   {
     plugins: { import: eslintPluginImport },

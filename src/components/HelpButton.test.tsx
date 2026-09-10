@@ -1,15 +1,16 @@
-import createFetchMock from 'vitest-fetch-mock'
-import { vi } from 'vitest'
-const fetchMocker = createFetchMock(vi)
-fetchMocker.enableMocks()
-
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HelpButton } from './HelpButton.tsx'
 
+const realFetch = globalThis.fetch
+
+afterEach(() => {
+  globalThis.fetch = realFetch
+})
+
 describe('HelpButton', () => {
   it('opens popup with help instructions', async () => {
-    fetchMocker.mockResponseOnce('Instructions')
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response('Instructions'))
     render(<HelpButton file="./help/help.md" />)
 
     await act(async () => {

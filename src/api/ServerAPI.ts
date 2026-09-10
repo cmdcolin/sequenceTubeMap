@@ -22,11 +22,10 @@ function stringField(body: unknown, key: string): string | undefined {
  */
 export class ServerAPI implements APIInterface {
   readonly mode: 'server' | 'upstream'
+  private readonly apiUrl: string
 
-  constructor(
-    private readonly apiUrl: string,
-    mode: 'server' | 'upstream' = 'server',
-  ) {
+  constructor(apiUrl: string, mode: 'server' | 'upstream' = 'server') {
+    this.apiUrl = apiUrl
     this.mode = mode
   }
 

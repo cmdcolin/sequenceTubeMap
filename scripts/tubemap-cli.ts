@@ -316,8 +316,7 @@ async function exampleOrigin(example: string): Promise<string> {
 // config.json names its files relative to the site root, which is this repo, so
 // resolve them the way the browser resolves them against the page rather than
 // against the working directory -- which would only work when run from the
-// checkout. One level up holds for this file and for the bundle the pnpm
-// script builds beside it in tmp/.
+// checkout.
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',

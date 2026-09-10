@@ -18,6 +18,12 @@ pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
 pnpm tubemap-cli --example 6 --out demo6.svg
 ```
 
+Node runs `scripts/tubemap-cli.ts` and the `src/` modules it pulls in directly,
+stripping the types rather than bundling first. Strip-only mode erases types but
+does not rewrite syntax, so `tsconfig.json` sets `erasableSyntaxOnly` — enums,
+namespaces and constructor parameter properties would break this entry point
+even though the Vite build accepts them.
+
 ## Rendering a link
 
 `--url` takes what the app's **Copy link** button produces, or the address bar

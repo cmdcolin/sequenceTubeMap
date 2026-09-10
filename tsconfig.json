@@ -16,6 +16,10 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
 
+    // `pnpm tubemap-cli` runs the TypeScript sources through node's strip-only
+    // type stripping, which rejects enums, namespaces and parameter properties.
+    "erasableSyntaxOnly": true,
+
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": false,
