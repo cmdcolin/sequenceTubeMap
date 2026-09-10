@@ -1,4 +1,6 @@
 // @vitest-environment node
+
+// @vitest-environment node
 // Tests for data import scripts, to make sure vg still supports them.
 
 import './config-server.mjs'

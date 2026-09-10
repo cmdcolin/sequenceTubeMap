@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, it, expect } from 'vitest'
 import '../config-client.js'
 import { config } from '../config-global.mjs'

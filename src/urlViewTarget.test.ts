@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { readFileSync } from 'fs'
 import './config-client.js'
 import { config } from './config-global.mjs'

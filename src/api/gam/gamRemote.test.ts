@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { createServer } from 'node:http'
 import type { Server } from 'node:http'
 import { readFileSync } from 'node:fs'

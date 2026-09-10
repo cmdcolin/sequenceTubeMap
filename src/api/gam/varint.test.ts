@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest'
 import { readSignedVarint32, readVarint32, readVarint64 } from './varint.ts'
 

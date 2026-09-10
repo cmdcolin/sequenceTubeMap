@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import '../config-client.js'
 import {
   determineRegionIndex,

@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import {
   cigar_string,
   compareIncomingReadKeys,

@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest'
 import { legendSections } from './legend.ts'
 import type { Tracks } from '../Types.ts'

@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest'
 import { binIdRange, runsForNodeRange } from './gamIndex.ts'
 import type { GamIndex } from './gamIndex.ts'

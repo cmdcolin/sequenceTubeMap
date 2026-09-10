@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { crc32, deflateRawSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { BlobFile } from 'generic-filehandle2'

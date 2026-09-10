@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { GBZBaseAPI } from '../api/GBZBaseAPI.ts'
 import { parseChunkedData } from './tubeMapData.ts'
 import { GRAPH_RENDER_LIMIT, graphNodeVisits } from './TubeMapContainer.tsx'
