@@ -139,6 +139,34 @@ For PanSN graphs, `<sample>#<contig>:<start>-<end>` and
 `<sample>#<haplotype>#<contig>:<start>-<end>` select a specific reference path
 or haplotype; see [gbz-base.md](gbz-base.md#region-syntax).
 
+## How wide a region will draw
+
+A tube map draws every haplotype through the window, and the cost of that is
+the number of nodes those haplotypes visit between them rather than the number
+of bases or nodes on their own: one node that 464 haplotypes walk is 464 ribbon
+segments. On a pangenome graph it climbs fast, and superlinearly, because a
+wider window is also a window more haplotypes diverge in. Measured on HPRC
+release 2.1, which carries 464:
+
+| Region                                   | Nodes | Distinct walks | Node visits |
+| ---------------------------------------- | ----: | -------------: | ----------: |
+| `GRCh38#chr6:160620000-160620500` (500 bp) |    57 |             23 |         874 |
+| `GRCh38#chr20:48000600-48001000` (400 bp)  |   104 |            240 |      14,518 |
+| `GRCh38#chr6:31500000-31502000` (2 kb)     |   129 |             25 |       2,146 |
+| `GRCh38#chr6:31500000-31510000` (10 kb)    |   712 |            157 |      73,282 |
+| `GRCh38#chr6:31500000-31550000` (50 kb)    | 2,498 |            300 |     495,391 |
+
+Above 30,000 node visits the app stops before drawing and says what the region
+came to, with a **Draw anyway** button; the 50 kb row is a 54 MB SVG that takes
+half a minute to lay out outside a browser, so "anyway" means minutes of frozen
+tab. Narrowing the region is the fix. The cap resets with each new region, and
+`pnpm tubemap-cli` ignores it — a figure that takes a minute headlessly is
+nobody's frozen tab.
+
+Reads are capped separately and subsampled rather than refused, since dropping
+reads still leaves a true picture of the graph; the banner above the map says
+how many of them are drawn.
+
 ## Graph requirements
 
 A graph must contain haplotype or path information — only nodes covered by at

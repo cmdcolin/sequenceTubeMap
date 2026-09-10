@@ -78,13 +78,24 @@ function makeRead(index: number): InputTrack {
   }
 }
 
-function makeData(readCount: number): TubeMapData {
+function makeData(readCount: number, tracks: InputTrack[] = []): TubeMapData {
   return {
     nodes: [{ name: '1', seq: 'ACGT' }],
-    tracks: [],
+    tracks,
     reads: Array.from({ length: readCount }, (_, i) => makeRead(i)),
     region: undefined,
     coloredNodes: undefined,
+  }
+}
+
+// One haplotype walk visiting `visits` nodes. What the guard counts is the
+// total across walks, so the shape of any one of them doesn't matter.
+function makeWalk(id: number, visits: number): InputTrack {
+  return {
+    id,
+    name: `hap${id}`,
+    sequence: Array.from({ length: visits }, (_, i) => String(i + 1)),
+    sourceTrackID: 0,
   }
 }
 
@@ -165,6 +176,46 @@ describe('TubeMapContainer', () => {
   it('hides the banner when every read is rendered anyway', () => {
     renderContainer({ data: makeData(10) })
     expect(screen.queryByText(/of 10 reads/)).not.toBeInTheDocument()
+  })
+
+  // A whole-pangenome graph makes a wide region one keystroke away, and a
+  // window whose walks visit half a million nodes is a frozen tab rather than
+  // a slow one — so it is counted and refused before anything is drawn.
+  it('refuses to draw a graph past the render cap, until told to', async () => {
+    const walks = Array.from({ length: 40 }, (_, i) => makeWalk(i, 1000))
+    renderContainer({ data: makeData(0, walks) })
+
+    expect(screen.queryByTestId('tubeMap')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/40,000 node visits across 40 haplotypes/),
+    ).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Draw anyway' }))
+
+    expect(screen.getByTestId('tubeMap')).toBeInTheDocument()
+  })
+
+  it('draws a graph under the cap without asking', () => {
+    const walks = Array.from({ length: 40 }, (_, i) => makeWalk(i, 100))
+    renderContainer({ data: makeData(0, walks) })
+
+    expect(screen.getByTestId('tubeMap')).toBeInTheDocument()
+    expect(screen.queryByText(/node visits/)).not.toBeInTheDocument()
+  })
+
+  it('asks again for the next region, not just once per session', async () => {
+    const walks = Array.from({ length: 40 }, (_, i) => makeWalk(i, 1000))
+    const { rerenderWith } = renderContainer({ data: makeData(0, walks) })
+    await userEvent.click(screen.getByRole('button', { name: 'Draw anyway' }))
+    expect(screen.getByTestId('tubeMap')).toBeInTheDocument()
+
+    rerenderWith({
+      viewTarget: { ...VIEW_TARGET, region: 'x:1-100000' },
+      data: makeData(0, walks),
+    })
+
+    expect(screen.queryByTestId('tubeMap')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Draw anyway' })).toBeInTheDocument()
   })
 
   it('stages a read from its context menu and saves it as a group', async () => {

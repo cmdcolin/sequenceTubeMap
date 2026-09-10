@@ -47,9 +47,15 @@ Open questions:
   array) draws 23 distinct walks and is legible. The chr20 microsatellite the
   README figures use draws 240 over the same 464 haplotypes, which is a far
   denser picture — worth an entry of its own, or is one enough?
-- The 464-haplotype windows are drawn in full; there is no "show me these
-  haplotypes" selection. `subgraphForHaplotypes` with the companion's
-  `HaplotypeAnchors` is what would make that cheap (see doc/gbz-base.md).
+- Every haplotype through the window is drawn; there is no "show me these
+  haplotypes" selection, so the only way to afford a wide window is not to open
+  it. `GRAPH_RENDER_LIMIT` in `src/components/TubeMapContainer.tsx` now refuses
+  one instead of freezing the tab (30,000 node visits; the table in
+  doc/data.md#how-wide-a-region-will-draw has the measurements), which makes
+  the refusal safe rather than the feature done.
+  `subgraphForHaplotypes` with the companion's `HaplotypeAnchors` is what would
+  make a chosen set cheap (see doc/gbz-base.md), and would turn the MHC-scale
+  windows from refused into useful.
 
 ## Resolved
 

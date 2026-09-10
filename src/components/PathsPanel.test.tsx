@@ -12,6 +12,7 @@ const PATHS: PathInfo[] = [
 interface RenderOptions {
   isOpen?: boolean
   readCounts?: Record<string, number>
+  paths?: PathInfo[]
 }
 
 function renderPanel(options: RenderOptions = {}) {
@@ -20,7 +21,7 @@ function renderPanel(options: RenderOptions = {}) {
   const onToggle = vi.fn()
   render(
     <PathsPanel
-      pathInfo={PATHS}
+      pathInfo={options.paths ?? PATHS}
       readCounts={options.readCounts}
       onLoadPath={onLoadPath}
       onCopyToRegion={onCopyToRegion}
@@ -49,7 +50,7 @@ it('copies a path into the region field without loading it', async () => {
   const { onCopyToRegion, onLoadPath } = renderPanel()
 
   await userEvent.click(
-    within(rowFor('offset cyclic')).getByRole('button', {
+    within(rowFor('offset cyclic from 1,000')).getByRole('button', {
       name: 'Copy to region',
     }),
   )
@@ -87,6 +88,30 @@ it('asks before loading a path big enough to freeze the browser', async () => {
   )
 
   expect(onLoadPath).toHaveBeenCalledWith('huge:0-49999')
+})
+
+// A contig split into fragments arrives as one row per fragment under the same
+// name — HPRC v2.1's 292 indexed paths carry only 219 distinct names, eleven of
+// them CHM13#chr2 — so the offset has to be on screen and each Load has to
+// carry its own.
+it('tells fragments of one contig apart by their offset', async () => {
+  const { onLoadPath } = renderPanel({
+    paths: [
+      { name: 'CHM13#chr2', start: 0, length: 100, cyclic: false },
+      { name: 'CHM13#chr2', start: 5000, length: 200, cyclic: false },
+    ],
+  })
+
+  const rows = screen.getAllByRole('row')
+  expect(rows).toHaveLength(3)
+
+  await userEvent.click(
+    within(rowFor('CHM13#chr2 from 5,000')).getByRole('button', {
+      name: 'Load',
+    }),
+  )
+
+  expect(onLoadPath).toHaveBeenCalledWith('CHM13#chr2:5000-5199')
 })
 
 it('marks the paths whose size or coverage will bite', () => {

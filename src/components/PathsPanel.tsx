@@ -152,11 +152,24 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                 const heavyReads =
                   readCounts !== undefined && reads > DEFAULT_READ_RENDER_LIMIT
                 return (
-                  <TableRow key={name} hover>
+                  <TableRow key={`${name}:${start}`} hover>
                     <TableCell>
                       {name}
                       {cyclic && (
                         <Chip label="cyclic" size="small" color="info" sx={BADGE_SX} />
+                      )}
+                      {start > 0 && (
+                        // A contig split into fragments contributes one row per
+                        // fragment, all under the same name — HPRC v2.1 has
+                        // eleven CHM13#chr2 rows — so the offset is the only
+                        // thing that tells them apart, and it is what Load
+                        // sends to the Region field.
+                        <Box
+                          component="span"
+                          sx={{ display: 'block', color: 'text.secondary', fontSize: '0.75em' }}
+                        >
+                          from {start.toLocaleString()}
+                        </Box>
                       )}
                     </TableCell>
                     <TableCell>

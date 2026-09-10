@@ -14,6 +14,7 @@ import DownloadProgressPanel from './DownloadProgressPanel.tsx'
 import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel.tsx'
 import Legend from './Legend.tsx'
 import type { TubeMapData } from './tubeMapData.ts'
+import type { InputTrack } from '../util/tubemap.ts'
 import { useKeyboardShortcuts } from './useKeyboardShortcuts.ts'
 import type {
   ColorPaletteName,
@@ -52,6 +53,62 @@ export const DEFAULT_READ_RENDER_LIMIT = READ_LIMIT_PRESETS[0]
 
 // The presets plus "render everything", as offered by the banner's buttons.
 const READ_LIMIT_CHOICES: (number | null)[] = [...READ_LIMIT_PRESETS, null]
+
+// Cap on the graph itself. Drawing cost tracks how many nodes the haplotype
+// walks visit between them, because the renderer emits a ribbon segment per
+// visit — nodes alone say little, since one node visited by 464 haplotypes
+// costs 464 segments.
+//
+// Measured on the HPRC v2.1 graph, which draws every haplotype: the chr20
+// microsatellite in the README is 14,518 visits and lays out in a few seconds;
+// a 10 kb MHC window is 73,282 and a 9 MB SVG; a 50 kb one is 495,391 and a
+// 54 MB SVG that took 28 s outside the browser. So the cap sits above the
+// first and well below the second. Cost is superlinear in the window — the
+// same locus at 2 kb is only 2,146 visits — which is why this counts what
+// arrived rather than predicting from the region.
+export const GRAPH_RENDER_LIMIT = 30_000
+
+export function graphNodeVisits(tracks: InputTrack[]): number {
+  return tracks.reduce((sum, track) => sum + track.sequence.length, 0)
+}
+
+function LargeGraphNotice({
+  nodeVisits,
+  walks,
+  onDrawAnyway,
+}: {
+  nodeVisits: number
+  walks: number
+  onDrawAnyway: () => void
+}) {
+  return (
+    <Box sx={{ px: 2 }}>
+      <Alert
+        severity="warning"
+        action={
+          <Button
+            color="warning"
+            variant="outlined"
+            size="small"
+            sx={{ flexShrink: 0 }}
+            onClick={() => { onDrawAnyway(); }}
+          >
+            Draw anyway
+          </Button>
+        }
+      >
+        <strong>
+          This region is {nodeVisits.toLocaleString()} node visits across{' '}
+          {walks.toLocaleString()} haplotype{walks === 1 ? '' : 's'}
+        </strong>{' '}
+        — more than the {GRAPH_RENDER_LIMIT.toLocaleString()} this draws without
+        asking, and enough to freeze the browser for minutes. Narrow the region
+        and it will draw straight away; a graph with many haplotypes gets
+        expensive within a few kb.
+      </Alert>
+    </Box>
+  )
+}
 
 function ReadRenderLimitBanner({
   totalReads,
@@ -214,6 +271,8 @@ function TubeMapContainer({
   const [readRenderLimit, setReadRenderLimit] = useState<number | null>(
     readRenderLimitPreference,
   )
+  // Set by "Draw anyway" on the size notice, for this view only.
+  const [drawLargeGraph, setDrawLargeGraph] = useState(false)
   const { nodes, tracks, reads, region, coloredNodes } = data ?? {}
 
   // Everything the user staged for the region they were looking at (read
@@ -240,6 +299,7 @@ function TubeMapContainer({
     setReadContextMenu(null)
     setNodeContextMenu(null)
     setReadRenderLimit(readRenderLimitPreference)
+    setDrawLargeGraph(false)
   }
 
   const changeReadRenderLimit = (limit: number | null) => {
@@ -419,6 +479,11 @@ function TubeMapContainer({
   const legendTracks =
     dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
 
+  // What arrived is drawable unless the walks through it are too many, and
+  // then only until the user says to draw it anyway.
+  const nodeVisits = tracks === undefined ? 0 : graphNodeVisits(tracks)
+  const graphTooLarge = nodeVisits > GRAPH_RENDER_LIMIT && !drawLargeGraph
+
   return (
     <div id="tubeMapContainer" style={{ position: 'relative' }}>
       {status}
@@ -493,7 +558,8 @@ function TubeMapContainer({
       ) : null}
       {reads !== undefined &&
       reads.length > READ_LIMIT_PRESETS[0] &&
-      !visOptions.coarsenedReadView ? (
+      !visOptions.coarsenedReadView &&
+      !graphTooLarge ? (
         <ReadRenderLimitBanner
           totalReads={reads.length}
           limit={readRenderLimit}
@@ -519,7 +585,14 @@ function TubeMapContainer({
             {loader}
           </Box>
         ) : null}
-        {nodes !== undefined && tracks !== undefined ? (
+        {nodes !== undefined && tracks !== undefined && graphTooLarge ? (
+          <LargeGraphNotice
+            nodeVisits={nodeVisits}
+            walks={tracks.length}
+            onDrawAnyway={() => { setDrawLargeGraph(true); }}
+          />
+        ) : null}
+        {nodes !== undefined && tracks !== undefined && !graphTooLarge ? (
           <TubeMap
             nodes={nodes}
             tracks={tracks}
