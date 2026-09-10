@@ -122,6 +122,7 @@ function renderContainer(options: RenderOptions = {}) {
       options.readRenderLimit === undefined ? 100 : options.readRenderLimit,
     onReadRenderLimitChange: options.onReadRenderLimitChange ?? (() => {}),
     legendVisible: false,
+    legendTracks: (options.viewTarget ?? VIEW_TARGET).tracks,
     onLegendClose: () => {},
   }
   const result = render(<TubeMapContainer {...props} />)

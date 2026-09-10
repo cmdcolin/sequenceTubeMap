@@ -204,6 +204,9 @@ export interface ColorScheme {
 export interface ReadGroup {
   color: string
   reads: Set<string>
+  // Carried through so a legend can say which group a color belongs to. The
+  // drawing itself never reads it.
+  name?: string
 }
 
 export interface ReadContextMenuState {
@@ -751,6 +754,7 @@ export function setFocusReadNames(value: string[] | null | undefined): void {
 interface ReadGroupInput {
   color: string
   reads: string[] | Set<string>
+  name?: string
 }
 
 // Set the named read groups for custom coloring. Accepts an array of
@@ -762,6 +766,7 @@ export function setReadGroups(
   config.readGroups = (value ?? []).map(g => ({
     color: g.color,
     reads: new Set(g.reads),
+    ...(g.name === undefined ? {} : { name: g.name }),
   }))
 }
 
@@ -771,6 +776,33 @@ export function setOtherReadsColor(value: string | null | undefined): void {
 
 export function setMappingQualityCutoff(value: number): void {
   config.mappingQualityCutoff = value
+}
+
+export interface RenderedColoring {
+  // Indexed by source track, holes where nothing set one.
+  colorSchemes: ColorScheme[]
+  readGroups: { name: string; color: string }[]
+  otherReadsColor: string
+  ignoreStrand: boolean
+}
+
+// What the current drawing is colored with. A legend has to describe the
+// picture rather than whatever props the component asking happens to hold, and
+// this config is what the picture was drawn from.
+export function getRenderedColoring(): RenderedColoring {
+  const colorSchemes: ColorScheme[] = []
+  for (const [id, scheme] of Object.entries(config.colorSchemes)) {
+    colorSchemes[Number(id)] = scheme
+  }
+  return {
+    colorSchemes,
+    readGroups: config.readGroups.map((group, i) => ({
+      name: group.name ?? `Group ${i + 1}`,
+      color: group.color,
+    })),
+    otherReadsColor: config.otherReadsColor,
+    ignoreStrand: config.ignoreStrand,
+  }
 }
 
 // main. preserveViewport keeps the user's current pan/zoom; pass false only

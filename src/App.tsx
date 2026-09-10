@@ -17,6 +17,7 @@ import Footer from './components/Footer.tsx'
 import { ViewMenu } from './components/ViewMenu.tsx'
 import { viewTargetsEqual } from './components/headerFormUtils.ts'
 import {
+  exampleTracks,
   fetchTubeMapData,
   type FetchKey,
   type TubeMapData,
@@ -288,6 +289,14 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     setVisOptions(v => ({ ...v, colorSchemes: exampleColorSchemes(origin) }))
   }
 
+  // What the color key describes: the loaded tracks, or the stand-ins a demo
+  // dataset gets. Both the panel on screen and a saved figure take it from
+  // here, so they cannot disagree.
+  const legendTracks =
+    dataOrigin === dataOriginTypes.API
+      ? viewTarget.tracks
+      : exampleTracks((data?.reads.length ?? 0) > 0)
+
   return (
     <div>
       <HeaderForm
@@ -301,6 +310,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         onAPIMode={setAPIMode}
         serverModeId={isLocalMode ? 'upstream' : 'server'}
         loading={isValidating}
+        legendTracks={legendVisible ? legendTracks : undefined}
         onEscape={() => { setLegend(false); }}
         visMenus={
           <ViewMenu
@@ -325,6 +335,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
           readRenderLimit={readRenderLimit}
           onReadRenderLimitChange={limit => { setReadRenderLimit(limit); }}
           legendVisible={legendVisible}
+          legendTracks={legendTracks}
           onLegendClose={() => { setLegend(false); }}
         />
       </div>

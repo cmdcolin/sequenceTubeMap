@@ -363,3 +363,29 @@ describe('tubemap.create — coarsened view normalises orientation', () => {
     expect(coarsenedBands(true)).toEqual(coarsenedBands(false))
   })
 })
+
+describe('tubemap.getRenderedColoring', () => {
+  afterEach(() => {
+    tubeMap.setReadGroups(null)
+    tubeMap.setIgnoreStrandFlag(false)
+  })
+
+  it('reports what the drawing was colored with, groups and their names', () => {
+    tubeMap.setColorSet(0, { mainPalette: 'greys', auxPalette: 'ygreys' })
+    tubeMap.setColorSet(1, { mainPalette: 'blues', auxPalette: 'reds' })
+    tubeMap.setReadGroups([
+      { name: 'Carriers', color: 'reds', reads: ['r1'] },
+    ])
+    tubeMap.setOtherReadsColor('greys')
+    tubeMap.setIgnoreStrandFlag(true)
+
+    const coloring = tubeMap.getRenderedColoring()
+    // Indexed by source track, which is how a legend lines rows up with the
+    // app's own track list.
+    expect(coloring.colorSchemes[0]?.mainPalette).toBe('greys')
+    expect(coloring.colorSchemes[1]?.auxPalette).toBe('reds')
+    expect(coloring.readGroups).toEqual([{ name: 'Carriers', color: 'reds' }])
+    expect(coloring.otherReadsColor).toBe('greys')
+    expect(coloring.ignoreStrand).toBe(true)
+  })
+})

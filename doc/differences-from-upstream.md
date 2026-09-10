@@ -63,7 +63,8 @@ Samples in [tubemap-cli-samples/](tubemap-cli-samples/). See
 - **Named read groups** — each with its own palette, built by right-clicking a
   read ("show only this read", "add to group") or a node ("add the N reads
   through this node"). Pending sets show as removable chips.
-- **Legend** for the active color schemes, including per-group palettes.
+- **Legend** for the active color schemes, including per-group palettes, drawn
+  into a saved figure as well as onto the screen.
 - **Level-of-detail rendering** — per-base sequence text and mismatch marks are
   skipped when zoomed out, and read counts are capped with a warning.
 

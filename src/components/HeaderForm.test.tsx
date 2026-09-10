@@ -57,6 +57,7 @@ function renderForm(options: RenderOptions = {}) {
     <SWRConfig value={{ provider: () => new Map() }}>
       <HeaderForm
         showExample={() => {}}
+        legendTracks={undefined}
         setCurrentViewTarget={setCurrentViewTarget}
         currentViewTarget={viewTarget}
         APIInterface={options.api ?? fakeAPI()}

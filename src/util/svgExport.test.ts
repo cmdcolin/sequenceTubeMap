@@ -78,7 +78,7 @@ describe('exportSvg', () => {
       renderedSvg(
         '<g class="mismatches-layer" style="display: none;"><rect x="0" y="0" width="1" height="1"/></g>',
       ),
-      false,
+      { crop: false },
     )
     expect(cropped).toBe(false)
     expect(viewBoxOf(xml)).toEqual([0, 0, 800, 600])
@@ -105,6 +105,26 @@ describe('exportSvg', () => {
     const before = attributeDump(svg)
     exportSvg(svg)
     expect(attributeDump(svg)).toEqual(before)
+  })
+
+  it('draws the legend above the map, and grows the figure to fit it', () => {
+    const svg = renderedSvg('<rect x="100" y="50" width="400" height="30"/>')
+    const { xml } = exportSvg(svg, {
+      legend: [
+        {
+          label: 'x.gbz.db',
+          kind: 'graph',
+          rows: [{ label: 'Reference path', palette: 'greys' }],
+        },
+      ],
+    })
+    const [, y, , height] = viewBoxOf(xml)
+    // The drawing alone would start at y=40 and stand 50 tall.
+    expect(y).toBeLessThan(40)
+    expect(height).toBeGreaterThan(50)
+    expect(xml).toContain('Reference path')
+    // ...and the panel is the export's, not the drawing's.
+    expect(svg.querySelector('.legend')).toBeNull()
   })
 
   it('writes a standalone file: XML declaration and SVG namespace', () => {

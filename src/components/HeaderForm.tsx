@@ -71,6 +71,9 @@ const MAX_UPLOAD_SIZE_DESCRIPTION = `${(
 
 interface HeaderFormProps {
   showExample: (origin: string) => void
+  // The tracks a saved figure's color key describes, or undefined when the
+  // legend is hidden.
+  legendTracks: Tracks | undefined
   setCurrentViewTarget: (viewTarget: ViewTarget) => void
   // Also seeds the form's own tracks/region/name/bedFile state on mount. App
   // remounts the form when the backend changes, so switching backends
@@ -156,6 +159,7 @@ function RegionControlButton({
 
 function HeaderForm({
   showExample,
+  legendTracks,
   setCurrentViewTarget,
   currentViewTarget,
   APIInterface,
@@ -777,6 +781,7 @@ function HeaderForm({
               }
               canGo={regionUsable && tracks.length > 0}
               loading={loading}
+              legendTracks={legendTracks}
             />
             {customFilesFlag && (
               <Box sx={{ flexShrink: 0 }}>

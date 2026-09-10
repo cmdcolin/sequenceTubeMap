@@ -30,6 +30,18 @@ interface DemoData {
   cycle2Reads: VgRead[]
 }
 
+// A demo dataset has no files behind it, but the legend still has to name what
+// it is coloring, and examples 1-5 draw no reads at all -- a read row there
+// would describe colors the picture does not contain.
+export function exampleTracks(hasReads: boolean): Tracks {
+  return [
+    { trackType: 'graph', trackDisplayName: 'Demo graph' },
+    ...(hasReads
+      ? [{ trackType: 'read' as const, trackDisplayName: 'Demo reads' }]
+      : []),
+  ]
+}
+
 // Everything the tube map needs to render one view.
 export interface TubeMapData {
   nodes: InputNode[]

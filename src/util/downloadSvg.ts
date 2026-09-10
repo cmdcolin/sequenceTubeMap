@@ -1,10 +1,15 @@
+import type { LegendSection } from './legend.ts'
 import { exportSvg } from './svgExport.ts'
 
 /** Saves the SVG element with the given id as a standalone figure. */
-export function downloadSvgById(id: string, filename: string) {
+export function downloadSvgById(
+  id: string,
+  filename: string,
+  legend?: LegendSection[],
+) {
   const el = document.getElementById(id)
   if (el) {
-    const { xml } = exportSvg(el)
+    const { xml } = exportSvg(el, { legend })
     const url = URL.createObjectURL(
       new Blob([xml], { type: 'image/svg+xml;charset=utf-8' }),
     )

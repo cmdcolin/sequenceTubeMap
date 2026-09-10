@@ -5,7 +5,6 @@ import Button from '@mui/material/Button'
 
 import TubeMap from './TubeMap.tsx'
 import * as tubeMap from '../util/tubemap.ts'
-import { dataOriginTypes } from '../enums.ts'
 import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog.tsx'
 import ReadContextMenu from './ReadContextMenu.tsx'
 import NodeContextMenu from './NodeContextMenu.tsx'
@@ -217,11 +216,6 @@ interface NodeContextMenuState {
   y: number
 }
 
-const EXAMPLE_TRACKS: Tracks = [
-  { trackType: 'graph', trackFile: 'fakeGraph' },
-  { trackType: 'read', trackFile: 'fakeReads' },
-]
-
 interface TubeMapContainerProps {
   viewTarget: ViewTarget
   dataOrigin: string
@@ -238,6 +232,9 @@ interface TubeMapContainerProps {
   readRenderLimit: number | null
   onReadRenderLimitChange: (limit: number | null) => void
   legendVisible: boolean
+  // What the legend describes, chosen by App so the panel and a saved figure
+  // agree.
+  legendTracks: Tracks
   onLegendClose: () => void
 }
 
@@ -252,6 +249,7 @@ function TubeMapContainer({
   readRenderLimit: readRenderLimitPreference,
   onReadRenderLimitChange,
   legendVisible,
+  legendTracks,
   onLegendClose,
 }: TubeMapContainerProps) {
   const [infoDialogContent, setInfoDialogContent] = useState<
@@ -478,9 +476,6 @@ function TubeMapContainer({
       onClick: () => { setPendingReadSet([]); },
     },
   ]
-
-  const legendTracks =
-    dataOrigin === dataOriginTypes.API ? viewTarget.tracks : EXAMPLE_TRACKS
 
   // What arrived is drawable unless the walks through it are too many, and
   // then only until the user says to draw it anyway.

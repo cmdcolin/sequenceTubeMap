@@ -9,11 +9,16 @@
 // the on-screen zoom state gives a file that holds the whole map at natural
 // scale, independent of the window (or --width/--height) it came from.
 
+import type { LegendSection } from './legend.ts'
 import { measureSvgContent } from './svgBounds.ts'
+import { legendGroup } from './svgLegend.ts'
 
 // Breathing room around the cropped drawing so edge strokes and the outermost
 // sequence labels aren't shaved off.
 const CROP_MARGIN = 10
+
+// Between the legend panel and the drawing it describes.
+const LEGEND_GAP = 12
 
 export interface SvgExport {
   xml: string
@@ -23,6 +28,14 @@ export interface SvgExport {
   // False when nothing measurable was drawn and the crop had to fall back to
   // the viewport, which is a blank figure rather than a tight one.
   cropped: boolean
+}
+
+export interface ExportOptions {
+  // False keeps the on-screen framing: the whole laid-out canvas, zoom state
+  // and all.
+  crop?: boolean
+  // Drawn into the figure above the map, so it can be read away from the app.
+  legend?: LegendSection[]
 }
 
 // The export writes its changes into the live drawing and puts every one of
@@ -100,10 +113,61 @@ function undoViewportState(svg: Element, saved: SavedAttribute[]): void {
   }
 }
 
-// `crop` false keeps the on-screen framing: the whole laid-out canvas, zoom
-// state and all.
-export function exportSvg(svg: Element, crop = true): SvgExport {
+interface Box {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+function viewBox({ x, y, width, height }: Box): string {
+  return `${x} ${y} ${width} ${height}`
+}
+
+// The legend sits above the drawing's top-left corner rather than over it, so
+// it can never hide the thing it describes, and the figure grows upwards to
+// make room.
+function placeLegend(
+  svg: Element,
+  sections: LegendSection[],
+  content: Box,
+): { node: Element; box: Box } | null {
+  const doc = svg.ownerDocument
+  const { node, width, height } = legendGroup(doc, sections)
+  node.setAttribute(
+    'transform',
+    `translate(${content.x},${content.y - LEGEND_GAP - height})`,
+  )
+  svg.appendChild(node)
+  return {
+    node,
+    box: {
+      x: content.x,
+      y: content.y - LEGEND_GAP - height,
+      width,
+      height: height + LEGEND_GAP,
+    },
+  }
+}
+
+function union(a: Box, b: Box): Box {
+  const x = Math.min(a.x, b.x)
+  const y = Math.min(a.y, b.y)
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  }
+}
+
+export function exportSvg(
+  svg: Element,
+  options: ExportOptions = {},
+): SvgExport {
+  const { crop = true, legend } = options
   const saved: SavedAttribute[] = []
+  let placed: { node: Element; box: Box } | null = null
   const viewport = `0 0 ${svg.getAttribute('width') ?? 0} ${svg.getAttribute('height') ?? 0}`
   try {
     if (crop) {
@@ -111,12 +175,23 @@ export function exportSvg(svg: Element, crop = true): SvgExport {
     }
     const { box, nonFinite } = measureSvgContent(svg)
     const pad = CROP_MARGIN
+    const padded = box && {
+      x: box.x - pad,
+      y: box.y - pad,
+      width: box.width + 2 * pad,
+      height: box.height + 2 * pad,
+    }
+    // Appended after undoViewportState, whose reach is the drawing rather than
+    // anything the export adds, and after the measurement it is placed from.
+    if (legend && legend.length > 0 && padded) {
+      placed = placeLegend(svg, legend, padded)
+    }
     borrowAttribute(
       saved,
       svg,
       'viewBox',
-      crop && box
-        ? `${box.x - pad} ${box.y - pad} ${box.width + 2 * pad} ${box.height + 2 * pad}`
+      crop && padded
+        ? viewBox(placed ? union(padded, placed.box) : padded)
         : viewport,
     )
     // Trade the pixel size for the viewBox so viewers scale the map fluidly.
@@ -130,6 +205,7 @@ export function exportSvg(svg: Element, crop = true): SvgExport {
       cropped: crop && box !== null,
     }
   } finally {
+    placed?.node.remove()
     returnAttributes(saved)
   }
 }

@@ -10,7 +10,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import * as tubeMap from '../util/tubemap.ts'
 import { downloadSvgById } from '../util/downloadSvg.ts'
-import type { ViewTarget } from '../Types.ts'
+import { legendSections } from '../util/legend.ts'
+import type { Tracks, ViewTarget } from '../Types.ts'
 
 const ZOOM_FACTOR = 2.0
 
@@ -23,6 +24,9 @@ interface DataPositionFormRowProps {
   canGo: boolean
   // Whether the committed view is still being fetched.
   loading: boolean
+  // The tracks the color key describes, or undefined when the user has the
+  // legend hidden — which keeps it out of a saved figure too.
+  legendTracks: Tracks | undefined
 }
 
 function DataPositionFormRow({
@@ -31,6 +35,7 @@ function DataPositionFormRow({
   viewTargetHasChange,
   canGo,
   loading,
+  legendTracks,
 }: DataPositionFormRowProps) {
   const goDisabled = !canGo || !viewTargetHasChange || loading
   const goTitle = loading
@@ -85,7 +90,17 @@ function DataPositionFormRow({
         variant="contained"
         id="downloadButton"
         startIcon={<FontAwesomeIcon icon={faCamera} />}
-        onClick={() => { downloadSvgById('svg', 'graph.svg'); }}
+        onClick={() => {
+          downloadSvgById(
+            'svg',
+            'graph.svg',
+            legendTracks &&
+              legendSections({
+                tracks: legendTracks,
+                ...tubeMap.getRenderedColoring(),
+              }),
+          )
+        }}
       >
         Download Image
       </Button>

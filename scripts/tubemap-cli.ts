@@ -90,7 +90,7 @@ function flagHelp(): string {
 
 const USAGE = `tubemap-cli [--url <link> | --source <config name> | --example 1..9]
              [--region X:S-E] [--out file.svg] [--width N] [--height N]
-             [--viewport] [--read-limit N]
+             [--viewport] [--read-limit N] [--legend]
 
 --url takes a link the app itself produced (its Copy link button, or the
 address bar), and draws what that link describes. --region and the view options
@@ -98,6 +98,9 @@ below override what it carries.
 
 View options, mirroring the app's View menu:
 ${flagHelp()}  --mapq N            drop reads below mapping quality N
+
+--legend draws the app's color key into the figure, above the map, so it can be
+read away from the app.
 
 The exported viewBox is cropped to the drawing at natural scale, so a figure
 depends on the data and the view options alone. --width/--height size the
@@ -128,6 +131,8 @@ interface CliArgs {
   height: number
   // Export the whole laid-out canvas rather than cropping to the drawing.
   viewport: boolean
+  // Draw the color key into the figure.
+  legend: boolean
   // Most reads to draw, or undefined to draw them all.
   readLimit: number | undefined
   // View-menu settings this render departs from the app's defaults on.
@@ -214,6 +219,7 @@ function parseCli(): CliArgs {
       width: { type: 'string' },
       height: { type: 'string' },
       viewport: { type: 'boolean', default: false },
+      legend: { type: 'boolean', default: false },
       'read-limit': { type: 'string' },
       mapq: { type: 'string' },
       help: { type: 'boolean', default: false },
@@ -235,6 +241,7 @@ function parseCli(): CliArgs {
     width: parsePositive('width', values.width ?? '1800'),
     height: parsePositive('height', values.height ?? '1200'),
     viewport: values.viewport,
+    legend: values.legend,
     readLimit:
       values['read-limit'] === undefined
         ? undefined
@@ -367,7 +374,15 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
           )
         }
       }
-      staged.push({ ...track, ...companion, trackFile: id })
+      // The browser names an upload after the file the user picked, since the
+      // id that replaces it says nothing; the legend reads that name.
+      staged.push({
+        ...track,
+        ...companion,
+        trackFile: id,
+        trackDisplayName:
+          track.trackDisplayName ?? path.basename(localPath),
+      })
     } else {
       staged.push({ ...track, ...companion })
     }
@@ -526,7 +541,9 @@ async function main(): Promise<void> {
   // touches `typeof window` at import time, and d3 binds to the ambient
   // document on first selection.
   const tubeMap = await import('../src/util/tubemap.ts')
-  const { fetchTubeMapData } = await import('../src/components/tubeMapData.ts')
+  const { exampleTracks, fetchTubeMapData } =
+    await import('../src/components/tubeMapData.ts')
+  const { legendSections } = await import('../src/util/legend.ts')
   const { GBZBaseAPI } = await import('../src/api/GBZBaseAPI.ts')
   const { subsampleReads } = await import('../src/util/array.ts')
   const { exportSvg } = await import('../src/util/svgExport.ts')
@@ -582,7 +599,16 @@ async function main(): Promise<void> {
 
   // The same export the browser's Download Image button uses, so a figure made
   // here matches one saved from the app.
-  const { xml, nonFinite, cropped } = exportSvg(svg, !args.viewport)
+  const { xml, nonFinite, cropped } = exportSvg(svg, {
+    crop: !args.viewport,
+    legend: args.legend
+      ? legendSections({
+          tracks: viewTarget?.tracks ?? exampleTracks(data.reads.length > 0),
+          colorSchemes,
+          ignoreStrand: visOptions.ignoreStrand,
+        })
+      : undefined,
+  })
   debugTiming('export', tExport)
 
   // A healthy layout never produces these. When it does the affected shapes are

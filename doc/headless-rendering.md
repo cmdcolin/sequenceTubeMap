@@ -85,6 +85,24 @@ page actually gives it
 
 ![Demo example 6, compressed node widths](tubemap-cli-samples/demo-example-6-compressed.png)
 
+## The color key
+
+`--legend` draws the app's color legend into the figure, above the map, so a
+reader who never opens the app can tell what a color means:
+
+```bash
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --region 17:1-200 \
+                 --legend --out brca1-legend.svg
+```
+
+![A figure carrying its color legend](tubemap-cli-samples/snp1kg-BRCA1-legend.png)
+
+It names the palette each thing is drawn in, which is not always the obvious
+one: everything but a read takes `mainPalette`'s first color for the reference
+path and colors every other path from `auxPalette`, so a graph with no separate
+haplotype track gets both rows. The **Download Image** button in the app saves
+the same key, whenever the legend panel is open.
+
 ## Reads
 
 Unlike the browser, which subsamples to 100 reads by default to stay responsive,

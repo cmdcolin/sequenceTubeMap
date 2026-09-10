@@ -26,3 +26,5 @@ for n in 1 2 3 4 5 6 7 8 9; do
 done
 render demo-example-6-compressed --example 6 --compressed
 render snp1kg-BRCA1 --source 'snp1kg-BRCA1 (gbz-base)'
+render snp1kg-BRCA1-legend --source 'snp1kg-BRCA1 (gbz-base)' \
+  --region 17:1-200 --legend
