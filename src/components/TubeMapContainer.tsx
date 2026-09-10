@@ -24,6 +24,7 @@ import type {
 } from '../Types.ts'
 import { mergeUnique, subsampleReads } from '../util/array.ts'
 import { errorMessage } from '../util/error.ts'
+import { dataOriginTypes } from '../enums.ts'
 
 const GROUP_PALETTE_CYCLE: ColorPaletteName[] = [
   'reds',
@@ -320,19 +321,37 @@ function TubeMapContainer({
     )
   }, [])
 
-  // Rendered above the tube map rather than in place of it, so a failed
-  // fetch doesn't throw away the staged read/node sets, the read groups and
-  // the legend.
-  // Nothing has ever rendered for this view, so the loader takes the place of
-  // the map instead of covering it.
+  // Whether anything is selected to look at. "Open custom files" and a backend
+  // with nothing mounted both land here, and a blank page reads as a broken
+  // app rather than as a waiting one.
+  const hasView =
+    dataOrigin !== dataOriginTypes.API || viewTarget.tracks.length > 0
+
+  // Name what is being fetched, so a slow load says what it is waiting on
+  // instead of spinning anonymously.
   const loader = (
-    <div id="loaderContainer">
+    <div id="loaderContainer" role="status" aria-live="polite">
       <div id="loader" />
+      <div id="loaderLabel">
+        {dataOrigin === dataOriginTypes.API
+          ? `Loading ${viewTarget.region}…`
+          : 'Loading example data…'}
+      </div>
       <DownloadProgressPanel />
     </div>
   )
 
-  const status = error ? (
+  // Rendered above the tube map rather than in place of it, so a failed
+  // fetch doesn't throw away the staged read/node sets, the read groups and
+  // the legend. Nothing has ever rendered for this view when the loader shows
+  // here, so it takes the place of the map instead of covering it.
+  const status = !hasView ? (
+    <Box sx={{ px: 2, py: 6, textAlign: 'center', color: 'text.secondary' }}>
+      Nothing loaded. Pick a dataset from the <strong>Examples</strong> menu,
+      or choose your own files under <strong>File</strong> and press{' '}
+      <strong>Go</strong>.
+    </Box>
+  ) : error ? (
     <Box sx={{ px: 2, position: 'relative', zIndex: 20 }}>
       <Alert
         severity="error"
@@ -351,7 +370,7 @@ function TubeMapContainer({
         {errorMessage(error)}
       </Alert>
     </Box>
-  ) : data === undefined && isValidating ? (
+  ) : data === undefined ? (
     <Box sx={{ px: 2 }}>{loader}</Box>
   ) : null
 

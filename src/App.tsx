@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import useSWR from 'swr'
 
 import './App.css'
@@ -6,12 +6,12 @@ import HeaderForm from './components/HeaderForm.tsx'
 import TubeMapContainer, {
   DEFAULT_READ_RENDER_LIMIT,
 } from './components/TubeMapContainer.tsx'
+import { urlParamsToViewTarget, urlParamsToVisOptions } from './urlViewTarget.ts'
 import {
-  fragmentWithoutView,
-  urlParamsToViewTarget,
-  urlParamsToVisOptions,
-  viewTargetToUrlParams,
-} from './urlViewTarget.ts'
+  EMPTY_VIEW_TARGET,
+  pushHistoryEntry,
+  useViewHistory,
+} from './useViewHistory.ts'
 import BackendSelector from './components/BackendSelector.tsx'
 import Footer from './components/Footer.tsx'
 import { ViewMenu } from './components/ViewMenu.tsx'
@@ -108,19 +108,6 @@ function removeUndefined(target: ViewTarget): ViewTarget {
   }
 }
 
-// Put the view on screen in the address bar so a reload (or the browser's own
-// back button, which restores the query) comes back to the same view, and so
-// "copy link" is just the current URL.
-function syncUrlToViewState(target: ViewTarget, visOptions: StoredVisOptions) {
-  const url = new URL(window.location.href)
-  url.search = `?${viewTargetToUrlParams(target, visOptions)}`
-  // The query now describes the view, so a view left in the fragment is stale.
-  // It stays invisible here (the query wins) but is all an embedder that keeps
-  // only the fragment would see.
-  url.hash = fragmentWithoutView(url.hash)
-  window.history.replaceState(null, '', url.toString())
-}
-
 // BACKEND_URL semantics: literal `false` selects the in-browser LocalAPI; any string
 // (possibly empty for same-origin via the dev-server proxy) means ServerAPI.
 const isLocalMode = config.BACKEND_URL === false
@@ -130,15 +117,16 @@ const defaultApiUrl = isLocalMode ? '' : `${config.BACKEND_URL}/api/v0`
 const UPSTREAM_API_URL = 'https://api.tubemap.graphs.vg/api/v0'
 
 const localDefaultViewTarget: ViewTarget = removeUndefined(
-  config.DATA_SOURCES.find(isLocalCompatibleDataSource) ??
-    { tracks: [], region: '' },
+  config.DATA_SOURCES.find(isLocalCompatibleDataSource) ?? EMPTY_VIEW_TARGET,
 )
 
 // Passing the configured sources lets `?name=<data source>` stand in for the
 // tracks, colors and BED that source already spells out.
 const defaultViewTarget: ViewTarget = removeUndefined(
   urlParamsToViewTarget(document.location, config.DATA_SOURCES) ??
-    (isLocalMode ? localDefaultViewTarget : config.DATA_SOURCES[0]),
+    (isLocalMode
+      ? localDefaultViewTarget
+      : (config.DATA_SOURCES[0] ?? EMPTY_VIEW_TARGET)),
 )
 
 // View menu settings named by the URL win over the stored preference, so a
@@ -177,6 +165,10 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   const [apiInterface, setApiInterface] = useState<APIInterface>(
     () => api ?? (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),
   )
+  // What the header form re-seeds from when the view changed from outside it
+  // (Back/Forward). Identity is the signal, so one pop re-seeds the form once
+  // rather than on every render.
+  const [seedViewTarget, setSeedViewTarget] = useState<ViewTarget | null>(null)
 
   // The tube map data lives here rather than in TubeMapContainer so the Go
   // button can show that a load is in flight, and so `keepPreviousData` can
@@ -188,16 +180,27 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         : ['tubeMap.api', apiInterface.mode, viewTarget]
       : ['tubeMap.example', dataOrigin]
 
-  const { data, error, isValidating, mutate } = useSWR<
-    TubeMapData,
-    Error,
-    FetchKey | null
-  >(fetchKey, (key: FetchKey) => fetchTubeMapData(key, apiInterface), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    shouldRetryOnError: false,
-    keepPreviousData: true,
-  })
+  const {
+    data: fetched,
+    error,
+    isValidating,
+    mutate,
+  } = useSWR<TubeMapData, Error, FetchKey | null>(
+    fetchKey,
+    (key: FetchKey) => fetchTubeMapData(key, apiInterface),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+      keepPreviousData: true,
+    },
+  )
+
+  // `keepPreviousData` hands back the last data for a null key too, which is
+  // right while the next region loads and wrong once there is no view at all:
+  // "Open custom files" would leave the previous dataset's graph on screen
+  // under a file picker for a different one.
+  const data = fetchKey === null ? undefined : fetched
 
   // Which backend each mode talks to, and the view target to fall back to
   // when switching to it (the in-browser reader can only open .gbz.db).
@@ -241,6 +244,10 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
       !viewTargetsEqual(viewTarget, newViewTarget) ||
       dataOrigin !== dataOriginTypes.API
     ) {
+      // Looking at a different view is a navigation, so Back returns to this
+      // one. The view being left behind is still in the address bar here; the
+      // sync effect writes the new one over the entry this creates.
+      pushHistoryEntry()
       setViewTarget(newViewTarget)
       setDataOrigin(dataOriginTypes.API)
       setVisOptions(v => ({
@@ -250,13 +257,21 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     }
   }
 
-  // The address bar is an external system, and it has to describe the initial
-  // view as well as every later one, so this belongs in an effect rather than
-  // in the commit path.
-  useEffect(() => {
-    const { colorSchemes, ...storedVisOptions } = visOptions
-    syncUrlToViewState(viewTarget, storedVisOptions)
-  }, [viewTarget, visOptions])
+  useViewHistory({
+    viewTarget,
+    visOptions,
+    onRestore: (restored, restoredVisOptions) => {
+      const target = removeUndefined(restored)
+      setViewTarget(target)
+      setDataOrigin(dataOriginTypes.API)
+      setVisOptions(v => ({
+        ...v,
+        ...restoredVisOptions,
+        colorSchemes: getColorSchemesFromTracks(target.tracks),
+      }))
+      setSeedViewTarget(target)
+    },
+  })
 
   const updateVisOptions = (next: VisOptions) => {
     setVisOptions(next)
@@ -306,6 +321,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         setCurrentViewTarget={setCurrentViewTarget}
         showExample={showExample}
         currentViewTarget={viewTarget}
+        seedViewTarget={seedViewTarget}
         APIInterface={apiInterface}
         onAPIMode={setAPIMode}
         serverModeId={isLocalMode ? 'upstream' : 'server'}

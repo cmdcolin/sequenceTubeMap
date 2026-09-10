@@ -243,3 +243,101 @@ describe('remembered preferences', () => {
     expect(screen.getByText('Color legend')).toBeInTheDocument()
   })
 })
+
+const openCustomFiles = async () => {
+  await userEvent.click(screen.getByTestId('fileMenuButton'))
+  await userEvent.click(screen.getByTestId('openCustomFiles'))
+}
+
+describe('the address bar', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('keeps params the app does not own', async () => {
+    window.history.replaceState(null, '', '/?utm_source=email')
+    renderApp()
+
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=17:1-100')
+    })
+    expect(window.location.search).toContain('utm_source=email')
+  })
+
+  it('clears the view when there is none, rather than writing empty params', async () => {
+    renderApp()
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=17:1-100')
+    })
+
+    await openCustomFiles()
+
+    await waitFor(() => {
+      expect(window.location.search).toBe('')
+    })
+  })
+
+  it('gives each view its own history entry, and Back walks them', async () => {
+    renderApp()
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=17:1-100')
+    })
+
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=ref:1-100')
+    })
+
+    window.history.back()
+
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=17:1-100')
+    })
+    // The form follows the restored view, not just the address bar.
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('17:1-100')
+    })
+  })
+})
+
+describe('loading and empty states', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('says what it is waiting for while the view loads', async () => {
+    renderApp(
+      fakeAPI({ getChunkedData: () => new Promise(() => {}) }),
+    )
+
+    expect(await screen.findByText('Loading 17:1-100…')).toBeInTheDocument()
+  })
+
+  it('says there is nothing to show once no view is selected', async () => {
+    renderApp()
+    await openCustomFiles()
+
+    expect(await screen.findByText(/Nothing loaded/)).toBeInTheDocument()
+  })
+
+  // The synthetic examples render real data without a backend behind them,
+  // which is what makes them a usable stand-in for a loaded dataset here.
+  it('clears the drawn map when the view goes away', async () => {
+    renderApp()
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(
+      screen.getByRole('menuitem', { name: 'Synthetic examples' }),
+    )
+    await userEvent.click(screen.getByText('Inversions'))
+    await waitFor(() => {
+      expect(document.querySelector('#tubeMapSVG svg')).toBeTruthy()
+    })
+
+    await openCustomFiles()
+
+    await waitFor(() => {
+      expect(document.querySelector('#tubeMapSVG svg')).toBeNull()
+    })
+  })
+})

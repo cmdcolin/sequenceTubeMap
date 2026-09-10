@@ -60,6 +60,7 @@ function renderForm(options: RenderOptions = {}) {
         legendTracks={undefined}
         setCurrentViewTarget={setCurrentViewTarget}
         currentViewTarget={viewTarget}
+        seedViewTarget={null}
         APIInterface={options.api ?? fakeAPI()}
         onAPIMode={() => {}}
         serverModeId="server"
@@ -300,5 +301,34 @@ describe('keyboard shortcuts', () => {
     await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}')
 
     expect(setCurrentViewTarget).not.toHaveBeenCalled()
+  })
+})
+
+describe('pending fetches', () => {
+  it('names each control that is still waiting on its fetch', async () => {
+    renderForm({
+      viewTarget: {
+        region: 'x:100-200',
+        tracks: TRACKS,
+        bedFile: 'regions.bed',
+      },
+      api: fakeAPI({
+        getFilenames: () => new Promise(() => {}),
+        getBedRegions: () => new Promise(() => {}),
+        getPathInfo: () => new Promise(() => {}),
+      }),
+    })
+
+    expect(await screen.findByText('Loading available files…')).toBeVisible()
+    expect(screen.getByText('Loading regions from regions.bed…')).toBeVisible()
+    expect(screen.getByText('Loading paths in graph.vg…')).toBeVisible()
+  })
+
+  it('says nothing once they have landed', async () => {
+    renderForm()
+
+    await waitFor(() => {
+      expect(screen.queryByText(/^Loading /)).not.toBeInTheDocument()
+    })
   })
 })

@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
@@ -79,6 +80,11 @@ interface HeaderFormProps {
   // remounts the form when the backend changes, so switching backends
   // re-seeds it from that backend's view target.
   currentViewTarget: ViewTarget
+  // A view that arrived from outside the form -- the browser's Back or Forward
+  // button. App has already committed it; the form follows so its fields
+  // describe what is on screen. A new object each time is the signal to
+  // re-seed, so re-seeding happens once per navigation.
+  seedViewTarget: ViewTarget | null
   APIInterface: APIInterface
   onAPIMode: (mode: string) => void
   serverModeId: 'server' | 'upstream'
@@ -162,6 +168,7 @@ function HeaderForm({
   legendTracks,
   setCurrentViewTarget,
   currentViewTarget,
+  seedViewTarget,
   APIInterface,
   onAPIMode,
   serverModeId,
@@ -197,6 +204,25 @@ function HeaderForm({
   )
   // Focused by the "/" shortcut; a ref is how you hand focus to a DOM node.
   const regionInputRef = useRef<HTMLInputElement>(null)
+
+  // The browser's Back or Forward button moved the view. App has committed it
+  // already, so the form only points its own fields at it -- committing from
+  // here would be a state update in the middle of App's render. Adjusted
+  // during render rather than in an effect; see
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [lastSeed, setLastSeed] = useState(seedViewTarget)
+  if (seedViewTarget !== lastSeed) {
+    setLastSeed(seedViewTarget)
+    if (seedViewTarget !== null) {
+      seedFormFrom(seedViewTarget)
+      if (seedViewTarget.tracks.length > 0) {
+        setRegionHistory(h => ({
+          entries: [...h.entries.slice(0, h.index + 1), seedViewTarget],
+          index: h.index + 1,
+        }))
+      }
+    }
+  }
 
   // SWR-managed fetches. Each key encodes the state it depends on — including
   // the API mode, so switching backends refetches rather than reusing the
@@ -310,6 +336,25 @@ function HeaderForm({
       ? (filenamesData.error ?? (apiMode === 'local' ? null : 'Server did not return a list of mounted filenames.'))
       : null
 
+  // Fetches that fill in the form's own controls. Until each lands, the
+  // control it feeds is simply empty, which reads as "there is nothing here"
+  // rather than "not yet" -- so say which one is still coming.
+  const pending: string[] = [
+    filenamesData === undefined && filenamesError === undefined
+      ? 'Loading available files…'
+      : null,
+    bedKey !== null &&
+    bedRegionsData === undefined &&
+    bedRegionsError === undefined
+      ? `Loading regions from ${truncateMiddle(bedKey[2], 40)}…`
+      : null,
+    graphFile !== undefined &&
+    pathInfoData === undefined &&
+    pathInfoError === undefined
+      ? `Loading paths in ${truncateMiddle(graphFile, 40)}…`
+      : null,
+  ].filter(message => message !== null)
+
   // Every error that's currently live, so one failure can't hide another.
   const errors: unknown[] = [
     manualError,
@@ -378,9 +423,8 @@ function HeaderForm({
     }
   }
 
-  // Re-seed the form from a view target that was already committed once, so
-  // Back/Forward restore the whole view and not just its region.
-  function applyViewTarget(target: ViewTarget) {
+  // Point the form's fields at a view, without committing it.
+  function seedFormFrom(target: ViewTarget) {
     setTracks(target.tracks)
     setBedFile(target.bedFile)
     setChosenRegion(presetRegion(target.region))
@@ -389,6 +433,12 @@ function HeaderForm({
     setSimplify(target.simplify ?? false)
     setRemoveSequences(target.removeSequences ?? false)
     setManualError(null)
+  }
+
+  // Re-seed the form from a view target that was already committed once, so
+  // Back/Forward restore the whole view and not just its region.
+  function applyViewTarget(target: ViewTarget) {
+    seedFormFrom(target)
     setCurrentViewTarget(target)
   }
 
@@ -621,6 +671,21 @@ function HeaderForm({
             {errorMessage(e)}
           </Alert>
         ))}
+        {pending.length > 0 && (
+          <Box role="status">
+            {pending.map(message => (
+              <Box
+                key={message}
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}
+              >
+                <CircularProgress size={14} />
+                <Typography variant="body2" color="text.secondary">
+                  {message}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1 }}>
           {customFilesFlag && filenamesData?.bedFiles?.length ? (
             <>

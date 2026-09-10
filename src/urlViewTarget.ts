@@ -142,14 +142,11 @@ function readList(params: Map<string, string>, key: string) {
       : raw.split(',').map(decodeParam)
 }
 
-// Strip a view out of a fragment, keeping whatever else it carries. Writing
-// the query without this leaves the fragment describing an older view, which
-// is invisible locally (the query wins) but is the whole view for an embedder
-// that keeps only the fragment. Operates on the raw text so valueless flags
-// stay valueless: `#local` has to survive as `local`, not `local=`.
-export function fragmentWithoutView(hash: string) {
-  return hash
-    .replace(/^#\??/, '')
+// Drop the params a view owns from a raw `a=1&b=2` string, keeping the rest in
+// the order they arrived. Operates on the raw text so valueless flags stay
+// valueless: `#local` has to survive as `local`, not `local=`.
+function withoutViewParams(raw: string) {
+  return raw
     .split('&')
     .filter(part => part !== '')
     .filter(
@@ -157,6 +154,21 @@ export function fragmentWithoutView(hash: string) {
         !VIEW_PARAM_KEYS.includes(decodeParam(part).split(/[=[]/)[0]!),
     )
     .join('&')
+}
+
+// Strip a view out of a fragment, keeping whatever else it carries. Writing
+// the query without this leaves the fragment describing an older view, which
+// is invisible locally (the query wins) but is the whole view for an embedder
+// that keeps only the fragment.
+export function fragmentWithoutView(hash: string) {
+  return withoutViewParams(hash.replace(/^#\??/, ''))
+}
+
+// The same for a query string, so rewriting the address bar keeps the params
+// the app does not own -- an analytics tag the link arrived with survives the
+// first render instead of being wiped by the view the app writes over it.
+export function queryWithoutView(search: string) {
+  return withoutViewParams(search.replace(/^\?/, ''))
 }
 
 function asPalette(value: unknown): Palette | undefined {
@@ -282,6 +294,11 @@ function parseViewFields(params: Map<string, string>) {
 // something other than a saved view (e.g. analytics params) -- callers
 // default-fill rather than getting a half-populated target.
 //
+// An empty `region=` counts as no view rather than as a view of nothing: it is
+// what an app that has no view on screen used to leave behind, and reading it
+// back as a target pins the reload to that nothing instead of the default
+// data source.
+//
 // A link that names no tracks but whose `name=` matches a configured data
 // source is that data source, with any params beside it layered on top:
 // `?name=snp1kg-BRCA1&region=17:1-1000` rather than the source's files spelled
@@ -302,7 +319,9 @@ export function urlParamsToViewTarget(
       : undefined
   return named !== undefined
     ? { ...named, ...fields }
-    : tracks !== undefined && fields.region !== undefined
+    : tracks !== undefined &&
+        fields.region !== undefined &&
+        fields.region !== ''
       ? { ...fields, region: fields.region, tracks, name }
       : null
 }

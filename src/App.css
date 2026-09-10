@@ -21,10 +21,18 @@ input[type='file'] {
   overflow: visible;
 }
 
-/* contains the spinning loader */
+/* contains the spinning loader, its caption and any download progress */
 #loaderContainer {
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 40px;
+}
+
+#loaderLabel {
+  margin-top: 12px;
+  color: #555;
+  font-size: 14px;
 }
 
 /* spinning loader during graph construction */

@@ -5,6 +5,7 @@ import './config-client.js'
 import { config } from './config-global.mjs'
 import {
   fragmentWithoutView,
+  queryWithoutView,
   urlParamsToViewTarget,
   urlParamsToVisOptions,
   viewTargetToUrlParams,
@@ -67,6 +68,14 @@ describe('urlViewTarget round trip', () => {
       null,
     )
     expect(urlParamsToViewTarget('http://localhost/')).toBe(null)
+  })
+
+  // What an older build wrote whenever nothing was on screen. Reading it back
+  // as a view pins the reload to that nothing instead of the default source.
+  it('reads an empty region as no view at all', () => {
+    expect(urlParamsToViewTarget('http://localhost/?region=&tracks=')).toBe(
+      null,
+    )
   })
 
   it('drops tracks with an unknown track type', () => {
@@ -232,6 +241,18 @@ describe('fragmentWithoutView', () => {
 
   it('empties a fragment that is nothing but a view', () => {
     expect(fragmentWithoutView('#?region=x:1-100')).toBe('')
+  })
+})
+
+describe('queryWithoutView', () => {
+  it('keeps what the app does not own and drops what it does', () => {
+    expect(
+      queryWithoutView('?region=x:1-100&utm_source=email&vis=compressedView'),
+    ).toBe('utm_source=email')
+  })
+
+  it('empties a query that is nothing but a view', () => {
+    expect(queryWithoutView('?region=x:1-100&tracks=graph:x.vg')).toBe('')
   })
 })
 
