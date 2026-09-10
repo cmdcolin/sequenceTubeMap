@@ -40,8 +40,10 @@
     "test": "vitest run",
     "serve": "node --experimental-strip-types ./src/server.mjs",
     "tubemap-cli": "node --experimental-strip-types scripts/tubemap-cli.ts",
-    "format": "prettier --write \"**/*.+(mjs|js|ts|tsx|css|md)\"",
-    "lint": "eslint",
+    "format": "oxfmt",
+    "check-format": "oxfmt --check",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "lint:fast": "oxlint --deny-warnings",
     "typecheck": "tsc --noEmit",
     "check-docs": "node scripts/check-doc-links.mjs"
   },
@@ -49,7 +51,6 @@
     "node": ">=22.6.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@rolldown/plugin-babel": "^0.2.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -61,14 +62,11 @@
     "@vitejs/plugin-react": "^6.0.2",
     "babel-plugin-react-compiler": "^1.0.0",
     "concurrently": "^9.2.1",
-    "eslint": "^10.4.0",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.6.0",
     "jsdom": "^29.1.1",
-    "prettier": "^3.8.3",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.4",
     "vite": "^8.0.13",
     "vitest": "^4.1.6"
   }

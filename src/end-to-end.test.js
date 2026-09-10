@@ -208,12 +208,12 @@ describe('When we wait for it to load', () => {
     await selectExample('vg "small" example')
     const regionInput = getRegionInput()
     await act(async () => {
-      userEvent.click(getRegionInput())
+      await userEvent.click(getRegionInput())
     })
     // Make sure that old option in RegionInput dropdown (17_...) is not visible
     expect(screen.queryByText('1-100 17_1_100')).not.toBeInTheDocument()
     await act(async () => {
-      userEvent.click(regionInput)
+      await userEvent.click(regionInput)
     })
   })
   it('draws an SVG for synthetic data example 1', async () => {
@@ -452,10 +452,11 @@ it.skipIf(!HAS_VG)(
     // or errored). We already verified the file was set on the input inside
     // act, so if the spinner is absent the upload has completed.
     await waitFor(
-      () =>
+      () => {
         expect(
           document.getElementsByClassName('upload-in-progress').length,
-        ).toBe(0),
+        ).toBe(0)
+      },
       { timeout: 30000 },
     )
     // exit the track picker

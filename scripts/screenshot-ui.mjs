@@ -105,11 +105,13 @@ function send(method, params = {}) {
   const id = nextId++
   ws.send(JSON.stringify({ id, method, params }))
   return new Promise((resolve, reject) => {
-    pending.set(id, message =>
-      message.error
-        ? reject(new Error(`${method}: ${message.error.message}`))
-        : resolve(message.result),
-    )
+    pending.set(id, message => {
+      if (message.error) {
+        reject(new Error(`${method}: ${message.error.message}`))
+      } else {
+        resolve(message.result)
+      }
+    })
   })
 }
 

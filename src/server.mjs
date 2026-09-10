@@ -2391,7 +2391,9 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
   }
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), config.fetchTimeout * 1000)
+  const timer = setTimeout(() => {
+    controller.abort()
+  }, config.fetchTimeout * 1000)
 
   console.log('Fetching URL:', url)
   try {
@@ -2873,12 +2875,12 @@ export function start() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  start()
+  void start()
 }
 
 process.on('SIGINT', function () {
   console.log('\nshutting down from SIGINT')
-  expiredFileCleanupTask.stop()
+  void expiredFileCleanupTask.stop()
   // remove the temporary directory
   fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
 

@@ -1,0 +1,152 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "import", "react", "oxc", "vitest"],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "es2026": true,
+    "node": true
+  },
+  "settings": {
+    "react": {
+      "version": "19"
+    }
+  },
+  "rules": {
+    "eslint/no-console": ["error", { "allow": ["error", "warn"] }],
+    "eslint/no-empty": "off",
+    "eslint/prefer-const": "error",
+    "eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "ignoreRestSiblings": true,
+        "caughtErrors": "none"
+      }
+    ],
+
+    "import/extensions": ["error", "ignorePackages"],
+
+    "react/react-in-jsx-scope": "off",
+    "react/no-unescaped-entities": "off",
+
+    // scripts/screenshot-ui.mjs describes each shot as a record with a `then`
+    // step. Nothing ever awaits one, so they are not accidental thenables.
+    "unicorn/no-thenable": "off",
+    "unicorn/no-new-array": "off",
+
+    // The suite predates these and reads fine without them; the three that
+    // catch a mistake rather than a style are kept on below.
+    "vitest/expect-expect": "off",
+    "vitest/no-conditional-expect": "off",
+    "vitest/no-standalone-expect": "off",
+    "vitest/require-mock-type-parameters": "off",
+    "vitest/valid-title": "off",
+    "vitest/no-focused-tests": "error",
+    "vitest/no-identical-title": "error",
+    "vitest/no-disabled-tests": "error",
+
+    "typescript/no-explicit-any": "off",
+    "typescript/no-non-null-assertion": "off",
+    "typescript/no-unsafe-member-access": "off",
+    "typescript/no-unsafe-argument": "off",
+    "typescript/no-unsafe-assignment": "off",
+    "typescript/no-unsafe-call": "off",
+    "typescript/no-unsafe-return": "off",
+    "typescript/restrict-template-expressions": "off",
+    "typescript/restrict-plus-operands": "off",
+    "typescript/no-base-to-string": "off",
+    "typescript/no-misused-promises": "off",
+    "typescript/no-empty-function": "off",
+    "typescript/require-await": "off",
+    "typescript/unbound-method": "off",
+    "typescript/no-dynamic-delete": "off",
+    "typescript/ban-ts-comment": "off",
+    "typescript/no-unnecessary-type-conversion": "off",
+
+    // Sorting strings lexically is what every call site here means.
+    "typescript/require-array-sort-compare": "off",
+
+    "typescript/prefer-nullish-coalescing": [
+      "error",
+      { "ignorePrimitives": { "string": true } }
+    ],
+    "typescript/consistent-type-imports": "error",
+
+    "typescript/no-confusing-non-null-assertion": "error",
+    "typescript/no-confusing-void-expression": "error",
+    "typescript/no-unnecessary-boolean-literal-compare": "error",
+    "typescript/no-unnecessary-condition": "error",
+    "typescript/no-unnecessary-template-expression": "error",
+    "typescript/no-unnecessary-type-arguments": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/non-nullable-type-assertion-style": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/prefer-find": "error",
+    "typescript/prefer-includes": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/prefer-reduce-type-parameter": "error",
+    "typescript/prefer-return-this-type": "error",
+    "typescript/prefer-string-starts-ends-with": "error",
+    "typescript/related-getter-setter-pairs": "error",
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": true }
+    ],
+    "typescript/use-unknown-in-catch-callback-variable": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.{js,jsx,ts,tsx}", "src/setupTests.ts"],
+      "rules": {
+        "eslint/no-console": "off",
+        "eslint/no-unused-vars": "off",
+        "typescript/no-unused-vars": "off"
+      }
+    },
+    {
+      // Type-aware rules that read untyped JS wrong, or whose fix is a type
+      // annotation JS can only spell as JSDoc. Everything else in the
+      // type-aware set — no-floating-promises above all — still applies here.
+      //
+      // The first three infer too narrowly: `config.BACKEND_URL === false` is
+      // how the gh-pages build selects the in-browser backend, and dropping
+      // the "useless" `height = 900` in screenshot-ui.mjs would break the one
+      // shot that omits `height`.
+      "files": ["**/*.mjs", "**/*.js"],
+      "rules": {
+        "typescript/no-unnecessary-condition": "off",
+        "typescript/no-unnecessary-boolean-literal-compare": "off",
+        "typescript/no-useless-default-assignment": "off",
+        "typescript/use-unknown-in-catch-callback-variable": "off",
+        "typescript/prefer-promise-reject-errors": "off"
+      }
+    },
+    {
+      "files": [
+        "src/server.mjs",
+        "src/vg.mjs",
+        "src/**/__mocks__/**",
+        "src/config-*.{js,mjs}",
+        "src/components/TubeMap.tsx"
+      ],
+      "rules": {
+        "eslint/no-console": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "build",
+    "dist",
+    "tmp",
+    "public",
+    "node_modules",
+    "vite.config.mjs",
+    "src/util/tubemap.js",
+    "src/util/tubemap.ts"
+  ]
+}

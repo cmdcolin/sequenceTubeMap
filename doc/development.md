@@ -48,15 +48,27 @@ The same four things CI runs, all runnable alone:
 ```
 pnpm test        # vitest, single run
 pnpm typecheck   # tsc --noEmit
-pnpm lint        # eslint
+pnpm lint        # oxlint, with type-aware rules
 pnpm check-docs  # markdown citations of src/... paths still resolve
 ```
 
-`pnpm lint --cache --fix` applies the autofixable subset.
+`pnpm lint --fix` applies the autofixable subset. `pnpm lint:fast` skips the
+type-aware pass, which is the slower half.
 
-One rule is defined in `eslint.config.mjs` itself rather than pulled from a
-plugin: `local/relative-import-extensions` requires relative imports to spell
-out the file extension. Node's ESM resolver does not guess at one, and
+Rules live in `.oxlintrc.json`. The type-aware ones need `oxlint-tsgolint`,
+which reads the same `tsconfig.json` `pnpm typecheck` does, so a rule like
+`no-floating-promises` sees real types rather than guessing.
+
+Five type-aware rules are switched off for `.mjs` and `.js`, and the config says
+why at the override: TypeScript infers those files narrowly enough that the
+rules misread live code as dead. `config.BACKEND_URL === false` really is how
+the gh-pages build selects the in-browser backend, and the "useless"
+`height = 900` default in `scripts/screenshot-ui.mjs` really does feed the one
+shot that omits `height`. Everything else in the type-aware set still applies
+there.
+
+`import/extensions` requires relative imports to spell out the file extension.
+Node's ESM resolver does not guess at one, and
 [`pnpm tubemap-cli`](headless-rendering.md) hands `src/` straight to node, so a
 bare `../Types` would break that entry point while the Vite build stayed happy.
 
@@ -79,9 +91,14 @@ so they always run there.
 pnpm format
 ```
 
-Prettier over `.mjs`, `.js`, `.ts`, `.tsx` and `.css`, configured in
-`.prettierrc.json` to match what the tree already looks like: single quotes, no
-semicolons, trailing commas, no parens on single-argument arrows.
+oxfmt over `.mjs`, `.js`, `.ts`, `.tsx`, `.css` and `.md`, configured in
+`.oxfmtrc.json` to match what the tree already looks like: single quotes, no
+semicolons, trailing commas, no parens on single-argument arrows. The settings
+came across from `.prettierrc.json` via `oxfmt --migrate=prettier`.
+
+Most of the tree has never been through a formatter, so `pnpm format` rewrites
+far more than whatever you were editing. `pnpm check-format` lists what differs
+without touching anything. Neither runs in CI.
 
 ## Figures in the docs
 

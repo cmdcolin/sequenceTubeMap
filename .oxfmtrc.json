@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": false,
+  "proseWrap": "always",
+  "singleQuote": true,
+  "trailingComma": "all",
+  "arrowParens": "avoid",
+  "printWidth": 80,
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "build",
+    "dist",
+    "node_modules",
+    "pnpm-lock.yaml",
+    "exampleData",
+    "src/util/tubemap.js",
+    "src/util/tubemap.ts"
+  ]
+}
