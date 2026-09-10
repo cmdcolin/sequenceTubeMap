@@ -91,17 +91,22 @@ page actually gives it
 reader who never opens the app can tell what a color means:
 
 ```bash
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --region 17:1-200 \
-                 --legend --out brca1-legend.svg
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --legend --out brca1.svg
 ```
 
-![A figure carrying its color legend](tubemap-cli-samples/snp1kg-BRCA1-legend.png)
+![A figure carrying its color legend](tubemap-cli-samples/snp1kg-BRCA1.png)
 
 It names the palette each thing is drawn in, which is not always the obvious
 one: everything but a read takes `mainPalette`'s first color for the reference
 path and colors every other path from `auxPalette`, so a graph with no separate
 haplotype track gets both rows. The **Download Image** button in the app saves
 the same key, whenever the legend panel is open.
+
+Pass it where a color means something, and leave it off where it does not. None
+of the `--example` datasets contain a wholly reverse-strand read, so a key on
+one of those figures names a red palette the picture never uses, over tracks
+called "Demo graph" — which is why the samples below carry one only on real
+data.
 
 ## Reads
 
@@ -150,7 +155,7 @@ sources render the same way with no network at all.
 Everything below lives in [tubemap-cli-samples/](tubemap-cli-samples/), SVG
 alongside PNG, and `scripts/make-cli-samples.sh` regenerates the lot.
 
-`--source 'snp1kg-BRCA1 (gbz-base)'`
+`--source 'snp1kg-BRCA1 (gbz-base)' --legend`
 ([SVG](tubemap-cli-samples/snp1kg-BRCA1.svg))
 
 ![snp1kg-BRCA1 tube map](tubemap-cli-samples/snp1kg-BRCA1.png)
