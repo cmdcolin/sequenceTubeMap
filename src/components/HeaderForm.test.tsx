@@ -105,6 +105,22 @@ it('groups the datasets menu by the backend that reads each example', async () =
   )
 })
 
+// In-browser mode hides the examples it cannot open, which leaves one group —
+// and the heading is then what says why the list is short, so it stays.
+it('labels the in-browser group when it is the only one', async () => {
+  renderForm({ api: fakeAPI({ mode: 'local' }) })
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+
+  expect(screen.getByText('In-browser (gbz-base .gbz.db)')).toBeVisible()
+  expect(
+    screen.queryByText('Needs a vg server (.xg, .vg, .gbz)'),
+  ).not.toBeInTheDocument()
+  expect(screen.queryByRole('menuitem', { name: 'cactus' })).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('menuitem', { name: 'cactus (gbz-base)' }),
+  ).toBeInTheDocument()
+})
+
 it('derives the region from the first BED entry when the dataset has none', async () => {
   renderForm({
     viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },

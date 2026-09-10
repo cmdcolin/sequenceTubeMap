@@ -82,7 +82,10 @@ function LargeGraphNotice({
   onDrawAnyway: () => void
 }) {
   return (
-    <Box sx={{ px: 2 }}>
+    // Above the floating legend (zIndex 10), which is positioned over the top
+    // right of this container and would otherwise cover "Draw anyway" — the
+    // one control that gets you past the notice.
+    <Box sx={{ px: 2, position: 'relative', zIndex: 20 }}>
       <Alert
         severity="warning"
         action={
@@ -332,7 +335,7 @@ function TubeMapContainer({
   )
 
   const status = error ? (
-    <Box sx={{ px: 2 }}>
+    <Box sx={{ px: 2, position: 'relative', zIndex: 20 }}>
       <Alert
         severity="error"
         action={

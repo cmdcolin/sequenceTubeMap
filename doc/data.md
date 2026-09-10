@@ -139,6 +139,13 @@ For PanSN graphs, `<sample>#<contig>:<start>-<end>` and
 `<sample>#<haplotype>#<contig>:<start>-<end>` select a specific reference path
 or haplotype; see [gbz-base.md](gbz-base.md#region-syntax).
 
+A graph that splits a contig into fragments lists one row per fragment, all
+under the contig's name, so each row also carries the offset it starts at —
+which is what **Load** and **Copy to region** put in the Region field. HPRC
+release 2.1 does this heavily: 292 indexed paths under 219 distinct names.
+
+![Four fragments of CHM13#chr1 in the paths panel](images/paths-panel-fragments.png)
+
 ## How wide a region will draw
 
 A tube map draws every haplotype through the window, and the cost of that is
@@ -157,11 +164,15 @@ release 2.1, which carries 464:
 | `GRCh38#chr6:31500000-31550000` (50 kb)    | 2,498 |            300 |     495,391 |
 
 Above 30,000 node visits the app stops before drawing and says what the region
-came to, with a **Draw anyway** button; the 50 kb row is a 54 MB SVG that takes
-half a minute to lay out outside a browser, so "anyway" means minutes of frozen
-tab. Narrowing the region is the fix. The cap resets with each new region, and
-`pnpm tubemap-cli` ignores it — a figure that takes a minute headlessly is
-nobody's frozen tab.
+came to:
+
+![The render cap refusing a 10 kb window](images/graph-render-cap.png)
+
+**Draw anyway** is there when you mean it; the 50 kb row is a 54 MB SVG that
+takes half a minute to lay out outside a browser, so "anyway" means minutes of
+frozen tab. Narrowing the region is the fix. The cap resets with each new
+region, and `pnpm tubemap-cli` ignores it — a figure that takes a minute
+headlessly is nobody's frozen tab.
 
 Reads are capped separately and subsampled rather than refused, since dropping
 reads still leaves a true picture of the graph; the banner above the map says

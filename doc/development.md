@@ -77,6 +77,25 @@ Prettier over `.mjs`, `.js`, `.ts`, `.tsx` and `.css`, configured in
 `.prettierrc.json` to match what the tree already looks like: single quotes, no
 semicolons, trailing commas, no parens on single-argument arrows.
 
+## Figures in the docs
+
+A figure of a tube map comes from `pnpm tubemap-cli`
+([headless-rendering.md](headless-rendering.md)). A figure of the *interface* —
+the render cap's notice, the paths panel, the Examples menu — comes from
+`scripts/screenshot-ui.mjs`, which drives headless Chrome over the DevTools
+protocol and crops each shot to the element it is about:
+
+```
+pnpm serve &                                                  # for the menu shot
+pnpm vite --port 5200 &
+google-chrome --headless=new --remote-debugging-port=9222 about:blank &
+node scripts/screenshot-ui.mjs        # overwrites the PNGs in doc/images/
+```
+
+It needs `magick` (ImageMagick) for the crop, and no browser-automation
+dependency: Node's own `fetch` and `WebSocket` are the whole driver. Re-run it
+when a change moves any of that UI, and commit the PNGs it rewrites.
+
 ## Build
 
 ```

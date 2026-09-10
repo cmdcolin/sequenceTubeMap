@@ -24,14 +24,13 @@ export function ExamplesMenu({
   // Which backend an example needs is the first thing about it a reader wants,
   // and the name alone cannot say it, so the menu groups by that: a `.gbz.db`
   // example is read in the browser, anything else is chunked by a vg server.
-  // In local mode the server group is empty (HeaderForm filters it out) and
-  // the headings would then label nothing, so they only appear when both
-  // groups have entries.
+  // Each group that has entries is labelled, including when it is the only
+  // one — in local mode HeaderForm has filtered the server examples out, and
+  // the heading is then what says why the list is short.
   const inBrowser = visibleDataSources.filter(isLocalCompatibleDataSource)
   const serverOnly = visibleDataSources.filter(
     ds => !isLocalCompatibleDataSource(ds),
   )
-  const grouped = inBrowser.length > 0 && serverOnly.length > 0
 
   return (
     <AppBarMenu label="Examples" testid="examplesMenuButton">
@@ -47,13 +46,13 @@ export function ExamplesMenu({
         )
         return (
           <>
-            {grouped && (
+            {inBrowser.length > 0 && (
               <ListSubheader key="inBrowserHeading">
                 In-browser (gbz-base .gbz.db)
               </ListSubheader>
             )}
             {inBrowser.map(item)}
-            {grouped && (
+            {serverOnly.length > 0 && (
               <ListSubheader key="serverHeading">
                 Needs a vg server (.xg, .vg, .gbz)
               </ListSubheader>

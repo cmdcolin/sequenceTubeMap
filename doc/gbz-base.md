@@ -19,7 +19,14 @@ No WebAssembly, no Rust toolchain, no vendored patches.
 
 The **Examples** menu groups its entries by backend, and a `(gbz-base)` in the
 name says the same thing: that graph is a `.gbz.db` the browser reads itself.
-The entries that read one, from `DATA_SOURCES` in `src/config.json`:
+
+![The Examples menu, grouped by backend](images/examples-menu-grouped.png)
+
+That is the menu with a server configured. In-browser mode shows the first
+group alone, since it is the only one it can open — `Discovered` is whatever
+`manifest.json` files the server's data directory holds
+([server-data.md](server-data.md)). The entries that read a `.gbz.db`, from
+`DATA_SOURCES` in `src/config.json`:
 
 | Example                                     | Graph                                      | Haplotype names                          |
 | ------------------------------------------- | ------------------------------------------ | ---------------------------------------- |
