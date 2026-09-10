@@ -257,12 +257,21 @@ function HeaderForm({
   // can't resolve the file, so we don't need a separate availability gate.
   const graphFile =
     dataType !== dataTypes.EXAMPLES ? graphTrack?.trackFile : undefined
+  // The companion haplotype index goes with it: without it the paths panel
+  // over a database that has no side tables of its own answers every length
+  // by walking the graph.
+  const haplotypeIndexFile = graphTrack?.haplotypeIndexFile ?? ''
   const { data: pathInfoData, error: pathInfoError } = useSWR(
     graphFile === undefined
       ? null
-      : (['headerForm.pathInfo', apiMode, graphFile] as const),
-    ([, , graph]: readonly [string, string, string]) =>
-      APIInterface.getPathInfo(graph, null),
+      : ([
+          'headerForm.pathInfo',
+          apiMode,
+          graphFile,
+          haplotypeIndexFile,
+        ] as const),
+    ([, , graph, index]: readonly [string, string, string, string]) =>
+      APIInterface.getPathInfo(graph, null, index === '' ? undefined : index),
   )
   const pathInfo: PathInfo[] = pathInfoData?.pathInfo ?? []
 

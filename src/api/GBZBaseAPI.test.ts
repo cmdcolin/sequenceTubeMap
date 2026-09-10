@@ -1,4 +1,6 @@
 import { GENERIC_SAMPLE } from '@gmod/gbz-base'
+import '../config-client.js'
+import { config } from '../config-global.mjs'
 import {
   GBZBaseAPI,
   displayName,
@@ -231,6 +233,100 @@ describe('a database with haplotype side tables', () => {
   })
 })
 
+// hprc-chrM.gbz.db has no side tables of its own; its haplotype names live in
+// the separate exampleData/hprc-chrM.haplotype-index.db, which a graph track
+// names as `haplotypeIndexFile`. Same mechanism as the hosted HPRC v2.1
+// example, small enough to run offline.
+describe('a graph with a companion haplotype index', () => {
+  const api = new GBZBaseAPI()
+  let graph: string
+  let index: string
+
+  beforeAll(async () => {
+    graph = await api.putFile(
+      'graph',
+      fixtureFile('exampleData/hprc-chrM.gbz.db', 'hprc-chrM.gbz.db'),
+      null,
+    )
+    index = await api.putFile(
+      'graph',
+      fixtureFile(
+        'exampleData/hprc-chrM.haplotype-index.db',
+        'hprc-chrM.haplotype-index.db',
+      ),
+      null,
+    )
+  })
+
+  it('reports `unknown#N` haplotypes without the index', async () => {
+    const view = await api.getChunkedData(
+      {
+        dataType: 'mounted files',
+        tracks: [{ trackFile: graph, trackType: 'graph' }],
+        region: 'GRCh38#chrM:1-200',
+      },
+      null,
+    )
+    const names = (view.graph?.path ?? []).map(p => p.name!)
+
+    expect(names.some(n => n.startsWith('unknown#'))).toBe(true)
+  })
+
+  // Also covers reopening: the query above cached the database with no index,
+  // and naming one has to replace that rather than keep the anonymous names.
+  it('resolves them once the track names the index', async () => {
+    const view = await api.getChunkedData(
+      {
+        dataType: 'mounted files',
+        tracks: [
+          { trackFile: graph, trackType: 'graph', haplotypeIndexFile: index },
+        ],
+        region: 'GRCh38#chrM:1-200',
+      },
+      null,
+    )
+    const names = (view.graph?.path ?? []).map(p => p.name!)
+
+    expect(names[0]).toBe('GRCh38#0#chrM')
+    expect(names.some(n => n.startsWith('unknown#'))).toBe(false)
+    expect(names.some(n => /^(HG|NA)\d+#\d#/.test(n))).toBe(true)
+  })
+
+  it('answers path lengths out of the index for the paths panel', async () => {
+    const { pathInfo } = await api.getPathInfo(graph, null, index)
+
+    expect(pathInfo).toContainEqual({
+      name: 'GRCh38#chrM',
+      start: 0,
+      length: 16569,
+      cyclic: false,
+    })
+  })
+
+  it('names the companion in the error when it is not an index', async () => {
+    const notAnIndex = await api.putFile(
+      'graph',
+      fixtureFile('exampleData/x.gbz', 'x.gbz'),
+      null,
+    )
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [
+        {
+          trackFile: graph,
+          trackType: 'graph',
+          haplotypeIndexFile: notAnIndex,
+        },
+      ],
+      region: 'GRCh38#chrM:1-200',
+    }
+
+    await expect(api.getChunkedData(viewTarget, null)).rejects.toThrow(
+      /companion haplotype index/,
+    )
+  })
+})
+
 // Sibling-index pairing: uploading both a .sorted.gam and its .sorted.gam.gai
 // should let the LocalAPI find the index when reading the GAM, so region
 // queries work for dropped folders like exampleData/Toxo.
@@ -284,30 +380,47 @@ describe('uploaded read + index siblings', () => {
   })
 })
 
-// Network-gated smoke test against the S3-hosted HPRC chr20 file referenced
-// by the "HPRC chr20 (URL-hosted, full PanSN)" entry in config.json. Proves
-// that URL-backed track files are read by HTTP range requests through
-// RemoteFile rather than downloaded whole.
+// Network-gated smoke tests against the URL-hosted HPRC release 2.1 entry in
+// config.json — a 10 GB database and a 7.9 GB companion haplotype index, both
+// read by HTTP range request through RemoteFile rather than downloaded. The
+// track comes from the config rather than being spelled out again, so a URL
+// that goes stale there fails here.
 //
 // Opt-in via `RUN_NETWORK_TESTS=1` so the default `pnpm test` stays offline.
 const RUN_NETWORK = process.env.RUN_NETWORK_TESTS === '1'
-describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC chr20', () => {
+const hprc = (config.DATA_SOURCES as ViewTarget[]).find(ds =>
+  ds.name?.startsWith('HPRC v2.1'),
+)!
+
+describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC v2.1', () => {
   it('answers a query without downloading the whole file', async () => {
     const api = new GBZBaseAPI()
-    const viewTarget: ViewTarget = {
-      dataType: 'mounted files',
-      tracks: [{
-        trackFile: 'https://jbrowse.org/demos/ivg/hprc/hprc-chr20.gbz.db',
-        trackType: 'graph',
-      }],
-      region: 'GRCh38#chr20:30000000-30000500',
-    }
-    const view = await api.getChunkedData(viewTarget, new AbortController().signal)
+    const view = await api.getChunkedData(
+      { ...hprc, region: 'GRCh38#chr20:48000600-48001000' },
+      new AbortController().signal,
+    )
     const paths = view.graph?.path ?? []
     const names = paths.map(p => p.name).filter((n): n is string => n !== undefined)
+
     expect(names.some(n => n.startsWith('GRCh38'))).toBe(true)
-    expect(paths.length).toBeGreaterThan(1)
-  }, 60000)
+    // Every haplotype is named through the companion index, so nothing comes
+    // back as the `unknown#N` upstream gbz-base reports without one.
+    expect(names.filter(n => n.startsWith('unknown'))).toEqual([])
+    expect(paths.length).toBeGreaterThan(100)
+  }, 120000)
+
+  it('names the graph paths and their lengths through the companion index', async () => {
+    const api = new GBZBaseAPI()
+    const graph = hprc.tracks[0]!
+    const { pathInfo } = await api.getPathInfo(
+      graph.trackFile!,
+      null,
+      graph.haplotypeIndexFile,
+    )
+    const chr20 = pathInfo.find(p => p.name === 'GRCh38#chr20')
+
+    expect(chr20?.length).toBeGreaterThan(60000000)
+  }, 120000)
 })
 
 // The Region field's path syntax. gbz-base ships `parsePathName`, but it only

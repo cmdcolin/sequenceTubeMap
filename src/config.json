@@ -14,7 +14,7 @@
       "removeSequences": false
     },
     {
-      "name": "snp1kg-BRCA1 (WASM-compatible)",
+      "name": "snp1kg-BRCA1 (gbz-base)",
       "tracks": [
         {"trackFile": "exampleData/internal/snp1kg-BRCA1.gbz.db", "trackType": "graph", "trackColorSettings": {"mainPalette": "greys", "auxPalette": "ygreys"}},
         {"trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam", "trackType": "read"}
@@ -43,7 +43,7 @@
       "dataType": "built-in"
     },
     {
-      "name": "cactus (WASM-compatible)",
+      "name": "cactus (gbz-base)",
       "tracks": [
         {"trackFile": "exampleData/cactus.gbz.db", "trackType": "graph"},
         {"trackFile": "exampleData/cactus-NA12879.sorted.gam", "trackType": "read"}
@@ -53,7 +53,7 @@
       "dataType": "built-in"
     },
     {
-      "name": "backward (WASM-compatible)",
+      "name": "backward (gbz-base)",
       "tracks": [
         {"trackFile": "exampleData/backward.gbz.db", "trackType": "graph"}
       ],
@@ -61,15 +61,15 @@
       "dataType": "built-in"
     },
     {
-      "name": "HPRC chrM (WASM-compatible, PanSN)",
+      "name": "HPRC chrM (gbz-base, companion index)",
       "tracks": [
-        {"trackFile": "exampleData/hprc-chrM.gbz.db", "trackType": "graph"}
+        {"trackFile": "exampleData/hprc-chrM.gbz.db", "haplotypeIndexFile": "exampleData/hprc-chrM.haplotype-index.db", "trackType": "graph"}
       ],
       "region": "GRCh38#chrM:1-200",
       "dataType": "built-in"
     },
     {
-      "name": "HPRC MICB-KIR3DL1 (resolved haplotype names)",
+      "name": "HPRC MICB-KIR3DL1 (gbz-base, named haplotypes)",
       "tracks": [
         {"trackFile": "exampleData/micb-kir3dl1.gbz.db", "trackType": "graph"}
       ],
@@ -77,12 +77,13 @@
       "dataType": "built-in"
     },
     {
-      "name": "HPRC chr20 (URL-hosted, full PanSN)",
+      "name": "HPRC v2.1 whole genome (gbz-base, URL-hosted)",
       "tracks": [
-        {"trackFile": "https://jbrowse.org/demos/ivg/hprc/hprc-chr20.gbz.db", "trackType": "graph", "trackColorSettings": {"mainPalette": "plainColors", "auxPalette": "lightColors"}}
+        {"trackFile": "https://s3-us-west-2.amazonaws.com/human-pangenomics/pangenomes/freeze/release2/minigraph-cactus/v2.1/hprc-v2.1-mc-grch38/hprc-v2.1-mc-grch38.gbz.db", "haplotypeIndexFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38.haplotype-index.anchored.db", "trackType": "graph", "trackColorSettings": {"mainPalette": "plainColors", "auxPalette": "lightColors"}}
       ],
-      "region": "GRCh38#chr20:40000000-40005000",
-      "dataType": "built-in"
+      "region": "GRCh38#chr6:160620000-160620500",
+      "dataType": "built-in",
+      "skipAutoLoad": true
     },
     {
       "name": "cactus multiple reads",

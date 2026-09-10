@@ -19,7 +19,7 @@ the view it carries. In development the fragment doubles as the backend switch:
 Name a configured data source and a region:
 
 ```
-?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-1000&vis=compressedView
+?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView
 ```
 
 Spell out your own files:
@@ -94,11 +94,20 @@ Each entry is `mainPalette/auxPalette`, drawn from `greys` `ygreys` `blues`
 
 The full track array as JSON, for the views the short form cannot express: a
 track resolved from a BED rather than a path, an uploaded track with a display
-name, or a per-track mapping-quality color flag. Copy link falls back to this by
-itself when it has to.
+name, a graph naming a companion haplotype index, or a per-track
+mapping-quality color flag. Copy link falls back to this by itself when it has
+to.
 
 ```
 tracksJson=[{"trackType":"graph","trackColorSettings":{"mainPalette":"blues","auxPalette":"reds"}}]
+```
+
+A hosted graph whose haplotype names live in a separate index carries both
+files, which is the form the in-browser backend reads (see
+[gbz-base.md](gbz-base.md#pointing-a-track-at-a-companion-index)):
+
+```
+tracksJson=[{"trackType":"graph","trackFile":"https://example.org/graph.gbz.db","haplotypeIndexFile":"https://example.org/graph.haplotype-index.db"}]
 ```
 
 It replaces `tracks=` and `colors=` rather than adding to them.
@@ -155,7 +164,7 @@ Omitted means false.
 **Built-in dataset:**
 
 ```
-http://localhost:3000?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-1000
+http://localhost:3000?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000
 ```
 
 The README's figures link into the live demo this way;

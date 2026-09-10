@@ -25,12 +25,22 @@ if (( ${#gbz_files[@]} == 0 )); then
   exit 0
 fi
 
+# hprc-chrM is the offline demo of the companion form: its side tables go in a
+# file of their own, which is the only form available for a database somebody
+# else hosts, and the track names it as `haplotypeIndexFile`. Every other
+# example keeps its side tables inside the database.
+companion=exampleData/hprc-chrM.gbz
+
 for gbz in "${gbz_files[@]}"; do
   db="${gbz}.db"
   echo "== ${gbz} -> ${db}"
   construct "$gbz" "$db"
   if command -v gbz-haplotype-index >/dev/null; then
-    gbz-haplotype-index "$gbz" "$db"
+    if [[ "$gbz" == "$companion" ]]; then
+      gbz-haplotype-index --output "${gbz%.gbz}.haplotype-index.db" "$gbz" "$db"
+    else
+      gbz-haplotype-index "$gbz" "$db"
+    fi
   fi
 done
 

@@ -5,12 +5,12 @@
 // Two modes:
 //   - --example N         render one of the bundled demo datasets (1..9)
 //   - --source <name>     render a built-in source from src/config.json
-//                         (e.g. "snp1kg-BRCA1 (WASM-compatible)")
+//                         (e.g. "snp1kg-BRCA1 (gbz-base)")
 //
 // Examples:
 //   pnpm tubemap-cli --example 1 --out out.svg
-//   pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' --out brca1.svg
-//   pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' \
+//   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
+//   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
 //                    --region 17:1-200 --width 3000 --out brca1.svg
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -234,9 +234,23 @@ function fileFromPath(localPath: string): File {
 async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
   const { SIBLING_INDEX_SUFFIXES } =
     await import('../src/api/local/fileRegistry.ts')
+  const isLocal = (file: string) => !/^https?:\/\//.test(file)
   const staged: Tracks = []
   for (const track of tracks) {
-    if (track.trackFile && !/^https?:\/\//.test(track.trackFile)) {
+    // A companion haplotype index is staged the same way, since the API reads
+    // it exactly like the database. The browser resolves a config-relative
+    // path against the page; there is no page here.
+    const companion =
+      track.haplotypeIndexFile && isLocal(track.haplotypeIndexFile)
+        ? {
+            haplotypeIndexFile: await api.putFile(
+              track.trackType,
+              fileFromPath(path.resolve(track.haplotypeIndexFile)),
+              null,
+            ),
+          }
+        : {}
+    if (track.trackFile && isLocal(track.trackFile)) {
       const localPath = path.resolve(track.trackFile)
       const id = await api.putFile(
         track.trackType,
@@ -252,9 +266,9 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
           )
         }
       }
-      staged.push({ ...track, trackFile: id })
+      staged.push({ ...track, ...companion, trackFile: id })
     } else {
-      staged.push(track)
+      staged.push({ ...track, ...companion })
     }
   }
   return staged

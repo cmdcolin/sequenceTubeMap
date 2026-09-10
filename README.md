@@ -18,18 +18,21 @@ Every figure below links to the same data and region in the live demo — the vi
 is a URL, so any tube map you get to can be shared as one
 ([every parameter a link can carry](doc/urlparams.md)).
 
-**A pangenome, not a reference.** 81 haplotypes from 46 HPRC samples through a
-CT microsatellite at `chr20:48,000,600-48,001,000`. Every haplotype takes a
-distinct route; the 32 allele lengths run 608-678 bp and step by 2 bp, the
-repeat unit. Streamed from a 134 MB hosted `.gbz.db` by range requests, with no
-server.
+**A pangenome, not a reference.** All 464 haplotypes of
+[HPRC release 2.1](https://doi.org/10.64898/2026.07.21.739710) through a CT
+microsatellite at `chr20:48,000,600-48,001,000`, on 240 distinct routes: 46
+allele lengths from 608 to 680 bp. Each rung of the staircase below is a
+haplotype leaving the repeat one copy earlier than its neighbour. Read straight
+off HPRC's 10 GB hosted `.gbz.db` by range requests, with no server, and named
+from the companion haplotype index beside it — the haplotype through any node is
+`HG01243#2#…`, not `unknown#57`.
 
-![HPRC chr20 microsatellite](doc/images/hprc-chr20-str.png)
+![HPRC v2.1 chr20 microsatellite](doc/images/hprc-v2.1-chr20-str.png)
 
-The same locus a little to the left, where the haplotypes are still in register
-before they fan out:
+The same locus about 300 bp to the right, where the haplotypes are back in
+register:
 
-![HPRC chr20 haplotypes in register](doc/images/hprc-chr20-haplotypes.png)
+![HPRC v2.1 chr20 haplotypes in register](doc/images/hprc-v2.1-chr20-register.png)
 
 [Open chr20:48,000,600-48,001,000 in the live demo][demo-chr20] — both figures
 are crops of that one drawing, which the app lays out end to end and lets you
@@ -70,7 +73,8 @@ Use **File → Open…** to load your own data. There are three ways in:
 The server mode takes `.xg`, `.vg`, and `.gbz` graphs plus `.gam` reads
 directly. In-browser mode keeps files on your machine but needs graphs converted
 to `.gbz.db` first (`vg` + `gbz-base`); a hosted `.gbz.db` URL is read by HTTP
-range requests, so whole-chromosome graphs browse without a download.
+range requests, so a whole-pangenome graph browses without a download — the
+HPRC release 2.1 example in the **Examples** menu is 10 GB and never downloaded.
 
 → [Full data loading guide](doc/data.md)
 
@@ -111,10 +115,10 @@ And the original sequenceTubeMap developers!
 _Claude Code AI was used during this work._
 
 [demo-brca1]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-100
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-100
 [demo-chr20]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20chr20%20(URL-hosted%2C%20full%20PanSN)&region=GRCh38%23chr20:48000600-48001000
+  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20v2.1%20whole%20genome%20(gbz-base%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000
 [demo-reads]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-1000&vis=compressedView
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView
 [demo-coarsened]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(WASM-compatible)&region=17:1-1000&vis=compressedView,coarsenedReadView
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView,coarsenedReadView

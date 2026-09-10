@@ -21,9 +21,9 @@ fork replaces that:
   [`@gmod/gbz-base`](https://github.com/GMOD/gbz-base-js) — no WASM, no Rust
   toolchain, no vendored binary. It walks the SQLite b-trees directly and
   touches only the pages a query needs.
-- **HTTP range requests on hosted graphs.** A 500 bp window into the 134 MB HPRC
-  chr20 database costs roughly seven requests and half a megabyte, so
-  whole-chromosome graphs browse from an object store without a download.
+- **HTTP range requests on hosted graphs.** A 500 bp window into HPRC release
+  2.1's 10 GB database costs 15 requests and a megabyte, so a whole pangenome
+  browses from an object store without a download.
 - **Reads in the browser too.** A from-scratch GAM reader (`src/api/gam/`):
   BGZF, libvgio type-tagged message framing, a hand-rolled protobuf `Alignment`
   decoder, and a parser for vg's `.gam.gai` binary-tree index, so a region query

@@ -26,49 +26,30 @@ Open questions:
 - Worth landing a small inline help tooltip on the Region input that explains
   "query an indexed path; response includes all haplotypes"?
 
-The bundled "HPRC MICB-KIR3DL1" example has the side tables and shows resolved
-names; "HPRC chrM" does not.
+Both bundled HPRC examples show resolved names now, by the two routes there
+are: "HPRC MICB-KIR3DL1" has the side tables inside its database, "HPRC chrM"
+reads them from `exampleData/hprc-chrM.haplotype-index.db` beside it.
 
-## Whole-chromosome HPRC graphs
+## The URL-hosted HPRC release 2.1 example
 
-A full HPRC chromosome (e.g. chr20) is ~130 MB as a `.gbz.db` — too big to
-bundle in this repo. The bundled "HPRC chr20 (URL-hosted, full PanSN)" example
-reads it from `https://jbrowse.org/demos/ivg/hprc/` by HTTP range requests
-(`RemoteFile` through `@gmod/gbz-base`): a 500 bp window is about seven requests
-and half a megabyte, and the paths panel fills from the `Paths` table without a
-download. The hosted file has no `HaplotypeSamples` side tables yet, so its
-haplotypes are labelled `unknown#N#chr20`; running
-`gbz-haplotype-index --from-db` on it and re-uploading would give real PanSN
-names.
+"HPRC v2.1 whole genome (gbz-base, URL-hosted)" is HPRC's published 10 GB
+`.gbz.db` read straight off S3 by range request, with JBrowse's 7.9 GB companion
+haplotype index beside it for the names. Nothing is downloaded: a 500 bp window
+costs 15 requests and a megabyte, and the paths panel 292 lengths in 2.3 s.
+`skipAutoLoad` keeps a menu selection from firing a query on its own; the Go
+button does that.
 
-To set up your own URL-hosted example, the direct GFA → GBZ conversion keeps
-every sample name intact:
-
-```bash
-vg gbwt -G hprc-v1.1-mc-grch38.chr20.gfa --gbz-format -g chr20.gbz
-gbz-base construct chr20.gbz
-gbz-haplotype-index --from-db chr20.gbz.db   # optional, names the haplotypes
-# Upload chr20.gbz.db to an HTTPS object store with CORS allowed for your
-# deployed origin (Access-Control-Allow-Origin response header), then add:
-```
-
-```json
-{
-  "name": "HPRC chr20",
-  "tracks": [
-    { "trackFile": "https://your-bucket/chr20.gbz.db", "trackType": "graph" }
-  ],
-  "region": "GRCh38#chr20:30000000-30000500",
-  "dataType": "built-in"
-}
-```
-
-Open questions before promoting this back to the README:
+Open questions:
 
 - Read tracks (`.gam`) given by URL are still downloaded whole; the progress UI
   covers those. Range-reading GAM would need the `.gai` index consulted first.
-- Default region (`chr20:30000000-30000500`) was picked semi-arbitrarily — is
-  there a more biologically interesting demo region?
+- The default region (`GRCh38#chr6:160620000-160620500`, inside _LPA_'s KIV-2
+  array) draws 23 distinct walks and is legible. The chr20 microsatellite the
+  README figures use draws 240 over the same 464 haplotypes, which is a far
+  denser picture — worth an entry of its own, or is one enough?
+- The 464-haplotype windows are drawn in full; there is no "show me these
+  haplotypes" selection. `subgraphForHaplotypes` with the companion's
+  `HaplotypeAnchors` is what would make that cheap (see doc/gbz-base.md).
 
 ## Resolved
 

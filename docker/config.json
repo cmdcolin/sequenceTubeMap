@@ -73,7 +73,7 @@
       "removeSequences": false
     },
     {
-      "name": "snp1kg-BRCA1 (WASM-compatible)",
+      "name": "snp1kg-BRCA1 (gbz-base)",
       "tracks": [
         {
           "trackFile": "exampleData/internal/snp1kg-BRCA1.gbz.db",

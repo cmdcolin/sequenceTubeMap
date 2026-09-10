@@ -79,8 +79,10 @@ instead, `vg gbwt -G input.gfa --gbz-format -g input.gbz` keeps PanSN sample
 names intact.
 
 By default haplotypes are reported as `unknown#N`. To get real
-`sample#haplotype#contig` names, run the optional `gbz-haplotype-index` step —
-that, and the rest of the `.gbz.db` details, are in [gbz-base.md](gbz-base.md).
+`sample#haplotype#contig` names, run the optional `gbz-haplotype-index` step,
+which writes them either into the database or into a companion file a graph
+track names as `haplotypeIndexFile` — that, and the rest of the `.gbz.db`
+details, are in [gbz-base.md](gbz-base.md).
 
 ### Indexing reads for region queries
 
@@ -98,8 +100,9 @@ Drop both `.sorted.gam` and `.sorted.gam.gai` into the dialog together.
 In the dialog click **Switch to in-browser →**, drop your files, and click
 **Load files**. A `.gbz.db` hosted on an HTTPS server with CORS and range
 support can instead be given as a track URL — it is read by range requests
-rather than downloaded, so whole-chromosome graphs work without pulling the
-whole file.
+rather than downloaded, so a whole-pangenome graph works without pulling the
+whole file. The bundled **HPRC v2.1 whole genome** example is exactly that: 10 GB
+on HPRC's S3, browsed a window at a time.
 
 ---
 

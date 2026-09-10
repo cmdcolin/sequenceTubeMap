@@ -367,6 +367,25 @@ describe('tracksJson escape hatch', () => {
     ).toContain('tracksJson=')
   })
 
+  // A hosted database whose haplotype names live in a companion index is only
+  // shareable if the link carries both files, and the short form has no slot
+  // for the second one.
+  it('carries a graph track and its companion haplotype index', () => {
+    const tracks: Track[] = [
+      {
+        trackType: 'graph',
+        trackFile: 'https://example.org/graph.gbz.db',
+        haplotypeIndexFile: 'https://example.org/graph.haplotype-index.db',
+      },
+    ]
+    const params = viewTargetToUrlParams({ region: 'x:1-100', tracks })
+
+    expect(params).toContain('tracksJson=')
+    expect(urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks).toEqual(
+      tracks,
+    )
+  })
+
   it('ignores malformed JSON rather than throwing', () => {
     expect(
       urlParamsToViewTarget('http://localhost/?region=x:1-100&tracksJson=%7Bnope'),

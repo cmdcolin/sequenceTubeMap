@@ -128,15 +128,23 @@ export class LocalAPI implements APIInterface {
     )
   }
 
-  getPathNames(graphFile: string, cancelSignal: AbortSignal | null) {
+  getPathNames(
+    graphFile: string,
+    cancelSignal: AbortSignal | null,
+    haplotypeIndexFile?: string,
+  ) {
     return this.withCancel(cancelSignal, cancelID =>
-      this.workerAPI.getPathNames(graphFile, cancelID),
+      this.workerAPI.getPathNames(graphFile, cancelID, haplotypeIndexFile),
     )
   }
 
-  getPathInfo(graphFile: string, cancelSignal: AbortSignal | null) {
+  getPathInfo(
+    graphFile: string,
+    cancelSignal: AbortSignal | null,
+    haplotypeIndexFile?: string,
+  ) {
     return this.withCancel(cancelSignal, cancelID =>
-      this.workerAPI.getPathInfo(graphFile, cancelID),
+      this.workerAPI.getPathInfo(graphFile, cancelID, haplotypeIndexFile),
     )
   }
 

@@ -50,14 +50,20 @@ export interface APIInterface {
     cancelSignal: AbortSignal | null,
   ): Promise<{ bedRegions?: RegionInfo }>
 
+  // `haplotypeIndexFile` is the graph track's companion index, when it has
+  // one. Only the in-browser gbz-base backend reads it, and only to answer
+  // path lengths from the index's table rather than by walking the graph; a
+  // server ignores it, as its own graph already carries the paths.
   getPathNames(
     graphFile: string,
     cancelSignal: AbortSignal | null,
+    haplotypeIndexFile?: string,
   ): Promise<{ pathNames: string[] }>
 
   getPathInfo(
     graphFile: string,
     cancelSignal: AbortSignal | null,
+    haplotypeIndexFile?: string,
   ): Promise<{ pathInfo: PathInfo[] }>
 
   // Count reads from `readFile` that visit any node belonging to each path

@@ -192,6 +192,7 @@ function parseTrackObject(value: unknown): Track | undefined {
         trackType,
         trackFile: asString(value.trackFile),
         trackDisplayName: asString(value.trackDisplayName),
+        haplotypeIndexFile: asString(value.haplotypeIndexFile),
         trackColorSettings: parseColorScheme(value.trackColorSettings),
       }
     }
@@ -338,8 +339,9 @@ export function urlParamsToVisOptions(
 
 // The short `tracks=`/`colors=` form cannot say everything a Track can: a
 // track resolved from a BED has no path to list, an uploaded one carries a
-// display name, and a color scheme can carry the per-track mapping-quality
-// flags. Those views fall back to `tracksJson=`, which is the whole array.
+// display name, a graph can name a companion haplotype index, and a color
+// scheme can carry the per-track mapping-quality flags. Those views fall back
+// to `tracksJson=`, which is the whole array.
 function isShortFormTrack(track: Track) {
   const colors = track.trackColorSettings
   return (
@@ -347,6 +349,7 @@ function isShortFormTrack(track: Track) {
     track.trackFile !== '' &&
     !track.trackFile.includes(',') &&
     track.trackDisplayName === undefined &&
+    track.haplotypeIndexFile === undefined &&
     (colors === undefined ||
       (!colors.colorReadsByMappingQuality && !colors.alphaReadsByMappingQuality))
   )

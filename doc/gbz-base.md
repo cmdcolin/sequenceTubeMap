@@ -7,21 +7,42 @@ and fetches only the pages a query touches, so:
 
 - uploaded files are read in place from the `File` object (`BlobFile`);
 - URL-hosted files are read by HTTP range requests (`RemoteFile`). A 500 bp
-  window on the 134 MB HPRC v1.1 chr20 database (the bundled URL-hosted example,
-  default context) costs about seven requests and half a megabyte, not a 134 MB
-  download. Bigger windows on the full HPRC v2.1 database cost proportionally
-  more — the reader's README has numbers for MHC- and LPA-scale queries. The
-  host needs CORS (`Access-Control-Allow-Origin`) and range support, which S3
-  and CloudFront provide.
+  window on HPRC release 2.1's 10 GB database — the bundled URL-hosted example —
+  costs 15 requests and a megabyte, not a 10 GB download. Bigger windows cost
+  proportionally more; the reader's README has numbers for MHC- and LPA-scale
+  queries. The host needs CORS (`Access-Control-Allow-Origin`) and range
+  support, which S3 and CloudFront provide.
 
 No WebAssembly, no Rust toolchain, no vendored patches.
+
+## Which bundled examples use it
+
+The **Examples** menu groups its entries by backend, and a `(gbz-base)` in the
+name says the same thing: that graph is a `.gbz.db` the browser reads itself.
+The entries that read one, from `DATA_SOURCES` in `src/config.json`:
+
+| Example                                     | Graph                                      | Haplotype names                          |
+| ------------------------------------------- | ------------------------------------------ | ---------------------------------------- |
+| snp1kg-BRCA1 (gbz-base)                     | bundled, with a `.gam` read track          | `_gbwt_ref` paths, no haplotypes         |
+| cactus (gbz-base)                           | bundled, with a `.gam` read track          | `_gbwt_ref` paths, no haplotypes         |
+| backward (gbz-base)                         | bundled, `fwd` and `rev` paths             | `_gbwt_ref` paths, no haplotypes         |
+| HPRC chrM (gbz-base, companion index)       | bundled, PanSN sample names                | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
+| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes) | bundled, an HPRC slice                  | real, side tables inside the database     |
+| HPRC v2.1 whole genome (gbz-base, URL-hosted) | hosted, 10 GB, read by range request     | real, from the [companion index](#pointing-a-track-at-a-companion-index) |
+
+Everything else in the menu — `snp1kg-BRCA1`, `vg "small" example`, `cactus`,
+`cactus multiple reads`, `Lancet example` — is an `.xg`/`.vg`/`.gbz` graph that
+`vg chunk` has to cut, so it needs the vgteam server or a self-hosted one and
+the in-browser mode hides it.
 
 ## What this app asks of the database
 
 `GBZBaseAPI` (`src/api/GBZBaseAPI.ts`) uses a deliberately small slice of the
 reader, which is worth stating plainly for anyone comparing implementations:
 
-- `GBZBase.open(source)` once per graph, cached for the session.
+- `GBZBase.open(source, { haplotypeIndex })` once per graph, cached for the
+  session. The second source is the optional companion index described under
+  [naming haplotypes](#naming-haplotypes-optional).
 - `db.getSubgraphForRange(pathQuery, start, end + 1, { haplotypes: 'distinct', signal })`
   for every view. `distinct` means the app always wants _every_ haplotype
   through the window, never a chosen subset. The `+ 1` is the coordinate
@@ -109,9 +130,55 @@ same for `HaplotypeAnchors`.
 
 Upstream `gbz-base query` keeps working on the augmented database. The bundled
 `exampleData/micb-kir3dl1.gbz.db` (an HPRC slice from the package's test data)
-and the URL-hosted chr20 example both have the side tables, so their haplotypes
-read as real `sample#haplotype#contig` names; `hprc-chrM.gbz.db` does not, so
-its haplotypes still read `unknown#N`.
+carries the side tables inside it, so its haplotypes read as real
+`sample#haplotype#contig` names. `exampleData/hprc-chrM.gbz.db` does not: its
+tables are the separate `exampleData/hprc-chrM.haplotype-index.db`, which is the
+form below, 53 kB beside a 110 kB database.
+
+### Pointing a track at a companion index
+
+A database somebody else hosts cannot be augmented in place, which is what
+`--output` is for: the side tables go in a file of their own, and the graph
+track names it beside the database.
+
+```json
+{
+  "trackFile": "https://example.org/graph.gbz.db",
+  "haplotypeIndexFile": "https://example.org/graph.haplotype-index.db",
+  "trackType": "graph"
+}
+```
+
+`haplotypeIndexFile` works wherever a graph track is spelled out for the
+in-browser backend — `DATA_SOURCES` in `src/config.json`, or `tracksJson=` in a
+link — and is read by range request like the database itself. Only that backend
+uses it: a vg server ignores it, since the graph it chunks carries the path
+names already.
+
+The published HPRC release 2.1 graph is the case this exists for. HPRC hosts the
+10 GB database, JBrowse hosts the 7.9 GB companion, and the bundled "HPRC v2.1
+whole genome" example reads both:
+
+```json
+{
+  "trackFile": "https://s3-us-west-2.amazonaws.com/human-pangenomics/pangenomes/freeze/release2/minigraph-cactus/v2.1/hprc-v2.1-mc-grch38/hprc-v2.1-mc-grch38.gbz.db",
+  "haplotypeIndexFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38.haplotype-index.anchored.db",
+  "trackType": "graph"
+}
+```
+
+Measured against those two files from a home connection, 500 bp inside _LPA_'s
+KIV-2 array (`GRCh38#chr6:160620000-160620500`, the example's default region):
+2 s, 15 range requests, 1 MB, for 57 nodes and 23 distinct haplotype walks —
+named `HG03942#2#CM088404.1` rather than `unknown#2`.
+
+The paths panel is the other reason to name the index. It asks for a length per
+indexed path, and the companion answers that out of `HaplotypeLengths` instead
+of walking the graph to the end of each one: the release 2.1 graph's 292 indexed
+paths cost 2.3 s and 3.6 MB with the companion open, and 6 s and 41 MB without
+it. That is why `getPathInfo` takes the index as well as the query path — the
+panel asks by filename alone, and a second database opened without the index
+would be slow in exactly the place a user waits.
 
 ## Region syntax
 

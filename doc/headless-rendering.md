@@ -9,11 +9,11 @@ a paper without a browser screenshot.
 pnpm tubemap-cli --example 6 --out demo6.svg
 
 # real data via the in-browser API (any source from src/config.json)
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' \
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
                  --out brca1.svg --width 3000
 
 # region override
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' \
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
                  --region 17:1-200 --out brca1-zoom.svg
 ```
 
@@ -73,16 +73,42 @@ subsampling when a high-coverage region would otherwise produce an unusably
 large SVG:
 
 ```bash
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (WASM-compatible)' \
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
                  --region 17:1-300 --read-limit 100 --out brca1-sampled.svg
 ```
+
+## Hosted graphs
+
+A source whose graph is a URL is read by range request here as it is in the
+browser, companion haplotype index included, so a figure over HPRC release 2.1
+needs no local copy of its 10 GB database:
+
+```bash
+pnpm tubemap-cli --source 'HPRC v2.1 whole genome (gbz-base, URL-hosted)' \
+                 --region 'GRCh38#chr20:48000600-48001000' --out str.svg
+```
+
+That is 464 haplotypes on 240 distinct walks — 18470 by 1204 units, which is
+too wide for a page. The README's two figures are crops of it, one over the
+allele staircase and one where the haplotypes come back into register:
+
+```bash
+rsvg-convert -z 1 str.svg -o str.png
+magick str.png -crop 1936x1204+1900+0  +repage -background white -flatten \
+  doc/images/hprc-v2.1-chr20-str.png
+magick str.png -crop 1936x1204+15200+0 +repage -background white -flatten \
+  doc/images/hprc-v2.1-chr20-register.png
+```
+
+A local track file is staged as an upload rather than fetched, so the bundled
+sources render the same way with no network at all.
 
 ## Sample output
 
 Everything below was produced by the commands above and lives in
 [tubemap-cli-samples/](tubemap-cli-samples/), SVG alongside PNG.
 
-`--source 'snp1kg-BRCA1 (WASM-compatible)' --width 3000`
+`--source 'snp1kg-BRCA1 (gbz-base)' --width 3000`
 ([SVG](tubemap-cli-samples/snp1kg-BRCA1.svg))
 
 ![snp1kg-BRCA1 tube map](tubemap-cli-samples/snp1kg-BRCA1.png)

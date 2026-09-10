@@ -198,6 +198,13 @@ export class GBZBaseAPI implements APIInterface {
   private urlCache = new Map<string, Promise<Blob>>()
   // One open database per graph file, keyed by upload id or resolved URL.
   private graphs = new Map<string, Promise<GBZBase>>()
+  // Companion haplotype index per graph key, from whichever caller named one.
+  // Kept beside `graphs` rather than folded into its key so every caller
+  // shares one open database: the paths panel asks by filename alone, and a
+  // second copy opened without the index would answer path lengths by walking
+  // the graph — 39 MB of range requests over HPRC v2.1's 292 indexed paths,
+  // against 0.7 MB from the index's own table.
+  private haplotypeIndexes = new Map<string, string>()
   // One seekable handle per read track file, keyed the same way.
   private trackSources = new Map<string, GenericFilehandle>()
   // Base URL to resolve relative trackFile paths against. Required because
@@ -319,19 +326,51 @@ export class GBZBaseAPI implements APIInterface {
     }
   }
 
+  private fileKey(trackFile: string): string {
+    return isUploadId(trackFile) ? trackFile : this.resolveUrl(trackFile)
+  }
+
+  private byteSource(file: string): GenericFilehandle {
+    return isUploadId(file)
+      ? new BlobFile(this.uploadedBlob(file))
+      : new RemoteFile(this.resolveUrl(file))
+  }
+
+  // Record the companion haplotype index a caller named for a graph. A
+  // database already open without it is dropped so the next query reopens it
+  // with the index; a later caller that names none leaves the open one alone,
+  // since dropping the index would rename the haplotypes mid-session.
+  private noteHaplotypeIndex(
+    trackFile: string,
+    indexFile: string | undefined,
+  ): void {
+    if (indexFile === undefined || indexFile === '') {
+      return
+    }
+    const key = this.fileKey(trackFile)
+    if (this.haplotypeIndexes.get(key) !== indexFile) {
+      this.haplotypeIndexes.set(key, indexFile)
+      this.graphs.delete(key)
+    }
+  }
+
   // Open a graph database once per file. Uploads are read from their Blob;
   // URLs are read by range requests, so a hosted multi-hundred-MB database
-  // costs only the pages each query touches.
+  // costs only the pages each query touches. A companion haplotype index
+  // noted for the file is opened the same way and read the same way.
   private openGraph(trackFile: string): Promise<GBZBase> {
-    const key = isUploadId(trackFile) ? trackFile : this.resolveUrl(trackFile)
+    const key = this.fileKey(trackFile)
     let opened = this.graphs.get(key)
     if (!opened) {
+      const indexFile = this.haplotypeIndexes.get(key)
       opened = (async () => {
-        const source = isUploadId(trackFile)
-          ? new BlobFile(this.uploadedBlob(trackFile))
-          : new RemoteFile(key)
+        const source = this.byteSource(trackFile)
         try {
-          return await GBZBase.open(source)
+          return await GBZBase.open(source, {
+            ...(indexFile !== undefined && {
+              haplotypeIndex: this.byteSource(indexFile),
+            }),
+          })
         } catch (e) {
           this.graphs.delete(key)
           if (e instanceof SchemaVersionError) {
@@ -342,8 +381,12 @@ export class GBZBaseAPI implements APIInterface {
               { cause: e },
             )
           } else {
+            const withIndex =
+              indexFile === undefined
+                ? ''
+                : ` with companion haplotype index "${indexFile}"`
             throw new Error(
-              `Could not open "${trackFile}" as a gbz-base database: ${errorMessage(e)}\n` +
+              `Could not open "${trackFile}"${withIndex} as a gbz-base database: ${errorMessage(e)}\n` +
                 'The in-browser backend reads .gbz.db files; .vg, .xg and .gbz are not supported.',
               { cause: e },
             )
@@ -360,12 +403,10 @@ export class GBZBaseAPI implements APIInterface {
   // read by HTTP range requests. Kept per file so RemoteFile's cached stat()
   // survives across region changes.
   private trackSource(trackFile: string): GenericFilehandle {
-    const key = isUploadId(trackFile) ? trackFile : this.resolveUrl(trackFile)
+    const key = this.fileKey(trackFile)
     let source = this.trackSources.get(key)
     if (!source) {
-      source = isUploadId(trackFile)
-        ? new BlobFile(this.uploadedBlob(trackFile))
-        : new RemoteFile(key)
+      source = this.byteSource(trackFile)
       this.trackSources.set(key, source)
     }
     return source
@@ -390,11 +431,12 @@ export class GBZBaseAPI implements APIInterface {
   ): Promise<ChunkedDataResponse> {
     this.debugLog('Got view target:', viewTarget)
 
-    const graphFile = viewTarget.tracks.find(t => t.trackType === 'graph')
-      ?.trackFile
+    const graphTrack = viewTarget.tracks.find(t => t.trackType === 'graph')
+    const graphFile = graphTrack?.trackFile
     if (!graphFile) {
       throw new Error('No graph track selected')
     }
+    this.noteHaplotypeIndex(graphFile, graphTrack.haplotypeIndexFile)
 
     const region = convertRegionToRangeRegion(parseRegion(viewTarget.region))
     const db = await this.openGraph(graphFile)
@@ -586,20 +628,27 @@ export class GBZBaseAPI implements APIInterface {
   async getPathNames(
     graphFile: string,
     cancelSignal: AbortSignal | null,
+    haplotypeIndexFile?: string,
   ): Promise<{ pathNames: string[] }> {
-    const { pathInfo } = await this.getPathInfo(graphFile, cancelSignal)
+    const { pathInfo } = await this.getPathInfo(
+      graphFile,
+      cancelSignal,
+      haplotypeIndexFile,
+    )
     return { pathNames: pathInfo.map(p => p.name) }
   }
 
   async getPathInfo(
     graphFile: string,
     cancelSignal: AbortSignal | null,
+    haplotypeIndexFile?: string,
   ): Promise<{ pathInfo: PathInfo[] }> {
     // Files this backend can't read at all aren't an error — the picker asks
     // about every selected graph, including .gbz/.xg served for the vg server.
     if (!this.isGbzDb(graphFile)) {
       return { pathInfo: [] }
     }
+    this.noteHaplotypeIndex(graphFile, haplotypeIndexFile)
     const db = await this.openGraph(graphFile)
     throwIfCancelled(cancelSignal)
     const paths = (await db.paths())

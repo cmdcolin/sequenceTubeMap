@@ -90,6 +90,21 @@ it('loads a data source picked from the datasets menu', async () => {
   expect(lastRegion(setCurrentViewTarget)).toEqual('ref:1-100')
 })
 
+// Which backend an example needs is not in its name, so the menu says it by
+// grouping: `.gbz.db` examples the browser reads itself first, the ones a vg
+// server has to chunk after.
+it('groups the datasets menu by the backend that reads each example', async () => {
+  renderForm()
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+  const items = screen.getAllByRole('menuitem').map(item => item.textContent)
+
+  expect(screen.getByText('In-browser (gbz-base .gbz.db)')).toBeVisible()
+  expect(screen.getByText('Needs a vg server (.xg, .vg, .gbz)')).toBeVisible()
+  expect(items.indexOf('snp1kg-BRCA1 (gbz-base)')).toBeLessThan(
+    items.indexOf('cactus'),
+  )
+})
+
 it('derives the region from the first BED entry when the dataset has none', async () => {
   renderForm({
     viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },

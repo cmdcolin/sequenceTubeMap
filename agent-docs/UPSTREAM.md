@@ -52,8 +52,8 @@ server.
 ## Why we still want the in-browser reader
 
 The pure-JS GAM parser (`src/api/gam/`) plus `@gmod/gbz-base` let the gh-pages
-deploy show reads on top of a graph without any server at all, and read
-whole-chromosome `.gbz.db` files from an object store by range requests — which
+deploy show reads on top of a graph without any server at all, and read a
+whole-pangenome `.gbz.db` from an object store by range requests — which
 is the real win over just proxying upstream. Conversion of `.gbz` to `.gbz.db`
 stays offline (`gbz-base construct`, see `doc/gbz-base.md`).
 
@@ -61,14 +61,14 @@ stays offline (`gbz-base construct`, see `doc/gbz-base.md`).
 
 Small fixes that keep the in-browser path usable:
 
-- `src/config.json` — added a `"vg \"small\" (WASM-compatible)"` entry pointing
-  at `exampleData/x.gbz.db`.
+- `src/config.json` — added `.gbz.db` entries the in-browser reader can open,
+  named `(gbz-base)`.
 - `src/common.ts` — `isLocalCompatibleDataSource()` helper (graph track ends in
   `.gbz.db` / `.db`).
-- `src/App.tsx` — in local mode, default `viewTarget` is the first
-  WASM-compatible `DATA_SOURCES` entry instead of an empty target; mode toggle
-  to `local` also uses that target.
-- `src/components/HeaderForm.tsx` — built-in dropdown hides non-WASM-compatible
-  entries when `APIInterface instanceof LocalAPI`.
+- `src/App.tsx` — in local mode, default `viewTarget` is the first `.gbz.db`
+  `DATA_SOURCES` entry instead of an empty target; mode toggle to `local` also
+  uses that target.
+- `src/components/HeaderForm.tsx` — the Examples menu hides the entries the
+  in-browser reader cannot open, and groups the rest by backend.
 - `src/api/GBZBaseAPI.ts` — wraps `GBZBase.open` so feeding a `.vg.xg`/`.gbz`
   blob produces a readable error naming the file and the supported format.
