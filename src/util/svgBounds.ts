@@ -181,29 +181,47 @@ function forEachChild(element: Element, visit: (child: Element) => void): void {
   }
 }
 
-export function svgContentBounds(root: Element): Box | null {
+export interface SvgMeasurement {
+  // Null when the subtree drew nothing measurable.
+  box: Box | null
+  // Elements carrying a coordinate that isn't a finite number. Always zero for
+  // a healthy render: it means the layout produced NaN or undefined, and those
+  // shapes are silently absent from the picture.
+  nonFinite: number
+}
+
+// One walk answers both questions a caller has about a drawing, since the
+// expensive part -- reading every element's geometry -- is the same for each.
+export function measureSvgContent(root: Element): SvgMeasurement {
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
   let maxY = -Infinity
+  let nonFinite = 0
 
   const walk = (element: Element, frame: Frame) => {
     // <defs> content is a template positioned by whatever references it, not
     // something drawn where its coordinates say.
     if (element.tagName.toLowerCase() !== 'defs') {
       const here = childFrame(element, frame)
+      let broken = false
       for (const point of elementPoints(element)) {
         const x = here.tx + here.k * point.x
         const y = here.ty + here.k * point.y
         // A NaN coordinate would otherwise poison every comparison and leave
-        // the whole box unusable, so drop the broken shape and keep the rest.
-        // Callers that care can ask separately -- see nonFiniteGeometryCount.
+        // the whole box unusable, so drop the broken shape, count it, and keep
+        // the rest.
         if (Number.isFinite(x) && Number.isFinite(y)) {
           minX = Math.min(minX, x)
           maxX = Math.max(maxX, x)
           minY = Math.min(minY, y)
           maxY = Math.max(maxY, y)
+        } else {
+          broken = true
         }
+      }
+      if (broken) {
+        nonFinite += 1
       }
       forEachChild(element, child => {
         walk(child, here)
@@ -214,28 +232,11 @@ export function svgContentBounds(root: Element): Box | null {
     walk(child, { tx: 0, ty: 0, k: 1 })
   })
 
-  return minX <= maxX && minY <= maxY
-    ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
-    : null
-}
-
-// How many elements in the subtree carry a coordinate that isn't a finite
-// number. Always zero for a healthy render: it means the layout produced NaN
-// or undefined, and those shapes are silently absent from the picture.
-export function nonFiniteGeometryCount(root: Element): number {
-  let broken = 0
-  const walk = (element: Element) => {
-    if (element.tagName.toLowerCase() !== 'defs') {
-      if (
-        elementPoints(element).some(
-          point => !Number.isFinite(point.x) || !Number.isFinite(point.y),
-        )
-      ) {
-        broken += 1
-      }
-      forEachChild(element, walk)
-    }
+  return {
+    box:
+      minX <= maxX && minY <= maxY
+        ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+        : null,
+    nonFinite,
   }
-  forEachChild(root, walk)
-  return broken
 }

@@ -1873,17 +1873,20 @@ function alignSVG(preserveViewport: boolean): () => void {
       })
       // Hide per-base detail (mismatches, sequence text) when the zoom is too
       // far out for the glyphs to be readable. Only touch the styles when
-      // crossing the threshold so we're not writing attrs every frame, and
-      // log the crossing so it's visible during tuning.
+      // crossing the threshold so we're not writing attrs every frame. This is
+      // a property of the current viewport, not of the drawing: svgExport puts
+      // the layers back before serializing a figure.
       const shouldHide = pendingK < MISMATCH_HIDE_BELOW_K
       if (shouldHide !== detailHidden) {
         detailHidden = shouldHide
         const display = shouldHide ? 'none' : ''
         svg.select<SVGGElement>('g.mismatches-layer').style('display', display)
         svg.select<SVGGElement>('g.sequence-labels-layer').style('display', display)
-        console.log(
-          `detail layers ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
-        )
+        if (DEBUG) {
+          console.log(
+            `detail layers ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
+          )
+        }
       }
       pendingTransform = null
     }
@@ -4318,6 +4321,26 @@ function nodeLabelAnchor(d: Node): { cx: number, cy: number } {
   return { cx: d.x + d.pixelWidth / 2, cy: d.y - NODE_LABEL_Y_OFFSET }
 }
 
+// Where the label text lands, so its highlight rect can be sized to it. jsdom
+// has no layout engine and so no getBBox, and the headless renderer draws node
+// labels like any other client, so fall back to the same monospace assumption
+// generateNodeWidth's 8.401 makes: 0.6em per character, on an alphabetic
+// baseline at y=0 with the text centred on x=0.
+function labelTextBox(
+  textEl: SVGTextElement,
+  label: string,
+): { x: number; y: number; width: number; height: number } {
+  const width = label.length * NODE_LABEL_FONT_SIZE * 0.6
+  return typeof textEl.getBBox === 'function'
+    ? textEl.getBBox()
+    : {
+        x: -width / 2,
+        y: -NODE_LABEL_FONT_SIZE * 0.8,
+        width,
+        height: NODE_LABEL_FONT_SIZE,
+      }
+}
+
 function drawNodeLabels(dNodes: Node[]): void {
   const groups = svg
     .append('g')
@@ -4349,10 +4372,10 @@ function drawNodeLabels(dNodes: Node[]): void {
     .attr('fill', 'black')
 
   // Size each rect to its text's actual bounding box
-  groups.each(function () {
+  groups.each(function (d) {
     const textEl = d3.select(this).select<SVGTextElement>('text').node()
     if (!textEl) return
-    const { x, y, width, height } = textEl.getBBox()
+    const { x, y, width, height } = labelTextBox(textEl, d.name)
     d3.select(this).select('rect')
       .attr('x', x - NODE_LABEL_PADDING)
       .attr('y', y - NODE_LABEL_PADDING)

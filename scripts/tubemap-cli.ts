@@ -11,7 +11,7 @@
 //   pnpm tubemap-cli --example 1 --out out.svg
 //   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
 //   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
-//                    --region 17:1-200 --width 3000 --out brca1.svg
+//                    --region 17:1-200 --out brca1.svg
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -39,9 +39,10 @@ View options, mirroring the app's View menu:
   --alpha-by-mapq     fade reads by mapping quality
   --mapq N            drop reads below mapping quality N
 
-The tube map is laid out in a --width by --height viewport, which is what
-decides how much the drawing is scaled down. The exported viewBox is then
-cropped to the drawing; pass --viewport to export the whole canvas instead.
+The exported viewBox is cropped to the drawing at natural scale, so a figure
+depends on the data and the view options alone. --width/--height size the
+viewport the map is laid out in, which only reaches the output through
+--viewport: the whole canvas, framed and zoomed as the app would show it.
 
 Every read in the region is drawn unless --read-limit caps it, in which case
 reads are evenly subsampled the way the app's read-render limit does.
@@ -52,10 +53,6 @@ lays out far wider than tall and the detail disappears; making width
 logarithmic pulls it back. snp1kg-BRCA1 at 17:1-1000 goes from 10122 units
 across to 1099, at the same height.
 `
-
-// Breathing room around the cropped drawing so edge strokes and the outermost
-// sequence labels aren't shaved off.
-const CROP_MARGIN = 10
 
 type RenderTarget =
   | { example: string }
@@ -199,6 +196,7 @@ function installBrowserGlobals(args: CliArgs): JSDOM {
   g.File = window.File
   g.Blob = window.Blob
   g.FileReader = window.FileReader
+  g.XMLSerializer = window.XMLSerializer
   g.getComputedStyle = window.getComputedStyle.bind(window)
   g.requestAnimationFrame = window.requestAnimationFrame.bind(window)
   g.cancelAnimationFrame = window.cancelAnimationFrame.bind(window)
@@ -327,8 +325,8 @@ async function resolveFetch(
   return { key: ['tubeMap.api', api.mode, viewTarget], viewTarget }
 }
 
-// Layout and measurement are the two phases that can get slow on a dense
-// region, so keep them measurable. GBZBASE_DEBUG=1 matches GBZBaseAPI.
+// Layout and export are the two phases that can get slow on a dense region, so
+// keep them measurable. GBZBASE_DEBUG=1 matches GBZBaseAPI.
 function debugTiming(phase: string, since: number): void {
   if (process.env.GBZBASE_DEBUG === '1') {
     console.error(`[timing] ${phase} ${Date.now() - since}ms`)
@@ -347,8 +345,7 @@ async function main(): Promise<void> {
   const { GBZBaseAPI } = await import('../src/api/GBZBaseAPI.ts')
   const { defaultTrackColors } = await import('../src/common.ts')
   const { subsampleReads } = await import('../src/util/array.ts')
-  const { nonFiniteGeometryCount, svgContentBounds } =
-    await import('../src/util/svgBounds.ts')
+  const { exportSvg } = await import('../src/util/svgExport.ts')
   const { applyVisOptions, DEFAULT_VIS_OPTIONS } =
     await import('../src/util/visOptions.ts')
 
@@ -406,40 +403,29 @@ async function main(): Promise<void> {
 
   debugTiming('create()', tCreate)
 
-  const tBounds = Date.now()
+  const tExport = Date.now()
   const svg = dom.window.document.getElementById('tubemap')
   if (!svg) {
     throw new Error('SVG element vanished after render')
   }
 
-  // The renderer draws the whole layout but sizes the <svg> to the viewport it
-  // laid out in, so exporting that size would clip a wide map and leave dead
-  // space under a short one. Crop to what was actually drawn instead, and
-  // trade width/height for the viewBox so viewers scale the map fluidly.
-  // A healthy layout never produces these. When it does the affected shapes
-  // are simply missing from the picture, so say so rather than shipping a
-  // quietly incomplete figure.
-  const broken = nonFiniteGeometryCount(svg)
-  if (broken > 0) {
+  // The same export the browser's Download Image button uses, so a figure made
+  // here matches one saved from the app.
+  const { xml, nonFinite, cropped } = exportSvg(svg, !args.viewport)
+  debugTiming('export', tExport)
+
+  // A healthy layout never produces these. When it does the affected shapes are
+  // simply missing from the picture, so say so rather than shipping a quietly
+  // incomplete figure.
+  if (nonFinite > 0) {
     console.error(
-      `warning: ${broken} shape(s) have non-finite coordinates and will not appear`,
+      `warning: ${nonFinite} shape(s) have non-finite coordinates and will not appear`,
     )
   }
+  if (!cropped && !args.viewport) {
+    console.error('warning: nothing was drawn, the figure is blank')
+  }
 
-  const bounds = svgContentBounds(svg)
-  debugTiming('measure', tBounds)
-  const pad = CROP_MARGIN
-  svg.setAttribute(
-    'viewBox',
-    bounds && !args.viewport
-      ? `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + 2 * pad} ${bounds.height + 2 * pad}`
-      : `0 0 ${args.width} ${args.height}`,
-  )
-  svg.removeAttribute('width')
-  svg.removeAttribute('height')
-  svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n${svg.outerHTML}`
   writeFileSync(args.out, xml)
   console.error(`wrote ${args.out} (${xml.length.toLocaleString()} bytes)`)
 }

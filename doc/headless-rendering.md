@@ -9,8 +9,7 @@ a paper without a browser screenshot.
 pnpm tubemap-cli --example 6 --out demo6.svg
 
 # real data via the in-browser API (any source from src/config.json)
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
-                 --out brca1.svg --width 3000
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
 
 # region override
 pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
@@ -19,10 +18,15 @@ pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
 
 ## Sizing
 
-`--width`/`--height` set the viewport the map is laid out in, which is what
-decides how far the drawing is scaled down to fit. The exported `viewBox` is
-then cropped to the drawing itself, so nothing is clipped and there is no dead
-space around it. Pass `--viewport` to export the whole canvas instead.
+The exported `viewBox` is cropped to the drawing itself, at natural scale, so
+nothing is clipped and there is no dead space around it. Two renders of the same
+data and view options are the same file whatever `--width`/`--height` say, and
+the same file the app's **Download Image** button saves.
+
+`--width`/`--height` size the viewport the map is laid out in, which decides the
+zoom the app would open it at. That only reaches the output through
+`--viewport`, which exports the whole canvas at that zoom — what the app would
+show — rather than the cropped figure.
 
 ## View options
 
@@ -88,15 +92,15 @@ pnpm tubemap-cli --source 'HPRC v2.1 whole genome (gbz-base, URL-hosted)' \
                  --region 'GRCh38#chr20:48000600-48001000' --out str.svg
 ```
 
-That is 464 haplotypes on 240 distinct walks — 18470 by 1204 units, which is
-too wide for a page. The README's two figures are crops of it, one over the
-allele staircase and one where the haplotypes come back into register:
+That is 464 haplotypes on 240 distinct walks — 23835 by 1549 units, which is too
+wide for a page. The README's two figures are crops of it, one over the allele
+staircase and one where the haplotypes come back into register:
 
 ```bash
 rsvg-convert -z 1 str.svg -o str.png
-magick str.png -crop 1936x1204+1900+0  +repage -background white -flatten \
+magick str.png -crop 2499x1549+2452+0  +repage -background white -flatten \
   doc/images/hprc-v2.1-chr20-str.png
-magick str.png -crop 1936x1204+15200+0 +repage -background white -flatten \
+magick str.png -crop 2499x1549+19617+0 +repage -background white -flatten \
   doc/images/hprc-v2.1-chr20-register.png
 ```
 
@@ -108,7 +112,7 @@ sources render the same way with no network at all.
 Everything below was produced by the commands above and lives in
 [tubemap-cli-samples/](tubemap-cli-samples/), SVG alongside PNG.
 
-`--source 'snp1kg-BRCA1 (gbz-base)' --width 3000`
+`--source 'snp1kg-BRCA1 (gbz-base)'`
 ([SVG](tubemap-cli-samples/snp1kg-BRCA1.svg))
 
 ![snp1kg-BRCA1 tube map](tubemap-cli-samples/snp1kg-BRCA1.png)

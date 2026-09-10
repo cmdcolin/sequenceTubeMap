@@ -2,7 +2,7 @@
 // inspect the resulting SVG DOM. Complements tubemap.test.ts, which covers
 // pure functions (cigar_string, coverage, axisIntervals).
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tubeMap from './tubemap.ts'
 import type { InfoAttribute, InputNode, InputTrack } from './tubemap.ts'
 import { computeExampleData } from '../components/tubeMapData.ts'
@@ -198,6 +198,35 @@ describe('tubemap.create — node width options', () => {
     // assumes nodeWidthOption='normal' (the initial default).
     tubeMap.setNodeWidthOption('normal')
     expect(true).toBe(true)
+  })
+})
+
+describe('tubemap.create — node labels', () => {
+  beforeEach(() => {
+    setupSvg()
+  })
+
+  afterEach(() => {
+    tubeMap.setShowNodeLabels(false)
+  })
+
+  it('labels every node, each with a highlight rect sized to its text', () => {
+    tubeMap.setShowNodeLabels(true)
+    const { nodes, tracks } = dataForExample('1')
+    const svg = render(nodes, tracks)
+
+    const groups = svg.querySelectorAll('.node-label-group')
+    expect(groups.length).toBe(nodes.length)
+    for (const group of groups) {
+      const text = group.querySelector('text')
+      const rect = group.querySelector('rect')
+      // jsdom has no getBBox, so this is the estimated box -- what matters is
+      // that a headless render sizes the rect at all rather than throwing.
+      expect(Number(rect?.getAttribute('width'))).toBeGreaterThan(
+        (text?.textContent ?? '').length,
+      )
+      expect(Number(rect?.getAttribute('height'))).toBeGreaterThan(0)
+    }
   })
 })
 

@@ -45,8 +45,9 @@ backend, that makes three ways to load data. See [data.md](data.md).
 ## Headless rendering
 
 `pnpm tubemap-cli` runs the same d3 layout under Node + jsdom and writes an SVG,
-with no browser involved. Samples in
-[tubemap-cli-samples/](tubemap-cli-samples/). See
+with no browser involved, through the same export the **Download Image** button
+uses — so a figure made headlessly and one saved from the app are the same file.
+Samples in [tubemap-cli-samples/](tubemap-cli-samples/). See
 [headless-rendering.md](headless-rendering.md).
 
 ## Visualization
@@ -101,7 +102,10 @@ Non-obvious calls are recorded as ADRs in
 The layout itself — node ordering, lane assignment, loop handling, read
 placement — is upstream's, ported to TypeScript rather than rewritten. So are
 the Express + `vg chunk` server, the tabix-indexed chunk support contributed by
-Jean Monlong, BED region navigation, SVG download, and the example data.
+Jean Monlong, BED region navigation, and the example data. SVG download is
+upstream's too, but it now saves the whole map cropped to its content rather
+than the on-screen viewport (see
+[headless-rendering.md](headless-rendering.md)).
 
 ## Trade-offs
 
