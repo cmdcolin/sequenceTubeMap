@@ -5,7 +5,8 @@
 
 import * as tubeMap from './tubemap.ts'
 import type { ReadGroup as TubeMapReadGroup } from './tubemap.ts'
-import type { VisOptions, VisOptionFlag } from '../Types.ts'
+import { dataOriginTypes } from '../enums.ts'
+import type { ColorScheme, VisOptions, VisOptionFlag } from '../Types.ts'
 
 interface ReadGroupInput {
   color: string
@@ -55,6 +56,55 @@ export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   mappingQualityCutoff: 0,
   coarsenedReadView: false,
   ignoreStrand: false,
+}
+
+// The bundled demo datasets carry no track settings to derive colors from, so
+// name them here rather than let each caller fall back to something different:
+// the app used to color an example with whatever the last loaded data source
+// left in visOptions, and the CLI with tubemap's own type defaults.
+//
+// A haplotype takes its color from `auxPalette` — `mainPalette` only supplies
+// the reference path's — so it is the aux one that sets the look. The
+// alignment examples mute the graph to greys so the reads read clearly over
+// it; the rest are structural, and their haplotypes are the subject.
+const MUTED_GRAPH: ColorScheme = {
+  mainPalette: 'greys',
+  auxPalette: 'greys',
+  colorReadsByMappingQuality: false,
+  alphaReadsByMappingQuality: false,
+}
+
+const CATEGORICAL_GRAPH: ColorScheme = {
+  mainPalette: 'plainColors',
+  auxPalette: 'lightColors',
+  colorReadsByMappingQuality: false,
+  alphaReadsByMappingQuality: false,
+}
+
+// Forward reads from the main palette, reverse ones from the aux: the pair the
+// app's own config ships as the read default.
+const EXAMPLE_READS: ColorScheme = {
+  mainPalette: 'blues',
+  auxPalette: 'reds',
+  colorReadsByMappingQuality: false,
+  alphaReadsByMappingQuality: false,
+}
+
+const EXAMPLE_GRAPH_SCHEMES: Record<string, ColorScheme> = {
+  [dataOriginTypes.EXAMPLE_6]: MUTED_GRAPH,
+  [dataOriginTypes.EXAMPLE_7]: MUTED_GRAPH,
+}
+
+// Indexed the way an example's tracks are: the graph first, its reads second.
+// The reads keep the standard forward/reverse pair — example 7 is about
+// reverse alignments, and one palette for both strands would hide them.
+// Examples with no reads name the pair anyway, so the legend describes the
+// same colors the renderer would reach for.
+export function exampleColorSchemes(dataOrigin: string): ColorScheme[] {
+  return [
+    EXAMPLE_GRAPH_SCHEMES[dataOrigin] ?? CATEGORICAL_GRAPH,
+    EXAMPLE_READS,
+  ]
 }
 
 // `nodeSequences` is false when the backend stripped node sequences, which

@@ -31,14 +31,12 @@ import type { APIInterface } from './api/APIInterface.ts'
 import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
 import {
   DEFAULT_VIS_OPTIONS,
+  exampleColorSchemes,
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
 } from './util/visOptions.ts'
 import type {
-  ColorPaletteName,
   ColorScheme,
-  Palette,
-  PaletteField,
   Tracks,
   ViewTarget,
   VisOptionFlag,
@@ -283,29 +281,11 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     writeStored(READ_RENDER_LIMIT_KEY, limit)
   }
 
-  const setColorSetting = (
-    key: PaletteField,
-    index: number,
-    value: Palette,
-  ) => {
-    setVisOptions(v => {
-      const newcolors = [...v.colorSchemes]
-      newcolors[index] ??= { ...config.defaultReadColorPalette }
-      newcolors[index] = { ...newcolors[index]!, [key]: value }
-      return { ...v, colorSchemes: newcolors }
-    })
-  }
-
-  const showExample = (
-    origin: string,
-    mainPalette: ColorPaletteName,
-    readPalette?: ColorPaletteName,
-  ) => {
+  // The demo datasets carry no tracks to take colors from, so they name their
+  // own rather than inherit whatever the last loaded data source left behind.
+  const showExample = (origin: string) => {
     setDataOrigin(origin)
-    setColorSetting('mainPalette', 0, mainPalette)
-    if (readPalette !== undefined) {
-      setColorSetting('mainPalette', 1, readPalette)
-    }
+    setVisOptions(v => ({ ...v, colorSchemes: exampleColorSchemes(origin) }))
   }
 
   return (

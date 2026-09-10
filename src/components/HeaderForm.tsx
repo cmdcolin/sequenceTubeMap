@@ -54,7 +54,6 @@ import {
   viewTargetsEqual,
 } from './headerFormUtils.ts'
 import type {
-  ColorPaletteName,
   FileType,
   PathInfo,
   RegionInfo,
@@ -71,11 +70,7 @@ const MAX_UPLOAD_SIZE_DESCRIPTION = `${(
 ).toFixed(0)} MB`
 
 interface HeaderFormProps {
-  showExample: (
-    origin: string,
-    mainPalette: ColorPaletteName,
-    readPalette?: ColorPaletteName,
-  ) => void
+  showExample: (origin: string) => void
   setCurrentViewTarget: (viewTarget: ViewTarget) => void
   // Also seeds the form's own tracks/region/name/bedFile state on mount. App
   // remounts the form when the backend changes, so switching backends
