@@ -1,10 +1,47 @@
 import eslint from '@eslint/js'
 import { defineConfig } from 'eslint/config'
-import eslintPluginImport from 'eslint-plugin-import'
 import eslintPluginReact from 'eslint-plugin-react'
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
+
+const RELATIVE_SPECIFIER = /^\.{1,2}\//
+const ENDS_IN_EXTENSION = /\.[a-zA-Z0-9]+$/
+
+// Node resolves ESM without guessing at extensions, and `pnpm tubemap-cli`
+// hands src/ straight to node, so a bare `../Types` breaks it while the vite
+// build stays happy. This is the one rule we used eslint-plugin-import for.
+const relativeImportExtensions = {
+  meta: {
+    type: 'problem',
+    messages: {
+      missing: "'{{source}}' needs the file extension spelled out.",
+    },
+  },
+  create(context) {
+    const check = source => {
+      if (typeof source?.value !== 'string') {
+        return
+      }
+      if (
+        RELATIVE_SPECIFIER.test(source.value) &&
+        !ENDS_IN_EXTENSION.test(source.value)
+      ) {
+        context.report({
+          node: source,
+          messageId: 'missing',
+          data: { source: source.value },
+        })
+      }
+    }
+    return {
+      ImportDeclaration: node => { check(node.source) },
+      ImportExpression: node => { check(node.source) },
+      ExportAllDeclaration: node => { check(node.source) },
+      ExportNamedDeclaration: node => { check(node.source) },
+    }
+  },
+}
 
 export default defineConfig(
   {
@@ -36,14 +73,12 @@ export default defineConfig(
     },
   },
   {
-    plugins: { import: eslintPluginImport },
-    rules: {
-      'import/extensions': [
-        'error',
-        'ignorePackages',
-        { ignore: ['^#'], checkTypeImports: true },
-      ],
+    plugins: {
+      local: {
+        rules: { 'relative-import-extensions': relativeImportExtensions },
+      },
     },
+    rules: { 'local/relative-import-extensions': 'error' },
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

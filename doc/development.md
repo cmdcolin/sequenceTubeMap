@@ -54,6 +54,12 @@ pnpm check-docs  # markdown citations of src/... paths still resolve
 
 `pnpm lint --cache --fix` applies the autofixable subset.
 
+One rule is defined in `eslint.config.mjs` itself rather than pulled from a
+plugin: `local/relative-import-extensions` requires relative imports to spell
+out the file extension. Node's ESM resolver does not guess at one, and
+[`pnpm tubemap-cli`](headless-rendering.md) hands `src/` straight to node, so a
+bare `../Types` would break that entry point while the Vite build stayed happy.
+
 For one test by name:
 
 ```
