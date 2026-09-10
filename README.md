@@ -73,8 +73,8 @@ Use **File → Open…** to load your own data. There are three ways in:
 The server mode takes `.xg`, `.vg`, and `.gbz` graphs plus `.gam` reads
 directly. In-browser mode keeps files on your machine but needs graphs converted
 to `.gbz.db` first (`vg` + `gbz-base`); a hosted `.gbz.db` URL is read by HTTP
-range requests, so a whole-pangenome graph browses without a download — the
-HPRC release 2.1 example in the **Examples** menu is 10 GB and never downloaded.
+range requests, so a whole-pangenome graph browses without a download — the HPRC
+release 2.1 example in the **Examples** menu is 10 GB and never downloaded.
 
 → [Full data loading guide](doc/data.md)
 
@@ -86,19 +86,29 @@ and `node:42-55` also work.
 
 ## Documentation
 
-**Using it** — [Introduction to sequence tube maps](doc/intro.md) ·
-[Loading your own data](doc/data.md) · [URL parameters](doc/urlparams.md) ·
-[Headless SVG rendering](doc/headless-rendering.md)
+**Using it**
 
-**Running a server** — [Server data preparation](doc/server-data.md) ·
-[Tabix indexes](doc/tabix.md) · [Docker](docker/README.md)
+- [Introduction to sequence tube maps](doc/intro.md)
+- [Loading your own data](doc/data.md)
+- [URL parameters](doc/urlparams.md)
+- [Headless SVG rendering](doc/headless-rendering.md)
 
-**Under the hood** — [Architecture](doc/architecture.md) ·
-[In-browser gbz-base reader](doc/gbz-base.md) ·
-[Differences from upstream](doc/differences-from-upstream.md)
+**Running a server**
 
-**Contributing** — [Development guide](doc/development.md) ·
-[Architectural decision records](agent-docs/architectural-decision-records/)
+- [Server data preparation](doc/server-data.md)
+- [Tabix indexes](doc/tabix.md)
+- [Docker](docker/README.md)
+
+**Under the hood**
+
+- [Architecture](doc/architecture.md)
+- [In-browser gbz-base reader](doc/gbz-base.md)
+- [Differences from upstream](doc/differences-from-upstream.md)
+
+**Contributing**
+
+- [Development guide](doc/development.md)
+- [Architectural decision records](agent-docs/architectural-decision-records/)
 
 ## Thanks
 
