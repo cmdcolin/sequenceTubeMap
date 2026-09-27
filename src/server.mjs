@@ -484,21 +484,14 @@ async function parseGFATranslation(filePath) {
 }
 
 // Wrap a route handler to hold a READ_LOCK on the download and upload
-// directories until its response is over, not just until the handler
-// returns: getChunkedData returns once vg is running, and vg still has files
-// to read.
+// directories until it settles, which is after every subprocess it started
+// has exited.
 function withDataDirectoriesLocked(handler) {
   return (req, res, next) =>
     lockDirectories(
       [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH],
       lockTypes.READ_LOCK,
-      async () => {
-        const responseOver = new Promise(resolve => {
-          res.once('close', resolve)
-        })
-        await handler(req, res, next)
-        await responseOver
-      },
+      () => handler(req, res, next),
     )
 }
 
@@ -630,12 +623,10 @@ function removeNodeSequencesInPlace(graph) {
   })
 }
 
-// Handle a chunked data (tube map view) request. Returns a promise. On error,
-// either the promise rejects *or* next() is called with an error, or both.
-// TODO: This is a terrible mixed design for error handling; we need to either
-// rewrite the flow of talking to vg in terms of async/await or abandon
-// async/await altogether in order to get out of it.
-async function getChunkedData(req, res, next) {
+// Handle a chunked data (tube map view) request: cut the region out of the
+// graph (or view its pre-fetched chunk), gather its reads and annotations, and
+// answer with the lot.
+async function getChunkedData(req, res) {
   const reqId = randomUUID()
   req.reqId = reqId
   console.time(`request-duration-${reqId}`)
@@ -694,17 +685,6 @@ async function getChunkedData(req, res, next) {
     }
   }
 
-  // Assign each request a UUID. v1 UUIDs can be very similar for similar
-  // timestamps on the same node, but are still guaranteed to be unique within
-  // a given nodejs process.
-  req.uuid = randomUUID()
-
-  // Make a temp directory for vg output files for this request
-  req.chunkDir = path.join(SCRATCH_DATA_PATH, `tmp-${req.uuid}`)
-  fs.mkdirSync(req.chunkDir)
-  // This request owns the directory, so clean it up when the request finishes.
-  req.rmChunk = true
-
   // We always have an graph file
   const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
   // We sometimes have a GBWT with haplotypes that override any in the graph file
@@ -716,34 +696,17 @@ async function getChunkedData(req, res, next) {
     req.body.tracks,
     fileTypes.TRANSLATION,
   )
-  // We sometimes have a BED file with regions to look at
-  const bedFile = req.body.bedFile
-
   const gamFiles = getGams(req.body.tracks)
 
   console.log('graphFile ', graphFile)
   console.log('gbwtFile ', gbwtFile)
   console.log('nodeFile ', nodeFile)
-  console.log('bedFile ', bedFile)
+  console.log('bedFile ', req.body.bedFile)
   console.log('gamFiles ', gamFiles)
 
-  req.withGam = true
-  if (!gamFiles || !gamFiles.length) {
-    req.withGam = false
-    console.log('no gam index provided.')
-  }
-
-  req.withGbwt = true
-  if (!gbwtFile || gbwtFile === 'none') {
-    req.withGbwt = false
-    console.log('no gbwt file provided.')
-  }
-
-  req.withNode = true
-  if (!nodeFile || nodeFile === 'none') {
-    req.withNode = false
-    console.log('no node file provided.')
-  }
+  req.withGam = gamFiles.length > 0
+  req.withGbwt = gbwtFile !== undefined
+  req.withNode = nodeFile !== undefined
 
   req.nameMap = {}
   if (translationFile && translationFile !== 'none') {
@@ -765,572 +728,251 @@ async function getChunkedData(req, res, next) {
   }
 
   // client is going to send removeSequences = true if they don't want sequences of nodes to be displayed
-  req.removeSequences = false
-  if (req.body.removeSequences) {
-    req.removeSequences = true
-  }
-
-  // We only want to have one downstream callback chain out of here, and we
-  // want to make sure it can only start after there's no possibility that we
-  // concurrently reject.
-  let sentResponse = false
+  req.removeSequences = Boolean(req.body.removeSequences)
 
   // We always need a range-version of the region, to fill in req.region, to
   // generate the region part of the response with the range.
   const rangeRegion = convertRegionToRangeRegion(parsedRegion)
 
-  if (chunkPath === '') {
-    assertGraphFile(graphFile)
-
-    if (graphFile.endsWith('.pos.bed.gz')) {
-      // use tabix-based pangenome (experimental)
-
-      if (!req.withGbwt) {
-        throw new BadRequestError(
-          'Need to specify tabix-indexed haplotype file, ending with .haps.gaf.gz, paired with ' +
-            graphFile,
-        )
-      }
-      if (!isAllowedPath(gbwtFile)) {
-        throw new BadRequestError(
-          'Tabix-indexed haplotype file path not allowed: ' + gbwtFile,
-        )
-      }
-      if (!req.withNode) {
-        throw new BadRequestError(
-          'Need to specify tabix-indexed node file, ending with .nodes.tsv.gz, paired with ' +
-            graphFile,
-        )
-      }
-      if (!isAllowedPath(nodeFile)) {
-        throw new BadRequestError(
-          'Tabix-indexed node file path not allowed: ' + nodeFile,
-        )
-      }
-
-      const chunkixParams = [
-        find_chunkix(),
-        '-n',
-        nodeFile,
-        '-p',
-        graphFile,
-        '-g',
-        gbwtFile,
-        '-j',
-        '-s',
-        '-o',
-        `${req.chunkDir}/chunk`,
-      ]
-
-      // push all indexed gaf files
-      for (const gafFile of gamFiles) {
-        if (!gafFile.endsWith('.gaf.gz')) {
-          if (gafFile.endsWith('.gam')) {
-            // slightly different message if GAM provided instead of GAF
-            throw new BadRequestError(
-              'Tabix-index mode only works with indexed GAF files',
-            )
-          } else {
-            throw new BadRequestError(
-              "GAF file doesn't end .gaf.gz: " + gafFile,
-            )
-          }
-        }
-        if (!isAllowedPath(gafFile)) {
-          throw new BadRequestError('GAF file path not allowed: ' + gafFile)
-        }
-        console.log('pushing gaf file', gafFile)
-        chunkixParams.push('-a', gafFile)
-      }
-      chunkixParams.push('-r', stringifyRangeRegion(rangeRegion))
-
-      console.log(`python3 ${chunkixParams.join(' ')}`)
-      console.time(`chunkix-${reqId}`)
-
-      const chunkixCall = spawn('python3', chunkixParams, {
-        signal: req.clientGone,
-      })
-      req.error = Buffer.alloc(0)
-
-      chunkixCall.on('error', function (err) {
-        console.log(
-          'Error executing ' + 'python3 ',
-          chunkixParams.join(' ') + ': ' + err,
-        )
-        if (!sentResponse) {
-          sentResponse = true
-          return next(new VgExecutionError('chunkix failed'))
-        }
-        return
-      })
-
-      chunkixCall.stderr.on('data', data => {
-        console.log(`chunkix err data: ${data}`)
-        req.error += data
-      })
-
-      chunkixCall.stdout.on('data', function (data) {
-        console.log(`chunkix out data: ${data}`)
-      })
-
-      chunkixCall.on('close', code => {
-        console.log(`chunkix exited with code ${code}`)
-        if (code !== 0) {
-          console.log('Error from python3 ' + chunkixParams.join(' '))
-          // Execution failed, so don't go on to read output that isn't there.
-          if (!sentResponse) {
-            sentResponse = true
-            next(new VgExecutionError('chunkix failed'))
-          }
-          return
-        }
-
-        if (sentResponse) {
-          return
-        }
-        sentResponse = true
-        fs.promises
-          .readFile(`${req.chunkDir}/chunk.graph.json`, 'utf-8')
-          .then(graphAsString => {
-            console.timeEnd(`chunkix-${reqId}`)
-            if (graphAsString === '') {
-              throw new VgExecutionError('chunkix produced an empty graph')
-            }
-            req.graph = parseSubprocessJSON(graphAsString, 'chunk.graph.json')
-            if (req.removeSequences) {
-              removeNodeSequencesInPlace(req.graph)
-            }
-            req.region = [rangeRegion.start, rangeRegion.end]
-            // chunkix always puts the path we reference first
-            void processAnnotationFile(req, res, next)
-          })
-          .catch(error => {
-            next(error)
-          })
-      })
-    } else {
-      // use vg-based pangenome
-
-      // call 'vg chunk' to generate graph
-      const vgChunkParams = ['chunk']
-      // TODO: Use same variable for check and command line?
-
-      // Maybe check using file types in the future
-
-      // See if we need to ignore haplotypes in gbz graph file
-
-      if (req.withGbwt) {
-        //either push gbz with graph and haplotype or push separate graph and gbwt file
-        if (
-          graphFile.endsWith('.gbz') &&
-          gbwtFile.endsWith('.gbz') &&
-          graphFile === gbwtFile
-        ) {
-          // use gbz haplotype
-          vgChunkParams.push('-x', graphFile)
-        } else if (!graphFile.endsWith('.gbz') && gbwtFile.endsWith('.gbz')) {
-          throw new BadRequestError('Cannot use gbz as haplotype alone.')
-        } else {
-          // ignoring haplotype from graph file and using haplotype from gbwt file
-          vgChunkParams.push('--no-embedded-haplotypes', '-x', graphFile)
-
-          // double-check that the file is a .gbwt and allowed
-          if (!endsWithExtensions(gbwtFile, HAPLOTYPE_EXTENSIONS_VG)) {
-            throw new BadRequestError(
-              "GBWT file doesn't end in .gbwt or .gbz: " + gbwtFile,
-            )
-          }
-          if (!isAllowedPath(gbwtFile)) {
-            throw new BadRequestError('GBWT file path not allowed: ' + gbwtFile)
-          }
-          // Use a GBWT haplotype database
-          vgChunkParams.push('--gbwt-name', gbwtFile)
-        }
-      } else {
-        // push graph file
-        if (graphFile.endsWith('.gbz')) {
-          vgChunkParams.push('-x', graphFile, '--no-embedded-haplotypes')
-        } else {
-          vgChunkParams.push('-x', graphFile)
-        }
-      }
-
-      // push all gam files
-      let anyGam = false
-      let anyGaf = false
-      for (const gamFile of gamFiles) {
-        if (
-          !gamFile.endsWith('.gam') &&
-          !gamFile.endsWith('.gaf') &&
-          !gamFile.endsWith('.gaf.gz')
-        ) {
-          throw new BadRequestError(
-            "GAM/GAF file doesn't end in .gam, .gaf, or .gaf.gz: " + gamFile,
-          )
-        }
-        if (!isAllowedPath(gamFile)) {
-          throw new BadRequestError('GAM/GAF file path not allowed: ' + gamFile)
-        }
-        if (gamFile.endsWith('.gam')) {
-          // Use a GAM
-          console.log('pushing gam file', gamFile)
-          anyGam = true
-        }
-        if (gamFile.endsWith('.gaf')) {
-          // Use a small GAF without an index
-          console.log('pushing gaf file', gamFile)
-          anyGaf = true
-        }
-        if (gamFile.endsWith('.gaf.gz')) {
-          // Use a GAF with index
-          console.log('pushing hopefully indexed gaf file', gamFile)
-          anyGaf = true
-        }
-        vgChunkParams.push('-a', gamFile)
-      }
-      if (anyGam && anyGaf) {
-        throw new BadRequestError(
-          'Reads must be either GAM files or GAF files, not mix both.',
-        )
-      }
-      if (anyGaf) {
-        vgChunkParams.push('-F', '-g')
-      }
-      if (anyGam) {
-        vgChunkParams.push('-g')
-      }
-
-      // to search by node ID use "node" for the sequence name, e.g. 'node:1-10'
-      if (parsedRegion.contig === 'node') {
-        if (parsedRegion.distance !== undefined) {
-          // Start and distance of node IDs, so send that idiomatically.
-          vgChunkParams.push(
-            '-r',
-            parsedRegion.start,
-            '-c',
-            parsedRegion.distance,
-          )
-        } else {
-          // Start and end of node IDs
-          vgChunkParams.push(
-            '-r',
-            ''.concat(parsedRegion.start, ':', parsedRegion.end),
-            '-c',
-            20,
-          )
-        }
-      } else {
-        // Ask for the whole region by start - end range.
-        vgChunkParams.push('-c', '20', '-p', stringifyRangeRegion(rangeRegion))
-      }
-      vgChunkParams.push(
-        '-T',
-        '-b',
-        `${req.chunkDir}/chunk`,
-        '-E',
-        `${req.chunkDir}/regions.tsv`,
+  req.error = ''
+  // The per-request directory vg writes into, which is ours to remove.
+  let scratchDir = undefined
+  // Whether chunkix.py cuts the graph out of a tabix-indexed pangenome
+  // (experimental), rather than vg.
+  const tabix = chunkPath === '' && graphFile?.endsWith('.pos.bed.gz')
+  try {
+    let graphJSON
+    if (chunkPath !== '') {
+      req.chunkDir = chunkPath
+      const chunkGraph = `${chunkPath}/chunk.vg`
+      graphJSON = await runPipeline(
+        req,
+        req.simplify
+          ? [vgStage(['simplify', chunkGraph]), vgViewGraphStage('-')]
+          : [vgViewGraphStage(chunkGraph)],
       )
-
-      console.log(`vg ${vgChunkParams.join(' ')}`)
-
-      console.time(`vg chunk-${reqId}`)
-      const vgChunkCall = spawn(find_vg(), vgChunkParams, {
-        signal: req.clientGone,
-      })
-      // vg simplify for gam files
-      let vgSimplifyCall = null
-      if (req.simplify) {
-        vgSimplifyCall = spawn(find_vg(), ['simplify', '-'], {
-          signal: req.clientGone,
-        })
-        console.log('Spawning vg simplify call')
-      }
-
-      const vgViewCall = spawn(find_vg(), ['view', '-j', '-'], {
-        signal: req.clientGone,
-      })
-      let graphAsString = ''
-      req.error = Buffer.alloc(0)
-
-      vgChunkCall.on('error', function (err) {
-        console.log(
-          'Error executing ' +
-            find_vg() +
-            ' ' +
-            vgChunkParams.join(' ') +
-            ': ' +
-            err,
-        )
-        if (!sentResponse) {
-          sentResponse = true
-          return next(new VgExecutionError('vg chunk failed'))
-        }
-        return
-      })
-
-      vgChunkCall.stderr.on('data', data => {
-        console.log(`vg chunk err data: ${data}`)
-        req.error += data
-      })
-
-      pipeChildren(vgChunkCall, req.simplify ? vgSimplifyCall : vgViewCall)
-
-      vgChunkCall.on('close', code => {
-        console.log(`vg chunk exited with code ${code}`)
-        if (code !== 0) {
-          console.log('Error from ' + find_vg() + ' ' + vgChunkParams.join(' '))
-          // Execution failed, so tear down the rest of the pipeline rather
-          // than letting it grind on a truncated graph.
-          if (req.simplify) {
-            vgSimplifyCall.kill()
-          }
-          vgViewCall.kill()
-          if (!sentResponse) {
-            sentResponse = true
-            next(new VgExecutionError('vg chunk failed'))
-          }
-        }
-      })
-
-      // vg simplify
-      if (req.simplify) {
-        vgSimplifyCall.on('error', function (err) {
-          console.log(
-            'Error executing ' + find_vg() + ' simplify ' + '- ' + ': ' + err,
-          )
-          if (!sentResponse) {
-            sentResponse = true
-            return next(new VgExecutionError('vg simplify failed'))
-          }
-          return
-        })
-
-        vgSimplifyCall.stderr.on('data', data => {
-          console.log(`vg simplify err data: ${data}`)
-          req.error += data
-        })
-
-        pipeChildren(vgSimplifyCall, vgViewCall)
-
-        vgSimplifyCall.on('close', code => {
-          console.log(`vg simplify exited with code ${code}`)
-          if (code !== 0) {
-            console.log('Error from ' + find_vg() + ' ' + 'simplify - ')
-            // Execution failed
-            if (!sentResponse) {
-              sentResponse = true
-              return next(new VgExecutionError('vg simplify failed'))
-            }
-          }
-        })
-      }
-
-      // vg view
-      vgViewCall.on('error', function (err) {
-        console.log('Error executing "vg view": ' + err)
-        if (!sentResponse) {
-          sentResponse = true
-          return next(new VgExecutionError('vg view failed'))
-        }
-        return
-      })
-
-      vgViewCall.stderr.on('data', data => {
-        console.log(`vg view err data: ${data}`)
-      })
-
-      vgViewCall.stdout.on('data', function (data) {
-        graphAsString += data.toString()
-      })
-
-      vgViewCall.on('close', code => {
-        console.log(`vg view exited with code ${code}`)
-        console.timeEnd(`vg chunk-${reqId}`)
-        if (code !== 0) {
-          // Execution failed
-          if (!sentResponse) {
-            sentResponse = true
-            return next(new VgExecutionError('vg view failed'))
-          }
-          return
-        }
-        if (graphAsString === '') {
-          if (!sentResponse) {
-            sentResponse = true
-            return next(new VgExecutionError('vg view produced empty graph'))
-          }
-          return
-        }
-        if (!sentResponse) {
-          sentResponse = true
-          try {
-            finishGraphAndProcess(
-              req,
-              res,
-              next,
-              graphAsString,
-              rangeRegion,
-              parsedRegion,
-            )
-          } catch (error) {
-            next(error)
-          }
-        }
-      })
-    }
-  } else {
-    // chunk has already been pre-fetched and is saved in chunkPath
-    req.chunkDir = chunkPath
-    // We're using a shared directory for this request, so leave it in place
-    // when the request finishes.
-    req.rmChunk = false
-    const filename = `${req.chunkDir}/chunk.vg`
-    // vg simplify for bed files
-    let vgSimplifyCall = null
-    const vgViewArguments = ['view', '-j']
-    if (req.simplify) {
-      vgSimplifyCall = spawn(find_vg(), ['simplify', filename], {
-        signal: req.clientGone,
-      })
-      vgViewArguments.push('-')
-      console.log('Spawning vg simplify call')
     } else {
-      vgViewArguments.push(filename)
+      assertGraphFile(graphFile)
+      const dir = path.join(SCRATCH_DATA_PATH, `tmp-${randomUUID()}`)
+      const files = { graphFile, gbwtFile, nodeFile, gamFiles }
+      const stages = tabix
+        ? [chunkixStage(req, dir, files, rangeRegion)]
+        : [
+            vgStage(vgChunkArgs(req, dir, files, parsedRegion, rangeRegion)),
+            ...(req.simplify ? [vgStage(['simplify', '-'])] : []),
+            vgViewGraphStage('-'),
+          ]
+      await fs.promises.mkdir(dir)
+      scratchDir = req.chunkDir = dir
+      console.time(`chunk-${reqId}`)
+      graphJSON = await runPipeline(req, stages)
+      console.timeEnd(`chunk-${reqId}`)
     }
 
-    const vgViewCall = spawn(find_vg(), vgViewArguments, {
-      signal: req.clientGone,
-    })
-
-    let graphAsString = ''
-    req.error = Buffer.alloc(0)
-
-    // vg simplify
-    if (req.simplify) {
-      vgSimplifyCall.on('error', function (err) {
-        console.log(
-          'Error executing ' +
-            find_vg() +
-            ' ' +
-            'simplify ' +
-            filename +
-            ': ' +
-            err,
-        )
-        if (!sentResponse) {
-          sentResponse = true
-          return next(new VgExecutionError('vg simplify failed'))
-        }
-        return
-      })
-
-      vgSimplifyCall.stderr.on('data', data => {
-        console.log(`vg simplify err data: ${data}`)
-        req.error += data
-      })
-
-      pipeChildren(vgSimplifyCall, vgViewCall)
-
-      vgSimplifyCall.on('close', code => {
-        console.log(`vg simplify exited with code ${code}`)
-        if (code !== 0) {
-          console.log('Error from ' + find_vg() + ' simplify ' + filename)
-          // Execution failed
-          if (!sentResponse) {
-            sentResponse = true
-            return next(new VgExecutionError('vg simplify failed'))
-          }
-        }
-      })
+    if (tabix) {
+      // chunkix writes the graph to a file, with the path we reference first.
+      const graphFileJSON = `${req.chunkDir}/chunk.graph.json`
+      setGraph(req, await fs.promises.readFile(graphFileJSON, 'utf-8'))
+      req.region = [rangeRegion.start, rangeRegion.end]
+    } else {
+      setGraph(req, graphJSON)
+      req.region = responseRegion(rangeRegion)
+      req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path)
     }
 
-    vgViewCall.on('error', function (err) {
-      console.log('Error executing "vg view": ' + err)
-      if (!sentResponse) {
-        sentResponse = true
-        return next(new VgExecutionError('vg view failed'))
-      }
-      return
-    })
+    await processAnnotationFile(req)
+    const gam = req.withGam ? await processGamFiles(req) : []
+    await processRegionFile(req)
+    const coloredNodes = await processNodeColorsFile(req)
 
-    vgViewCall.stderr.on('data', data => {
-      console.log(`vg view err data: ${data}`)
+    res.json({
+      // TODO: Any standard error output will make an error response.
+      error: req.error,
+      graph: req.graph,
+      gam,
+      region: req.region,
+      coloredNodes,
+      nameMap: req.nameMap,
     })
-
-    vgViewCall.stdout.on('data', function (data) {
-      graphAsString += data.toString()
-    })
-
-    vgViewCall.on('close', code => {
-      console.log(`vg view exited with code ${code}`)
-      if (code !== 0) {
-        // Execution failed
-        if (!sentResponse) {
-          sentResponse = true
-          return next(new VgExecutionError('vg view failed'))
-        }
-        return
-      }
-      if (graphAsString === '') {
-        if (!sentResponse) {
-          sentResponse = true
-          return next(
-            new VgExecutionError('vg view produced empty graph failed'),
-          )
-        }
-        return
-      }
-      if (!sentResponse) {
-        sentResponse = true
-        try {
-          finishGraphAndProcess(
-            req,
-            res,
-            next,
-            graphAsString,
-            rangeRegion,
-            parsedRegion,
-          )
-        } catch (error) {
-          next(error)
-        }
-      }
-    })
+    console.timeEnd(`request-duration-${reqId}`)
+  } finally {
+    if (scratchDir !== undefined) {
+      await fs.promises
+        .rm(scratchDir, { recursive: true, force: true })
+        .catch(err => {
+          console.error('Could not remove chunk directory ' + scratchDir, err)
+        })
+    }
   }
 }
 
-// Turn the JSON graph text `vg view` gave us into req.graph, work out the
-// region we are showing, and hand off to the annotation-file step. Throws on
-// unparseable output.
-function finishGraphAndProcess(
-  req,
-  res,
-  next,
-  graphAsString,
-  rangeRegion,
-  parsedRegion,
-) {
-  req.graph = parseSubprocessJSON(graphAsString, 'vg view')
+function vgViewGraphStage(input) {
+  return vgStage(['view', '-j', input], { reportStderr: false })
+}
+
+// Parse the JSON graph a chunking pipeline produced into req.graph.
+function setGraph(req, graphJSON) {
+  if (graphJSON === '') {
+    throw new VgExecutionError('Chunking produced an empty graph')
+  }
+  req.graph = parseSubprocessJSON(graphJSON, 'the graph')
   if (req.removeSequences) {
     removeNodeSequencesInPlace(req.graph)
   }
+}
+
+// The region a vg chunk response covers: none for a node query, and in base
+// path coordinates for a query on a path with a subrange.
+function responseRegion(rangeRegion) {
   if (rangeRegion.contig === 'node') {
-    req.region = [null, null]
-  } else {
-    // If the query came in on a path with a subrange defined already,
-    // translate it into base path coordinates.
-    const subrangeStart = getSubrangeStart(rangeRegion.contig)
-    req.region = [
-      rangeRegion.start + subrangeStart,
-      rangeRegion.end + subrangeStart,
-    ]
+    return [null, null]
+  }
+  const subrangeStart = getSubrangeStart(rangeRegion.contig)
+  return [rangeRegion.start + subrangeStart, rangeRegion.end + subrangeStart]
+}
+
+// The chunkix.py stage that cuts `rangeRegion` out of a tabix-indexed
+// pangenome (experimental) into `dir`.
+function chunkixStage(
+  req,
+  dir,
+  { graphFile, gbwtFile, nodeFile, gamFiles },
+  rangeRegion,
+) {
+  if (!req.withGbwt) {
+    throw new BadRequestError(
+      'Need to specify tabix-indexed haplotype file, ending with .haps.gaf.gz, paired with ' +
+        graphFile,
+    )
+  }
+  if (!isAllowedPath(gbwtFile)) {
+    throw new BadRequestError(
+      'Tabix-indexed haplotype file path not allowed: ' + gbwtFile,
+    )
+  }
+  if (!req.withNode) {
+    throw new BadRequestError(
+      'Need to specify tabix-indexed node file, ending with .nodes.tsv.gz, paired with ' +
+        graphFile,
+    )
+  }
+  if (!isAllowedPath(nodeFile)) {
+    throw new BadRequestError(
+      'Tabix-indexed node file path not allowed: ' + nodeFile,
+    )
   }
 
-  // We might not have the path we are referencing on appearing first. A graph
-  // with no paths at all comes back from vg view without a path field.
-  req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path)
+  const args = [
+    find_chunkix(),
+    '-n',
+    nodeFile,
+    '-p',
+    graphFile,
+    '-g',
+    gbwtFile,
+    '-j',
+    '-s',
+    '-o',
+    `${dir}/chunk`,
+  ]
+  for (const gafFile of gamFiles) {
+    if (!gafFile.endsWith('.gaf.gz')) {
+      if (gafFile.endsWith('.gam')) {
+        throw new BadRequestError(
+          'Tabix-index mode only works with indexed GAF files',
+        )
+      }
+      throw new BadRequestError("GAF file doesn't end .gaf.gz: " + gafFile)
+    }
+    if (!isAllowedPath(gafFile)) {
+      throw new BadRequestError('GAF file path not allowed: ' + gafFile)
+    }
+    args.push('-a', gafFile)
+  }
+  args.push('-r', stringifyRangeRegion(rangeRegion))
+  return { name: 'chunkix', command: 'python3', args, reportStderr: true }
+}
 
-  void processAnnotationFile(req, res, next)
+// The vg chunk arguments that cut the region and its reads out of the graph
+// into `dir`.
+function vgChunkArgs(
+  req,
+  dir,
+  { graphFile, gbwtFile, gamFiles },
+  parsedRegion,
+  rangeRegion,
+) {
+  const args = ['chunk']
+  if (req.withGbwt) {
+    if (graphFile.endsWith('.gbz') && graphFile === gbwtFile) {
+      // The GBZ's own haplotypes
+      args.push('-x', graphFile)
+    } else if (!graphFile.endsWith('.gbz') && gbwtFile.endsWith('.gbz')) {
+      throw new BadRequestError('Cannot use gbz as haplotype alone.')
+    } else {
+      if (!endsWithExtensions(gbwtFile, HAPLOTYPE_EXTENSIONS_VG)) {
+        throw new BadRequestError(
+          "GBWT file doesn't end in .gbwt or .gbz: " + gbwtFile,
+        )
+      }
+      if (!isAllowedPath(gbwtFile)) {
+        throw new BadRequestError('GBWT file path not allowed: ' + gbwtFile)
+      }
+      args.push('--no-embedded-haplotypes', '-x', graphFile)
+      args.push('--gbwt-name', gbwtFile)
+    }
+  } else if (graphFile.endsWith('.gbz')) {
+    args.push('-x', graphFile, '--no-embedded-haplotypes')
+  } else {
+    args.push('-x', graphFile)
+  }
+
+  let anyGam = false
+  let anyGaf = false
+  for (const gamFile of gamFiles) {
+    if (
+      !gamFile.endsWith('.gam') &&
+      !gamFile.endsWith('.gaf') &&
+      !gamFile.endsWith('.gaf.gz')
+    ) {
+      throw new BadRequestError(
+        "GAM/GAF file doesn't end in .gam, .gaf, or .gaf.gz: " + gamFile,
+      )
+    }
+    if (!isAllowedPath(gamFile)) {
+      throw new BadRequestError('GAM/GAF file path not allowed: ' + gamFile)
+    }
+    if (gamFile.endsWith('.gam')) {
+      anyGam = true
+    } else {
+      anyGaf = true
+    }
+    args.push('-a', gamFile)
+  }
+  if (anyGam && anyGaf) {
+    throw new BadRequestError(
+      'Reads must be either GAM files or GAF files, not mix both.',
+    )
+  }
+  if (anyGaf) {
+    args.push('-F', '-g')
+  }
+  if (anyGam) {
+    args.push('-g')
+  }
+
+  // A node ID query looks like 'node:1-10'.
+  if (parsedRegion.contig === 'node') {
+    if (parsedRegion.distance !== undefined) {
+      args.push('-r', parsedRegion.start, '-c', parsedRegion.distance)
+    } else {
+      args.push('-r', `${parsedRegion.start}:${parsedRegion.end}`, '-c', 20)
+    }
+  } else {
+    args.push('-c', '20', '-p', stringifyRangeRegion(rangeRegion))
+  }
+  args.push('-T', '-b', `${dir}/chunk`, '-E', `${dir}/regions.tsv`)
+  return args
 }
 
 const SUBRANGE_REGEX = /\[([0-9]+)(-([0-9]+))?\]$/
@@ -1371,13 +1013,8 @@ function organizePathsTargetFirst(region, pathList = []) {
   }
 }
 
-// We can use this middleware to ensure that errors we synchronously throw or
-// next(err) will be sent along to the user. It does *not* happen on API
-// endpoint promise rejections until Express 5.
+// Send errors that handlers throw, reject with or pass to next() to the user.
 function returnErrorMiddleware(err, req, res, next) {
-  // Clean up the temp directory for the request, if any
-  cleanUpChunkIfOwned(req, res)
-
   // Because we take err, Express makes sure err is always set.
   if (res.headersSent) {
     // We can't send a nice message. Try the next middleware, if any.
@@ -1511,45 +1148,37 @@ async function readLines(file) {
   return text.split(/\r?\n/).filter(line => line !== '')
 }
 
-async function processAnnotationFile(req, res, next) {
-  try {
-    console.time(`processing annotation file-${req.reqId}`)
-    for (const file of await fs.promises.readdir(req.chunkDir)) {
-      if (file.endsWith('annotate.txt')) {
-        req.annotationFile = req.chunkDir + '/' + file
-      }
+// Give each path the haplotype frequency the chunk's annotate.txt lists for it.
+async function processAnnotationFile(req) {
+  console.time(`processing annotation file-${req.reqId}`)
+  let annotationFile = undefined
+  for (const file of await fs.promises.readdir(req.chunkDir)) {
+    if (file.endsWith('annotate.txt')) {
+      annotationFile = req.chunkDir + '/' + file
     }
-    if (req.annotationFile === undefined) {
-      throw new VgExecutionError('annotation file not created')
+  }
+  if (annotationFile === undefined) {
+    throw new VgExecutionError('annotation file not created')
+  }
+  console.log(`annotationFile: ${annotationFile}`)
+
+  // A graph with no paths comes back from vg view / chunkix without a path
+  // field at all, and everything downstream wants to iterate it.
+  req.graph.path ??= []
+
+  const lines = await readLines(annotationFile)
+  lines.forEach((line, i) => {
+    const [name, freq] = line.split('\t')
+    const graphPath = req.graph.path[i]
+    if (graphPath === undefined) {
+      console.log('Annotation file has more lines than the graph has paths')
+    } else if (graphPath.name === name) {
+      graphPath.freq = freq
+    } else {
+      console.log('Mismatch')
     }
-    console.log(`annotationFile: ${req.annotationFile}`)
-
-    // A graph with no paths comes back from vg view / chunkix without a path
-    // field at all, and everything downstream wants to iterate it.
-    req.graph.path ??= []
-
-    const lines = await readLines(req.annotationFile)
-    lines.forEach((line, i) => {
-      const [name, freq] = line.split('\t')
-      const graphPath = req.graph.path[i]
-      if (graphPath === undefined) {
-        console.log('Annotation file has more lines than the graph has paths')
-      } else if (graphPath.name === name) {
-        graphPath.freq = freq
-      } else {
-        console.log('Mismatch')
-      }
-    })
-    console.timeEnd(`processing annotation file-${req.reqId}`)
-  } catch (error) {
-    next(error)
-    return
-  }
-  if (req.withGam === true) {
-    void processGamFiles(req, res, next)
-  } else {
-    void processRegionFile(req, res, next)
-  }
+  })
+  console.timeEnd(`processing annotation file-${req.reqId}`)
 }
 
 // The reads in one chunk file (a GAM, a GAF, or chunkix's annot.json), as
@@ -1580,182 +1209,120 @@ async function readGamFile(req, gamFile) {
     .map(line => parseSubprocessJSON(line, gamFile))
 }
 
-async function processGamFiles(req, res, next) {
-  try {
-    console.time(`processing gam files-${req.reqId}`)
-    const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
-    // Find gam/gaf files
-    const gamFiles = []
-    if (graphFile.endsWith('.pos.bed.gz')) {
-      // use tabix-based pangenome (experimental)
-      // look for json files
-      fs.readdirSync(req.chunkDir).forEach(file => {
-        console.log(file)
-        if (file.endsWith('annot.json')) {
-          gamFiles.push(req.chunkDir + '/' + file)
-        }
-      })
-    } else {
-      // look for typical GAM or GAF files
-      fs.readdirSync(req.chunkDir).forEach(file => {
-        console.log(file)
-        if (file.endsWith('.gam') || file.endsWith('.gaf')) {
-          gamFiles.push(req.chunkDir + '/' + file)
-        }
-      })
+// The reads in each of the chunk's read files, in track order.
+async function processGamFiles(req) {
+  console.time(`processing gam files-${req.reqId}`)
+  const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
+  // chunkix writes JSON; vg chunk writes GAM or GAF.
+  const tabix = graphFile?.endsWith('.pos.bed.gz')
+  const gamFiles = []
+  for (const file of await fs.promises.readdir(req.chunkDir)) {
+    if (
+      tabix
+        ? file.endsWith('annot.json')
+        : file.endsWith('.gam') || file.endsWith('.gaf')
+    ) {
+      gamFiles.push(req.chunkDir + '/' + file)
     }
-
-    // Parse a GAM chunk name and get the GAM number from it
-    // Names are like, with either .gam or .gaf suffixes:
-    // */chunk_*.gam for 0
-    // */chunk-1_*.gam for 1, 2, 3, etc.
-    const gamNameToNumber = gamName => {
-      if (gamName.endsWith('.json')) {
-        const pattern = /.*\/chunk.([0-9]+).annot.json/
-        const matches = gamName.match(pattern)
-        if (!matches) {
-          throw new InternalServerError('Bad GAF/JSON name ' + gamName)
-        }
-        return parseInt(matches[1])
-      } else {
-        const pattern = /.*\/chunk(-([0-9]+))?_.*\.ga[mf]/
-        const matches = gamName.match(pattern)
-        if (!matches) {
-          throw new InternalServerError('Bad GAM/GAF name ' + gamName)
-        }
-        if (matches[2] !== undefined) {
-          // We have a number
-          return parseInt(matches[2])
-        }
-      }
-      // If there's no number we are chunk 0
-      return 0
-    }
-
-    // Sort all the GAM files we found in order of their chunk number,
-    // ascending. This will also be the order of the GAM files passed to chunk,
-    // and so the order we got the tracks in, and thus the order we want the
-    // results in.
-    gamFiles.sort((a, b) => {
-      return gamNameToNumber(a) - gamNameToNumber(b)
-    })
-
-    req.gamResults = await Promise.all(
-      gamFiles.map(gamFile => readGamFile(req, gamFile)),
-    )
-    console.timeEnd(`processing gam files-${req.reqId}`)
-  } catch (error) {
-    next(error)
-    return
   }
-  void processRegionFile(req, res, next)
+
+  // Parse a GAM chunk name and get the GAM number from it
+  // Names are like, with either .gam or .gaf suffixes:
+  // */chunk_*.gam for 0
+  // */chunk-1_*.gam for 1, 2, 3, etc.
+  const gamNameToNumber = gamName => {
+    if (gamName.endsWith('.json')) {
+      const pattern = /.*\/chunk.([0-9]+).annot.json/
+      const matches = gamName.match(pattern)
+      if (!matches) {
+        throw new InternalServerError('Bad GAF/JSON name ' + gamName)
+      }
+      return parseInt(matches[1])
+    } else {
+      const pattern = /.*\/chunk(-([0-9]+))?_.*\.ga[mf]/
+      const matches = gamName.match(pattern)
+      if (!matches) {
+        throw new InternalServerError('Bad GAM/GAF name ' + gamName)
+      }
+      if (matches[2] !== undefined) {
+        // We have a number
+        return parseInt(matches[2])
+      }
+    }
+    // If there's no number we are chunk 0
+    return 0
+  }
+
+  // Sort all the GAM files we found in order of their chunk number,
+  // ascending. This will also be the order of the GAM files passed to chunk,
+  // and so the order we got the tracks in, and thus the order we want the
+  // results in.
+  gamFiles.sort((a, b) => {
+    return gamNameToNumber(a) - gamNameToNumber(b)
+  })
+
+  // Let every file finish before reporting a failure, so no vg process
+  // outlives the request.
+  const results = await Promise.allSettled(
+    gamFiles.map(gamFile => readGamFile(req, gamFile)),
+  )
+  console.timeEnd(`processing gam files-${req.reqId}`)
+  const failure = results.find(result => result.status === 'rejected')
+  if (failure !== undefined) {
+    throw failure.reason
+  }
+  return results.map(result => result.value)
 }
 
 // Read the "region" file, a BED inside the chunk that records the path and
 // start offset that defined the chunk, and mark the targeted path with it.
-async function processRegionFile(req, res, next) {
-  try {
-    console.time(`processing region file-${req.reqId}`)
-    let regionFile = `${req.chunkDir}/regions.tsv`
-    if (!fs.existsSync(regionFile)) {
-      for (const file of await fs.promises.readdir(req.chunkDir)) {
-        if (file.endsWith('regions.tsv')) {
-          regionFile = req.chunkDir + '/' + file
-        }
+async function processRegionFile(req) {
+  console.time(`processing region file-${req.reqId}`)
+  let regionFile = `${req.chunkDir}/regions.tsv`
+  if (!fs.existsSync(regionFile)) {
+    for (const file of await fs.promises.readdir(req.chunkDir)) {
+      if (file.endsWith('regions.tsv')) {
+        regionFile = req.chunkDir + '/' + file
       }
     }
-    if (!isAllowedPath(regionFile)) {
-      throw new BadRequestError(
-        'Path to region file not allowed: ' + regionFile,
-      )
-    }
+  }
+  if (!isAllowedPath(regionFile)) {
+    throw new BadRequestError('Path to region file not allowed: ' + regionFile)
+  }
 
-    for (const line of await readLines(regionFile)) {
-      console.log('Region: ' + line)
-      const [name, start, end] = line.split(/\s+/)
-      const subpathName = `${name}[${start}-${end}]`
+  for (const line of await readLines(regionFile)) {
+    console.log('Region: ' + line)
+    const [name, start, end] = line.split(/\s+/)
+    const subpathName = `${name}[${start}-${end}]`
 
-      for (const p of req.graph.path) {
-        if (p.name === subpathName) {
-          // Drop the subrange and record where it starts, so the frontend
-          // draws the ruler on the base path.
-          console.log(
-            `Rename ${subpathName} to ${name} and mark start as ${start}`,
-          )
-          p.name = name
-          p.indexOfFirstBase = start
-        } else if (p.name === name) {
-          // A pre-extracted region that predates subpath support (like the
-          // Lancet paper data) only records its start here.
-          p.indexOfFirstBase = start
-        }
+    for (const p of req.graph.path) {
+      if (p.name === subpathName) {
+        // Drop the subrange and record where it starts, so the frontend
+        // draws the ruler on the base path.
+        console.log(
+          `Rename ${subpathName} to ${name} and mark start as ${start}`,
+        )
+        p.name = name
+        p.indexOfFirstBase = start
+      } else if (p.name === name) {
+        // A pre-extracted region that predates subpath support (like the
+        // Lancet paper data) only records its start here.
+        p.indexOfFirstBase = start
       }
     }
-    console.timeEnd(`processing region file-${req.reqId}`)
-  } catch (error) {
-    next(error)
-    return
   }
-  void processNodeColorsFile(req, res, next)
+  console.timeEnd(`processing region file-${req.reqId}`)
 }
 
-async function processNodeColorsFile(req, res, next) {
-  try {
-    console.time(`processing node colors file-${req.reqId}`)
-    const nodeColorsFile = `${req.chunkDir}/nodeColors.tsv`
-    if (!isAllowedPath(nodeColorsFile)) {
-      throw new BadRequestError(
-        'Path to node colors file not allowed: ' + nodeColorsFile,
-      )
-    }
-    req.coloredNodes = fs.existsSync(nodeColorsFile)
-      ? await readLines(nodeColorsFile)
-      : []
-    console.timeEnd(`processing node colors file-${req.reqId}`)
-  } catch (error) {
-    next(error)
-    return
+// The nodes the chunk's nodeColors.tsv, if any, asks to highlight.
+async function processNodeColorsFile(req) {
+  const nodeColorsFile = `${req.chunkDir}/nodeColors.tsv`
+  if (!isAllowedPath(nodeColorsFile)) {
+    throw new BadRequestError(
+      'Path to node colors file not allowed: ' + nodeColorsFile,
+    )
   }
-  cleanUpAndSendResult(req, res, next)
-}
-
-// Cleanup function shared between success and error code paths.
-// May throw.
-// TODO: Use as a middleware?
-function cleanUpChunkIfOwned(req, _res) {
-  if (req.rmChunk && req.chunkDir !== undefined) {
-    // Don't clean up individual files in the directory manually; it's too
-    // fiddly, and we could have gotten here because we generated those paths
-    // and they were outside our acceptable directory tree.
-
-    // Clean up the temp directory for the request recursively. Nothing waits
-    // on this, so a failure has to be logged rather than thrown into an
-    // unhandled rejection.
-    fs.promises
-      .rm(req.chunkDir, { recursive: true, force: true })
-      .catch(err => {
-        console.error('Could not remove chunk directory ' + req.chunkDir, err)
-      })
-  }
-}
-
-function cleanUpAndSendResult(req, res, next) {
-  try {
-    cleanUpChunkIfOwned(req, res)
-
-    const result = {}
-    // TODO: Any standard error output will make an error response.
-    result.error = req.error.toString('utf-8')
-    result.graph = req.graph
-    result.gam = req.withGam === true ? req.gamResults : []
-    result.region = req.region
-    result.coloredNodes = req.coloredNodes
-    result.nameMap = req.nameMap
-    res.json(result)
-    console.timeEnd(`request-duration-${req.reqId}`)
-  } catch (error) {
-    return next(error)
-  }
+  return fs.existsSync(nodeColorsFile) ? readLines(nodeColorsFile) : []
 }
 
 // Return true if the given path points to one of the ALLOWED_DATA_DIRECTORIES,

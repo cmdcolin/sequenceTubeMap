@@ -4,17 +4,20 @@
 
 process.env.SERVER_PORT = '0'
 
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
+import { gzipSync } from 'node:zlib'
 import { start } from './server.mjs'
-import { vg_available } from './vg.mjs'
+import { find_vg, vg_available } from './vg.mjs'
 
 const HAS_VG = vg_available()
+// chunkix.py and pgtabix.py run tabix and bgzip.
+const HAS_TABIX = spawnSync('tabix', ['--version']).status === 0
 
 const serverConfig = globalThis.__sequence_tube_map_config
 
@@ -274,6 +277,40 @@ describe.skipIf(!HAS_VG)('chunking a graph', () => {
     expect(body.graph.node.length).toBeGreaterThan(0)
     expect(body.graph.path[0].name).toBe('ref')
   })
+
+  it.skipIf(!HAS_TABIX)(
+    'cuts a tabix-indexed pangenome with chunkix',
+    async () => {
+      const dir = fs.mkdtempSync('tmp/test-')
+      fixtureDirs.push(dir)
+      const gfa = execFileSync(find_vg(), [
+        'convert',
+        '-f',
+        'exampleData/cactus.gbz',
+      ])
+      fs.writeFileSync(path.join(dir, 'cactus.gfa.gz'), gzipSync(gfa))
+      execFileSync('python3', [
+        'scripts/pgtabix.py',
+        '-g',
+        path.join(dir, 'cactus.gfa.gz'),
+        '-o',
+        path.join(dir, 'cactus'),
+      ])
+
+      const { status, body } = await post('getChunkedData', {
+        region: 'ref:1-100',
+        tracks: [
+          { trackFile: `${dir}/cactus.pos.bed.gz`, trackType: 'graph' },
+          { trackFile: `${dir}/cactus.haps.gaf.gz`, trackType: 'haplotype' },
+          { trackFile: `${dir}/cactus.nodes.tsv.gz`, trackType: 'node' },
+        ],
+      })
+      expect(status).toBe(200)
+      expect(body.graph.node.length).toBeGreaterThan(0)
+      expect(body.graph.path[0]).toMatchObject({ name: 'ref', freq: '1' })
+      expect(body.region).toEqual([1, 100])
+    },
+  )
 })
 
 describe.skipIf(!HAS_VG)('uploads', () => {
