@@ -407,6 +407,29 @@ describe('the address bar', () => {
       )
     })
   })
+
+  it('turns a View setting back off when Back returns to a view without it', async () => {
+    localStorage.clear()
+    renderApp()
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+    await userEvent.click(screen.getByTestId('viewMenuButton'))
+    await userEvent.click(
+      screen.getByRole('menuitem', { name: /Compressed view/ }),
+    )
+    await waitFor(() => {
+      expect(window.location.search).toContain('vis=compressedView')
+    })
+
+    window.history.back()
+
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=17:1-100')
+    })
+    const compressed = screen.getByRole('menuitem', { name: /Compressed view/ })
+    expect(compressed.querySelector('input[type=checkbox]')).not.toBeChecked()
+    localStorage.clear()
+  })
 })
 
 describe('loading and empty states', () => {

@@ -53,9 +53,9 @@ interface ViewHistoryOptions {
   // rewrites the address bar.
   visOptions: VisOptions
   // Back or Forward moved to another entry. The view it describes is parsed
-  // out of the params the same way the initial one is; the View menu settings
-  // it names are the ones to layer over the current ones, which is what the
-  // first render does with the stored preference.
+  // out of the params the same way the initial one is, along with the View
+  // menu settings it names: every one that differs from the defaults, since
+  // the address bar is rewritten whenever a setting changes.
   onRestore: (target: ViewTarget, visOptions: Partial<StoredVisOptions>) => void
 }
 

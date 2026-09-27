@@ -267,9 +267,13 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
       const target = normalizeViewTarget(restored)
       setViewTarget(target)
       setDataOrigin(dataOriginTypes.API)
+      // An entry that holds a view names every setting that differs from the
+      // defaults, so a setting it leaves out is a default. One with no view
+      // names none, and the settings on screen stay.
       setVisOptions(v => ({
-        ...v,
-        ...restoredVisOptions,
+        ...(target.tracks.length > 0
+          ? { ...DEFAULT_VIS_OPTIONS, ...restoredVisOptions }
+          : v),
         colorSchemes: getColorSchemesFromTracks(target.tracks),
       }))
       setSeedViewTarget(target)
