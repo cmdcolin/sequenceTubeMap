@@ -188,6 +188,11 @@ export function layoutTubeMap(
     nodes[i + 1] = node
   })
   tracks = deepCopy(inputTracks) as Track[]
+  // Whether any reads were loaded at all, distinct from `reads.length` below:
+  // a mapping-quality cutoff or focus-name filter can filter every read out,
+  // and that should not make the coarsened view fall back to bunching
+  // haplotypes instead — the graph does have reads, they're just all hidden.
+  const hadInputReads = inputReads.length > 0
   // Drop the reads we will never draw before cloning them — the deep copy of a
   // large GAM is the single most expensive step in a redraw.
   reads = deepCopy(filterReads(inputReads)) as Track[]
@@ -241,27 +246,62 @@ export function layoutTubeMap(
   generateNodeOrder()
   maxOrder = getMaxOrder()
 
+  // Coarsened (Sankey) mode normally collapses the *read* list into synthetic
+  // per-edge bands (below). A haplotype-only graph has no reads to coarsen,
+  // so a coarsened request there instead coarsens every haplotype but the
+  // reference: that one keeps its normal per-track lane (so it still carries
+  // the ruler) while the rest are pulled out of `tracks` here, before
+  // calculateTrackWidth/generateLaneAssignment ever see them, and rejoin the
+  // layout below through the same reads-style overlay used for coarsened
+  // reads.
+  const coarsenHaplotypes =
+    config.showReads && config.coarsenedReadView && !hadInputReads
+  if (coarsenHaplotypes) {
+    const rulerIndex =
+      trackForRuler === undefined
+        ? -1
+        : tracks.findIndex(t => t.name === trackForRuler)
+    const refIndex = rulerIndex === -1 ? 0 : rulerIndex
+    const altHaplotypes = tracks.filter((_, i) => i !== refIndex)
+    if (altHaplotypes.length > 0) {
+      const bands = buildCoarsenedSyntheticBands(altHaplotypes, 'haplotype')
+      // A haplotype that only ever visits one node produces no edge, so an
+      // all-single-node set of alts would otherwise leave `reads` empty and
+      // fall through to the no-overlay branch below, which never gives their
+      // nodes a y/contentHeight. Keep them off to the side instead of
+      // dropping them silently.
+      if (bands.length > 0) {
+        tracks = [tracks[refIndex]!]
+        reads = bands
+      }
+    }
+  }
+
   calculateTrackWidth()
   generateLaneAssignment()
 
   if (config.showExonsFlag && bed !== null) addTrackFeatures()
 
-  // Coarsened (Sankey) mode: collapse the read list to one synthetic "read"
+  // Coarsened (Sankey) mode: collapse the read list (or, when coarsening
+  // haplotypes, the alt haplotypes pulled out above) to one synthetic "read"
   // per (srcSigned → dstSigned) edge BEFORE the normal read placement runs.
   // Each synthetic read traverses exactly two nodes, so the rest of the
   // pipeline (placeReads, generateSVGShapesFromPath, curve drawing) handles
   // it like any normal read: it gets a lane, picks up the "right-down-left-
   // up-right" topology for loops automatically, and uses the same elegant
-  // bezier. Node heights end up proportional to *edge* count (typically tens)
-  // rather than *read* count (potentially thousands).
-  const drawCoarsened =
-    config.showReads && config.coarsenedReadView && reads.length > 0
+  // bezier. Node heights end up proportional to *edge* count (typically
+  // tens) rather than *read* or *haplotype* count (potentially thousands).
+  const drawCoarsenedReads =
+    config.showReads &&
+    config.coarsenedReadView &&
+    reads.length > 0 &&
+    !coarsenHaplotypes
   if (config.showReads && reads.length > 0) {
     generateReadOnlyNodeAttributes()
     reverseReversedReads()
     generateTrackIndexSequences(reads)
-    if (drawCoarsened) {
-      reads = buildCoarsenedSyntheticReads()
+    if (drawCoarsenedReads) {
+      reads = buildCoarsenedSyntheticBands(reads, 'read')
       reverseReversedReads()
       generateTrackIndexSequences(reads)
     }
@@ -2743,8 +2783,9 @@ function generateSVGShapesFromPath(): void {
 const COARSENED_ID_BASE = 1_000_000_000
 export const isCoarsenedId = (id: number) => id >= COARSENED_ID_BASE
 
-// Build one synthetic read per (srcSigned → dstSigned) edge in `reads`. The
-// synthetic reads replace the real ones BEFORE placeReads runs, so:
+// Build one synthetic read per (srcSigned → dstSigned) edge in `source`
+// (real reads, or the alt haplotype tracks). The synthetic reads replace the
+// real ones BEFORE placeReads runs, so:
 //   • placeReads sees N_edges reads instead of N_reads (huge node-height win),
 //   • each band gets a lane and an "right-down-left-up-right" loop topology
 //     for free (placeReads handles reversals and out-of-order jumps),
@@ -2754,7 +2795,10 @@ export const isCoarsenedId = (id: number) => id >= COARSENED_ID_BASE
 // The synthetic track's `sequence` is just the two signed node names. After
 // generateTrackIndexSequences runs, indexSequence is set and the rest of the
 // layout follows.
-function buildCoarsenedSyntheticReads(): Track[] {
+function buildCoarsenedSyntheticBands(
+  source: Track[],
+  unit: 'read' | 'haplotype',
+): Track[] {
   coarsenedEdgeMeta = new Map()
 
   // Aggregate by signed-edge key. Preserve orientation so e.g. (+A→+B) and
@@ -2774,8 +2818,8 @@ function buildCoarsenedSyntheticReads(): Track[] {
   // form is chosen; whichever orientation is seen first determines the
   // visual band direction.
   const ignoreStrand = config.ignoreStrand
-  for (const read of reads) {
-    const seq = read.indexSequence
+  for (const item of source) {
+    const seq = item.indexSequence
     if (!seq || seq.length < 2) continue
     for (let i = 0; i < seq.length - 1; i += 1) {
       const sSigned = seq[i]!
@@ -2801,7 +2845,7 @@ function buildCoarsenedSyntheticReads(): Track[] {
           sName: sSigned < 0 ? `-${srcNode.name}` : srcNode.name,
           dName: dSigned < 0 ? `-${dstNode.name}` : dstNode.name,
           count: 1,
-          sourceTrackID: read.sourceTrackID,
+          sourceTrackID: item.sourceTrackID,
         })
       } else {
         existing.count += 1
@@ -2831,7 +2875,7 @@ function buildCoarsenedSyntheticReads(): Track[] {
   let i = 0
   for (const edge of edges.values()) {
     const id = COARSENED_ID_BASE + i
-    const label = `${edge.count.toLocaleString()} read${edge.count === 1 ? '' : 's'}: Node ${edge.sName} → Node ${edge.dName}`
+    const label = `${edge.count.toLocaleString()} ${unit}${edge.count === 1 ? '' : 's'}: Node ${edge.sName} → Node ${edge.dName}`
     coarsenedEdgeMeta.set(id, { count: edge.count, label })
     // Place each synthetic band so it touches *only* its endpoint nodes' edges:
     //   • firstNodeOffset = src.sequenceLength → curve exits at src's right
@@ -2893,7 +2937,7 @@ function buildCoarsenedSyntheticReads(): Track[] {
   }
   if (DEBUG) {
     console.log(
-      `[coarsened] reads_in=${reads.length} edges_out=${synthetic.length} ` +
+      `[coarsened] ${unit}s_in=${source.length} edges_out=${synthetic.length} ` +
         `tallestNodeBeforePlace=${tallestName}(${tallestH.toFixed(1)})`,
     )
   }

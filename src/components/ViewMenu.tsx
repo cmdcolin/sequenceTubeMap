@@ -96,7 +96,7 @@ export function ViewMenu({
               onToggle={() => {
                 toggleVisOptionFlag('coarsenedReadView')
               }}
-              helpText="Aggregates reads into one thick band per node→node edge, with band thickness proportional to the number of reads traversing it. Trades per-read detail for the ability to browse much higher-coverage regions."
+              helpText="Aggregates reads (or, on a graph with no reads loaded, the non-reference haplotypes) into one thick band per node→node edge, with band thickness proportional to how many traverse it. Trades per-read or per-haplotype detail for the ability to browse much higher-coverage or higher-haplotype-count regions."
             />
             <CheckboxMenuItem
               label="Ignore strand"

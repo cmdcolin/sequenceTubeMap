@@ -364,6 +364,108 @@ describe('tubemap.create — coarsened view normalises orientation', () => {
   })
 })
 
+// A haplotype-only graph (no reads) has nothing for the coarsened view to
+// collapse unless it also treats the haplotype tracks as coarsenable: this
+// pins down that fallback, which keeps the ruler-carrying reference track
+// drawn normally and bands only the rest.
+describe('tubemap.create — coarsened view on haplotype-only data', () => {
+  const nodes: InputNode[] = [
+    { name: '1', seq: 'AAAA' },
+    { name: '2', seq: 'CCCC' },
+    { name: '3', seq: 'GGGG' },
+    { name: '4', seq: 'TTTT' },
+  ]
+  const tracks: InputTrack[] = [
+    {
+      id: 0,
+      name: 'ref',
+      sequence: ['1', '2', '3'],
+      type: 'haplotype',
+      sourceTrackID: 0,
+      indexOfFirstBase: 0,
+    },
+    { id: 1, name: 'alt1', sequence: ['1', '2', '3'], sourceTrackID: 0 },
+    { id: 2, name: 'alt2', sequence: ['1', '2', '3'], sourceTrackID: 0 },
+    { id: 3, name: 'alt3', sequence: ['1', '2', '4'], sourceTrackID: 0 },
+  ]
+
+  afterEach(() => {
+    tubeMap.setMergeNodesFlag(true)
+    tubeMap.setCoarsenedReadViewFlag(false)
+    tubeMap.setMappingQualityCutoff(0)
+  })
+
+  function trackNames(
+    tracks: InputTrack[],
+    reads: InputTrack[] = [],
+  ): string[] {
+    setupSvg()
+    tubeMap.setMergeNodesFlag(false)
+    tubeMap.setCoarsenedReadViewFlag(true)
+    const svg = render(nodes, tracks, reads)
+    return [
+      ...new Set(
+        [...svg.querySelectorAll('[trackName]')].map(
+          el => el.getAttribute('trackName') ?? '',
+        ),
+      ),
+    ]
+  }
+
+  it('bands the alt haplotypes by edge, leaving the reference out of the count and dropping the alts by name', () => {
+    const names = trackNames(tracks)
+    expect(names.filter(name => name.includes('→')).sort()).toEqual([
+      '1 haplotype: Node 2 → Node 4',
+      '2 haplotypes: Node 2 → Node 3',
+      '3 haplotypes: Node 1 → Node 2',
+    ])
+    expect(names).toContain('ref')
+    expect(names).not.toContain('alt1')
+    expect(names).not.toContain('alt2')
+    expect(names).not.toContain('alt3')
+  })
+
+  // A mapping-quality cutoff (or a focus-name filter) can filter every read
+  // out of a graph that does have reads loaded. That must not read as "no
+  // reads loaded" and fall back to bunching the haplotypes instead -- the
+  // graph has reads, they're just all hidden right now.
+  it('does not bunch haplotypes just because every read got filtered out', () => {
+    tubeMap.setMappingQualityCutoff(100)
+    const reads: InputTrack[] = [
+      {
+        id: 4,
+        name: 'r1',
+        sequence: ['1', '2'],
+        type: 'read',
+        sourceTrackID: 1,
+        mapping_quality: 0,
+      },
+    ]
+    const names = trackNames(tracks, reads)
+    expect(names.some(name => name.includes('→'))).toBe(false)
+    expect(names).toContain('alt1')
+    expect(names).toContain('alt2')
+    expect(names).toContain('alt3')
+  })
+
+  // A haplotype that only ever visits one node contributes no edge to the
+  // coarsened bands. If every alt happens to be like that, the aggregation
+  // comes back empty -- this must not silently drop those haplotypes' nodes
+  // from layout (they'd end up with no y-coordinate, i.e. NaN in the SVG).
+  it('falls back to drawing haplotypes normally when none of them cross an edge', () => {
+    const singleNodeAlts: InputTrack[] = [
+      { id: 1, name: 'alt1', sequence: ['4'], sourceTrackID: 0 },
+    ]
+    expect(() => trackNames([tracks[0]!, ...singleNodeAlts])).not.toThrow()
+    const svg = document.getElementById('tubemap') as unknown as SVGSVGElement
+    const coords = [...svg.querySelectorAll('rect, path')].flatMap(el => [
+      el.getAttribute('y'),
+      el.getAttribute('d'),
+    ])
+    expect(coords.join(' ')).not.toContain('NaN')
+  })
+})
+
 describe('tubemap.getRenderedColoring', () => {
   afterEach(() => {
     tubeMap.setReadGroups(null)
