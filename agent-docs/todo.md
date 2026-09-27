@@ -1,0 +1,1 @@
+The remaining item from my list is the jsdom-free renderSvg. It's the biggest change, and it would also move the app's Download Image button onto the same code. Should I start on it in its own branch?

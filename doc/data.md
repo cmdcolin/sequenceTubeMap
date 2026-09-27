@@ -290,17 +290,24 @@ release 2.1, which carries 464:
 | `GRCh38#chr6:31500000-31502000` (2 kb)     |   129 |             25 |       2,146 |
 | `GRCh38#chr6:31500000-31510000` (10 kb)    |   712 |            157 |      73,282 |
 | `GRCh38#chr6:31500000-31550000` (50 kb)    | 2,498 |            300 |     495,391 |
+| `GRCh38#chr6:31500000-31650000` (150 kb)   | 6,651 |            450 |   1,975,561 |
 
 Above 30,000 node visits the app stops before drawing and says what the region
 came to:
 
 ![The render cap refusing a 10 kb window](images/graph-render-cap.png)
 
-**Draw anyway** is there when you mean it; the 50 kb row is a 54 MB SVG that
-takes half a minute to lay out outside a browser, so "anyway" means minutes of
-frozen tab. Narrowing the region is the fix. The cap resets with each new
-region, and `pnpm tubemap-cli` ignores it — a figure that takes a minute
-headlessly is nobody's frozen tab.
+Measured in Chrome, the 10 kb row draws in a second but then takes 400 ms per
+zoom step, and the 50 kb row takes 10 s to draw. **Draw anyway** is there when
+you mean it.
+
+**Coarsen** is the better answer on a graph with no reads loaded: the coarsened
+view draws one band per node-to-node edge instead of one ribbon per visit, so it
+gets a cap of 1,000,000 visits instead. Coarsened, the 10 kb row draws in 0.6 s
+and zooms at 30 ms a step; the 50 kb row draws in 1.3 s and zooms at 85 ms a
+step; the 150 kb row takes 4 s and 300 ms or more a step, so it stays refused.
+
+The cap resets with each new region, and `pnpm tubemap-cli` ignores it.
 
 To see the shape of a window too wide to draw, **View → Open in BandageJS**
 shows it as a force-directed graph, which costs nodes rather than node visits.

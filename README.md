@@ -10,7 +10,7 @@ MemPanG26 Hackathon Team 2 — [Colin Diesh](https://github.com/cmdcolin) &
 [Rafeed Rahman Turjya](https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en)
 et al.
 
-[![HPRC v2.1 chr20 microsatellite](doc/images/hprc-v2.1-chr20-str.png)][demo-chr20]
+![HPRC v2.1 chr20 microsatellite](doc/images/hprc-v2.1-chr20-str.png)
 
 464 HPRC v2.1 haplotypes at a chr20 CT microsatellite — 46 allele lengths, 240
 distinct routes. Read straight from HPRC's 10 GB hosted `.gbz.db` by range
@@ -18,7 +18,7 @@ request: no server, no download. Coarsened (Sankey) view bands the haplotypes by
 node-to-node edge instead of drawing all 464 as separate lines; haplotypes named
 from the companion index (`HG01243#2#…`, not `unknown#57`).
 
-[![HPRC v2.1 chr20 haplotypes in register](doc/images/hprc-v2.1-chr20-register.png)][demo-chr20]
+![HPRC v2.1 chr20 haplotypes in register](doc/images/hprc-v2.1-chr20-register.png)
 
 Same locus, view scrolled ~260 bp right: haplotypes back in register. Both
 figures are crops of one drawing the app lays out end to end and lets you

@@ -10,8 +10,47 @@ every haplotype through the window; a "show me these haplotypes" selection
 through `subgraphForHaplotypes` and the companion's `HaplotypeAnchors` would
 make a chosen set cheap and turn MHC-scale windows from refused into useful.
 
+The coarsened view now covers much of this: with no reads loaded it draws a
+haplotype window up to 1,000,000 visits (a 50 kb MHC window) in about a second,
+and the size notice offers a **Coarsen** button.
+
 Remote `.gam` tracks are still downloaded whole; range-reading them would need
 the `.gai` index consulted first.
+
+## Coarsened haplotype view
+
+Open items from the session that weighted bands by `freq` and raised the
+coarsened cap:
+
+- **`doc/images/graph-render-cap.png` is stale.** It shows the old notice text
+  and no Coarsen button. Regenerate it with `scripts/screenshot-ui.mjs` (see its
+  header comment for the dev server and headless Chrome it needs).
+- **Band color carries no meaning.** Haplotype bands take the graph track's
+  categorical palette, indexed by band id, so the two edges of one allele at a
+  bubble get unrelated colors. The plan: color each haplotype band by its share
+  of haplotypes (count ÷ haplotypes in bands) on a single-hue sequential scale,
+  log-scaled so singletons stay visible and warm so the blue reference lane
+  stands apart. Both sides of a bubble then share a color, and an allele reads
+  as one flow. Set the share on the synthetic track in
+  `buildCoarsenedSyntheticBands` (`packages/tubemap-core/src/layout.ts`), add it
+  as an optional field on `ColorableTrack`, and branch on it in
+  `generateTrackColor` (`src/util/tubemap.ts`). The legend needs a matching key,
+  and the hover label could show the percentage. Leave read bands on their
+  palettes. Run the dataviz skill's palette validator on the chosen ramp.
+- **Regenerate the README chr20 figures** after any color change (recipe in
+  `doc/headless-rendering.md` under Hosted graphs).
+- **A wide-window demo figure.** The coarsened MHC windows lay out in a second
+  but come out 37,000–520,000 units wide, which no page shows legibly. A scan of
+  chr6:31.50–31.65 Mb found only one common length-changing allele (a 20 bp
+  deletion at 31,591,204 in 31% of haplotypes), so pick a locus with a common
+  structural variant instead: the GSTM1 or LCE3B/C deletions are candidates.
+- **jsdom named-element rescans** are patched out in `scripts/tubemap-cli.ts`
+  (`skipNamedElementRescans`) through a jsdom internal. If a jsdom upgrade moves
+  `lib/generated/idl/utils.js` the CLI will throw at startup. The patch is also
+  worth reporting upstream.
+- **Layout scaling.** With placement fixed, coarsened layout is linear at about
+  2.5 µs per visit; `generateNodeOrder`, `mergeNodes`' predecessor/successor
+  sets and `generateTrackIndexSequences` are the remaining top costs.
 
 ## The layout engine
 
