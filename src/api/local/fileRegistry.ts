@@ -1,5 +1,5 @@
-// Tracks uploaded files inside the LocalAPI worker, indexed by both numeric
-// id and original filename so we can find a `.gam` upload's sibling `.gam.gai`
+// Tracks uploaded files inside the LocalAPI worker by numeric id, keeping each
+// one's original filename so a `.gam` upload's sibling `.gam.gai` can be found
 // after the fact.
 //
 // Kept separate from GBZBaseAPI so the pairing logic is exercisable in tests
@@ -35,16 +35,11 @@ export class UploadRegistry {
   // Parallel to `files`: original filename for each upload (or null when
   // unknown, e.g. anonymous Blob).
   private fileNames: (string | null)[] = []
-  // Original-name -> id, so sibling resolution is a single lookup.
-  private filesByName = new Map<string, string>()
 
   add(file: { name: string; blob: Blob }): AddResult {
     const id = this.files.length.toString()
     this.files.push(file.blob)
     this.fileNames.push(file.name || null)
-    if (file.name) {
-      this.filesByName.set(file.name, id)
-    }
     return { id, isSibling: isSiblingIndex(file.name) }
   }
 
@@ -67,21 +62,49 @@ export class UploadRegistry {
     return this.fileNames[idx] ?? null
   }
 
-  // Look up an upload's sibling at `originalName + suffix`. Returns null when
-  // either the original upload has no recorded name or no sibling was added.
+  // Look up an upload's sibling at `originalName + suffix`. A file dropped
+  // again repeats its name, and the latest index by name paired a regenerated
+  // `x.sorted.gam` dropped alone with the old `x.sorted.gam.gai`. A file and
+  // its index are dropped together, so an index goes with an upload of its
+  // file only when no other upload of either name lies between them, and
+  // each upload takes the first such index after it before one before it.
   sibling(id: string, suffix: string): Blob | null {
     const idx = parseInt(id, 10)
-    if (Number.isNaN(idx)) {
+    const name = this.fileNames[idx]
+    if (!name) {
       return null
     }
-    const origName = this.fileNames[idx]
-    if (!origName) {
-      return null
+    const siblingName = name + suffix
+    for (let i = idx + 1; i < this.fileNames.length; i++) {
+      if (this.fileNames[i] === name) {
+        break
+      }
+      if (this.fileNames[i] === siblingName) {
+        return this.files[i] ?? null
+      }
     }
-    const siblingId = this.filesByName.get(origName + suffix)
-    if (siblingId === undefined) {
-      return null
+    for (let i = idx - 1; i >= 0; i--) {
+      if (this.fileNames[i] === name) {
+        return null
+      }
+      if (this.fileNames[i] === siblingName) {
+        return this.claimedBefore(i, name, siblingName) ? null : this.files[i]!
+      }
     }
-    return this.get(siblingId)
+    return null
+  }
+
+  // Whether the index at `idx` belongs to an earlier upload of its file,
+  // which takes the first index after it.
+  private claimedBefore(idx: number, name: string, siblingName: string) {
+    for (let i = idx - 1; i >= 0; i--) {
+      if (this.fileNames[i] === siblingName) {
+        return false
+      }
+      if (this.fileNames[i] === name) {
+        return true
+      }
+    }
+    return false
   }
 }

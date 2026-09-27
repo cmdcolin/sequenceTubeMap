@@ -57,6 +57,45 @@ describe('UploadRegistry', () => {
     expect(reg.sibling(gai.id, '.gai')).toBeNull()
   })
 
+  it('pairs an index dropped before its file', async () => {
+    const reg = new UploadRegistry()
+    reg.add({ name: 'x.sorted.gam.gai', blob: blobOfText('gai') })
+    const gam = reg.add({ name: 'x.sorted.gam', blob: blobOfText('gam') })
+    expect(await blobText(reg.sibling(gam.id, '.gai')!)).toBe('gai')
+  })
+
+  describe('when a file is dropped again', () => {
+    const drop = (reg: UploadRegistry, name: string, text: string) =>
+      reg.add({ name, blob: blobOfText(text) }).id
+
+    // The old index describes the old file's bytes, not the new one's.
+    it('leaves a file dropped without its index unindexed', async () => {
+      const reg = new UploadRegistry()
+      const old = drop(reg, 'x.sorted.gam', 'old gam')
+      drop(reg, 'x.sorted.gam.gai', 'old gai')
+      const regenerated = drop(reg, 'x.sorted.gam', 'new gam')
+
+      expect(reg.sibling(regenerated, '.gai')).toBeNull()
+      expect(await blobText(reg.sibling(old, '.gai')!)).toBe('old gai')
+    })
+
+    it.each([
+      ['file first', ['x.sorted.gam', 'x.sorted.gam.gai']],
+      ['index first', ['x.sorted.gam.gai', 'x.sorted.gam']],
+    ])('pairs each copy with its own index, %s', async (_order, names) => {
+      const reg = new UploadRegistry()
+      const old = drop(reg, 'x.sorted.gam', 'old gam')
+      drop(reg, 'x.sorted.gam.gai', 'old gai')
+      const ids = names.map(name =>
+        drop(reg, name, name.endsWith('.gai') ? 'new gai' : 'new gam'),
+      )
+      const regenerated = ids[names.indexOf('x.sorted.gam')]!
+
+      expect(await blobText(reg.sibling(regenerated, '.gai')!)).toBe('new gai')
+      expect(await blobText(reg.sibling(old, '.gai')!)).toBe('old gai')
+    })
+  })
+
   it('returns null when no sibling was uploaded', async () => {
     const reg = new UploadRegistry()
     const gam = reg.add({ name: 'lonely.sorted.gam', blob: blobOfText('g') })

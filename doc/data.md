@@ -185,7 +185,9 @@ the blocks overlapping the region are read:
 vg gamsort input.gam -i input.sorted.gam.gai > input.sorted.gam
 ```
 
-Drop both `.sorted.gam` and `.sorted.gam.gai` into the dialog together.
+Drop both `.sorted.gam` and `.sorted.gam.gai` into the dialog together. A
+`.sorted.gam` dropped again on its own is read unindexed, since the index
+dropped earlier describes the earlier file.
 
 ### Loading
 
