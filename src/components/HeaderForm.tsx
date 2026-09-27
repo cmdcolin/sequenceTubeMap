@@ -619,6 +619,7 @@ function HeaderForm({
   const bedRegionCount = regionInfo.chr?.length ?? 0
   const regionUsable = isValidRegion(region)
   const hasBedRegions = bedRegionCount > 0
+  const canShiftRegion = regionUsable && !examplesFlag
 
   useKeyboardShortcuts({
     '+': () => {
@@ -640,12 +641,12 @@ function HeaderForm({
           void jumpRegion(1)
         }
       : undefined,
-    'Shift+ArrowLeft': regionUsable
+    'Shift+ArrowLeft': canShiftRegion
       ? () => {
           shiftRegion(-1)
         }
       : undefined,
-    'Shift+ArrowRight': regionUsable
+    'Shift+ArrowRight': canShiftRegion
       ? () => {
           shiftRegion(1)
         }

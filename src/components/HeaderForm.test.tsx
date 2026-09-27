@@ -274,6 +274,18 @@ describe('keyboard shortcuts', () => {
     expect(lastRegion(setCurrentViewTarget)).toEqual('x:150-250')
   })
 
+  it('leaves shift+arrow alone while the synthetic examples show', async () => {
+    const { setCurrentViewTarget } = renderForm()
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(
+      screen.getByRole('menuitem', { name: 'Synthetic examples' }),
+    )
+
+    await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}')
+
+    expect(setCurrentViewTarget).not.toHaveBeenCalled()
+  })
+
   it('steps through BED regions with [ and ]', async () => {
     const { setCurrentViewTarget } = renderForm({
       viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },
