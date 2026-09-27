@@ -212,6 +212,53 @@ describe('fetching URLs', () => {
     expect(body.bedRegions.desc).toEqual(['first ten'])
   })
 
+  it('stops downloading when its client goes away', async () => {
+    serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
+    let openConnections = 0
+    // Takes 3 seconds to send.
+    const trickle = (req, res) => {
+      openConnections += 1
+      res.writeHead(200)
+      const sending = setInterval(() => res.write('y'), 100)
+      const done = setTimeout(() => res.end(), 3000)
+      req.socket.on('close', () => {
+        openConnections -= 1
+        clearInterval(sending)
+        clearTimeout(done)
+      })
+    }
+    const remote = await serveRoutes({
+      '/regions.bed': sendBody('ref\t1\t10\tslow\tslow\n'),
+      '/slow/chunk_contents.txt': sendBody('a.vg\nb.vg\n'),
+      '/slow/a.vg': trickle,
+      '/slow/b.vg': trickle,
+    })
+    const client = new AbortController()
+    const request = fetch(`${serverState.getApiUrl()}/getChunkedData`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        region: 'ref:1-10',
+        bedFile: `${remote.url}/regions.bed`,
+        tracks: [CACTUS_GRAPH],
+      }),
+      signal: client.signal,
+    }).catch(() => {})
+    await vi.waitFor(() => {
+      expect(openConnections).toBe(1)
+    })
+
+    client.abort()
+    await request
+    await vi.waitFor(
+      () => {
+        expect(openConnections).toBe(0)
+      },
+      { timeout: 1000 },
+    )
+    expect(remote.requests).not.toContain('/slow/b.vg')
+  })
+
   it('decodes a gzipped response', async () => {
     serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
     const remote = await serveRoutes({

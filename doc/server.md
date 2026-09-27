@@ -59,7 +59,8 @@ These `src/config.json` settings bound the work one request can make the server
 do:
 
 - `requestTimeout` (seconds, default 300): the server kills a request's `vg` and
-  chunkix processes after this long, or as soon as its client disconnects.
+  chunkix processes and stops its downloads after this long, or as soon as its
+  client disconnects.
 - `fetchTimeout` (seconds, default 15): the longest a single download from a URL
   may take.
 

@@ -684,10 +684,10 @@ async function getChunkedData(req, res) {
   let chunkPath = ''
   const chunk =
     req.body.bedFile && req.body.bedFile !== 'none'
-      ? await getChunkName(req.body.bedFile, parsedRegion)
+      ? await getChunkName(req.body.bedFile, parsedRegion, req.abortSignal)
       : ''
   if (chunk !== '') {
-    chunkPath = await getChunkPath(req.body.bedFile, chunk)
+    chunkPath = await getChunkPath(req.body.bedFile, chunk, req.abortSignal)
     const fetchedTracks = readChunkTracks(chunkPath)
 
     if (fetchedTracks) {
@@ -1115,9 +1115,9 @@ function bedChunkLocalPath(bed, chunk) {
 
 // Gets the chunk name from a region specified in a bedfile
 // Returns an empty string if the region is not found within the bed file
-async function getChunkName(bed, parsedRegion) {
+async function getChunkName(bed, parsedRegion, signal) {
   let chunk = ''
-  const regionInfo = await getBedRegions(bed)
+  const regionInfo = await getBedRegions(bed, signal)
 
   for (let i = 0; i < regionInfo['desc'].length; i++) {
     const entryRegion = {
@@ -1140,12 +1140,12 @@ async function getChunkName(bed, parsedRegion) {
 
 // Get the allowed local path of a BED file's chunk, downloading the chunk
 // first if the BED is a URL.
-async function getChunkPath(bed, chunk) {
+async function getChunkPath(bed, chunk, signal) {
   const chunkPath = bedChunkLocalPath(bed, chunk)
 
   if (isValidURL(bed)) {
     // download the rest of the chunk
-    await retrieveChunk(bed, chunk, true)
+    await retrieveChunk(bed, chunk, true, signal)
   }
 
   console.log('returning chunk path: ', chunkPath)
@@ -1804,7 +1804,7 @@ async function getPublic(url, headers, signal) {
 }
 
 // Given a URL and a filename, download the given URL to that filename. Assumes required directories exist.
-const downloadFile = async (fileURL, destination) => {
+const downloadFile = async (fileURL, destination, signal) => {
   if (!isAllowedPath(destination)) {
     throw new BadRequestError(
       'Download destination path not allowed: ' + destination,
@@ -1815,6 +1815,7 @@ const downloadFile = async (fileURL, destination) => {
     fileURL,
     config.maxFileSizeBytes,
     destination,
+    signal,
   )
   if (!written) {
     // file has already been downloaded and has not been updated since last fetch
@@ -1828,26 +1829,25 @@ const DECODERS = {
   br: () => zlib.createBrotliDecompress(),
 }
 
-// Start a size- and host-checked GET, following redirects. Returns the
-// response, its body as the streams to pipe it through to decode it, and the
-// timer that will abort it, which the caller must clear once it is done with
-// the body. `existingLocation`, when it names a file already on disk, makes
-// the request conditional so an unchanged file isn't re-downloaded.
-async function beginValidatedFetch(url, maxBytes, existingLocation) {
+// Start a size- and host-checked GET, following redirects, that `signal` or
+// config.fetchTimeout aborts. Returns the response and its body as the
+// streams to pipe it through to decode it. `existingLocation`, when it names
+// a file already on disk, makes the request conditional so an unchanged file
+// isn't re-downloaded.
+async function beginValidatedFetch(url, maxBytes, existingLocation, signal) {
   const headers = { 'Accept-Encoding': Object.keys(DECODERS).join(', ') }
   if (existingLocation !== undefined && fs.existsSync(existingLocation)) {
     headers['If-None-Match'] = ETagMap.get(url) ?? '-1'
   }
-
-  const controller = new AbortController()
-  const timer = setTimeout(() => {
-    controller.abort()
-  }, config.fetchTimeout * 1000)
+  const fetchSignal = AbortSignal.any([
+    signal,
+    AbortSignal.timeout(config.fetchTimeout * 1000),
+  ])
 
   console.log('Fetching URL:', url)
   try {
     let location = url
-    let response = await getPublic(location, headers, controller.signal)
+    let response = await getPublic(location, headers, fetchSignal)
     for (
       let redirects = 0;
       REDIRECT_STATUSES.has(response.statusCode) &&
@@ -1861,13 +1861,13 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
         )
       }
       location = new URL(response.headers.location, location).toString()
-      response = await getPublic(location, headers, controller.signal)
+      response = await getPublic(location, headers, fetchSignal)
     }
 
     if (response.statusCode === 304) {
       console.log('file not modified since last fetch')
       response.destroy()
-      return { notModified: true, response, timer }
+      return { notModified: true, response }
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -1898,9 +1898,8 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
       body.push(decoder())
     }
 
-    return { notModified: false, response, body, timer }
+    return { notModified: false, response, body }
   } catch (e) {
-    clearTimeout(timer)
     if (e instanceof TubeMapError) {
       throw e
     }
@@ -1931,57 +1930,50 @@ function byteLimit(url, maxBytes) {
 // Download a URL straight to a file, without ever holding the whole body in
 // memory. Returns true if the file was written, or false if our copy on disk
 // was already current.
-async function fetchToFile(url, maxBytes, destination) {
-  const { notModified, response, body, timer } = await beginValidatedFetch(
+async function fetchToFile(url, maxBytes, destination, signal) {
+  const { notModified, response, body } = await beginValidatedFetch(
     url,
     maxBytes,
     destination,
+    signal,
   )
-  try {
-    if (notModified) {
-      return false
-    }
-    console.log('Save to:', destination)
-    // Concurrent requests may be downloading the same file, or running vg on
-    // the copy already there, so only a complete file replaces it.
-    const partial = `${destination}.${randomUUID()}.part`
-    try {
-      await pipelineAsync(
-        ...body,
-        byteLimit(url, maxBytes),
-        fs.createWriteStream(partial),
-      )
-      await fs.promises.rename(partial, destination)
-    } catch (e) {
-      await fs.promises.rm(partial, { force: true })
-      throw e
-    }
-    if (response.headers.etag !== undefined) {
-      ETagMap.set(url, response.headers.etag)
-    }
-    return true
-  } finally {
-    clearTimeout(timer)
+  if (notModified) {
+    return false
   }
+  console.log('Save to:', destination)
+  // Concurrent requests may be downloading the same file, or running vg on
+  // the copy already there, so only a complete file replaces it.
+  const partial = `${destination}.${randomUUID()}.part`
+  try {
+    await pipelineAsync(
+      ...body,
+      byteLimit(url, maxBytes),
+      fs.createWriteStream(partial),
+    )
+    await fs.promises.rename(partial, destination)
+  } catch (e) {
+    await fs.promises.rm(partial, { force: true })
+    throw e
+  }
+  if (response.headers.etag !== undefined) {
+    ETagMap.set(url, response.headers.etag)
+  }
+  return true
 }
 
 const MAX_TEXT_FETCH_BYTES = 10 * 1024 * 1024
 
 // Download a small text document (a BED file, a chunk index) as a string.
-async function fetchText(url) {
+async function fetchText(url, signal) {
   const maxBytes = MAX_TEXT_FETCH_BYTES
-  const { body, timer } = await beginValidatedFetch(url, maxBytes)
-  try {
-    const chunks = []
-    await pipelineAsync(...body, byteLimit(url, maxBytes), async source => {
-      for await (const chunk of source) {
-        chunks.push(chunk)
-      }
-    })
-    return Buffer.concat(chunks).toString('utf-8')
-  } finally {
-    clearTimeout(timer)
-  }
+  const { body } = await beginValidatedFetch(url, maxBytes, undefined, signal)
+  const chunks = []
+  await pipelineAsync(...body, byteLimit(url, maxBytes), async source => {
+    for await (const chunk of source) {
+      chunks.push(chunk)
+    }
+  })
+  return Buffer.concat(chunks).toString('utf-8')
 }
 
 // Download files for the specified relative chunk path, for the BED file at
@@ -1991,7 +1983,7 @@ async function fetchText(url) {
 // true, all files listed in chunk_contents.txt will be downloaded.
 // includeContent is false when we select a region, we only need the track names
 // includeContent is true when the go button is pressed and a getChunkedData request is called
-const retrieveChunk = async (bedURL, chunk, includeContent) => {
+const retrieveChunk = async (bedURL, chunk, includeContent, signal) => {
   // path to the designated chunk in the temp directory
   const chunkDir = bedChunkLocalPath(bedURL, chunk)
 
@@ -2009,7 +2001,7 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
   // Each chunk has an index in "chunk_contents.txt"
   const chunkContentURL = new URL('chunk_contents.txt', chunkURL).toString()
 
-  const chunkContent = await fetchText(chunkContentURL)
+  const chunkContent = await fetchText(chunkContentURL, signal)
   const fileNames = chunkContent.split('\n')
 
   // download all the files in the chunk
@@ -2031,7 +2023,7 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
     // download only the tracks.json file if the includeContent flag is false
     if (includeContent || fileName == 'tracks.json') {
       const chunkFilePath = path.resolve(chunkDir, fileName)
-      await downloadFile(chunkFileURL, chunkFilePath)
+      await downloadFile(chunkFileURL, chunkFilePath, signal)
     }
   }
 }
@@ -2048,9 +2040,9 @@ function readChunkTracks(chunkPath) {
 
 // The tracks a BED file's chunk lists, fetching only its tracks.json when the
 // BED is a URL.
-async function getChunkTracks(bedFile, chunk) {
+async function getChunkTracks(bedFile, chunk, signal) {
   if (isValidURL(bedFile)) {
-    await retrieveChunk(bedFile, chunk, false)
+    await retrieveChunk(bedFile, chunk, false, signal)
   }
   return readChunkTracks(bedChunkLocalPath(bedFile, chunk))
 }
@@ -2067,7 +2059,11 @@ api.post(
       )
     }
     assertBedFileReadable(req.body.bedFile)
-    const tracks = await getChunkTracks(req.body.bedFile, req.body.chunk)
+    const tracks = await getChunkTracks(
+      req.body.bedFile,
+      req.body.chunk,
+      requestSignal(res),
+    )
     res.json({ tracks: tracks })
   }),
 )
@@ -2078,7 +2074,7 @@ api.post(
     console.log('received request for bedRegions')
     if (req.body.bedFile) {
       res.json({
-        bedRegions: await getBedRegions(req.body.bedFile),
+        bedRegions: await getBedRegions(req.body.bedFile, requestSignal(res)),
         error: null,
       })
     } else {
@@ -2106,7 +2102,7 @@ function assertBedFileReadable(bed) {
 // Load up the given BED file by URL or path, and
 // return a data structure describing all the pre-cached regions it defines.
 // Validates file paths for user-accessibility. May throw.
-async function getBedRegions(bed) {
+async function getBedRegions(bed, signal) {
   const bed_info = {
     chr: [],
     start: [],
@@ -2119,7 +2115,7 @@ async function getBedRegions(bed) {
   console.log('bed file received ', bed)
   assertBedFileReadable(bed)
   if (isValidURL(bed)) {
-    bed_data = await fetchText(bed)
+    bed_data = await fetchText(bed, signal)
   } else {
     // Load and parse the BED file from dataPath
     bed_data = fs.readFileSync(bed).toString()
