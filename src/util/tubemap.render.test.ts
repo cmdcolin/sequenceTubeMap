@@ -54,7 +54,6 @@ function render(
     nodes,
     tracks,
     reads,
-    hideLegend: false,
   })
   const svg = document.getElementById('tubemap') as unknown as SVGSVGElement
   return svg

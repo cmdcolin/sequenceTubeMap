@@ -68,25 +68,11 @@ function debugLog(...args: unknown[]): void {
 }
 
 export type {
-  BedRecord,
+  IncomingReadKey,
   InputNode,
   InputTrack,
-  LayoutNode,
   Mismatch,
-  MismatchType,
-  Node,
-  NodeAssignment,
-  ReadSequenceEntry,
-  Segment,
-  SegmentAssignment,
-  Track,
-  TrackCorner,
-  TrackCurve,
-  TrackFeature,
-  TrackRectangle,
-  TrackType,
 } from '@gmod/tubemap-core'
-export type { IncomingReadKey } from '@gmod/tubemap-core'
 export {
   compareIncomingReadKeys,
   fillUnassignedOrders,
@@ -136,7 +122,6 @@ interface TubeMapConfig {
   colorSchemes: Record<number, ColorScheme>
   coloredNodes: string[]
   exonColors: string
-  hideLegendFlag: boolean
   mappingQualityCutoff: number
   nodeIntervalThreshold: number
   showInfoCallback: (info: InfoAttribute[]) => void
@@ -154,7 +139,6 @@ export interface CreateParams {
   reads?: InputTrack[] | null
   region?: InputRegion
   bed?: BedRecord[] | null
-  hideLegend?: boolean
 }
 
 // vg-json shapes. vg is permissive (mixes string/number, sometimes omits
@@ -266,7 +250,6 @@ const config: TubeMapConfig = {
   colorSchemes: {},
   // colors corresponds with tracks(input files), [haplotype, read1, read2, ...]
   exonColors: 'lightColors',
-  hideLegendFlag: false,
   mappingQualityCutoff: 0,
   // How far apart can nodes be before making a break in the coordinate bar?
   nodeIntervalThreshold: 150,
@@ -342,7 +325,6 @@ export function create(params: CreateParams): void {
   inputReads = params.reads ?? []
   inputRegion = params.region ?? []
   bed = params.bed ?? null
-  config.hideLegendFlag = params.hideLegend === true
   createTubeMap(sameDataset)
 }
 
@@ -397,11 +379,9 @@ export function subscribeTrackVisibility(cb: () => void): () => void {
 }
 
 function emitTrackVisibility(): void {
-  if (config.hideLegendFlag) return
   const items: TrackVisibilityItem[] = []
-  // Match createTubeMap's defaulting: tracks with no explicit type are
-  // treated as haplotype (see the `t.type === undefined` branch above).
-  // Use 'plain' highlight to match the color the draw loop actually uses.
+  // The layout takes a track with no type for a haplotype, and draws it with
+  // the 'plain' highlight
   for (const t of inputTracks) {
     if (t.type === 'haplotype' || t.type === undefined) {
       items.push({
@@ -1599,7 +1579,7 @@ function drawRulerMarking(
 /// 2 items, no connecting line is drawn.
 function drawRulerMarkingRegion(ticks_region: [number, number][]): void {
   // Each tick is a base coordinate and an image coordinate
-  ticks_region.forEach(tick => { drawRulerMarkingEndpoint(tick[0], tick[1]); })
+  ticks_region.forEach(tick => { drawRulerMarkingEndpoint(tick[1]); })
 
   const lineY = imageBounds.minY - NODE_MARGIN - 6
 
@@ -1615,10 +1595,7 @@ function drawRulerMarkingRegion(ticks_region: [number, number][]): void {
   }
 }
 
-function drawRulerMarkingEndpoint(
-  sequencePosition: number,
-  xCoordinate: number,
-): void {
+function drawRulerMarkingEndpoint(xCoordinate: number): void {
   const pointX = xCoordinate
   const pointY = imageBounds.minY - NODE_MARGIN - 1
   const arrowWidth = 8
@@ -2378,7 +2355,7 @@ function drawMismatches(): void {
                     (mm.pos !== read.finalNodeCoverLength ||
                       i !== sequenceNew.length - 1))
                 ) {
-                  drawInsertion(layer, x - 3, y + READ_WIDTH, mm.seq, node.y)
+                  drawInsertion(layer, x - 3, y + READ_WIDTH, node.y)
                 }
               } else if (mm.type === 'deletion' && mm.length !== undefined) {
                 const x2 = getXCoordinateOfBaseWithinNode(
@@ -2409,7 +2386,6 @@ function drawInsertion(
   target: SvgGroupSelection,
   x: number,
   y: number,
-  seq: string | undefined,
   nodeY: number,
 ): void {
   target

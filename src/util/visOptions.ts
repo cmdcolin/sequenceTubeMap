@@ -39,11 +39,6 @@ export const VIS_OPTION_FLAGS = [
   'ignoreStrand',
 ] as const satisfies readonly VisOptionFlag[]
 
-export const VIS_OPTION_KEYS = [
-  ...VIS_OPTION_FLAGS,
-  'mappingQualityCutoff',
-] as const satisfies readonly (keyof StoredVisOptions)[]
-
 export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   removeRedundantNodes: true,
   compressedView: false,
