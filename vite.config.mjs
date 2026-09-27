@@ -5,6 +5,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
 import { defineConfig, transformWithOxc } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 
@@ -103,5 +104,7 @@ export default defineConfig({
     // default to finish.
     teardownTimeout: 5000,
     fsModuleCache: true,
+    // Agent worktrees are whole checkouts of their own branches
+    exclude: [...configDefaults.exclude, '.claude/**'],
   },
 })
