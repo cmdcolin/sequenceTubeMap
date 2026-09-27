@@ -2396,8 +2396,9 @@ function calculateTrackWidth(): void {
 
   for (const track of tracks) {
     if (track.freq !== undefined) {
-      // custom track width
-      track.width = Math.round((Math.log(track.freq) + 1) * NARROW_WIDTH)
+      track.width = Math.round(
+        (Math.log(Math.max(track.freq, 1)) + 1) * NARROW_WIDTH,
+      )
     } else {
       // default track width
       track.width = WIDE_WIDTH
@@ -3172,14 +3173,14 @@ function generateNodeWidth(): void {
   switch (config.nodeWidthOption) {
     case 'compressed':
       nodes.forEach(node => {
-        node.width = 1 + Math.log(node.sequenceLength) / Math.log(2)
+        node.width = 1 + Math.log2(Math.max(node.sequenceLength, 1))
         node.pixelWidth = Math.round((node.width - 1) * 8.401)
       })
       break
     case 'small':
       nodes.forEach(node => {
         node.width = node.sequenceLength / 100
-        node.pixelWidth = Math.round((node.width - 1) * 8.401)
+        node.pixelWidth = Math.max(Math.round((node.width - 1) * 8.401), 0)
       })
       break
     case 'fixed':

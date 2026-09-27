@@ -3,6 +3,7 @@
 import { curvePaths, nodeOutlinePath } from './geometry.ts'
 import { layoutTubeMap } from './layout.ts'
 
+import type { TubeMapLayout } from './layout.ts'
 import type { InputNode, InputTrack } from './types.ts'
 
 // A SNP bubble: the reference walks 1 2 4, the alternate 1 3 4.
@@ -27,6 +28,23 @@ const runTracks: InputTrack[] = [
   { id: 0, sequence: ['a', 'b', '1', '2', '4'], sourceTrackID: 0 },
   { id: 1, sequence: ['a', 'b', '1', '3', '4'], sourceTrackID: 0 },
 ]
+
+function expectFiniteGeometry(layout: TubeMapLayout) {
+  const { rectangles, curves, verticalRectangles, corners } = layout.shapes
+  for (const shape of [...rectangles, ...curves, ...verticalRectangles]) {
+    const { xStart, xEnd, yStart, yEnd } = shape
+    expect([xStart, xEnd, yStart, yEnd].every(Number.isFinite)).toBe(true)
+  }
+  for (const { path } of corners) {
+    expect(path).not.toMatch(/NaN|Infinity/)
+  }
+  expect(Object.values(layout.bounds).every(Number.isFinite)).toBe(true)
+  layout.nodes.forEach(node => {
+    if (node.order >= 0) {
+      expect(nodeOutlinePath(node)).not.toMatch(/NaN|Infinity/)
+    }
+  })
+}
 
 describe('layoutTubeMap', () => {
   it('puts the two alleles in one column and the flanks either side', () => {
@@ -173,7 +191,7 @@ describe('layoutTubeMap', () => {
       { mergeNodes: false },
     )!
     expect(layout.reads.map(r => r.name)).toEqual(['r2', 'r3'])
-    expect(JSON.stringify(layout.shapes)).not.toContain('null')
+    expectFiniteGeometry(layout)
   })
 
   it('names the track and node when a track visits a node it was not given', () => {
@@ -183,6 +201,30 @@ describe('layoutTubeMap', () => {
         { id: 1, name: 'alt', sequence: ['1', '-9', '4'], sourceTrackID: 0 },
       ]),
     ).toThrow('Track alt visits unknown node -9')
+  })
+
+  it('keeps widths from going negative for short or empty nodes and rare haplotypes', () => {
+    const withEmpty = [...nodes, { name: 'empty', seq: '' }]
+    const throughEmpty: InputTrack[] = [
+      { ...tracks[0]!, sequence: ['1', 'empty', '2', '4'] },
+      tracks[1]!,
+    ]
+    for (const nodeWidthOption of ['small', 'compressed'] as const) {
+      const layout = layoutTubeMap(withEmpty, throughEmpty, [], {
+        nodeWidthOption,
+        mergeNodes: false,
+      })!
+      layout.nodes.forEach(node => {
+        expect(node.pixelWidth).toBeGreaterThanOrEqual(0)
+      })
+      expectFiniteGeometry(layout)
+    }
+    const rare = layoutTubeMap(nodes, [
+      { ...tracks[0]!, freq: 0 },
+      { ...tracks[1]!, freq: 0.2 },
+    ])!
+    expect(rare.tracks.map(t => t.width)).toEqual([15, 15])
+    expectFiniteGeometry(rare)
   })
 
   it('returns undefined when every track is hidden', () => {
