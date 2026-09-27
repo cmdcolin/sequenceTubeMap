@@ -48,6 +48,20 @@ be more honest still, but touches `geometry.ts` and `tubemap.ts`. `seq` is
 optional on `InputNode`, since a `removeSequences` graph has none, and
 `layoutTubeMap` fills it in as `''`.
 
+Found along the way:
+
+- **`compareTrackByInitialOrdering` is not transitive.** It compares two tracks'
+  y where they first share an order slot inside nodes, and returns 0 for tracks
+  that never do, so three tracks can each sort before the next. The sort decides
+  draw order and turnaround nesting in `generateSVGShapesFromPath`, and dropping
+  it reorders shapes in 60 of the goldens, so a replacement needs a deliberate
+  choice of order and a look at the renders.
+- **A mixed-orientation read's mismatches on a reverse visit draw mirrored.** vg
+  counts their positions from the node's right end; `reverseReversedReads`
+  converts them only for wholly reversed reads, and `drawMismatches` places
+  every position from the left. `switchNodeOrientation` hides most cases by
+  switching the node, but a node the reference crosses forward keeps them.
+
 Structural work not yet done:
 
 - **Module-level layout scratch.** `layout.ts` keeps its passes' working state
