@@ -64,31 +64,50 @@ export function HeaderFormAppBar({
       sx={{ background: '#1a5276', mb: 1 }}
     >
       <Toolbar variant="dense">
-        <img
+        <Box
+          component="img"
           src="./logo.svg"
           alt="seqTubeMaps"
-          style={{ height: 32, marginRight: 8 }}
+          sx={{
+            height: 32,
+            // A phone only has room for the ribbons at the logo's left edge
+            width: { xs: 36, sm: 'auto' },
+            objectFit: 'cover',
+            objectPosition: 'left',
+            mr: 1,
+          }}
         />
-        <ExamplesMenu
-          visibleDataSources={visibleDataSources}
-          discoveredDataSources={discoveredDataSources}
-          dataType={dataType}
-          name={name}
-          onSelect={onSelectDataSource}
-        />
-        <FileMenu
-          customFilesFlag={customFilesFlag}
-          tracks={tracks}
-          availableTracks={availableTracks}
-          onTracksChange={onTracksChange}
-          handleFileUpload={handleFileUpload}
-          onUploaded={onUploaded}
-          onOpenCustomFiles={onOpenCustomFiles}
-          apiMode={apiMode}
-          serverModeId={serverModeId}
-          onDestChange={onDestChange}
-        />
-        {visMenus}
+        {/* Scrolls rather than pushing the help button off a narrow screen */}
+        <Box
+          sx={{
+            display: 'flex',
+            minWidth: 0,
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            '& > *': { flexShrink: 0 },
+          }}
+        >
+          <ExamplesMenu
+            visibleDataSources={visibleDataSources}
+            discoveredDataSources={discoveredDataSources}
+            dataType={dataType}
+            name={name}
+            onSelect={onSelectDataSource}
+          />
+          <FileMenu
+            customFilesFlag={customFilesFlag}
+            tracks={tracks}
+            availableTracks={availableTracks}
+            onTracksChange={onTracksChange}
+            handleFileUpload={handleFileUpload}
+            onUploaded={onUploaded}
+            onOpenCustomFiles={onOpenCustomFiles}
+            apiMode={apiMode}
+            serverModeId={serverModeId}
+            onDestChange={onDestChange}
+          />
+          {visMenus}
+        </Box>
         <Box sx={{ flexGrow: 1 }} />
         <Typography
           variant="body2"
@@ -105,7 +124,8 @@ export function HeaderFormAppBar({
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             color: 'transparent',
-            display: 'inline-block',
+            display: { xs: 'none', md: 'inline-block' },
+            whiteSpace: 'nowrap',
           }}
         >
           ✨ MemPanG26 edition! ✨
