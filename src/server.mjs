@@ -331,10 +331,19 @@ async function indexGamSorted(req, res) {
     req.error += data
   })
 
-  const [{ error, code }] = await Promise.all([
+  const [exit, written] = await Promise.allSettled([
     childExit(child),
-    pipelineAsync(child.stdout, fs.createWriteStream(sortedPath)),
+    pipelineAsync(child.stdout, fs.createWriteStream(sortedPath)).catch(
+      error => {
+        child.kill()
+        throw error
+      },
+    ),
   ])
+  if (written.status === 'rejected') {
+    throw written.reason
+  }
+  const { error, code } = exit.value
   if (error !== undefined || code !== 0) {
     console.log(`vg gamsort failed: ${error ?? `exit code ${code}`}`)
     throw new VgExecutionError('vg gamsort failed')
