@@ -265,6 +265,62 @@ describe('tubemap.create — track visibility', () => {
     expect(after[0]!.hidden).toBe(!target.hidden)
     tubeMap.changeTrackVisibility(target.id) // restore
   })
+
+  const hiddenIds = () =>
+    tubeMap
+      .getTrackVisibilitySnapshot()
+      .filter(item => item.hidden)
+      .map(item => item.id)
+
+  it('keeps hidden tracks through a redraw of the same data, not of new data', () => {
+    const { nodes, tracks } = dataForExample('1')
+    render(nodes, tracks)
+    const target = tracks[1]!.id
+    tubeMap.changeTrackVisibility(target)
+    render(nodes, tracks)
+    expect(hiddenIds()).toEqual([target])
+    expect(tracks.some(track => track.hidden)).toBe(false)
+    render(nodes, [...tracks])
+    expect(hiddenIds()).toEqual([])
+  })
+
+  it("never edits the caller's nodes, tracks or reads", () => {
+    for (const example of ['1', '5', '6', '7', '8', '9']) {
+      const svg = setupSvg()
+      const { nodes, tracks, reads } = dataForExample(example)
+      const before = JSON.stringify([nodes, tracks, reads])
+      render(nodes, tracks, reads)
+      try {
+        tubeMap.setCoarsenedReadViewFlag(true)
+        render(nodes, tracks, reads)
+        tubeMap.setCoarsenedReadViewFlag(false)
+        tubeMap.setMergeNodesFlag(false)
+        render(nodes, tracks, reads)
+      } finally {
+        tubeMap.setCoarsenedReadViewFlag(false)
+        tubeMap.setMergeNodesFlag(true)
+      }
+      svg
+        .querySelector(`[trackID="${tracks.at(-1)!.id}"]`)
+        ?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+      tubeMap.changeTrackVisibility(tracks[0]!.id)
+      render(nodes, tracks, reads)
+      expect(JSON.stringify([nodes, tracks, reads])).toBe(before)
+    }
+  })
+
+  it('keeps a double-clicked track first through a redraw of the same data', () => {
+    const { nodes, tracks } = dataForExample('1')
+    const svg = render(nodes, tracks)
+    const target = tracks[2]!.id
+    svg
+      .querySelector(`[trackID="${target}"]`)!
+      .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    expect(tubeMap.getTrackVisibilitySnapshot()[0]?.id).toBe(target)
+    render(nodes, tracks)
+    expect(tubeMap.getTrackVisibilitySnapshot()[0]?.id).toBe(target)
+    expect(tracks[0]!.id).not.toBe(target)
+  })
 })
 
 describe('tubemap.create — node click pops info dialog', () => {

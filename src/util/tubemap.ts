@@ -312,30 +312,23 @@ function releaseDomBindings(): void {
 
 let bed: BedRecord[] | null = null
 
-// The node/track arrays of the most recent create() call. Reference equality
-// against them tells alignSVG whether this is a redraw of the same dataset
-// (preserve the user's pan/zoom) or a brand new one (fit and centre).
-let lastCreateNodes: InputNode[] | null = null
+// The tracks array of the most recent create() call. Reference equality with
+// it and inputNodes tells a redraw of the same dataset, which keeps the user's
+// pan/zoom, hidden tracks and track order, from a new one.
 let lastCreateTracks: InputTrack[] | null = null
 
-// structuredClone preserves sparse-array holes; JSON round-trip would fill them with null.
-function deepCopy<T>(val: T): T {
-  return structuredClone(val)
-}
-
-// main function to call from outside
-// which starts the process of creating a tube map visualization
+// svgID must be an ID selector
 export function create(params: CreateParams): void {
-  // mandatory parameters: svgID (really a selector, but must be an ID selector), nodes, tracks
-  // optional parameters: bed, reads, showLegend
   const sameDataset =
-    params.nodes === lastCreateNodes && params.tracks === lastCreateTracks
-  lastCreateNodes = params.nodes
+    params.nodes === inputNodes && params.tracks === lastCreateTracks
+  if (!sameDataset) {
+    // Copies, because changeTrackVisibility and trackDoubleClick edit them
+    inputTracks = params.tracks.map(track => ({ ...track }))
+  }
+  inputNodes = params.nodes
   lastCreateTracks = params.tracks
   svgID = params.svgID
   svg = d3.select(params.svgID)
-  inputNodes = deepCopy(params.nodes) // deep copy
-  inputTracks = deepCopy(params.tracks) // deep copy
   inputReads = params.reads ?? []
   inputRegion = params.region ?? []
   bed = params.bed ?? null
@@ -344,8 +337,7 @@ export function create(params: CreateParams): void {
 }
 
 
-// moves a specific track to the top. The subsequent createTubeMap() call
-// will re-run straightenTrack against the new ordering.
+// The next layout straightens against the new first track
 function moveTrackToFirstPosition(index: number): void {
   inputTracks.unshift(inputTracks[index]!) // add element to beginning
   inputTracks.splice(index + 1, 1) // remove 1 element from the middle
