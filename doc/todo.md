@@ -77,9 +77,9 @@ Structural work not yet done:
   `PlacedSegment` type (or splitting placement out of `Segment`) would remove
   them.
 - **`config.showExonsFlag` has no setter**, so the BED/exon feature paths —
-  `addTrackFeatures`, `createFeatureRectangle`, and the `highlight !== 'plain'`
-  branch of `generateTrackColor` — are unreachable. Either wire the toggle back
-  up or delete the feature.
+  `addTrackFeatures`, `createFeatureRectangle`, and the exon branch of
+  `generateTrackColor` — are unreachable. Either wire the toggle back up or
+  delete the feature.
 - **`reverseMismatches` reverse-complements a sequence and then reverses it**,
   which nets out to a plain complement. That looks like an original-code bug,
   but the source keeps it verbatim (and says so) because changing it would alter
@@ -96,12 +96,13 @@ color and opacity, read groups and strand palettes are aesthetic mappings;
 palettes, the mapping-quality scale and the share ramp are scales; and
 `nodeWidthOption` is the x scale.
 
-The cost of leaving them hard-wired is the legend. `src/util/legend.ts` restates
-`generateTrackColor`'s precedence (groups over mapping quality over strand,
-bands apart) so the key matches the drawing, and every color change has to be
-made in both. If each mapping were a `{ field, scale }` and each scale could
-write its own legend row, the key would be the list of scales in use and could
-not disagree with the picture. A view would then read like:
+The legend no longer restates the renderer. `src/util/scales.ts` holds scale
+objects that each color a track and write their own legend rows, and
+`src/util/encoding.ts` picks the scale for each kind of drawn track (read groups
+over mapping quality over strand, bands apart). The renderer's colorer and
+`legendSections` both ask it, so the key can't disagree with the picture. The
+View menu's flags still choose among the scales; making each choice a
+`{ field, scale }` entry would finish the job. A view would then read like:
 
 ```ts
 {
@@ -122,17 +123,11 @@ on screen. New encodings (`color ← population`, `alpha ← share`) become entr
 rather than flags, and the URL could carry the spec instead of a growing flag
 list.
 
-In order, each step useful alone:
+What remains: split haplotypes and reads into layers with a stat each. This
+touches the layout's module-level scratch (see
+[the layout engine](#the-layout-engine)), so it belongs with that refactor. The
+colorer already reads each drawn track's computed variables (share, strand,
+mapping quality, name) off `ColorableTrack`, so a layer's stat only has to fill
+them in.
 
-1. Give every drawn track a record of computed variables (count, crossings,
-   share, strand, mapping quality, group) for the colorer to read.
-   `Track.haplotypeShare` is the first of these.
-2. Replace the color and opacity flags with mappings onto scale objects that
-   produce their own legend rows, and delete the restated precedence in
-   `legend.ts`.
-3. Split haplotypes and reads into layers with a stat each. This touches the
-   layout's module-level scratch (see [the layout engine](#the-layout-engine)),
-   so it belongs with that refactor.
-
-A general grammar engine is not the goal; steps 1 and 2 capture most of the
-value.
+A general grammar engine is not the goal.
