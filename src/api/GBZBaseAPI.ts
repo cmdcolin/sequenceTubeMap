@@ -189,10 +189,12 @@ const PROGRESS_INTERVAL_MS = 100
 // on the path, so a query string such as a cache-buster stays at the end
 // instead of swallowing it.
 function siblingUrl(url: string, suffix: string): string {
-  if (!URL.canParse(url)) {
+  let sibling: URL
+  try {
+    sibling = new URL(url)
+  } catch {
     return url + suffix
   }
-  const sibling = new URL(url)
   sibling.pathname += suffix
   return sibling.href
 }

@@ -140,8 +140,17 @@ export function isEmpty(obj: object): boolean {
 // turn out not to be one. A URL is judged by its path, so a query string such
 // as a cache-buster or a signature doesn't hide the extension.
 export function isGbzDbFilename(name: string): boolean {
-  const path = URL.canParse(name) ? new URL(name).pathname : name
-  return /\.db$/i.test(path)
+  return /\.db$/i.test(urlPath(name))
+}
+
+// The path of an absolute URL, or `name` itself for anything else: a relative
+// path, or an uploaded file's name, which may contain `#` or `?`.
+function urlPath(name: string): string {
+  try {
+    return new URL(name).pathname
+  } catch {
+    return name
+  }
 }
 
 // Used to autoload a compatible source in local mode and to hide dropdown

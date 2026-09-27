@@ -194,10 +194,13 @@ export async function readAlignmentsForRuns(
   { visits, signal }: RegionReadOptions = {},
 ): Promise<VgRead[]> {
   const { size } = await source.stat()
+  // Stops the fetches still running when the read ends early or the caller
+  // aborts. AbortSignal.any would do, but it needs Safari 17.4.
   const done = new AbortController()
-  const fetchSignal = signal
-    ? AbortSignal.any([signal, done.signal])
-    : done.signal
+  const abort = () => {
+    done.abort(signal?.reason)
+  }
+  signal?.addEventListener('abort', abort, { once: true })
   const fetched: Promise<TaggedMessage[]>[] = []
   const wanted = (id: bigint) =>
     visits ? visits.has(id) : id >= minNode && id <= maxNode
@@ -214,7 +217,7 @@ export async function readAlignmentsForRuns(
           source,
           size,
           runs[fetched.length]!,
-          fetchSignal,
+          done.signal,
         )
         messages.catch(() => {
           /* a run fetched ahead and then not needed */
@@ -227,6 +230,7 @@ export async function readAlignmentsForRuns(
       window = Math.min(window * 2, RUN_FETCH_CONCURRENCY)
     }
   } finally {
+    signal?.removeEventListener('abort', abort)
     done.abort()
   }
   return out

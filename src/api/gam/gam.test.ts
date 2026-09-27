@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BlobFile } from 'generic-filehandle2'
-import type { GenericFilehandle } from 'generic-filehandle2'
+import type { FilehandleOptions, GenericFilehandle } from 'generic-filehandle2'
 import { readGam, readGamRegion } from './gam.ts'
 import { loadGamIndex, runsForNodeRange } from './gamIndex.ts'
 import type { VgRead } from '../../util/tubemap.ts'
@@ -196,6 +196,34 @@ describe('readGamRegion', () => {
     // than file order — the ordering subsampleReads depends on.
     const names = (xs: { name?: string }[]) => xs.map(x => x.name ?? '')
     expect(names(indexed)).toEqual(names(filtered))
+  })
+
+  // A view left behind stops its region read, fetches in flight included.
+  it('stops reading runs once its signal aborts', async () => {
+    const controller = new AbortController()
+    // Whether each fetch's own signal aborted along with the caller's.
+    const fetchesAborted: (boolean | undefined)[] = []
+    // The view is left while its first run is on the way.
+    class LeftMidFetch extends BlobFile {
+      override async read(
+        length: number,
+        position: number,
+        opts?: FilehandleOptions,
+      ) {
+        controller.abort()
+        fetchesAborted.push(opts?.signal?.aborted)
+        return await super.read(length, position)
+      }
+    }
+    const source = new LeftMidFetch(
+      loadAsBlob('exampleData/cactus-NA12879.sorted.gam'),
+    )
+    const gai = loadAsBlob('exampleData/cactus-NA12879.sorted.gam.gai')
+
+    await expect(
+      readGamRegion(source, gai, 511n, 531n, { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fetchesAborted).toEqual([true])
   })
 
   // Nodes 511-531 of cactus-NA12879 need five of their seven runs, which
