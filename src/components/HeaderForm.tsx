@@ -6,7 +6,7 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
-import { Icon, type IconDefinition } from './Icon.tsx'
+import { IconOnlyButton } from './IconOnlyButton.tsx'
 import {
   faAngleLeft,
   faAngleRight,
@@ -130,38 +130,6 @@ function initialRegionHistory(target: ViewTarget): RegionHistory {
   return target.tracks.length > 0
     ? { entries: [target], index: 0 }
     : { entries: [], index: -1 }
-}
-
-interface RegionControlButtonProps {
-  label: string
-  icon: IconDefinition
-  disabled: boolean
-  testid: string
-  onClick: () => void
-}
-
-function RegionControlButton({
-  label,
-  icon,
-  disabled,
-  testid,
-  onClick,
-}: RegionControlButtonProps) {
-  return (
-    <Button
-      variant="contained"
-      size="small"
-      aria-label={label}
-      title={label}
-      data-testid={testid}
-      disabled={disabled}
-      onClick={() => {
-        onClick()
-      }}
-    >
-      <Icon icon={icon} />
-    </Button>
-  )
 }
 
 function HeaderForm({
@@ -764,7 +732,7 @@ function HeaderForm({
                 flexWrap: 'wrap',
               }}
             >
-              <RegionControlButton
+              <IconOnlyButton
                 testid="regionHistoryBack"
                 label="Back to the previous view"
                 icon={faArrowLeft}
@@ -773,7 +741,7 @@ function HeaderForm({
                   goInHistory(-1)
                 }}
               />
-              <RegionControlButton
+              <IconOnlyButton
                 testid="regionHistoryForward"
                 label="Forward to the next view"
                 icon={faArrowRight}
@@ -808,7 +776,7 @@ function HeaderForm({
                   </Button>
                 </>
               )}
-              <RegionControlButton
+              <IconOnlyButton
                 testid="shiftRegionLeft"
                 label="Shift region left by half a window"
                 icon={faAngleLeft}
@@ -817,7 +785,7 @@ function HeaderForm({
                   shiftRegion(-1)
                 }}
               />
-              <RegionControlButton
+              <IconOnlyButton
                 testid="widenRegion"
                 label={`Widen region ${REGION_ZOOM_FACTOR}x`}
                 icon={faExpand}
@@ -826,7 +794,7 @@ function HeaderForm({
                   scaleRegion(REGION_ZOOM_FACTOR)
                 }}
               />
-              <RegionControlButton
+              <IconOnlyButton
                 testid="narrowRegion"
                 label={`Narrow region ${REGION_ZOOM_FACTOR}x`}
                 icon={faCompress}
@@ -835,7 +803,7 @@ function HeaderForm({
                   scaleRegion(1 / REGION_ZOOM_FACTOR)
                 }}
               />
-              <RegionControlButton
+              <IconOnlyButton
                 testid="shiftRegionRight"
                 label="Shift region right by half a window"
                 icon={faAngleRight}

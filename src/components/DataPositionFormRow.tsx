@@ -3,6 +3,7 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import { Icon } from './Icon.tsx'
+import { IconOnlyButton } from './IconOnlyButton.tsx'
 import { faCamera, faSearchMinus, faSearchPlus } from './icons.ts'
 import * as tubeMap from '../util/tubemap.ts'
 import { downloadSvgById } from '../util/downloadSvg.ts'
@@ -65,30 +66,22 @@ function DataPositionFormRow({
       >
         Go
       </Button>
-      <Button
-        size="small"
-        variant="contained"
+      <IconOnlyButton
         id="zoomInButton"
-        aria-label="Zoom in"
-        title="Zoom in"
+        label="Zoom in"
+        icon={faSearchPlus}
         onClick={() => {
           tubeMap.zoomBy(ZOOM_FACTOR)
         }}
-      >
-        <Icon icon={faSearchPlus} />
-      </Button>
-      <Button
-        size="small"
-        variant="contained"
+      />
+      <IconOnlyButton
         id="zoomOutButton"
-        aria-label="Zoom out"
-        title="Zoom out"
+        label="Zoom out"
+        icon={faSearchMinus}
         onClick={() => {
           tubeMap.zoomBy(1.0 / ZOOM_FACTOR)
         }}
-      >
-        <Icon icon={faSearchMinus} />
-      </Button>
+      />
       <Button
         size="small"
         variant="contained"
