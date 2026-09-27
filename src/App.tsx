@@ -126,6 +126,12 @@ const defaultApiUrl = isLocalMode ? '' : `${config.BACKEND_URL}/api/v0`
 
 const UPSTREAM_API_URL = 'https://api.tubemap.graphs.vg/api/v0'
 
+// One worker for the page. A fresh one per switch back to in-browser mode
+// leaked the last, lost its uploads, and restarted upload ids at "0" under SWR
+// keys that still held the old worker's answers for them.
+let localAPI: LocalAPI | undefined
+const sharedLocalAPI = () => (localAPI ??= new LocalAPI())
+
 const localDefaultViewTarget: ViewTarget = normalizeViewTarget(
   config.DATA_SOURCES.find(isLocalCompatibleDataSource) ?? EMPTY_VIEW_TARGET,
 )
@@ -172,7 +178,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
   }))
   const [apiInterface, setApiInterface] = useState<APIInterface>(
-    () => api ?? (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),
+    () => api ?? (isLocalMode ? sharedLocalAPI() : new ServerAPI(apiUrl)),
   )
   // What the header form re-seeds from when the view changed from outside it
   // (Back/Forward, or a switch of backend). Identity is the signal, so one
@@ -213,7 +219,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     { create: () => APIInterface; viewTarget: ViewTarget }
   > = {
     local: {
-      create: () => new LocalAPI(),
+      create: sharedLocalAPI,
       viewTarget: localDefaultViewTarget,
     },
     server: {

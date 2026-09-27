@@ -16,7 +16,8 @@ live one once, at startup, from `config.BACKEND_URL`:
 `src/App.tsx` reads that once (`isLocalMode`) and constructs the interface. The
 app can also switch at runtime — the upload dialog builds a `ServerAPI` pointed
 at the vgteam's public backend — but nothing below `App` knows which
-implementation it holds.
+implementation it holds. The page keeps one `LocalAPI`, so switching back to
+in-browser mode finds the same worker and the files uploaded to it.
 
 In development `config-client.js` rewrites `false` to `""` so `pnpm start`
 reaches the local express backend through the Vite dev server's `/api` proxy;
