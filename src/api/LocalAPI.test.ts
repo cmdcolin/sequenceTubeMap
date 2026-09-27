@@ -1,6 +1,7 @@
 import { LocalAPI } from './LocalAPI.ts'
 import type { ViewTarget } from '../Types.ts'
 import { readFileSync } from 'node:fs'
+import type { EventEmitter } from 'node:events'
 
 it('can be constructed', () => {
   new LocalAPI()
@@ -96,6 +97,39 @@ describe('filename change notifications', () => {
     controller.abort()
     await api.putFile('graph', gbzFile(), null)
     expect(handler).not.toHaveBeenCalled()
+  })
+})
+
+// The worker mock is an EventEmitter standing in for the Worker.
+function workerOf(api: LocalAPI) {
+  return (api as unknown as { worker: EventEmitter }).worker
+}
+
+describe('a worker that fails to start', () => {
+  it('rejects the calls waiting on it and every call after', async () => {
+    const api = new LocalAPI()
+    const waiting = api.getFilenames(null)
+    workerOf(api).emit(
+      'error',
+      new ErrorEvent('error', {
+        message: 'Cannot use import statement outside a module',
+      }),
+    )
+
+    await expect(waiting).rejects.toThrow(
+      /worker failed to start: Cannot use import statement/,
+    )
+    await expect(api.getFilenames(null)).rejects.toThrow(
+      /worker failed to start/,
+    )
+  })
+
+  it('keeps answering after an error once it has started', async () => {
+    const api = new LocalAPI()
+    await api.getFilenames(null)
+    workerOf(api).emit('error', new ErrorEvent('error', { message: 'later' }))
+
+    await expect(api.getFilenames(null)).resolves.toBeTruthy()
   })
 })
 

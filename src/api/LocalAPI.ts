@@ -27,15 +27,44 @@ export class LocalAPI implements APIInterface {
   private readonly workerAPI: WorkerProxy
   private nextCancelID = 0
   private readonly nameChangeEvents = new EventTarget()
+  // Comlink waits forever for a reply that will never come, which left the
+  // spinner up for good when the worker script failed to load. Every call
+  // races `interrupted`, which rejects when the calls waiting now can no
+  // longer expect an answer; `failure` turns away the calls after it.
+  private started = false
+  private failure: Error | undefined
+  private interrupted!: Promise<never>
+  private interrupt!: (error: Error) => void
 
   constructor() {
     this.worker = makeWorker()
     this.workerAPI = Comlink.wrap<WorkerProxy>(this.worker)
+    this.resetInterrupt()
+    // Once the worker has answered, an error event is an uncaught exception
+    // inside it, and it goes on answering.
+    this.worker.addEventListener('error', event => {
+      if (!this.started) {
+        const reason = event instanceof ErrorEvent ? `: ${event.message}` : ''
+        this.failure = new Error(
+          `The in-browser reader's worker failed to start${reason}`,
+        )
+        this.interrupt(this.failure)
+        this.worker.terminate()
+      }
+    })
+    // A reply that can't be deserialized is lost, and nothing says whose.
+    this.worker.addEventListener('messageerror', () => {
+      this.interrupt(
+        new Error("A reply from the in-browser reader's worker was unreadable"),
+      )
+      this.resetInterrupt()
+    })
 
     // The worker's self.location is the worker script URL, not the page; pass
     // the page baseURI so relative trackFile paths resolve correctly.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.workerAPI.setBaseUrl(document.baseURI)
+    void this.workerAPI.setBaseUrl(document.baseURI).then(() => {
+      this.started = true
+    })
     if (debugRequested()) {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.workerAPI.setDebug(true)
@@ -50,6 +79,22 @@ export class LocalAPI implements APIInterface {
     )
   }
 
+  private resetInterrupt(): void {
+    this.interrupted = new Promise<never>((_resolve, reject) => {
+      this.interrupt = reject
+    })
+    this.interrupted.catch(() => {
+      /* each waiting call reports it */
+    })
+  }
+
+  private async call<T>(run: () => Promise<T>): Promise<T> {
+    if (this.failure) {
+      throw this.failure
+    }
+    return await Promise.race([run(), this.interrupted])
+  }
+
   // Register an id the worker can match a `cancel` message to, and keep it
   // wired to `signal` only for as long as the request runs. An
   // already-aborted signal still gets an id and an immediate cancel, which
@@ -59,7 +104,7 @@ export class LocalAPI implements APIInterface {
     run: (cancelID: number | undefined) => Promise<T>,
   ): Promise<T> {
     if (!signal) {
-      return await run(undefined)
+      return await this.call(() => run(undefined))
     }
     const cancelID = this.nextCancelID++
     const onAbort = () => {
@@ -72,7 +117,7 @@ export class LocalAPI implements APIInterface {
       signal.addEventListener('abort', onAbort)
     }
     try {
-      return await run(cancelID)
+      return await this.call(() => run(cancelID))
     } finally {
       signal.removeEventListener('abort', onAbort)
     }

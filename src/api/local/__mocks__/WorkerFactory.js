@@ -28,6 +28,10 @@ export function makeWorker() {
     })
   }
 
+  userSide.terminate = () => {
+    userSide.postMessage = () => {}
+  }
+
   setUpWorker(workerSide)
 
   // Hide the one side in the other.
