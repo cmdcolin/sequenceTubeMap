@@ -168,6 +168,9 @@ describe('fetching URLs', () => {
     'http://2130706433/regions.bed',
     'http://10.1.2.3/regions.bed',
     'http://[fd00::1]/regions.bed',
+    'http://[2002:7f00:1::]/regions.bed',
+    'http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/regions.bed',
+    'http://[64:ff9b:1::a00:1]/regions.bed',
   ])('refuses the non-public address in %s', async url => {
     const { status, body } = await post('getBedRegions', { bedFile: url })
     expect(status).toBe(400)

@@ -1657,7 +1657,9 @@ function hashString(str) {
 // Address ranges a public server has no business fetching from: loopback,
 // link-local, unique-local, carrier NAT, the RFC1918 ranges and multicast.
 // BlockList matches IPv4-mapped IPv6 (::ffff:a.b.c.d) against the IPv4 rules
-// by itself; the NAT64 and IPv4-compatible forms need rules of their own.
+// by itself; the NAT64 and IPv4-compatible forms need rules of their own, and
+// the 6to4, Teredo and local-use NAT64 prefixes, which relay to IPv4
+// addresses they embed, are refused whole.
 const PRIVATE_IPV4_SUBNETS = [
   ['0.0.0.0', 8],
   ['10.0.0.0', 8],
@@ -1673,6 +1675,9 @@ const PRIVATE_IPV6_SUBNETS = [
   ['fe80::', 10],
   ['fc00::', 7],
   ['ff00::', 8],
+  ['2002::', 16],
+  ['2001::', 32],
+  ['64:ff9b:1::', 48],
 ]
 const PRIVATE_ADDRESSES = new net.BlockList()
 for (const [prefix, bits] of PRIVATE_IPV4_SUBNETS) {
