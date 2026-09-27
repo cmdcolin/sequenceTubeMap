@@ -63,6 +63,10 @@ do:
   client disconnects.
 - `fetchTimeout` (seconds, default 15): the longest a single download from a URL
   may take.
+- `maxFileSizeBytes` (default 1 GB): the most the files of one chunk downloaded
+  from a URL may add up to. A chunk's `chunk_contents.txt` may list at most 100
+  files, and a BED file or `chunk_contents.txt` fetched from a URL may be at
+  most 10 MiB.
 
 ## Built-in Examples entries
 

@@ -1804,19 +1804,14 @@ async function getPublic(url, headers, signal) {
 }
 
 // Given a URL and a filename, download the given URL to that filename. Assumes required directories exist.
-const downloadFile = async (fileURL, destination, signal) => {
+const downloadFile = async (fileURL, destination, maxBytes, signal) => {
   if (!isAllowedPath(destination)) {
     throw new BadRequestError(
       'Download destination path not allowed: ' + destination,
     )
   }
 
-  const written = await fetchToFile(
-    fileURL,
-    config.maxFileSizeBytes,
-    destination,
-    signal,
-  )
+  const written = await fetchToFile(fileURL, maxBytes, destination, signal)
   if (!written) {
     // file has already been downloaded and has not been updated since last fetch
     console.log('File has already been downloaded at ', destination)
@@ -1881,7 +1876,7 @@ async function beginValidatedFetch(url, maxBytes, existingLocation, signal) {
     if (contentLength !== undefined && Number(contentLength) > maxBytes) {
       response.destroy()
       throw new BadRequestError(
-        `Fetch request for ${url} failed: Content-Length exceeds maximum file size of ${maxBytes} bytes`,
+        `Fetch request for ${url} failed: its Content-Length is more than the ${maxBytes} bytes allowed`,
       )
     }
 
@@ -1917,7 +1912,7 @@ function byteLimit(url, maxBytes) {
       if (bytesRead > maxBytes) {
         callback(
           new BadRequestError(
-            `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`,
+            `Fetch request for ${url} failed: it sent more than the ${maxBytes} bytes allowed`,
           ),
         )
       } else {
@@ -1976,6 +1971,8 @@ async function fetchText(url, signal) {
   return Buffer.concat(chunks).toString('utf-8')
 }
 
+const MAX_CHUNK_FILES = 100
+
 // Download files for the specified relative chunk path, for the BED file at
 // the given URL.
 //
@@ -2002,14 +1999,16 @@ const retrieveChunk = async (bedURL, chunk, includeContent, signal) => {
   const chunkContentURL = new URL('chunk_contents.txt', chunkURL).toString()
 
   const chunkContent = await fetchText(chunkContentURL, signal)
-  const fileNames = chunkContent.split('\n')
+  const fileNames = chunkContent.split('\n').filter(fileName => fileName !== '')
+  if (fileNames.length > MAX_CHUNK_FILES) {
+    throw new BadRequestError(
+      `Chunk index at ${chunkContentURL} lists ${fileNames.length} files, more than the ${MAX_CHUNK_FILES} allowed`,
+    )
+  }
 
-  // download all the files in the chunk
+  // A chunk's files share one budget of maxFileSizeBytes.
+  let bytesLeft = config.maxFileSizeBytes
   for (const fileName of fileNames) {
-    if (fileName == '') {
-      // Skip blank lines/trailing newline
-      continue
-    }
     if (fileName !== sanitize(fileName)) {
       // Make sure we don't do things like get out of the directory.
       throw new BadRequestError(
@@ -2017,13 +2016,16 @@ const retrieveChunk = async (bedURL, chunk, includeContent, signal) => {
       )
     }
 
-    // We can interpret all the files in chunk_contents.txt relative to the file they are listed in.
-    const chunkFileURL = new URL(fileName, chunkContentURL).toString()
-
     // download only the tracks.json file if the includeContent flag is false
     if (includeContent || fileName == 'tracks.json') {
       const chunkFilePath = path.resolve(chunkDir, fileName)
-      await downloadFile(chunkFileURL, chunkFilePath, signal)
+      await downloadFile(
+        new URL(fileName, chunkContentURL).toString(),
+        chunkFilePath,
+        bytesLeft,
+        signal,
+      )
+      bytesLeft -= (await fs.promises.stat(chunkFilePath)).size
     }
   }
 }

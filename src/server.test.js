@@ -259,6 +259,43 @@ describe('fetching URLs', () => {
     expect(remote.requests).not.toContain('/slow/b.vg')
   })
 
+  it('refuses a chunk index listing more than 100 files', async () => {
+    serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
+    const fileNames = Array.from({ length: 101 }, (_, i) => `file${i}.gam`)
+    const remote = await serveRoutes({
+      '/chunk/chunk_contents.txt': sendBody(fileNames.join('\n') + '\n'),
+    })
+    const { status, body } = await post('getChunkTracks', {
+      bedFile: `${remote.url}/regions.bed`,
+      chunk: 'chunk',
+    })
+    expect(status).toBe(400)
+    expect(body.error).toMatch(/lists 101 files, more than the 100 allowed/)
+  })
+
+  it("holds a chunk's files to maxFileSizeBytes in total", async () => {
+    serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
+    const maxFileSizeBytes = serverConfig.maxFileSizeBytes
+    serverConfig.maxFileSizeBytes = 1000
+    try {
+      const remote = await serveRoutes({
+        '/regions.bed': sendBody('ref\t1\t10\ttwo files\tchunk\n'),
+        '/chunk/chunk_contents.txt': sendBody('a.gam\nb.gam\n'),
+        '/chunk/a.gam': sendBody(Buffer.alloc(600)),
+        '/chunk/b.gam': sendBody(Buffer.alloc(600)),
+      })
+      const { status, body } = await post('getChunkedData', {
+        region: 'ref:1-10',
+        bedFile: `${remote.url}/regions.bed`,
+        tracks: [CACTUS_GRAPH],
+      })
+      expect(status).toBe(400)
+      expect(body.error).toMatch(/b\.gam failed: .* more than the 400 bytes/)
+    } finally {
+      serverConfig.maxFileSizeBytes = maxFileSizeBytes
+    }
+  })
+
   it('decodes a gzipped response', async () => {
     serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
     const remote = await serveRoutes({
@@ -292,7 +329,7 @@ describe('fetching URLs', () => {
       bedFile: `${remote.url}/regions.bed`,
     })
     expect(status).toBe(400)
-    expect(body.error).toMatch(/exceeds maximum file size of 10485760 bytes/)
+    expect(body.error).toMatch(/more than the 10485760 bytes allowed/)
   })
 
   it.skipIf(process.getuid?.() === 0)(
