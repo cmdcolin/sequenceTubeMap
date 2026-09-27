@@ -512,6 +512,56 @@ describe('tubemap.create — reads', () => {
   })
 })
 
+describe('tubemap.create — mismatches', () => {
+  afterEach(() => {
+    tubeMap.setMergeNodesFlag(true)
+  })
+
+  it('draws hover guides that take no hover of their own', () => {
+    setupSvg()
+    tubeMap.setMergeNodesFlag(false)
+    const nodes: InputNode[] = [
+      { name: '1', seq: 'AAAAAAAA' },
+      { name: '2', seq: 'CCCCCCCC' },
+    ]
+    const tracks: InputTrack[] = [
+      { id: 0, sequence: ['1', '2'], type: 'haplotype', sourceTrackID: 0 },
+    ]
+    const reads: InputTrack[] = [
+      {
+        id: 1,
+        name: 'r1',
+        sequence: ['1', '2'],
+        type: 'read',
+        sourceTrackID: 1,
+        firstNodeOffset: 0,
+        finalNodeCoverLength: 8,
+        sequenceNew: [
+          {
+            nodeName: '1',
+            mismatches: [
+              { type: 'substitution', pos: 1, seq: 'G' },
+              { type: 'insertion', pos: 3, seq: 'T' },
+              { type: 'deletion', pos: 5, length: 2 },
+            ],
+          },
+          { nodeName: '2', mismatches: [] },
+        ],
+      },
+    ]
+    const svg = render(nodes, tracks, reads)
+    const mismatches = svg.querySelectorAll('g.mismatches-layer > *')
+    expect(mismatches).toHaveLength(3)
+    for (const mismatch of mismatches) {
+      mismatch.dispatchEvent(new MouseEvent('mouseover'))
+    }
+    const guides = [...svg.querySelectorAll<SVGElement>('[class$=Highlight]')]
+    expect(guides.map(guide => guide.style.pointerEvents)).toEqual(
+      Array(5).fill('none'),
+    )
+  })
+})
+
 describe('tubemap.create — empty inputs', () => {
   beforeEach(() => {
     setupSvg()

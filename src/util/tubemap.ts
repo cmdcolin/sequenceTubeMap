@@ -2497,20 +2497,32 @@ function drawDeletion(
     .on('mouseout', deletionMouseOut)
 }
 
+// A vertical guide from a hovered mismatch up to its node. It takes no hover
+// of its own, or drawing it over the mismatch would fire that mouseout.
+function drawMismatchGuide(
+  className: string,
+  x: number,
+  y: number,
+  nodeY: number,
+): void {
+  svg
+    .append('line')
+    .attr('class', className)
+    .attr('x1', x)
+    .attr('y1', y)
+    .attr('x2', x)
+    .attr('y2', nodeY + 5)
+    .attr('stroke-width', 1)
+    .attr('stroke', 'black')
+    .style('pointer-events', 'none')
+}
+
 function insertionMouseOver(this: SVGElement): void {
   d3.select(this).attr('fill', 'red')
   const x = Number(d3.select(this).attr('x'))
   const y = Number(d3.select(this).attr('y'))
   const yTop = Number(d3.select(this).attr('nodeY'))
-  svg
-    .append('line')
-    .attr('class', 'insertionHighlight')
-    .attr('x1', x + 4)
-    .attr('y1', y - 10)
-    .attr('x2', x + 4)
-    .attr('y2', yTop + 5)
-    .attr('stroke-width', 1)
-    .attr('stroke', 'black')
+  drawMismatchGuide('insertionHighlight', x + 4, y - 10, yTop)
 }
 
 function deletionMouseOver(this: SVGElement): void {
@@ -2519,24 +2531,8 @@ function deletionMouseOver(this: SVGElement): void {
   const x2 = Number(d3.select(this).attr('x2'))
   const y = Number(d3.select(this).attr('y1'))
   const yTop = Number(d3.select(this).attr('nodeY'))
-  svg
-    .append('line')
-    .attr('class', 'deletionHighlight')
-    .attr('x1', x1)
-    .attr('y1', y - 3)
-    .attr('x2', x1)
-    .attr('y2', yTop + 5)
-    .attr('stroke-width', 1)
-    .attr('stroke', 'black')
-  svg
-    .append('line')
-    .attr('class', 'deletionHighlight')
-    .attr('x1', x2)
-    .attr('y1', y - 3)
-    .attr('x2', x2)
-    .attr('y2', yTop + 5)
-    .attr('stroke-width', 1)
-    .attr('stroke', 'black')
+  drawMismatchGuide('deletionHighlight', x1, y - 3, yTop)
+  drawMismatchGuide('deletionHighlight', x2, y - 3, yTop)
 }
 
 function substitutionMouseOver(this: SVGElement): void {
@@ -2545,24 +2541,8 @@ function substitutionMouseOver(this: SVGElement): void {
   const x2 = Number(d3.select(this).attr('rightX'))
   const y = Number(d3.select(this).attr('y'))
   const yTop = Number(d3.select(this).attr('nodeY'))
-  svg
-    .append('line')
-    .attr('class', 'substitutionHighlight')
-    .attr('x1', x1 - 1)
-    .attr('y1', y - READ_WIDTH)
-    .attr('x2', x1 - 1)
-    .attr('y2', yTop + 5)
-    .attr('stroke-width', 1)
-    .attr('stroke', 'black')
-  svg
-    .append('line')
-    .attr('class', 'substitutionHighlight')
-    .attr('x1', x2 + 1)
-    .attr('y1', y - READ_WIDTH)
-    .attr('x2', x2 + 1)
-    .attr('y2', yTop + 5)
-    .attr('stroke-width', 1)
-    .attr('stroke', 'black')
+  drawMismatchGuide('substitutionHighlight', x1 - 1, y - READ_WIDTH, yTop)
+  drawMismatchGuide('substitutionHighlight', x2 + 1, y - READ_WIDTH, yTop)
 }
 
 function insertionMouseOut(this: SVGElement): void {
