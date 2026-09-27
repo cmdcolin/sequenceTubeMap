@@ -170,16 +170,19 @@ export function layoutTubeMap(
     return undefined
   }
 
+  // Boundary promotion: layout passes below populate the Node/Track fields
+  // (width, order, x/y, path, indexSequence, etc.) before any reader runs.
+  const copies = deepCopy(inputNodes) as LayoutNode[]
   // Nodes are referenced in inputs by internal `name` attribute and not by
   // index. Internally in e.g. a path's indexSequence we need to reference
   // nodes by *signed* index, so index 0 can never be used: budge everything
   // down and leave a hole (rather than an `undefined` entry) at 0, which we
-  // won't iterate over.
-  const holed: (InputNode | undefined)[] = [undefined, ...inputNodes]
-  Reflect.deleteProperty(holed, 0)
-  // Boundary promotion: layout passes below populate the Node/Track fields
-  // (width, order, x/y, path, indexSequence, etc.) before any reader runs.
-  nodes = deepCopy(holed) as LayoutNode[]
+  // won't iterate over. Made after the copy, because not every structuredClone
+  // keeps a hole.
+  nodes = []
+  copies.forEach((node, i) => {
+    nodes[i + 1] = node
+  })
   tracks = deepCopy(inputTracks) as Track[]
   // Drop the reads we will never draw before cloning them — the deep copy of a
   // large GAM is the single most expensive step in a redraw.
