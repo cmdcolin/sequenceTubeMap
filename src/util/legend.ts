@@ -86,14 +86,15 @@ function fadedBlack(quality: number): string {
   return `#${level}${level}${level}`
 }
 
-// "reads" gives Forward reads / Reverse reads, or Reads under ignoreStrand
+// "reads" gives Forward reads / Reverse reads, or just Reads when nothing
+// drawn is reverse-strand
 function strandRows(
   noun: string,
   scheme: LegendScheme,
-  ignoreStrand: boolean,
+  forwardOnly: boolean,
 ): LegendRow[] {
   const aux = scheme.auxPalette
-  return ignoreStrand || aux === undefined
+  return forwardOnly || aux === undefined
     ? [
         {
           label: noun.charAt(0).toUpperCase() + noun.slice(1),
@@ -117,7 +118,7 @@ function readRows(
   if (input.coarsened?.unit === 'read') {
     return scheme === undefined
       ? []
-      : strandRows('read bands', scheme, ignoreStrand)
+      : strandRows('read bands', scheme, !input.coarsened.reverse)
   }
   const readGroups = input.readGroups ?? []
   const colors: LegendRow[] =
@@ -148,19 +149,17 @@ function readRows(
 }
 
 // A ramp from one of the haplotypes beside the reference lane to all of them
-function shareRows(total: number, ignoreStrand: boolean): LegendRow[] {
-  const of = `share of ${total.toLocaleString()} other haplotypes`
-  return ignoreStrand
+function shareRows({ total, reverse }: Coarsening): LegendRow[] {
+  const span =
+    total === 1
+      ? 'the one other haplotype'
+      : `1 to all ${total.toLocaleString()} other haplotypes`
+  return reverse
     ? [
-        {
-          label: of.charAt(0).toUpperCase() + of.slice(1),
-          ramp: haplotypeShareRamp(),
-        },
+        { label: `Forward bands, ${span}`, ramp: haplotypeShareRamp() },
+        { label: `Reverse bands, ${span}`, ramp: haplotypeShareRamp(true) },
       ]
-    : [
-        { label: `Forward bands, ${of}`, ramp: haplotypeShareRamp() },
-        { label: `Reverse bands, ${of}`, ramp: haplotypeShareRamp(true) },
-      ]
+    : [{ label: `Bands, ${span}`, ramp: haplotypeShareRamp() }]
 }
 
 // Which palette actually colors what, for everything but reads.
@@ -181,7 +180,7 @@ function pathRows(
   const aux = scheme.auxPalette
   const bands =
     input.coarsened?.unit === 'haplotype'
-      ? shareRows(input.coarsened.total, input.ignoreStrand ?? false)
+      ? shareRows(input.coarsened)
       : undefined
   if (type === 'graph') {
     // With a haplotype track loaded, the paths beside the reference belong to

@@ -87,10 +87,12 @@ bundled alignment data does: on snp1kg-BRCA1 at `17:1-400` the flag moves all
 118 reverse-strand reads out of the red auxiliary palette and into the blue main
 one.
 
-Under `--coarsened` the flag appears to do nothing at all, on every input tried.
-Read orientation is normalised before the bands are aggregated, so both
-traversals of an edge have already collapsed into one band by the time the flag
-could merge them.
+Under `--coarsened` the flag rarely changes anything. The layout turns reads,
+and haplotypes stored back to front, around before it bands them, so both
+traversals of an edge have usually collapsed into one band already. What the
+flag still moves is a band that runs against the reference, such as haplotypes
+through an inversion: it merges that band into the forward one and drops its
+purple.
 
 `--coarsened` on a graph with no reads loaded coarsens the haplotypes instead:
 the reference keeps its own lane (so the ruler still works), and every other

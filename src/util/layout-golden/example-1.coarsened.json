@@ -2,7 +2,7 @@
   "bounds": {"minX":20,"maxX":1692.8191344715913,"minY":10,"maxY":200.22292782326102},
   "maxOrder": 21,
   "trackForRuler": "Track A",
-  "coarsened": {"unit":"haplotype","total":3320},
+  "coarsened": {"unit":"haplotype","total":3320,"reverse":false},
   "nodes": [
     {"name":"A","order":0,"x":20,"y":20,"pixelWidth":8,"contentHeight":95.96804340981697},
     {"name":"B","order":1,"x":68,"y":20,"pixelWidth":17,"contentHeight":104.82423533459699},

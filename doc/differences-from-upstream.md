@@ -54,11 +54,13 @@ Samples in [tubemap-cli-samples/](tubemap-cli-samples/). See
 ## Visualization
 
 - **Coarsened (Sankey) read view** — collapses per-read ribbons into one band
-  per node→node edge, thickness scaled by traversing-read count, so rendering is
-  O(edges) rather than O(reads). The bands go through the normal `placeReads`
-  pipeline and inherit lane assignment, loop topology and coloring.
-- **Ignore strand** — drops the reverse-strand aux palette, and merges (+A→+B)
-  with (−B→−A) into one Sankey band.
+  per node→node edge, thickness scaled by how often reads cross it, so rendering
+  is O(edges) rather than O(reads). The bands go through the normal `placeReads`
+  pipeline and inherit lane assignment, loop topology and strand coloring. With
+  no reads loaded it bands the haplotypes instead, shaded by the share of them
+  that take each edge.
+- **Ignore strand** — drops the reverse-strand aux palette (purple, for
+  haplotype bands), and merges (+A→+B) with (−B→−A) into one Sankey band.
 - **Node labels** — node IDs on the graph, counter-scaled to stay readable at
   any zoom.
 - **Named read groups** — each with its own palette, built by right-clicking a

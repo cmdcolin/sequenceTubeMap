@@ -68,11 +68,13 @@ export interface CoarsenedEdgeMeta {
   label: string
 }
 
-// What the coarsened view drew as bands, and how many reads or haplotypes it
-// banded, counting a deduplicated walk `freq` times
+// What the coarsened view drew as bands, how many reads or haplotypes it
+// banded (counting a deduplicated walk `freq` times), and whether any band
+// runs reverse-strand
 export interface Coarsening {
   unit: CoarsenedUnit
   total: number
+  reverse: boolean
 }
 
 export interface TubeMapLayout {
@@ -280,7 +282,9 @@ export function layoutTubeMap(
     // A deduplicated reference walk also stands for the haplotypes identical to
     // it through the window; those belong in the bands, not the reference lane.
     const refDuplicates = (ref.freq ?? 1) - 1
-    const altHaplotypes = tracks.filter((_, i) => i !== refIndex)
+    const altHaplotypes = tracks
+      .filter((_, i) => i !== refIndex)
+      .map(walk => orientedLike(ref, walk))
     if (refDuplicates > 0) altHaplotypes.push({ ...ref, freq: refDuplicates })
     if (altHaplotypes.length > 0) {
       const { bands, total } = buildCoarsenedSyntheticBands(
@@ -295,7 +299,7 @@ export function layoutTubeMap(
       if (bands.length > 0) {
         tracks = [ref]
         reads = bands
-        coarsened = { unit: 'haplotype', total }
+        coarsened = { unit: 'haplotype', total, reverse: false }
       }
     }
   }
@@ -326,9 +330,12 @@ export function layoutTubeMap(
     if (drawCoarsenedReads) {
       const { bands, total } = buildCoarsenedSyntheticBands(reads, 'read')
       reads = bands
-      coarsened = { unit: 'read', total }
+      coarsened = { unit: 'read', total, reverse: false }
       reverseReversedReads()
       generateTrackIndexSequences(reads)
+    }
+    if (coarsened !== undefined && !config.ignoreStrand) {
+      coarsened.reverse = reads.some(band => band.is_reverse === true)
     }
     placeReads()
     tracks = tracks.concat(reads)
@@ -2831,10 +2838,12 @@ function buildCoarsenedSyntheticBands(
     dSigned: number
     sName: string
     dName: string
+    // distinct walks, so a walk that loops back over an edge, or crosses it
+    // both ways under ignoreStrand, counts once
     count: number
+    // every crossing, loops included, which is what sizes the band
+    crossings: number
     sourceTrackID: number
-    // the last source counted, so a walk that loops back over an edge, or
-    // crosses it both ways under ignoreStrand, counts once
     lastSource: number
   }
   const edges = new Map<string, EdgeAgg>()
@@ -2875,23 +2884,27 @@ function buildCoarsenedSyntheticBands(
           sName: sSigned < 0 ? `-${srcNode.name}` : srcNode.name,
           dName: dSigned < 0 ? `-${dstNode.name}` : dstNode.name,
           count: weight,
+          crossings: weight,
           sourceTrackID: item.sourceTrackID,
           lastSource: sourceIndex,
         })
-      } else if (existing.lastSource !== sourceIndex) {
-        existing.count += weight
-        existing.lastSource = sourceIndex
+      } else {
+        existing.crossings += weight
+        if (existing.lastSource !== sourceIndex) {
+          existing.count += weight
+          existing.lastSource = sourceIndex
+        }
       }
     }
   }
 
-  // Square-root scaling on count gives heavy edges visible weight without
+  // Square-root scaling on crossings gives heavy edges visible weight without
   // letting one massive edge dwarf everything else. Min stays near READ_WIDTH
   // so single-read edges still look like a normal read; max is generous so
   // hot edges read as obvious "highways."
   let maxEdgeCount = 0
   for (const e of edges.values()) {
-    if (e.count > maxEdgeCount) maxEdgeCount = e.count
+    if (e.crossings > maxEdgeCount) maxEdgeCount = e.crossings
   }
   const BAND_MIN_WIDTH = READ_WIDTH
   const BAND_MAX_WIDTH = 60
@@ -2910,7 +2923,11 @@ function buildCoarsenedSyntheticBands(
     const share =
       unit === 'haplotype' ? { count: edge.count, total } : undefined
     const shareText = share === undefined ? '' : ` (${formatShare(share)})`
-    const label = `${edge.count.toLocaleString()} ${unit}${edge.count === 1 ? '' : 's'}${shareText}: Node ${edge.sName} → Node ${edge.dName}`
+    const crossingsText =
+      edge.crossings === edge.count
+        ? ''
+        : `, ${edge.crossings.toLocaleString()} crossings`
+    const label = `${edge.count.toLocaleString()} ${unit}${edge.count === 1 ? '' : 's'}${shareText}${crossingsText}: Node ${edge.sName} → Node ${edge.dName}`
     coarsenedEdgeMeta.set(id, { count: edge.count, label })
     // Place each synthetic band so it touches *only* its endpoint nodes' edges:
     //   • firstNodeOffset = src.sequenceLength → curve exits at src's right
@@ -2943,7 +2960,7 @@ function buildCoarsenedSyntheticBands(
       // Pre-set width so placeReads / placeReadSet allocate the right vertical
       // space and assignReadsToNodes (patched to honor pre-set widths) leaves
       // it alone.
-      width: widthForCount(edge.count),
+      width: widthForCount(edge.crossings),
       firstNodeOffset: srcLen,
       finalNodeCoverLength: 0,
       sequenceNew: [
@@ -2978,6 +2995,30 @@ function buildCoarsenedSyntheticBands(
     )
   }
   return { bands: synthetic, total }
+}
+
+// A graph can store a walk in either orientation, so a haplotype can arrive
+// back to front relative to the reference. Banded that way, one allele splits
+// into a forward and a reverse band. Turn a walk around when it runs against
+// the reference on most of the nodes they share.
+function orientedLike(ref: Track, walk: Track): Track {
+  const refSign = new Map<number, number>()
+  for (const visit of ref.indexSequence) {
+    const node = Math.abs(visit)
+    if (!refSign.has(node)) refSign.set(node, Math.sign(visit))
+  }
+  let agreement = 0
+  for (const visit of walk.indexSequence) {
+    const sign = refSign.get(Math.abs(visit))
+    if (sign !== undefined) agreement += sign === Math.sign(visit) ? 1 : -1
+  }
+  return agreement >= 0
+    ? walk
+    : {
+        ...walk,
+        sequence: walk.sequence.map(flip).reverse(),
+        indexSequence: walk.indexSequence.map(visit => -visit).reverse(),
+      }
 }
 
 function formatShare({ count, total }: HaplotypeShare): string {

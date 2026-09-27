@@ -469,6 +469,7 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
     expect(tubeMap.getRenderedColoring().coarsened).toEqual({
       unit: 'haplotype',
       total: 4,
+      reverse: false,
     })
   })
 

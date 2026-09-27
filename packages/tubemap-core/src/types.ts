@@ -102,13 +102,13 @@ export interface InputTrack {
   score?: number
 }
 
-// Layout-complete track shape, as layoutTubeMap returns it.
 // How many of the banded haplotypes take a coarsened band
 export interface HaplotypeShare {
   count: number
   total: number
 }
 
+// Layout-complete track shape, as layoutTubeMap returns it.
 export interface Track extends InputTrack {
   indexSequence: number[]
   path: Segment[]

@@ -106,7 +106,7 @@ describe('legendSections', () => {
   it('keys coarsened reads by strand alone', () => {
     expect(
       rowsFor(GRAPH_AND_READS, {
-        coarsened: { unit: 'read', total: 3 },
+        coarsened: { unit: 'read', total: 3, reverse: true },
         colorReadsByMappingQuality: true,
         alphaReadsByMappingQuality: true,
         readGroups: [{ name: 'Carriers', color: 'blues' }],
@@ -117,26 +117,23 @@ describe('legendSections', () => {
     ])
   })
 
-  it('keys coarsened haplotypes by share of the others, by strand', () => {
-    const coarsened = { unit: 'haplotype', total: 94 } as const
-    expect(
-      rowsFor([{ trackType: 'graph', trackFile: 'x.gbz.db' }], { coarsened }),
-    ).toEqual([
-      [
-        'Reference path=greys',
-        'Forward bands, share of 94 other haplotypes=ramp',
-        'Reverse bands, share of 94 other haplotypes=ramp',
-      ],
+  it('keys coarsened haplotypes by share of the others', () => {
+    const graph: Tracks = [{ trackType: 'graph', trackFile: 'x.gbz.db' }]
+    const coarsened = { unit: 'haplotype', total: 94, reverse: false } as const
+    expect(rowsFor(graph, { coarsened })).toEqual([
+      ['Reference path=greys', 'Bands, 1 to all 94 other haplotypes=ramp'],
     ])
     expect(
-      rowsFor(
-        [
-          { trackType: 'graph', trackFile: 'x.gbz.db' },
-          { trackType: 'haplotype', trackFile: 'x.gbwt' },
-        ],
-        { coarsened, ignoreStrand: true },
-      ),
-    ).toEqual([['Reference path=greys'], ['Share of 94 other haplotypes=ramp']])
+      rowsFor([...graph, { trackType: 'haplotype', trackFile: 'x.gbwt' }], {
+        coarsened: { ...coarsened, reverse: true },
+      }),
+    ).toEqual([
+      ['Reference path=greys'],
+      [
+        'Forward bands, 1 to all 94 other haplotypes=ramp',
+        'Reverse bands, 1 to all 94 other haplotypes=ramp',
+      ],
+    ])
   })
 
   it('says nothing rather than guessing when a track has no scheme', () => {

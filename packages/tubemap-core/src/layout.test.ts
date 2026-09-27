@@ -123,7 +123,7 @@ describe('layoutTubeMap', () => {
       }
     }
 
-    it('counts a haplotype once on an edge it loops back over', () => {
+    it('counts a haplotype once on an edge it loops back over, and sizes the band by its crossings', () => {
       const looping: InputTrack = {
         id: 1,
         name: 'loop',
@@ -131,8 +131,10 @@ describe('layoutTubeMap', () => {
         sourceTrackID: 0,
       }
       const { labels, coarsened } = bandLabels([looping])
-      expect(labels).toContain('1 haplotype (100%): Node 2 → Node 4')
-      expect(coarsened).toEqual({ unit: 'haplotype', total: 1 })
+      expect(labels).toContain(
+        '1 haplotype (100%), 3 crossings: Node 2 → Node 4',
+      )
+      expect(coarsened).toEqual({ unit: 'haplotype', total: 1, reverse: false })
     })
 
     it('counts a haplotype once on an edge it crosses both ways under ignoreStrand', () => {
@@ -152,8 +154,45 @@ describe('layoutTubeMap', () => {
         ignoreStrand: true,
       })
       expect(labels.filter(l => l.endsWith('Node 1 → Node 2'))).toEqual([
-        '1 haplotype (50%): Node 1 → Node 2',
+        '1 haplotype (50%), 2 crossings: Node 1 → Node 2',
       ])
+    })
+
+    it('turns a haplotype stored back to front around to join its allele', () => {
+      const { labels, coarsened } = bandLabels([
+        { id: 1, sequence: ['-4', '-3', '-1'], sourceTrackID: 0 },
+        { id: 2, sequence: ['1', '3', '4'], sourceTrackID: 0 },
+      ])
+      expect(labels).toEqual([
+        '2 haplotypes (100%): Node 1 → Node 3',
+        '2 haplotypes (100%): Node 3 → Node 4',
+      ])
+      expect(coarsened?.reverse).toBe(false)
+    })
+
+    it('keeps a band reverse where a haplotype runs through an inversion', () => {
+      const line: InputNode[] = ['1', '2', '3', '4'].map(name => ({
+        name,
+        seq: 'ACGT',
+      }))
+      const layout = layoutTubeMap(
+        line,
+        [
+          {
+            id: 0,
+            name: 'ref',
+            sequence: ['1', '2', '3', '4'],
+            sourceTrackID: 0,
+          },
+          { id: 1, sequence: ['1', '-3', '-2', '4'], sourceTrackID: 0 },
+        ],
+        [],
+        { mergeNodes: false, coarsenedReadView: true },
+      )!
+      expect(
+        [...layout.coarsenedEdgeMeta.values()].map(m => m.label),
+      ).toContain('1 haplotype (100%): Node -3 → Node -2')
+      expect(layout.coarsened?.reverse).toBe(true)
     })
 
     it('never rounds a share to 0% or 100% that is neither', () => {
