@@ -55,6 +55,9 @@ export const TrackListItem = ({
     trackProps.trackFile?.split('/').at(-1) ??
     `new ${trackProps.trackType} track`
 
+  const trackColorSettings =
+    trackProps.trackColorSettings ?? defaultTrackColors(trackProps.trackType)
+
   const updateTrack = (changes: Partial<Track>) => {
     onChange(trackID, { ...trackProps, ...changes })
   }
@@ -116,14 +119,10 @@ export const TrackListItem = ({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <TrackSettingsButton
           fileType={trackProps.trackType}
-          trackColorSettings={trackProps.trackColorSettings}
+          trackColorSettings={trackColorSettings}
           setTrackColorSetting={(key, value) => {
             updateTrack({
-              trackColorSettings: {
-                ...(trackProps.trackColorSettings ??
-                  defaultTrackColors(trackProps.trackType)),
-                [key]: value,
-              },
+              trackColorSettings: { ...trackColorSettings, [key]: value },
             })
           }}
           availableColors={availableColors}

@@ -15,7 +15,7 @@ type SettingsFileType = FileType | 'nodeLabel'
 interface TrackSettingsProps {
   fileType?: SettingsFileType
   // Partial because the node-label dialog only carries mainPalette.
-  trackColorSettings?: Partial<ColorScheme>
+  trackColorSettings: Partial<ColorScheme>
   setTrackColorSetting: (key: PaletteField, value: Palette) => void
   availableColors?: ColorPaletteName[]
   presetColors?: string[]
@@ -33,11 +33,6 @@ const DEFAULT_PRESET_COLORS = [
   '#F78DA7',
   '#9900EF',
 ]
-
-const DEFAULT_COLOR_SETTINGS: Partial<ColorScheme> = {
-  mainPalette: 'blues',
-  auxPalette: 'reds',
-}
 
 // Per file type, the row headings for the (main, aux) palette slots.
 // undefined for aux means that file type only has a single palette slot.
@@ -90,7 +85,7 @@ const PaletteRow = ({
  */
 export const TrackSettings = ({
   fileType = 'haplotype',
-  trackColorSettings = DEFAULT_COLOR_SETTINGS,
+  trackColorSettings,
   setTrackColorSetting,
   availableColors = DEFAULT_AVAILABLE_COLORS,
   presetColors = DEFAULT_PRESET_COLORS,

@@ -15,7 +15,7 @@ import {
 
 interface TrackSettingsButtonProps {
   fileType?: FileType | 'nodeLabel'
-  trackColorSettings?: Partial<ColorScheme>
+  trackColorSettings: Partial<ColorScheme>
   setTrackColorSetting: (key: PaletteField, value: Palette) => void
   label?: string
   availableColors?: ColorPaletteName[]

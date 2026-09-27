@@ -166,6 +166,27 @@ describe('TrackListItem', () => {
     }
   })
 
+  it("shows a track without stored colors its type's default palette", async () => {
+    render(
+      <TrackListItem
+        apiMode="server"
+        trackProps={{ trackFile: 'fileA2.gbwt', trackType: 'haplotype' }}
+        availableTracks={availableTracks}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        trackID={0}
+        handleFileUpload={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Color settings for fileA2.gbwt' }),
+    )
+
+    expect(await screen.findByLabelText('colorful')).toBeChecked()
+    expect(screen.getByLabelText('blues')).not.toBeChecked()
+  })
+
   it('should call onDelete correctly', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
