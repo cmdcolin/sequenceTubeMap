@@ -44,7 +44,10 @@ afterEach(async () => {
   }
   fixtureDirs = []
   await Promise.all(
-    remoteServers.map(server => new Promise(resolve => server.close(resolve))),
+    remoteServers.map(server => {
+      server.closeAllConnections()
+      return new Promise(resolve => server.close(resolve))
+    }),
   )
   remoteServers = []
 })
@@ -205,6 +208,35 @@ describe('fetching URLs', () => {
     expect(status).toBe(200)
     expect(body.bedRegions.desc).toEqual(['first ten'])
   })
+
+  it.each([404, 302])(
+    'drops the connection of a %i response it has no use for',
+    async statusCode => {
+      serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
+      let openConnections = 0
+      const remote = await serveRoutes({
+        '/moved.bed': (req, res) => {
+          openConnections += 1
+          req.socket.on('close', () => {
+            openConnections -= 1
+          })
+          res.writeHead(statusCode, { Location: '/regions.bed' })
+          const trickle = setInterval(() => res.write('x'), 50)
+          req.socket.on('close', () => {
+            clearInterval(trickle)
+          })
+        },
+        '/regions.bed': sendBody('ref\t1\t10\tfirst ten\n'),
+      })
+      await post('getBedRegions', { bedFile: `${remote.url}/moved.bed` })
+      await vi.waitFor(
+        () => {
+          expect(openConnections).toBe(0)
+        },
+        { timeout: 1000 },
+      )
+    },
+  )
 })
 
 describe.skipIf(!HAS_VG)('BED files at URLs', () => {

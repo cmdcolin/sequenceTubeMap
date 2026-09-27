@@ -1807,7 +1807,7 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
       response.headers.location !== undefined;
       redirects++
     ) {
-      response.resume()
+      response.destroy()
       if (redirects === MAX_REDIRECTS) {
         throw new BadRequestError(
           `Fetch request for ${url} failed: more than ${MAX_REDIRECTS} redirects`,
@@ -1819,12 +1819,12 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
 
     if (response.statusCode === 304) {
       console.log('file not modified since last fetch')
-      response.resume()
+      response.destroy()
       return { notModified: true, response, timer }
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      response.resume()
+      response.destroy()
       throw new BadRequestError(
         `Fetch request for ${url} failed: ` + response.statusCode,
       )
