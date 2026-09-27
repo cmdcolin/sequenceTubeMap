@@ -111,6 +111,7 @@ interface RenderOptions {
   onRetry?: () => void
   onReadRenderLimitChange?: (limit: number | null) => void
   onCoarsen?: () => void
+  legendVisible?: boolean
 }
 
 function renderContainer(options: RenderOptions = {}) {
@@ -125,7 +126,7 @@ function renderContainer(options: RenderOptions = {}) {
     readRenderLimit:
       options.readRenderLimit === undefined ? 100 : options.readRenderLimit,
     onReadRenderLimitChange: options.onReadRenderLimitChange ?? (() => {}),
-    legendVisible: false,
+    legendVisible: options.legendVisible ?? false,
     legendTracks: (options.viewTarget ?? VIEW_TARGET).tracks,
     onLegendClose: () => {},
     onCoarsen: options.onCoarsen ?? (() => {}),
@@ -350,6 +351,23 @@ describe('TubeMapContainer', () => {
 
     expect(screen.getByTestId('tubeMap')).toBeInTheDocument()
     expect(screen.getByTestId('tubeMapLoadingOverlay')).toBeInTheDocument()
+  })
+
+  it('floats the legend over the drawing rather than the read banner', () => {
+    renderContainer({ data: makeData(150), legendVisible: true })
+
+    const drawing = document.getElementById('tubeMapSVG')!
+    expect(within(drawing).getByText('Color legend')).toBeInTheDocument()
+    expect(
+      within(drawing).queryByText(/Showing 100 of 150 reads/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('leaves the legend out while the size notice stands in for the map', () => {
+    const walks = Array.from({ length: 40 }, (_, i) => makeWalk(i, 1000))
+    renderContainer({ data: makeData(0, walks), legendVisible: true })
+
+    expect(screen.queryByText('Color legend')).not.toBeInTheDocument()
   })
 
   it('shows the loader in place of the map when nothing has loaded yet', () => {

@@ -38,9 +38,6 @@ const shots = [
     out: 'graph-render-cap.png',
     query: `?name=${V21}&region=${MHC10KB}`,
     until: text('node visits across'),
-    // The legend is in the way of the notice's own button in a window this
-    // short; it is not what the figure is about.
-    then: [closeLegend()],
     element: '#tubeMapContainer .MuiAlert-root',
     pad: 14,
   },
@@ -75,11 +72,6 @@ const shots = [
 function text(needle) {
   return `[...document.querySelectorAll('*')].some(
     el => el.children.length === 0 && el.textContent.includes(${JSON.stringify(needle)}))`
-}
-
-function closeLegend() {
-  return `[...document.querySelectorAll('button')]
-    .find(b => b.getAttribute('aria-label') === 'close' || b.textContent === '×')?.click()`
 }
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))

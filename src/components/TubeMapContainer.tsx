@@ -102,10 +102,7 @@ function LargeGraphNotice({
   onDrawAnyway: () => void
 }) {
   return (
-    // Above the floating legend (zIndex 10), which is positioned over the top
-    // right of this container and would otherwise cover "Draw anyway" — the
-    // one control that gets you past the notice.
-    <Box sx={{ px: 2, position: 'relative', zIndex: 20 }}>
+    <Box sx={{ px: 2 }}>
       <Alert
         severity="warning"
         sx={{ '& .MuiAlert-action': { flexShrink: 0 } }}
@@ -404,7 +401,7 @@ function TubeMapContainer({
       <strong>Go</strong>.
     </Box>
   ) : error ? (
-    <Box sx={{ px: 2, position: 'relative', zIndex: 20 }}>
+    <Box sx={{ px: 2 }}>
       <Alert
         severity="error"
         action={
@@ -724,6 +721,27 @@ function TubeMapContainer({
             nodeSequences={!viewTarget.removeSequences}
           />
         ) : null}
+        {legendVisible &&
+        nodes !== undefined &&
+        tracks !== undefined &&
+        !graphTooLarge ? (
+          <div
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              zIndex: 10,
+              maxHeight: 'calc(100% - 16px)',
+              overflowY: 'auto',
+            }}
+          >
+            <Legend
+              tracks={legendTracks}
+              coloring={renderedColoring}
+              onClose={onLegendClose}
+            />
+          </div>
+        ) : null}
       </div>
       {readContextMenu ? (
         <ReadContextMenu
@@ -777,24 +795,6 @@ function TubeMapContainer({
           }}
         />
       ) : null}
-      {legendVisible && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            zIndex: 10,
-            maxHeight: 'calc(100vh - 120px)',
-            overflowY: 'auto',
-          }}
-        >
-          <Legend
-            tracks={legendTracks}
-            coloring={renderedColoring}
-            onClose={onLegendClose}
-          />
-        </div>
-      )}
     </div>
   )
 }
