@@ -96,49 +96,4 @@ describe('bandageJsUrl', () => {
       ),
     ).not.toHaveProperty('index')
   })
-
-  describe('haplotypes', () => {
-    const region = view('GRCh38#chr6:1-100')
-
-    it('narrows to the visible haplotypes once some are hidden', () => {
-      const url = bandageJsUrl(region, undefined, [
-        { name: 'GRCh38#0#chr6', hidden: false },
-        { name: 'HG00097#1#JAHBCB010000040.1', hidden: false },
-        { name: 'HG00097#1#JAHBCB010000041.1', hidden: false },
-        { name: 'HG00133#2#JAHBCC010000012.1', hidden: true },
-      ])
-
-      expect(params(url).haps).toBe('GRCh38#0,HG00097#1')
-    })
-
-    it('sends every haplotype when none, or all, are hidden', () => {
-      const tracks = [
-        { name: 'GRCh38#0#chr6', hidden: false },
-        { name: 'HG00097#1#chr6', hidden: false },
-      ]
-
-      expect(
-        params(bandageJsUrl(region, undefined, tracks)),
-      ).not.toHaveProperty('haps')
-      expect(
-        params(
-          bandageJsUrl(
-            region,
-            undefined,
-            tracks.map(track => ({ ...track, hidden: true })),
-          ),
-        ),
-      ).not.toHaveProperty('haps')
-    })
-
-    it('sends every haplotype when a visible one is anonymous', () => {
-      const url = bandageJsUrl(region, undefined, [
-        { name: 'HG00097#1#chr6', hidden: false },
-        { name: 'unknown#57', hidden: false },
-        { name: 'unknown#58', hidden: true },
-      ])
-
-      expect(params(url)).not.toHaveProperty('haps')
-    })
-  })
 })

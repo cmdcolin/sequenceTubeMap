@@ -88,7 +88,7 @@ data, region and view options — any tube map is a shareable link
 
 **View → Open in BandageJS** opens the same window of a hosted `.gbz.db` in
 [BandageJS](https://jbrowse.org/demos/bandagejs/), a force-directed graph
-viewer, keeping only the haplotypes left visible.
+viewer.
 
 [![The app with BRCA1 reads loaded](doc/images/1.png)][demo-brca1]
 

@@ -1,9 +1,7 @@
-import { useSyncExternalStore } from 'react'
 import ListItemText from '@mui/material/ListItemText'
 import MenuItem from '@mui/material/MenuItem'
 import type { ViewTarget } from '../Types.ts'
 import { bandageJsUrl } from '../util/bandageJs.ts'
-import * as tubeMap from '../util/tubemap.ts'
 
 export function OpenInBandageJsMenuItem({
   viewTarget,
@@ -14,14 +12,10 @@ export function OpenInBandageJsMenuItem({
   trackFileBaseURI: string | undefined
   close: () => void
 }) {
-  const haplotypeTracks = useSyncExternalStore(
-    tubeMap.subscribeTrackVisibility,
-    tubeMap.getTrackVisibilitySnapshot,
-  )
   const url =
     viewTarget === undefined
       ? undefined
-      : bandageJsUrl(viewTarget, trackFileBaseURI, haplotypeTracks)
+      : bandageJsUrl(viewTarget, trackFileBaseURI)
   return (
     <MenuItem
       dense
