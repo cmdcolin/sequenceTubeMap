@@ -205,9 +205,11 @@ async function isGzip(blob: Blob): Promise<boolean> {
 // `vg chunk -r first:last -c 20`, which the server runs for `node:first-last`.
 const NODE_RANGE_CONTEXT_STEPS = 20
 
-// Every id in a node range costs a record lookup whether or not the node
-// exists, so a range wider than a tube map could draw is refused up front.
-const MAX_NODE_RANGE_IDS = 10000
+// Every node a node region takes in, and every id in its range whether or not
+// the node exists, costs a record lookup, which for a hosted graph can be a
+// range request. A region that asks for more than a tube map could draw is
+// refused rather than walked across the graph.
+const MAX_NODE_REGION = 10000
 
 // The server's node regions, cut the way `vg chunk` cuts them:
 // `node:first-last` is the nodes with ids in that range and everything within
@@ -222,9 +224,9 @@ async function nodeRegionSubgraph(
   const first = region.start
   const last = 'end' in region ? region.end : region.start
   const steps = 'end' in region ? NODE_RANGE_CONTEXT_STEPS : region.distance
-  if (last - first >= MAX_NODE_RANGE_IDS) {
+  if (last - first >= MAX_NODE_REGION) {
     throw new Error(
-      `node:${first}-${last} spans more than ${MAX_NODE_RANGE_IDS} node ids`,
+      `node:${first}-${last} spans more than ${MAX_NODE_REGION} node ids`,
     )
   }
   await db.prefetchRecords(
@@ -254,6 +256,11 @@ async function nodeRegionSubgraph(
         for (const successor of record?.successors() ?? []) {
           const neighbor = gbzNodes.nodeId(successor)
           if (!reached.has(neighbor)) {
+            if (reached.size >= MAX_NODE_REGION) {
+              throw new Error(
+                `more than ${MAX_NODE_REGION} nodes lie within ${steps} edges; ask for fewer steps`,
+              )
+            }
             reached.add(neighbor)
             next.push(neighbor)
           }

@@ -534,6 +534,23 @@ describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC v2.1', () => {
 
     expect(chr20?.length).toBeGreaterThan(60000000)
   }, 120000)
+
+  // Each node a node region takes in can be a range request, so one asking for
+  // more than a tube map could draw has to stop rather than walk the graph.
+  it('answers a node region, and refuses one that would walk the graph', async () => {
+    const api = new GBZBaseAPI()
+    const view = (region: string) =>
+      api.getChunkedData({ ...hprc, region }, null)
+    const lpa = await view('GRCh38#chr6:160620000-160620500')
+    const first = Math.min(...(lpa.graph?.node ?? []).map(n => Number(n.id)))
+
+    expect((await view(`node:${first}+5`)).graph?.node.length).toBeGreaterThan(
+      1,
+    )
+    await expect(view(`node:${first}+100000`)).rejects.toThrow(
+      /more than 10000 nodes lie within 100000 edges/,
+    )
+  }, 300000)
 })
 
 // The Region field's path syntax. gbz-base ships `parsePathName`, but it only
