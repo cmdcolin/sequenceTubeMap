@@ -1177,25 +1177,35 @@ function reverseReversedReads(): void {
 // from the other end of the node, and sequences are complemented.
 // sequenceLength (not node.width, which is only equal to it in 'normal'
 // node-width mode) is the right pivot because mismatch positions are base
-// offsets. Exported for testing.
+// offsets.
 export function reverseMismatches(
   mismatches: Mismatch[],
   sequenceLength: number,
 ): void {
   mismatches.forEach(mm => {
-    if (mm.type === 'insertion') {
-      mm.pos = sequenceLength - mm.pos
-    } else if (mm.type === 'deletion') {
-      mm.pos = sequenceLength - mm.pos - (mm.length ?? 0)
-    } else {
-      mm.pos = sequenceLength - mm.pos - (mm.seq?.length ?? 0)
-    }
-    if (mm.seq !== undefined) {
-      // NOTE: reverse-complement followed by reverse is a plain complement.
-      // Preserved verbatim from the original code rather than "fixed" here.
-      mm.seq = getReverseComplement(mm.seq).split('').reverse().join('')
-    }
+    Object.assign(mm, mirroredMismatch(mm, sequenceLength))
   })
+}
+
+export function mirroredMismatch(
+  mm: Mismatch,
+  sequenceLength: number,
+): Mismatch {
+  const span =
+    mm.type === 'insertion'
+      ? 0
+      : mm.type === 'deletion'
+        ? (mm.length ?? 0)
+        : (mm.seq?.length ?? 0)
+  return {
+    ...mm,
+    pos: sequenceLength - mm.pos - span,
+    // NOTE: reverse-complement followed by reverse is a plain complement.
+    // Preserved verbatim from the original code rather than "fixed" here.
+    ...(mm.seq !== undefined && {
+      seq: getReverseComplement(mm.seq).split('').reverse().join(''),
+    }),
+  }
 }
 
 const COMPLEMENT: Record<string, string> = { A: 'T', T: 'A', C: 'G', G: 'C' }

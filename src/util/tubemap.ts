@@ -23,6 +23,7 @@ import {
   isCoarsenedId,
   isReverse,
   layoutTubeMap,
+  mirroredMismatch,
   nodeOutlinePath,
   nodePixelCoordinatesInX,
   READ_WIDTH,
@@ -2316,9 +2317,14 @@ function drawMismatches(): void {
         ) {
           pathIndex += 1
         }
-        const y = read.path[pathIndex]?.y
-        if (node !== undefined && y !== undefined) {
-          element.mismatches.forEach(mm => {
+        const segment = read.path[pathIndex]
+        if (node !== undefined && segment?.y !== undefined) {
+          const { y, isForward } = segment
+          element.mismatches.forEach(edit => {
+            // vg counts a reverse visit's positions from the node's right end
+            const mm = isForward
+              ? edit
+              : mirroredMismatch(edit, node.sequenceLength)
             // Positions past the (possibly merged) node's end have no pixel
             // coordinate; drawing them would emit NaN attributes.
             const x = getXCoordinateOfBaseWithinNode(node, mm.pos)
@@ -2326,8 +2332,8 @@ function drawMismatches(): void {
               if (mm.type === 'insertion') {
                 if (
                   config.showSoftClips ||
-                  ((mm.pos !== read.firstNodeOffset || i !== 0) &&
-                    (mm.pos !== read.finalNodeCoverLength ||
+                  ((edit.pos !== read.firstNodeOffset || i !== 0) &&
+                    (edit.pos !== read.finalNodeCoverLength ||
                       i !== sequenceNew.length - 1))
                 ) {
                   drawInsertion(layer, x - 3, y + READ_WIDTH, node.y)

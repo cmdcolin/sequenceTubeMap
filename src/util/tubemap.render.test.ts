@@ -572,6 +572,50 @@ describe('tubemap.create — mismatches', () => {
       Array(5).fill('none'),
     )
   })
+
+  it('places a reverse visit’s mismatch from the node’s right end', () => {
+    setupSvg()
+    tubeMap.setMergeNodesFlag(false)
+    const nodes: InputNode[] = [
+      { name: '1', seq: 'AAAAAAAA' },
+      { name: '2', seq: 'CCCCCCCC' },
+      { name: '3', seq: 'GGGGGGGG' },
+    ]
+    const tracks: InputTrack[] = [
+      { id: 0, sequence: ['1', '2', '3'], type: 'haplotype', sourceTrackID: 0 },
+    ]
+    const read = (
+      id: number,
+      node2: string,
+      mismatch: { pos: number; seq: string },
+    ): InputTrack => ({
+      id,
+      name: `r${id}`,
+      sequence: ['1', node2, '3'],
+      type: 'read',
+      sourceTrackID: id,
+      firstNodeOffset: 0,
+      finalNodeCoverLength: 8,
+      sequenceNew: [
+        { nodeName: '1', mismatches: [] },
+        {
+          nodeName: node2,
+          mismatches: [{ type: 'substitution', ...mismatch }],
+        },
+        { nodeName: '3', mismatches: [] },
+      ],
+    })
+    const svg = render(nodes, tracks, [
+      read(1, '2', { pos: 6, seq: 'T' }),
+      read(2, '-2', { pos: 1, seq: 'A' }),
+    ])
+    const substitutions = [
+      ...svg.querySelectorAll('g.mismatches-layer > text'),
+    ].map(text => [text.textContent, text.getAttribute('x')])
+    expect(substitutions).toHaveLength(2)
+    expect(substitutions[0]![1]).toBe(substitutions[1]![1])
+    expect(substitutions.map(([seq]) => seq)).toEqual(['T', 'T'])
+  })
 })
 
 describe('tubemap.create — empty inputs', () => {
