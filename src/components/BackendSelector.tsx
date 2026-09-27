@@ -23,7 +23,9 @@ function BackendSelector({
   return (
     <Container sx={{ mt: 1 }}>
       <Accordion disableGutters>
-        <AccordionSummary expandIcon={<Box sx={{ fontSize: 18, lineHeight: 1 }}>▾</Box>}>
+        <AccordionSummary
+          expandIcon={<Box sx={{ fontSize: 18, lineHeight: 1 }}>▾</Box>}
+        >
           Backend configuration
         </AccordionSummary>
         <AccordionDetails>
@@ -35,10 +37,16 @@ function BackendSelector({
                 id="apiSelect"
                 label="Extract tube map data"
                 value={currentAPIMode}
-                onChange={(e) => { setAPIMode(e.target.value); }}
+                onChange={e => {
+                  setAPIMode(e.target.value)
+                }}
               >
-                <MenuItem value="local">In-browser (.gbz.db uploads only)</MenuItem>
-                <MenuItem value="upstream">Upload to vgteam server (api.tubemap.graphs.vg)</MenuItem>
+                <MenuItem value="local">
+                  In-browser (.gbz.db uploads only)
+                </MenuItem>
+                <MenuItem value="upstream">
+                  Upload to vgteam server (api.tubemap.graphs.vg)
+                </MenuItem>
                 {showServerOption && (
                   <MenuItem value="server">Self-hosted server</MenuItem>
                 )}

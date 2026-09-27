@@ -12,7 +12,11 @@ interface HelpDialogProps {
   children: ReactNode
 }
 
-function HelpDialog({ title, label = 'What is this?', children }: HelpDialogProps) {
+function HelpDialog({
+  title,
+  label = 'What is this?',
+  children,
+}: HelpDialogProps) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -20,11 +24,22 @@ function HelpDialog({ title, label = 'What is this?', children }: HelpDialogProp
         variant="text"
         size="small"
         sx={{ fontSize: '0.8em', p: 0, ml: 1, minWidth: 0 }}
-        onClick={e => { e.stopPropagation(); setOpen(true); }}
+        onClick={e => {
+          e.stopPropagation()
+          setOpen(true)
+        }}
       >
         {label}
       </Button>
-      <Dialog open={open} onClose={() => { setOpen(false); }} onClick={(e) => { e.stopPropagation(); }}>
+      <Dialog
+        open={open}
+        onClose={() => {
+          setOpen(false)
+        }}
+        onClick={e => {
+          e.stopPropagation()
+        }}
+      >
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>{children}</DialogContent>
       </Dialog>

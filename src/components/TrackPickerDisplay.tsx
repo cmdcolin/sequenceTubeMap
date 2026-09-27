@@ -107,21 +107,27 @@ export const TrackPickerDisplay = ({
           tracks={applied}
           availableTracks={availableTracks}
           availableColors={availableColors}
-          onChange={(trackID, newTrack) => { stage({ [trackID]: newTrack }); }}
-          onDelete={(trackID) => { stage({ [trackID]: DELETED }); }}
+          onChange={(trackID, newTrack) => {
+            stage({ [trackID]: newTrack })
+          }}
+          onDelete={trackID => {
+            stage({ [trackID]: DELETED })
+          }}
           handleFileUpload={handleFileUpload}
           apiMode={apiMode}
         />
       </Box>
       {isEmpty && (
-        <Box
-          sx={{ padding: '12px 16px', color: '#666', fontStyle: 'italic' }}
-        >
+        <Box sx={{ padding: '12px 16px', color: '#666', fontStyle: 'italic' }}>
           No tracks configured. Click the + button below to add a track.
         </Box>
       )}
       <Box>
-        <TrackAddButton onChange={() => { addTrackItem(); }} />
+        <TrackAddButton
+          onChange={() => {
+            addTrackItem()
+          }}
+        />
       </Box>
     </Box>
   )

@@ -90,7 +90,15 @@ describe('runsForNodeRange', () => {
 
   it('keeps disjoint runs separate and clips them to the first window', () => {
     const idx = index(
-      [[0n, [{ start: 0n, pastEnd: 100n }, { start: 400n, pastEnd: 500n }]]],
+      [
+        [
+          0n,
+          [
+            { start: 0n, pastEnd: 100n },
+            { start: 400n, pastEnd: 500n },
+          ],
+        ],
+      ],
       [[0n, 40n]],
     )
     expect(runsForNodeRange(idx, 1n, 10n)).toEqual([
@@ -101,7 +109,15 @@ describe('runsForNodeRange', () => {
 
   it('drops runs that end before the first window', () => {
     const idx = index(
-      [[0n, [{ start: 0n, pastEnd: 30n }, { start: 400n, pastEnd: 500n }]]],
+      [
+        [
+          0n,
+          [
+            { start: 0n, pastEnd: 30n },
+            { start: 400n, pastEnd: 500n },
+          ],
+        ],
+      ],
       [[0n, 40n]],
     )
     expect(runsForNodeRange(idx, 1n, 10n)).toEqual([

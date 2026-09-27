@@ -117,7 +117,9 @@ it('labels the in-browser group when it is the only one', async () => {
   expect(
     screen.queryByText('Needs a vg server (.xg, .vg, .gbz)'),
   ).not.toBeInTheDocument()
-  expect(screen.queryByRole('menuitem', { name: 'cactus' })).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('menuitem', { name: 'cactus' }),
+  ).not.toBeInTheDocument()
   expect(
     screen.getByRole('menuitem', { name: 'cactus (gbz-base)' }),
   ).toBeInTheDocument()
@@ -276,7 +278,9 @@ describe('keyboard shortcuts', () => {
   it('steps through BED regions with [ and ]', async () => {
     const { setCurrentViewTarget } = renderForm({
       viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },
-      api: fakeAPI({ getBedRegions: async () => ({ bedRegions: BED_REGIONS }) }),
+      api: fakeAPI({
+        getBedRegions: async () => ({ bedRegions: BED_REGIONS }),
+      }),
     })
     await screen.findByRole('button', { name: 'Next' })
 

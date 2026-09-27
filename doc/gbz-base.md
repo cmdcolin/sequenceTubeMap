@@ -22,20 +22,20 @@ name says the same thing: that graph is a `.gbz.db` the browser reads itself.
 
 ![The Examples menu, grouped by backend](images/examples-menu-grouped.png)
 
-That is the menu with a server configured. In-browser mode shows the first
-group alone, since it is the only one it can open — `Discovered` is whatever
+That is the menu with a server configured. In-browser mode shows the first group
+alone, since it is the only one it can open — `Discovered` is whatever
 `manifest.json` files the server's data directory holds
 ([server-data.md](server-data.md)). The entries that read a `.gbz.db`, from
 `DATA_SOURCES` in `src/config.json`:
 
-| Example                                     | Graph                                      | Haplotype names                          |
-| ------------------------------------------- | ------------------------------------------ | ---------------------------------------- |
-| snp1kg-BRCA1 (gbz-base)                     | bundled, with a `.gam` read track          | `_gbwt_ref` paths, no haplotypes         |
-| cactus (gbz-base)                           | bundled, with a `.gam` read track          | `_gbwt_ref` paths, no haplotypes         |
-| backward (gbz-base)                         | bundled, `fwd` and `rev` paths             | `_gbwt_ref` paths, no haplotypes         |
-| HPRC chrM (gbz-base, companion index)       | bundled, PanSN sample names                | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
-| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes) | bundled, an HPRC slice                  | real, side tables inside the database     |
-| HPRC v2.1 whole genome (gbz-base, URL-hosted) | hosted, 10 GB, read by range request     | real, from the [companion index](#pointing-a-track-at-a-companion-index) |
+| Example                                        | Graph                                | Haplotype names                                                                |
+| ---------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
+| snp1kg-BRCA1 (gbz-base)                        | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
+| cactus (gbz-base)                              | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
+| backward (gbz-base)                            | bundled, `fwd` and `rev` paths       | `_gbwt_ref` paths, no haplotypes                                               |
+| HPRC chrM (gbz-base, companion index)          | bundled, PanSN sample names          | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
+| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes) | bundled, an HPRC slice               | real, side tables inside the database                                          |
+| HPRC v2.1 whole genome (gbz-base, URL-hosted)  | hosted, 10 GB, read by range request | real, from the [companion index](#pointing-a-track-at-a-companion-index)       |
 
 Everything else in the menu — `snp1kg-BRCA1`, `vg "small" example`, `cactus`,
 `cactus multiple reads`, `Lancet example` — is an `.xg`/`.vg`/`.gbz` graph that
@@ -175,9 +175,9 @@ whole genome" example reads both:
 ```
 
 Measured against those two files from a home connection, 500 bp inside _LPA_'s
-KIV-2 array (`GRCh38#chr6:160620000-160620500`, the example's default region):
-2 s, 15 range requests, 1 MB, for 57 nodes and 23 distinct haplotype walks —
-named `HG03942#2#CM088404.1` rather than `unknown#2`.
+KIV-2 array (`GRCh38#chr6:160620000-160620500`, the example's default region): 2
+s, 15 range requests, 1 MB, for 57 nodes and 23 distinct haplotype walks — named
+`HG03942#2#CM088404.1` rather than `unknown#2`.
 
 The paths panel is the other reason to name the index. It asks for a length per
 indexed path, and the companion answers that out of `HaplotypeLengths` instead

@@ -32,13 +32,17 @@ export const SimplifyButton = ({
         size="small"
         variant={simplify || removeSequences ? 'contained' : 'outlined'}
         startIcon={<Icon icon={faGear} />}
-        onClick={() => { setOpen(o => !o); }}
+        onClick={() => {
+          setOpen(o => !o)
+        }}
       >
         Simplify
       </Button>
       <PopupDialog
         open={open}
-        close={() => { setOpen(false); }}
+        close={() => {
+          setOpen(false)
+        }}
         width="400px"
       >
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -55,7 +59,9 @@ export const SimplifyButton = ({
               <Switch
                 checked={simplify && simplifyAvailable}
                 disabled={!simplifyAvailable}
-                onChange={() => { setSimplify(!simplify); }}
+                onChange={() => {
+                  setSimplify(!simplify)
+                }}
               />
             }
           />
@@ -66,7 +72,9 @@ export const SimplifyButton = ({
             control={
               <Switch
                 checked={removeSequences}
-                onChange={() => { setRemoveSequences(!removeSequences); }}
+                onChange={() => {
+                  setRemoveSequences(!removeSequences)
+                }}
               />
             }
           />

@@ -114,7 +114,11 @@ function collectNodeIds(buf: Uint8Array, depth: number, out: bigint[]): void {
 // bgzf-filehandle's plain-gzip fallback all stop after the first member, so
 // plain gzip is inflated one member at a time.
 async function decompress(buf: Uint8Array): Promise<Uint8Array> {
-  const isBgzf = buf.length > 4 && buf[0] === 0x1f && buf[1] === 0x8b && (buf[3]! & 0x04) !== 0
+  const isBgzf =
+    buf.length > 4 &&
+    buf[0] === 0x1f &&
+    buf[1] === 0x8b &&
+    (buf[3]! & 0x04) !== 0
   if (isBgzf) {
     return unzip(buf)
   }

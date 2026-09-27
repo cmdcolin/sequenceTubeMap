@@ -88,7 +88,9 @@ describe('readGam', () => {
   })
 
   it('rejects a plain-gzip GAM cut off mid-member', async () => {
-    const whole = await loadAsBlob('exampleData/cactus-NA12879.gam').arrayBuffer()
+    const whole = await loadAsBlob(
+      'exampleData/cactus-NA12879.gam',
+    ).arrayBuffer()
     const truncated = new Blob([whole.slice(0, 9000)])
     await expect(readGam(truncated)).rejects.toThrow('truncated')
   })
@@ -161,8 +163,7 @@ describe('readGamRegion', () => {
     )
     const indexed = await readGamRegion(new BlobFile(gam), gai, 1n, 10000n)
     // Same set of read names — order may differ.
-    const names = (xs: { name?: string }[]) =>
-      xs.map(x => x.name ?? '').sort()
+    const names = (xs: { name?: string }[]) => xs.map(x => x.name ?? '').sort()
     expect(names(indexed)).toEqual(names(filtered))
   })
 
@@ -214,7 +215,9 @@ describe('readGamRegion', () => {
   // its index puts nodes 1-24 in a handful of runs. Reading it whole "worked"
   // for years and made a URL-hosted GAM cost a full download per region.
   it('reads a fraction of the file for a narrow range', async () => {
-    const source = countingSource('exampleData/internal/NA12878-BRCA1.sorted.gam')
+    const source = countingSource(
+      'exampleData/internal/NA12878-BRCA1.sorted.gam',
+    )
     const gai = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam.gai')
     const { size } = await source.stat()
     const indexed = await readGamRegion(source, gai, 1n, 24n)
@@ -240,21 +243,16 @@ describe('readGamRegion', () => {
     }
     const ranged = await readGamRegion(new BlobFile(gam), gai, 1n, 24n)
     // A set covering the whole range is the same answer as no set at all.
-    expect(names(await readGamRegion(new BlobFile(gam), gai, 1n, 24n, whole)))
-      .toEqual(names(ranged))
+    expect(
+      names(await readGamRegion(new BlobFile(gam), gai, 1n, 24n, whole)),
+    ).toEqual(names(ranged))
 
     const victim = ranged[0]!
     const holed = new Set(whole)
     for (const id of nodeIdsOf(victim)) {
       holed.delete(id)
     }
-    const punched = await readGamRegion(
-      new BlobFile(gam),
-      gai,
-      1n,
-      24n,
-      holed,
-    )
+    const punched = await readGamRegion(new BlobFile(gam), gai, 1n, 24n, holed)
     expect(punched.map(r => r.name)).not.toContain(victim.name)
     // Everything still in is there because it visits a node the set kept, and
     // everything dropped visited only nodes the set removed.

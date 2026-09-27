@@ -33,13 +33,15 @@ const TRACK_TYPES = [
 // because the upload route cannot index one, though a mounted .gaf.gz is a
 // perfectly good read track. Tying the URL format to that list would let a
 // change to the file picker silently redefine published links.
-const TRACK_TYPE_EXTENSIONS: readonly (readonly [FileType, readonly string[]])[] =
-  [
-    ['graph', ['.xg', '.vg', '.hg', '.pg', '.gbz.db', '.gbz', '.db']],
-    ['read', ['.gam', '.gaf.gz', '.gaf']],
-    ['haplotype', ['.gbwt']],
-    ['translation', ['.tsv', '.trans']],
-  ]
+const TRACK_TYPE_EXTENSIONS: readonly (readonly [
+  FileType,
+  readonly string[],
+])[] = [
+  ['graph', ['.xg', '.vg', '.hg', '.pg', '.gbz.db', '.gbz', '.db']],
+  ['read', ['.gam', '.gaf.gz', '.gaf']],
+  ['haplotype', ['.gbwt']],
+  ['translation', ['.tsv', '.trans']],
+]
 
 // The params a saved view owns. Anything else in the URL belongs to whoever
 // put it there (analytics, the `#local` dev flag) and is left alone.
@@ -107,7 +109,10 @@ function readRawParams(input: string) {
     if (part !== '') {
       const separator = part.indexOf('=')
       const key = separator === -1 ? part : part.slice(0, separator)
-      params.set(decodeParam(key), separator === -1 ? '' : part.slice(separator + 1))
+      params.set(
+        decodeParam(key),
+        separator === -1 ? '' : part.slice(separator + 1),
+      )
     }
   }
   return params
@@ -150,8 +155,7 @@ function withoutViewParams(raw: string) {
     .split('&')
     .filter(part => part !== '')
     .filter(
-      part =>
-        !VIEW_PARAM_KEYS.includes(decodeParam(part).split(/[=[]/)[0]!),
+      part => !VIEW_PARAM_KEYS.includes(decodeParam(part).split(/[=[]/)[0]!),
     )
     .join('&')
 }
@@ -233,7 +237,10 @@ function parseShortTrack(entry: string): Track | undefined {
 
 // `colors=greys/ygreys,,plainColors/lightColors` -- one entry per track,
 // positionally, empty where a track takes its type's default.
-function applyShortColors(tracks: Tracks, colors: string[] | undefined): Tracks {
+function applyShortColors(
+  tracks: Tracks,
+  colors: string[] | undefined,
+): Tracks {
   return colors === undefined
     ? tracks
     : tracks.map((track, index) => {
@@ -370,7 +377,8 @@ function isShortFormTrack(track: Track) {
     track.trackDisplayName === undefined &&
     track.haplotypeIndexFile === undefined &&
     (colors === undefined ||
-      (!colors.colorReadsByMappingQuality && !colors.alphaReadsByMappingQuality))
+      (!colors.colorReadsByMappingQuality &&
+        !colors.alphaReadsByMappingQuality))
   )
 }
 
@@ -387,7 +395,9 @@ function tracksToParams(tracks: Tracks) {
           'tracks',
           tracks.map(track => `${track.trackType}:${track.trackFile!}`),
         ),
-        ...(colors.some(entry => entry !== '') ? [listParam('colors', colors)] : []),
+        ...(colors.some(entry => entry !== '')
+          ? [listParam('colors', colors)]
+          : []),
       ]
     : [scalarParam('tracksJson', JSON.stringify(tracks))]
 }
@@ -420,7 +430,9 @@ export function viewTargetToUrlParams(
   return [
     scalarParam('region', target.region),
     ...tracksToParams(target.tracks),
-    ...(target.bedFile === undefined ? [] : [scalarParam('bedFile', target.bedFile)]),
+    ...(target.bedFile === undefined
+      ? []
+      : [scalarParam('bedFile', target.bedFile)]),
     ...(target.name === undefined ? [] : [scalarParam('name', target.name)]),
     ...(target.dataType === undefined
       ? []

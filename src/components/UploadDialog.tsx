@@ -10,7 +10,10 @@ interface UploadDialogProps {
   open: boolean
   onClose: () => void
   onUploaded: (tracks: Track[]) => void
-  handleFileUpload: (fileType: FileType, file: File) => Promise<string | undefined>
+  handleFileUpload: (
+    fileType: FileType,
+    file: File,
+  ) => Promise<string | undefined>
   apiMode: 'local' | 'server' | 'upstream'
   serverModeId?: 'server' | 'upstream'
   onDestChange?: (mode: string) => void
@@ -26,11 +29,18 @@ export function UploadDialog({
   onDestChange,
 }: UploadDialogProps) {
   return (
-    <Dialog open={open} onClose={() => { onClose(); }} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={() => {
+        onClose()
+      }}
+      maxWidth="sm"
+      fullWidth
+    >
       <DialogTitle>Open custom files</DialogTitle>
       <DialogContent>
         <UploadPanel
-          onUploaded={(uploadedTracks) => {
+          onUploaded={uploadedTracks => {
             onUploaded(uploadedTracks)
             onClose()
           }}
@@ -41,7 +51,13 @@ export function UploadDialog({
         />
       </DialogContent>
       <DialogActions>
-        <MuiButton onClick={() => { onClose(); }}>Close</MuiButton>
+        <MuiButton
+          onClick={() => {
+            onClose()
+          }}
+        >
+          Close
+        </MuiButton>
       </DialogActions>
     </Dialog>
   )

@@ -11,7 +11,10 @@ interface FileMenuProps {
   tracks: Tracks
   availableTracks: AvailableTrack[]
   onTracksChange: (tracks: Tracks) => void
-  handleFileUpload: (fileType: FileType, file: File) => Promise<string | undefined>
+  handleFileUpload: (
+    fileType: FileType,
+    file: File,
+  ) => Promise<string | undefined>
   onUploaded: (tracks: Track[]) => void
   onOpenCustomFiles: () => void
   apiMode: 'local' | 'server' | 'upstream'
@@ -65,21 +68,27 @@ export function FileMenu({
       </AppBarMenu>
       <PopupDialog
         open={tracksDialogOpen}
-        close={() => { setTracksDialogOpen(false); }}
+        close={() => {
+          setTracksDialogOpen(false)
+        }}
         width={null}
         testID="TrackPicker"
       >
         <TrackPickerDisplay
           tracks={tracks}
           availableTracks={availableTracks}
-          onChange={(newTracks) => { onTracksChange(newTracks); }}
+          onChange={newTracks => {
+            onTracksChange(newTracks)
+          }}
           handleFileUpload={handleFileUpload}
           apiMode={apiMode}
         />
       </PopupDialog>
       <UploadDialog
         open={uploadDialogOpen}
-        onClose={() => { setUploadDialogOpen(false); }}
+        onClose={() => {
+          setUploadDialogOpen(false)
+        }}
         onUploaded={onUploaded}
         handleFileUpload={handleFileUpload}
         apiMode={apiMode}

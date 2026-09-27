@@ -76,8 +76,12 @@ export const RegionInput = ({
             disablePortal
             freeSolo
             open={popupOpen}
-            onOpen={() => { setPopupOpen(true); }}
-            onClose={() => { setPopupOpen(false); }}
+            onOpen={() => {
+              setPopupOpen(true)
+            }}
+            onClose={() => {
+              setPopupOpen(false)
+            }}
             size="small"
             sx={{ flexGrow: 1 }}
             getOptionLabel={option =>
@@ -121,30 +125,60 @@ export const RegionInput = ({
           size="small"
           aria-label="Region format help"
           title="Region format help"
-          onClick={() => { setHelpOpen(true); }}
+          onClick={() => {
+            setHelpOpen(true)
+          }}
         >
           <Icon icon={faCircleQuestion} />
         </IconButton>
       </Box>
-      <Dialog open={helpOpen} onClose={() => { setHelpOpen(false); }} maxWidth="sm" fullWidth>
+      <Dialog
+        open={helpOpen}
+        onClose={() => {
+          setHelpOpen(false)
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Region format</DialogTitle>
         <DialogContent>
           <table style={{ borderCollapse: 'collapse' }}>
             <tbody>
               <tr>
-                <td style={{ paddingRight: '1.5em', paddingBottom: '0.75em', whiteSpace: 'nowrap', verticalAlign: 'top' }}><strong>Path range</strong></td>
+                <td
+                  style={{
+                    paddingRight: '1.5em',
+                    paddingBottom: '0.75em',
+                    whiteSpace: 'nowrap',
+                    verticalAlign: 'top',
+                  }}
+                >
+                  <strong>Path range</strong>
+                </td>
                 <td style={{ paddingBottom: '0.75em' }}>
-                  <code>path:start-end</code> &nbsp;<em>e.g.</em> <code>GRCh38#chr1:10000-20000</code>
+                  <code>path:start-end</code> &nbsp;<em>e.g.</em>{' '}
+                  <code>GRCh38#chr1:10000-20000</code>
                   <br />
-                  Paths have linearly increasing coordinates over graph nodes; the query returns every node the path visits in that interval.
+                  Paths have linearly increasing coordinates over graph nodes;
+                  the query returns every node the path visits in that interval.
                 </td>
               </tr>
               <tr>
-                <td style={{ paddingRight: '1.5em', whiteSpace: 'nowrap', verticalAlign: 'top' }}><strong>Node ID range</strong></td>
+                <td
+                  style={{
+                    paddingRight: '1.5em',
+                    whiteSpace: 'nowrap',
+                    verticalAlign: 'top',
+                  }}
+                >
+                  <strong>Node ID range</strong>
+                </td>
                 <td>
-                  <code>node:first-last</code> &nbsp;<em>e.g.</em> <code>node:42-55</code>
+                  <code>node:first-last</code> &nbsp;<em>e.g.</em>{' '}
+                  <code>node:42-55</code>
                   <br />
-                  Returns the subgraph spanned by nodes whose IDs fall in the given range.
+                  Returns the subgraph spanned by nodes whose IDs fall in the
+                  given range.
                 </td>
               </tr>
             </tbody>

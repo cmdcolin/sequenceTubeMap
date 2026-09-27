@@ -41,9 +41,17 @@ export function parseRegion(region: string): Region {
   const distMatch = /^(\d+)\+(\d+)$/.exec(coords)
 
   if (rangeMatch !== null) {
-    return { contig, start: Number(rangeMatch[1]!), end: Number(rangeMatch[2]!) }
+    return {
+      contig,
+      start: Number(rangeMatch[1]!),
+      end: Number(rangeMatch[2]!),
+    }
   } else if (distMatch !== null) {
-    return { contig, start: Number(distMatch[1]!), distance: Number(distMatch[2]!) }
+    return {
+      contig,
+      start: Number(distMatch[1]!),
+      distance: Number(distMatch[2]!),
+    }
   } else {
     throw new Error("Coordinates must be in the form 'X:Y-Z' or 'X:Y+Z'.")
   }
@@ -63,13 +71,21 @@ export function isValidRegion(region: string | undefined | null): boolean {
 
 export function convertRegionToRangeRegion(region: Region): RangeRegion {
   if ('distance' in region) {
-    return { contig: region.contig, start: region.start, end: region.start + region.distance }
+    return {
+      contig: region.contig,
+      start: region.start,
+      end: region.start + region.distance,
+    }
   } else {
     return region
   }
 }
 
-export function stringifyRangeRegion({ contig, start, end }: RangeRegion): string {
+export function stringifyRangeRegion({
+  contig,
+  start,
+  end,
+}: RangeRegion): string {
   return `${contig}:${start}-${end}`
 }
 
@@ -86,7 +102,11 @@ export function defaultTrackColors(trackType: FileType): ColorScheme {
     return config.defaultGraphColorPalette
   } else if (trackType === 'read') {
     return config.defaultReadColorPalette
-  } else if (trackType === 'haplotype' || trackType === 'node' || trackType === 'translation') {
+  } else if (
+    trackType === 'haplotype' ||
+    trackType === 'node' ||
+    trackType === 'translation'
+  ) {
     return config.defaultHaplotypeColorPalette
   } else {
     throw new Error('Invalid track type: ' + trackType)

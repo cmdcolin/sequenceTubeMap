@@ -142,8 +142,8 @@ pnpm tubemap-cli --source 'HPRC v2.1 whole genome (gbz-base, URL-hosted)' \
 ```
 
 That is 464 haplotypes on 240 distinct walks — 23835 by 1549 units, which is too
-wide for a page. The [gallery](gallery.md)'s two figures are crops of it, one over the allele
-staircase and one where the haplotypes come back into register:
+wide for a page. The [gallery](gallery.md)'s two figures are crops of it, one
+over the allele staircase and one where the haplotypes come back into register:
 
 ```bash
 rsvg-convert -z 1 str.svg -o str.png

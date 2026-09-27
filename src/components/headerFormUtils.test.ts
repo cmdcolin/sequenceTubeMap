@@ -94,9 +94,7 @@ describe('determine regionIndex and corresponding region strings for various reg
 // reading region from React state would still see the empty initial value
 // because setRegion's update hasn't applied yet.
 describe('makeViewTarget — fresh values are honored', () => {
-  const graphTracks: Tracks = [
-    { trackType: 'graph', trackFile: 'x.vg.xg' },
-  ]
+  const graphTracks: Tracks = [{ trackType: 'graph', trackFile: 'x.vg.xg' }]
 
   it('emits the explicit region even when prior state had none', () => {
     const vt = makeViewTarget({

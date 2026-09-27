@@ -199,7 +199,6 @@ export function discoverDataSources(
   return out
 }
 
-
 // Checks if two track objects are equivalent for the purpose of viewTarget
 // equality (same file, same color settings).
 function tracksEqual(curr: Track | undefined, next: Track | undefined) {
@@ -221,7 +220,9 @@ function tracksEqual(curr: Track | undefined, next: Track | undefined) {
       return false
     }
   }
-  return (!curr.trackFile && !next.trackFile) || curr.trackFile === next.trackFile
+  return (
+    (!curr.trackFile && !next.trackFile) || curr.trackFile === next.trackFile
+  )
 }
 
 // Two view targets are equal if they have the same tracks, region, and flags.

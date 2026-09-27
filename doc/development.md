@@ -20,11 +20,11 @@ pnpm install
 pnpm start
 ```
 
-Runs the Vite dev server for the frontend, which starts `src/server.mjs` for
-the backend alongside it and stops it on exit. Vite serves on 5173 unless that is taken,
-and proxies `/api` (including websockets) to the backend. The backend listens on
-`SERVER_PORT`, else `serverPort` in `src/config.json`, else 3000; Vite reads the
-same two to find it.
+Runs the Vite dev server for the frontend, which starts `src/server.mjs` for the
+backend alongside it and stops it on exit. Vite serves on 5173 unless that is
+taken, and proxies `/api` (including websockets) to the backend. The backend
+listens on `SERVER_PORT`, else `serverPort` in `src/config.json`, else 3000;
+Vite reads the same two to find it.
 
 Use this rather than `pnpm build` + `pnpm serve` while developing — the build is
 minified and hard to debug.
@@ -103,7 +103,7 @@ without touching anything. Neither runs in CI.
 ## Figures in the docs
 
 A figure of a tube map comes from `pnpm tubemap-cli`
-([headless-rendering.md](headless-rendering.md)). A figure of the *interface* —
+([headless-rendering.md](headless-rendering.md)). A figure of the _interface_ —
 the render cap's notice, the paths panel, the Examples menu — comes from
 `scripts/screenshot-ui.mjs`, which drives headless Chrome over the DevTools
 protocol and crops each shot to the element it is about:

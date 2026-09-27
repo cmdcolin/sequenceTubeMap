@@ -52,7 +52,14 @@ interface SlowPath {
   length: number
 }
 
-function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, onToggle }: PathsPanelProps) {
+function PathsPanel({
+  pathInfo,
+  readCounts,
+  onLoadPath,
+  onCopyToRegion,
+  isOpen,
+  onToggle,
+}: PathsPanelProps) {
   // The path a confirmation is being asked about, if any.
   const [slowPath, setSlowPath] = useState<SlowPath | null>(null)
 
@@ -79,7 +86,9 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
             variant="text"
             color="inherit"
             aria-expanded={isOpen}
-            onClick={() => { onToggle(); }}
+            onClick={() => {
+              onToggle()
+            }}
             sx={{
               width: '100%',
               justifyContent: 'space-between',
@@ -110,23 +119,27 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
               graph).
             </p>
             <p>
-              Click <strong>Load</strong> next to a path to navigate to its
-              full extent in the tube map, or <strong>Copy to region</strong>{' '}
-              to put the path into the Region field above so you can edit the
-              range before loading.
+              Click <strong>Load</strong> next to a path to navigate to its full
+              extent in the tube map, or <strong>Copy to region</strong> to put
+              the path into the Region field above so you can edit the range
+              before loading.
             </p>
             <p>
-              Paths longer than{' '}
-              {SLOW_PATH_THRESHOLD.toLocaleString()} bp are marked{' '}
-              <Chip label="slow to load whole path" size="small" color="warning" /> —
-              loading them can freeze the browser for several seconds, so you will be
-              asked to confirm before they render.
+              Paths longer than {SLOW_PATH_THRESHOLD.toLocaleString()} bp are
+              marked{' '}
+              <Chip
+                label="slow to load whole path"
+                size="small"
+                color="warning"
+              />{' '}
+              — loading them can freeze the browser for several seconds, so you
+              will be asked to confirm before they render.
             </p>
             <p>
               For long paths it's usually faster to type a subrange directly
               into the <strong>Region</strong> field above, using the syntax{' '}
-              <code>pathName:start-end</code> (e.g.{' '}
-              <code>chr1:0-5000</code>), instead of loading the entire path.
+              <code>pathName:start-end</code> (e.g. <code>chr1:0-5000</code>),
+              instead of loading the entire path.
             </p>
           </HelpDialog>
         }
@@ -156,7 +169,12 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                     <TableCell>
                       {name}
                       {cyclic && (
-                        <Chip label="cyclic" size="small" color="info" sx={BADGE_SX} />
+                        <Chip
+                          label="cyclic"
+                          size="small"
+                          color="info"
+                          sx={BADGE_SX}
+                        />
                       )}
                       {start > 0 && (
                         // A contig split into fragments contributes one row per
@@ -166,7 +184,11 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                         // sends to the Region field.
                         <Box
                           component="span"
-                          sx={{ display: 'block', color: 'text.secondary', fontSize: '0.75em' }}
+                          sx={{
+                            display: 'block',
+                            color: 'text.secondary',
+                            fontSize: '0.75em',
+                          }}
                         >
                           from {start.toLocaleString()}
                         </Box>
@@ -206,7 +228,9 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                         sx={{ mr: 0.5 }}
                         disabled={length === null}
                         title="Copy region into the Region field above so you can edit the range before loading"
-                        onClick={() => { onCopyToRegion(regionFor(name, start, length!)); }}
+                        onClick={() => {
+                          onCopyToRegion(regionFor(name, start, length!))
+                        }}
                       >
                         Copy to region
                       </Button>
@@ -214,7 +238,9 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
                         size="small"
                         variant="contained"
                         disabled={length === null}
-                        onClick={() => { handleLoad(name, start, length!); }}
+                        onClick={() => {
+                          handleLoad(name, start, length!)
+                        }}
                       >
                         Load
                       </Button>
@@ -228,15 +254,16 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
       </Collapse>
       <Dialog
         open={slowPath !== null}
-        onClose={() => { setSlowPath(null); }}
+        onClose={() => {
+          setSlowPath(null)
+        }}
         maxWidth="sm"
       >
         <DialogTitle>Load the whole path?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Path "{slowPath?.name}" is{' '}
-            {slowPath?.length.toLocaleString()} bp. Rendering paths this large
-            can freeze the browser for many seconds.
+            Path "{slowPath?.name}" is {slowPath?.length.toLocaleString()} bp.
+            Rendering paths this large can freeze the browser for many seconds.
           </DialogContentText>
           <DialogContentText sx={{ mt: 2 }}>
             Instead of loading the whole path, you can use "Copy to region" and
@@ -244,7 +271,13 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setSlowPath(null); }}>Cancel</Button>
+          <Button
+            onClick={() => {
+              setSlowPath(null)
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
             onClick={() => {

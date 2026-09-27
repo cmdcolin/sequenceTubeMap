@@ -20,7 +20,14 @@ export function CheckboxMenuItem({
   helpText?: string
 }) {
   return (
-    <MenuItem dense data-testid={testid} disabled={disabled} onClick={() => { onToggle(); }}>
+    <MenuItem
+      dense
+      data-testid={testid}
+      disabled={disabled}
+      onClick={() => {
+        onToggle()
+      }}
+    >
       <ListItemIcon>
         <Checkbox
           edge="start"

@@ -156,8 +156,12 @@ describe('subsampleReads', () => {
   })
 
   it('never returns more than the limit', () => {
-    expect(subsampleReads(Array.from({ length: 999 }, (_, i) => i), 7))
-      .toHaveLength(7)
+    expect(
+      subsampleReads(
+        Array.from({ length: 999 }, (_, i) => i),
+        7,
+      ),
+    ).toHaveLength(7)
   })
 })
 
@@ -216,7 +220,9 @@ describe('TubeMapContainer', () => {
     })
 
     expect(screen.queryByTestId('tubeMap')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Draw anyway' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Draw anyway' }),
+    ).toBeInTheDocument()
   })
 
   it('stages a read from its context menu and saves it as a group', async () => {
@@ -298,7 +304,9 @@ describe('TubeMapContainer', () => {
     renderContainer({ isValidating: true })
 
     expect(screen.queryByTestId('tubeMap')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('tubeMapLoadingOverlay')).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('tubeMapLoadingOverlay'),
+    ).not.toBeInTheDocument()
     expect(document.getElementById('loader')).not.toBeNull()
   })
 })

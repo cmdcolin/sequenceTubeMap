@@ -4,11 +4,7 @@ import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
 import { selectMuiOption } from '../testUtils.ts'
-import type {
-  AvailableTrack,
-  ColorPaletteName,
-  Tracks,
-} from '../Types.ts'
+import type { AvailableTrack, ColorPaletteName, Tracks } from '../Types.ts'
 
 function openAutocomplete(container: HTMLElement) {
   const input = within(container).getByRole('combobox')
@@ -40,7 +36,8 @@ describe('TrackPickerDisplay', () => {
   it('should render without errors', () => {
     const fakeOnChange = vi.fn()
     const { queryByTestId } = render(
-      <TrackPickerDisplay apiMode="server"
+      <TrackPickerDisplay
+        apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -60,7 +57,8 @@ describe('TrackPickerDisplay', () => {
   it('should add track items when the add button is pressed', () => {
     const fakeOnChange = vi.fn()
     const { getByTestId, queryByTestId } = render(
-      <TrackPickerDisplay apiMode="server"
+      <TrackPickerDisplay
+        apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -88,7 +86,8 @@ describe('TrackPickerDisplay', () => {
   it('should call onChange when all files are selected', async () => {
     const fakeOnChange = vi.fn()
     const { getByTestId, rerender } = render(
-      <TrackPickerDisplay apiMode="server"
+      <TrackPickerDisplay
+        apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -136,7 +135,8 @@ describe('TrackPickerDisplay', () => {
 
     newTracks[3] = config.defaultTrackProps
     rerender(
-      <TrackPickerDisplay apiMode="server"
+      <TrackPickerDisplay
+        apiMode="server"
         tracks={newTracks}
         availableTracks={availableTracks}
         availableColors={availableColors}
@@ -168,7 +168,8 @@ describe('TrackPickerDisplay', () => {
   it('should delete a trackitem when the delete button is pressed', () => {
     const fakeOnChange = vi.fn()
     const { getByTestId, queryByTestId } = render(
-      <TrackPickerDisplay apiMode="server"
+      <TrackPickerDisplay
+        apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
         availableColors={availableColors}

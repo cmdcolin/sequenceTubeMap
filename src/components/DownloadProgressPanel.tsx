@@ -34,7 +34,13 @@ function Row({ item }: { item: DownloadProgress }) {
           fontSize: 13,
         }}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
           Downloading <code>{fileLabel(item.url)}</code>
         </span>
         <span>{sizeText}</span>

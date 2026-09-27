@@ -23,18 +23,25 @@ export const PopupDialog = ({
   return (
     <Dialog
       open={open}
-      onClose={() => { close(); }}
-      onClick={(e) => { e.stopPropagation(); }}
+      onClose={() => {
+        close()
+      }}
+      onClick={e => {
+        e.stopPropagation()
+      }}
       data-testid={testID}
       maxWidth={width === null ? false : undefined}
       slotProps={{
         paper: {
-          sx: width !== null ? { width, maxWidth: 'none' } : { maxWidth: 'none' },
+          sx:
+            width !== null ? { width, maxWidth: 'none' } : { maxWidth: 'none' },
         },
       }}
     >
       <IconButton
-        onClick={() => { close(); }}
+        onClick={() => {
+          close()
+        }}
         data-testid={testID.concat('CloseButton')}
         aria-label="Close"
         title="Close"

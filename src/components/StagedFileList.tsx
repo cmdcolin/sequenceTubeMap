@@ -49,7 +49,9 @@ export function StagedFileList({
             {f.file.name}
             {f.isIndex ? (
               <span style={{ color: '#888', marginLeft: 6, fontSize: 11 }}>
-                {isLocal ? '(index — paired with .gam)' : '(index — skipped on server)'}
+                {isLocal
+                  ? '(index — paired with .gam)'
+                  : '(index — skipped on server)'}
               </span>
             ) : null}
           </span>
@@ -67,17 +69,27 @@ export function StagedFileList({
           ) : (
             <select
               value={f.type ?? ''}
-              onChange={e => { onChangeType(i, e.target.value as FileType) }}
+              onChange={e => {
+                onChangeType(i, e.target.value as FileType)
+              }}
               style={{ fontSize: 12 }}
               aria-label={`type for ${f.file.name}`}
             >
-              <option value="" disabled>(skip)</option>
+              <option value="" disabled>
+                (skip)
+              </option>
               <option value="graph">graph</option>
               <option value="read">read</option>
               <option value="haplotype">haplotype</option>
             </select>
           )}
-          <Button size="small" variant="text" onClick={() => { onRemove(i) }}>
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => {
+              onRemove(i)
+            }}
+          >
             remove
           </Button>
         </li>

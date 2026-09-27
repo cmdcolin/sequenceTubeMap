@@ -46,8 +46,8 @@ export function UploadModeToggle({
           <>
             <strong>Local parsing</strong> runs entirely in your browser via
             WebAssembly — files stay on your machine. Currently supports{' '}
-            <code>.gbz.db</code> graphs and sorted <code>.gam</code> reads
-            (with their <code>.gam.gai</code> index).{' '}
+            <code>.gbz.db</code> graphs and sorted <code>.gam</code> reads (with
+            their <code>.gam.gai</code> index).{' '}
             <a
               href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md"
               target="_blank"
@@ -61,18 +61,18 @@ export function UploadModeToggle({
             <strong>Server upload</strong> sends your files to{' '}
             {apiMode === 'upstream' ? (
               <>
-                the public <code>api.tubemap.graphs.vg</code> server
-                (5&nbsp;MB limit, deleted after 24 h)
+                the public <code>api.tubemap.graphs.vg</code> server (5&nbsp;MB
+                limit, deleted after 24 h)
               </>
             ) : (
               <>your self-hosted server</>
             )}
-            . Accepts the full vg toolchain: <code>.xg</code>,{' '}
-            <code>.vg</code>, <code>.gbz</code> graphs and <code>.gam</code>{' '}
-            reads. You can include a <code>.gam.gai</code> index — it's
-            silently ignored because the server builds its own.{' '}
-            <code>.gaf</code> reads have to be sorted and tabix-indexed
-            beforehand and mounted in the server's data directory.
+            . Accepts the full vg toolchain: <code>.xg</code>, <code>.vg</code>,{' '}
+            <code>.gbz</code> graphs and <code>.gam</code> reads. You can
+            include a <code>.gam.gai</code> index — it's silently ignored
+            because the server builds its own. <code>.gaf</code> reads have to
+            be sorted and tabix-indexed beforehand and mounted in the server's
+            data directory.
           </>
         )}
       </div>

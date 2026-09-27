@@ -20,8 +20,16 @@ import { parseArgs } from 'node:util'
 import { JSDOM } from 'jsdom'
 import type { GBZBaseAPI } from '../src/api/GBZBaseAPI.ts'
 import type { FetchKey } from '../src/components/tubeMapData.ts'
-import type { ColorScheme, Tracks, ViewTarget, VisOptionFlag } from '../src/Types.ts'
-import { VIS_OPTION_FLAGS, type StoredVisOptions } from '../src/util/visOptions.ts'
+import type {
+  ColorScheme,
+  Tracks,
+  ViewTarget,
+  VisOptionFlag,
+} from '../src/Types.ts'
+import {
+  VIS_OPTION_FLAGS,
+  type StoredVisOptions,
+} from '../src/util/visOptions.ts'
 
 // Every View-menu flag, as the CLI spelling that sets it. Keyed by the option
 // so a new one added to the app cannot quietly go missing here.
@@ -117,10 +125,7 @@ logarithmic pulls it back. snp1kg-BRCA1 at 17:1-1000 goes from 10122 units
 across to 1099, at the same height.
 `
 
-type RenderTarget =
-  | { example: string }
-  | { source: string }
-  | { url: string }
+type RenderTarget = { example: string } | { source: string } | { url: string }
 
 interface CliArgs {
   target: RenderTarget
@@ -379,8 +384,7 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
         ...track,
         ...companion,
         trackFile: id,
-        trackDisplayName:
-          track.trackDisplayName ?? path.basename(localPath),
+        trackDisplayName: track.trackDisplayName ?? path.basename(localPath),
       })
     } else {
       staged.push({ ...track, ...companion })
@@ -450,7 +454,10 @@ async function viewTargetForUrl(
   regionOverride: string | undefined,
 ): Promise<ViewTarget> {
   const { urlParamsToViewTarget } = await import('../src/urlViewTarget.ts')
-  const target = urlParamsToViewTarget(absoluteUrl(link), await loadDataSources())
+  const target = urlParamsToViewTarget(
+    absoluteUrl(link),
+    await loadDataSources(),
+  )
   if (target === null) {
     throw new Error(
       'the link names neither a known data source (?name=) nor a region and tracks of its own',

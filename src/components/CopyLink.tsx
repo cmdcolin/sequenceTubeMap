@@ -38,13 +38,20 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
         variant="contained"
         id="copyLinkButton"
         startIcon={<Icon icon={faLink} />}
-        onClick={() => { void handleCopyLink(); }}
+        onClick={() => {
+          void handleCopyLink()
+        }}
       >
         {copiedTarget === currentViewTarget
           ? 'Copied link!'
           : 'Copy link to data'}
       </Button>
-      <PopupDialog open={dialogLink !== undefined} close={() => { setDialogLink(undefined); }}>
+      <PopupDialog
+        open={dialogLink !== undefined}
+        close={() => {
+          setDialogLink(undefined)
+        }}
+      >
         <h5>Link to Data</h5>
         <p>
           <a href={dialogLink} target="_blank" rel="noopener noreferrer">

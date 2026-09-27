@@ -26,9 +26,9 @@ Open questions:
 - Worth landing a small inline help tooltip on the Region input that explains
   "query an indexed path; response includes all haplotypes"?
 
-Both bundled HPRC examples show resolved names now, by the two routes there
-are: "HPRC MICB-KIR3DL1" has the side tables inside its database, "HPRC chrM"
-reads them from `exampleData/hprc-chrM.haplotype-index.db` beside it.
+Both bundled HPRC examples show resolved names now, by the two routes there are:
+"HPRC MICB-KIR3DL1" has the side tables inside its database, "HPRC chrM" reads
+them from `exampleData/hprc-chrM.haplotype-index.db` beside it.
 
 ## The URL-hosted HPRC release 2.1 example
 
@@ -51,11 +51,11 @@ Open questions:
   haplotypes" selection, so the only way to afford a wide window is not to open
   it. `GRAPH_RENDER_LIMIT` in `src/components/TubeMapContainer.tsx` now refuses
   one instead of freezing the tab (30,000 node visits; the table in
-  doc/data.md#how-wide-a-region-will-draw has the measurements), which makes
-  the refusal safe rather than the feature done.
-  `subgraphForHaplotypes` with the companion's `HaplotypeAnchors` is what would
-  make a chosen set cheap (see doc/gbz-base.md), and would turn the MHC-scale
-  windows from refused into useful.
+  doc/data.md#how-wide-a-region-will-draw has the measurements), which makes the
+  refusal safe rather than the feature done. `subgraphForHaplotypes` with the
+  companion's `HaplotypeAnchors` is what would make a chosen set cheap (see
+  doc/gbz-base.md), and would turn the MHC-scale windows from refused into
+  useful.
 
 ## Resolved
 

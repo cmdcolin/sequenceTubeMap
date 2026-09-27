@@ -94,7 +94,9 @@ function LargeGraphNotice({
             variant="outlined"
             size="small"
             sx={{ flexShrink: 0 }}
-            onClick={() => { onDrawAnyway(); }}
+            onClick={() => {
+              onDrawAnyway()
+            }}
           >
             Draw anyway
           </Button>
@@ -166,8 +168,12 @@ function ReadRenderLimitBanner({
         min={1}
         value={draft}
         placeholder="all"
-        onChange={e => { setDraft(e.target.value); }}
-        onBlur={() => { commitDraft(); }}
+        onChange={e => {
+          setDraft(e.target.value)
+        }}
+        onBlur={() => {
+          commitDraft()
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter') {
             e.preventDefault()
@@ -175,13 +181,15 @@ function ReadRenderLimitBanner({
           }
         }}
         style={{ width: 90, fontSize: 13 }}
-      />
-      {' '}reads.{' '}
+      />{' '}
+      reads.{' '}
       {READ_LIMIT_CHOICES.map(choice => (
         <button
           key={choice ?? 'all'}
           type="button"
-          onClick={() => { onChange(choice); }}
+          onClick={() => {
+            onChange(choice)
+          }}
           style={{
             marginLeft: 4,
             padding: '0 6px',
@@ -310,15 +318,15 @@ function TubeMapContainer({
   }
 
   useEffect(() => {
-    tubeMap.setInfoCallback((text: InfoAttribute[]) =>
-      { setInfoDialogContent(text); },
-    )
-    tubeMap.setReadContextMenuCallback((menu: ReadContextMenuState | null) =>
-      { setReadContextMenu(menu); },
-    )
-    tubeMap.setNodeContextMenuCallback((menu: NodeContextMenuState | null) =>
-      { setNodeContextMenu(menu); },
-    )
+    tubeMap.setInfoCallback((text: InfoAttribute[]) => {
+      setInfoDialogContent(text)
+    })
+    tubeMap.setReadContextMenuCallback((menu: ReadContextMenuState | null) => {
+      setReadContextMenu(menu)
+    })
+    tubeMap.setNodeContextMenuCallback((menu: NodeContextMenuState | null) => {
+      setNodeContextMenu(menu)
+    })
   }, [])
 
   // Whether anything is selected to look at. "Open custom files" and a backend
@@ -347,8 +355,8 @@ function TubeMapContainer({
   // here, so it takes the place of the map instead of covering it.
   const status = !hasView ? (
     <Box sx={{ px: 2, py: 6, textAlign: 'center', color: 'text.secondary' }}>
-      Nothing loaded. Pick a dataset from the <strong>Examples</strong> menu,
-      or choose your own files under <strong>File</strong> and press{' '}
+      Nothing loaded. Pick a dataset from the <strong>Examples</strong> menu, or
+      choose your own files under <strong>File</strong> and press{' '}
       <strong>Go</strong>.
     </Box>
   ) : error ? (
@@ -361,7 +369,9 @@ function TubeMapContainer({
             variant="outlined"
             size="small"
             sx={{ flexShrink: 0 }}
-            onClick={() => { onRetry(); }}
+            onClick={() => {
+              onRetry()
+            }}
           >
             Retry
           </Button>
@@ -394,9 +404,7 @@ function TubeMapContainer({
   }
 
   const addReadsThroughNodeSet = (mode: 'all' | 'any') => {
-    addNamesToPendingSet(
-      tubeMap.getReadNamesThroughNodes(pendingNodeSet, mode),
-    )
+    addNamesToPendingSet(tubeMap.getReadNamesThroughNodes(pendingNodeSet, mode))
   }
 
   const addReadsToGroup = (groupId: string, names: string[]) => {
@@ -410,7 +418,10 @@ function TubeMapContainer({
   function appendNewGroup(reads: string[]) {
     const n = groupCounter + 1
     const id = `g${n}`
-    setReadGroups(prev => [...prev, { id, name: `Group ${n}`, color: paletteForIndex(groupCounter), reads }])
+    setReadGroups(prev => [
+      ...prev,
+      { id, name: `Group ${n}`, color: paletteForIndex(groupCounter), reads },
+    ])
     setActiveGroupId(id)
     setGroupCounter(n)
   }
@@ -475,7 +486,9 @@ function TubeMapContainer({
     {
       label: 'Save as group',
       hint: "Color these reads distinctly. Other reads stay visible but use the 'Other' color.",
-      onClick: () => { saveSetAsNewGroup(); },
+      onClick: () => {
+        saveSetAsNewGroup()
+      },
     },
     ...(activeGroup
       ? [
@@ -492,7 +505,9 @@ function TubeMapContainer({
     {
       label: 'Clear set',
       hint: 'Discard the staged reads without filtering or grouping.',
-      onClick: () => { setPendingReadSet([]); },
+      onClick: () => {
+        setPendingReadSet([])
+      },
     },
   ]
 
@@ -507,7 +522,9 @@ function TubeMapContainer({
       <PopUpInfoDialog
         open={infoDialogContent !== undefined}
         attributes={infoDialogContent}
-        close={() => { setInfoDialogContent(undefined); }}
+        close={() => {
+          setInfoDialogContent(undefined)
+        }}
       />
       {pendingNodeSet.length > 0 ? (
         <PendingPanel
@@ -515,23 +532,29 @@ function TubeMapContainer({
           title={`Node set (${pendingNodeSet.length}):`}
           titleHint="Nodes you've selected; use the actions below to stage reads that travel through them."
           items={pendingNodeSet}
-          onRemove={nodeName =>
-            { setPendingNodeSet(prev => prev.filter(n => n !== nodeName)); }
-          }
+          onRemove={nodeName => {
+            setPendingNodeSet(prev => prev.filter(n => n !== nodeName))
+          }}
           actions={[
             {
               label: `Add reads through all ${pendingNodeSet.length} node${pendingNodeSet.length === 1 ? '' : 's'} (intersection)`,
               hint: 'Only reads whose path visits every node in this set.',
-              onClick: () => { addReadsThroughNodeSet('all'); },
+              onClick: () => {
+                addReadsThroughNodeSet('all')
+              },
             },
             {
               label: 'Add reads through any (union)',
               hint: 'Any read whose path visits at least one node in this set.',
-              onClick: () => { addReadsThroughNodeSet('any'); },
+              onClick: () => {
+                addReadsThroughNodeSet('any')
+              },
             },
             {
               label: 'Clear node set',
-              onClick: () => { setPendingNodeSet([]); },
+              onClick: () => {
+                setPendingNodeSet([])
+              },
             },
           ]}
         />
@@ -542,9 +565,9 @@ function TubeMapContainer({
           title={`Read set (${pendingReadSet.length}):`}
           titleHint="Reads staged for an action: filter to only these, save as a color group, or merge into the active group."
           items={pendingReadSet}
-          onRemove={name =>
-            { setPendingReadSet(prev => prev.filter(n => n !== name)); }
-          }
+          onRemove={name => {
+            setPendingReadSet(prev => prev.filter(n => n !== name))
+          }}
           actions={pendingReadActions}
         />
       ) : null}
@@ -553,11 +576,21 @@ function TubeMapContainer({
           groups={readGroups}
           activeGroupId={activeGroupId}
           otherReadsColor={otherReadsColor}
-          onSetActive={id => { setActiveGroupId(id); }}
-          onRename={(id, name) => { renameGroup(id, name); }}
-          onRecolor={(id, color) => { recolorGroup(id, color); }}
-          onDelete={id => { deleteGroup(id); }}
-          onRecolorOther={color => { setOtherReadsColor(color); }}
+          onSetActive={id => {
+            setActiveGroupId(id)
+          }}
+          onRename={(id, name) => {
+            renameGroup(id, name)
+          }}
+          onRecolor={(id, color) => {
+            recolorGroup(id, color)
+          }}
+          onDelete={id => {
+            deleteGroup(id)
+          }}
+          onRecolorOther={color => {
+            setOtherReadsColor(color)
+          }}
         />
       ) : null}
       {focusReadNames ? (
@@ -568,7 +601,9 @@ function TubeMapContainer({
           actions={[
             {
               label: 'Clear filter',
-              onClick: () => { setFocusReadNames(null); },
+              onClick: () => {
+                setFocusReadNames(null)
+              },
             },
           ]}
         />
@@ -580,7 +615,9 @@ function TubeMapContainer({
         <ReadRenderLimitBanner
           totalReads={reads.length}
           limit={readRenderLimit}
-          onChange={limit => { changeReadRenderLimit(limit); }}
+          onChange={limit => {
+            changeReadRenderLimit(limit)
+          }}
         />
       ) : null}
       <div id="tubeMapSVG">
@@ -606,7 +643,9 @@ function TubeMapContainer({
           <LargeGraphNotice
             nodeVisits={nodeVisits}
             walks={tracks.length}
-            onDrawAnyway={() => { setDrawLargeGraph(true); }}
+            onDrawAnyway={() => {
+              setDrawLargeGraph(true)
+            }}
           />
         ) : null}
         {nodes !== undefined && tracks !== undefined && !graphTooLarge ? (
@@ -650,9 +689,15 @@ function TubeMapContainer({
             setFocusReadNames([name])
             setReadContextMenu(null)
           }}
-          onAddToSet={name => { addNamesToPendingSet([name]); }}
-          onAddToActiveGroup={name => { addNamesToActiveGroup([name]); }}
-          onClose={() => { setReadContextMenu(null); }}
+          onAddToSet={name => {
+            addNamesToPendingSet([name])
+          }}
+          onAddToActiveGroup={name => {
+            addNamesToActiveGroup([name])
+          }}
+          onClose={() => {
+            setReadContextMenu(null)
+          }}
         />
       ) : null}
       {nodeContextMenu ? (
@@ -663,11 +708,21 @@ function TubeMapContainer({
           x={nodeContextMenu.x}
           y={nodeContextMenu.y}
           activeGroup={activeGroup}
-          onAddReadsToSet={names => { addNamesToPendingSet(names); }}
-          onAddReadsToActiveGroup={names => { addNamesToActiveGroup(names); }}
-          onAddReadsAsNewGroup={names => { addReadsAsNewGroup(names); }}
-          onAddNodeToNodeSet={name => { addNodeToNodeSet(name); }}
-          onClose={() => { setNodeContextMenu(null); }}
+          onAddReadsToSet={names => {
+            addNamesToPendingSet(names)
+          }}
+          onAddReadsToActiveGroup={names => {
+            addNamesToActiveGroup(names)
+          }}
+          onAddReadsAsNewGroup={names => {
+            addReadsAsNewGroup(names)
+          }}
+          onAddNodeToNodeSet={name => {
+            addNodeToNodeSet(name)
+          }}
+          onClose={() => {
+            setNodeContextMenu(null)
+          }}
         />
       ) : null}
       {legendVisible && (

@@ -17,10 +17,7 @@ export interface FieldHeader {
   offset: number
 }
 
-export function readFieldHeader(
-  buf: Uint8Array,
-  offset: number,
-): FieldHeader {
+export function readFieldHeader(buf: Uint8Array, offset: number): FieldHeader {
   const { value: tag, offset: next } = readVarint32(buf, offset)
   return {
     fieldNumber: tag >>> 3,
@@ -62,7 +59,10 @@ export function readLengthDelimited(
   }
 }
 
-export function readString(buf: Uint8Array, offset: number): {
+export function readString(
+  buf: Uint8Array,
+  offset: number,
+): {
   value: string
   offset: number
 } {

@@ -56,10 +56,7 @@ interface ViewHistoryOptions {
   // out of the params the same way the initial one is; the View menu settings
   // it names are the ones to layer over the current ones, which is what the
   // first render does with the stored preference.
-  onRestore: (
-    target: ViewTarget,
-    visOptions: Partial<StoredVisOptions>,
-  ) => void
+  onRestore: (target: ViewTarget, visOptions: Partial<StoredVisOptions>) => void
 }
 
 // Keep the address bar describing the view on screen, and follow it back when

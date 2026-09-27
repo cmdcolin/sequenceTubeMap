@@ -86,4 +86,11 @@ export interface APIInterface {
 }
 
 // Re-export commonly needed types so callers can import from one place.
-export type { AvailableTrack, FileType, PathInfo, RegionInfo, Track, ViewTarget }
+export type {
+  AvailableTrack,
+  FileType,
+  PathInfo,
+  RegionInfo,
+  Track,
+  ViewTarget,
+}

@@ -114,9 +114,7 @@ it('re-seeds the form when the backend is switched', async () => {
   // view target of the newly-selected backend.
   await userEvent.click(screen.getByText('Backend configuration'))
   await userEvent.click(screen.getByLabelText('Extract tube map data'))
-  await userEvent.click(
-    screen.getByRole('option', { name: /vgteam server/i }),
-  )
+  await userEvent.click(screen.getByRole('option', { name: /vgteam server/i }))
 
   await waitFor(() => {
     expect(getRegionInput().value).toEqual('17:1-100')
@@ -307,9 +305,7 @@ describe('loading and empty states', () => {
   })
 
   it('says what it is waiting for while the view loads', async () => {
-    renderApp(
-      fakeAPI({ getChunkedData: () => new Promise(() => {}) }),
-    )
+    renderApp(fakeAPI({ getChunkedData: () => new Promise(() => {}) }))
 
     expect(await screen.findByText('Loading 17:1-100…')).toBeInTheDocument()
   })

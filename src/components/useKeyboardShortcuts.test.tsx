@@ -1,6 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useKeyboardShortcuts, type ShortcutTable } from './useKeyboardShortcuts.ts'
+import {
+  useKeyboardShortcuts,
+  type ShortcutTable,
+} from './useKeyboardShortcuts.ts'
 
 function Harness({ shortcuts }: { shortcuts: ShortcutTable }) {
   useKeyboardShortcuts(shortcuts)

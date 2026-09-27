@@ -155,7 +155,9 @@ function RegionControlButton({
       title={label}
       data-testid={testid}
       disabled={disabled}
-      onClick={() => { onClick(); }}
+      onClick={() => {
+        onClick()
+      }}
     >
       <Icon icon={icon} />
     </Button>
@@ -248,9 +250,10 @@ function HeaderForm({
   const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
   // In local mode the in-browser gbz-base reader only understands .gbz.db files,
   // so .vg.xg-based built-ins would silently fail. Hide them from the dropdown.
-  const visibleDataSources = apiMode === 'local'
-    ? DATA_SOURCES.filter(isLocalCompatibleDataSource)
-    : DATA_SOURCES
+  const visibleDataSources =
+    apiMode === 'local'
+      ? DATA_SOURCES.filter(isLocalCompatibleDataSource)
+      : DATA_SOURCES
   const discoveredDataSources = discoverDataSources(
     files,
     filenamesData?.bedFiles ?? [],
@@ -313,10 +316,13 @@ function HeaderForm({
       : null,
     ([, , graph, read]: readonly [string, string, string, string]) =>
       getReadCountsPerPath!(graph, read, null),
-    { revalidateOnFocus: false, revalidateOnReconnect: false, shouldRetryOnError: false },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    },
   )
-  const readCounts: Record<string, number> | undefined =
-    readCountsData?.counts
+  const readCounts: Record<string, number> | undefined = readCountsData?.counts
 
   // Adjust state during render when the graph file changes — re-opens the
   // paths panel for the new graph. See:
@@ -332,7 +338,10 @@ function HeaderForm({
   // the generic fallback when a real server returned an empty list.
   const noFilesMessage =
     filenamesData && files.length === 0
-      ? (filenamesData.error ?? (apiMode === 'local' ? null : 'Server did not return a list of mounted filenames.'))
+      ? (filenamesData.error ??
+        (apiMode === 'local'
+          ? null
+          : 'Server did not return a list of mounted filenames.'))
       : null
 
   // Fetches that fill in the form's own controls. Until each lands, the
@@ -369,12 +378,9 @@ function HeaderForm({
   // each notification.
   useEffect(() => {
     const controller = new AbortController()
-    APIInterface.subscribeToFilenameChanges(
-      () => {
-        void refetchFilenames()
-      },
-      controller.signal,
-    )
+    APIInterface.subscribeToFilenameChanges(() => {
+      void refetchFilenames()
+    }, controller.signal)
     return () => {
       controller.abort()
     }
@@ -519,7 +525,9 @@ function HeaderForm({
 
   async function jumpRegion(offset: -1 | 1) {
     const current = determineRegionIndex(region, regionInfo) ?? 0
-    await changeRegionAndGo(regionStringFromRegionIndex(current + offset, regionInfo))
+    await changeRegionAndGo(
+      regionStringFromRegionIndex(current + offset, regionInfo),
+    )
   }
 
   // The region controls rewrite the window and load it immediately, the way
@@ -591,16 +599,22 @@ function HeaderForm({
         // Auto-commit so the tube map clears and loads the new source immediately.
         // Skipped when skipAutoLoad is set (for data sources with large default
         // regions) or when the region still has to come from the BED file.
-        if (!ds.skipAutoLoad && isValidRegion(ds.region) && ds.tracks.length > 0) {
-          setCurrentViewTarget(makeViewTarget({
-            tracks: ds.tracks,
-            bedFile: ds.bedFile,
-            name: ds.name,
-            region: ds.region,
-            dataType: dataTypes.BUILT_IN,
-            simplify,
-            removeSequences,
-          }))
+        if (
+          !ds.skipAutoLoad &&
+          isValidRegion(ds.region) &&
+          ds.tracks.length > 0
+        ) {
+          setCurrentViewTarget(
+            makeViewTarget({
+              tracks: ds.tracks,
+              bedFile: ds.bedFile,
+              name: ds.name,
+              region: ds.region,
+              dataType: dataTypes.BUILT_IN,
+              simplify,
+              removeSequences,
+            }),
+          )
         }
       }
     }
@@ -633,15 +647,41 @@ function HeaderForm({
   const hasBedRegions = bedRegionCount > 0
 
   useKeyboardShortcuts({
-    '+': () => { tubeMap.zoomBy(CANVAS_ZOOM_FACTOR); },
-    '=': () => { tubeMap.zoomBy(CANVAS_ZOOM_FACTOR); },
-    '-': () => { tubeMap.zoomBy(1 / CANVAS_ZOOM_FACTOR); },
-    '[': hasBedRegions ? () => { void jumpRegion(-1); } : undefined,
-    ']': hasBedRegions ? () => { void jumpRegion(1); } : undefined,
-    'Shift+ArrowLeft': regionUsable ? () => { shiftRegion(-1); } : undefined,
-    'Shift+ArrowRight': regionUsable ? () => { shiftRegion(1); } : undefined,
-    '/': () => { regionInputRef.current?.focus(); },
-    Escape: () => { onEscape(); },
+    '+': () => {
+      tubeMap.zoomBy(CANVAS_ZOOM_FACTOR)
+    },
+    '=': () => {
+      tubeMap.zoomBy(CANVAS_ZOOM_FACTOR)
+    },
+    '-': () => {
+      tubeMap.zoomBy(1 / CANVAS_ZOOM_FACTOR)
+    },
+    '[': hasBedRegions
+      ? () => {
+          void jumpRegion(-1)
+        }
+      : undefined,
+    ']': hasBedRegions
+      ? () => {
+          void jumpRegion(1)
+        }
+      : undefined,
+    'Shift+ArrowLeft': regionUsable
+      ? () => {
+          shiftRegion(-1)
+        }
+      : undefined,
+    'Shift+ArrowRight': regionUsable
+      ? () => {
+          shiftRegion(1)
+        }
+      : undefined,
+    '/': () => {
+      regionInputRef.current?.focus()
+    },
+    Escape: () => {
+      onEscape()
+    },
   })
 
   return (
@@ -658,7 +698,9 @@ function HeaderForm({
         onTracksChange={handleInputChange}
         handleFileUpload={handleFileUpload}
         onUploaded={handleQuickUploaded}
-        onOpenCustomFiles={() => { handleDataSourceChange(dataTypes.CUSTOM_FILES); }}
+        onOpenCustomFiles={() => {
+          handleDataSourceChange(dataTypes.CUSTOM_FILES)
+        }}
         apiMode={apiMode}
         serverModeId={serverModeId}
         onDestChange={onAPIMode}
@@ -685,7 +727,14 @@ function HeaderForm({
             ))}
           </Box>
         )}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: 1,
+          }}
+        >
           {customFilesFlag && filenamesData?.bedFiles?.length ? (
             <>
               <Typography
@@ -700,7 +749,9 @@ function HeaderForm({
                 id="bedSelect"
                 inputId="bedSelectInput"
                 value={isSet(bedFile) ? bedFile : 'none'}
-                onChange={(value) => { setBedFile(value); }}
+                onChange={value => {
+                  setBedFile(value)
+                }}
                 options={availableBeds}
               />
             </>
@@ -719,14 +770,20 @@ function HeaderForm({
                 label="Back to the previous view"
                 icon={faArrowLeft}
                 disabled={regionHistory.index <= 0}
-                onClick={() => { goInHistory(-1); }}
+                onClick={() => {
+                  goInHistory(-1)
+                }}
               />
               <RegionControlButton
                 testid="regionHistoryForward"
                 label="Forward to the next view"
                 icon={faArrowRight}
-                disabled={regionHistory.index >= regionHistory.entries.length - 1}
-                onClick={() => { goInHistory(1); }}
+                disabled={
+                  regionHistory.index >= regionHistory.entries.length - 1
+                }
+                onClick={() => {
+                  goInHistory(1)
+                }}
               />
               {hasBedRegions && (
                 <>
@@ -734,7 +791,9 @@ function HeaderForm({
                     variant="contained"
                     size="small"
                     disabled={regionIndex === 0}
-                    onClick={() => { void jumpRegion(-1); }}
+                    onClick={() => {
+                      void jumpRegion(-1)
+                    }}
                   >
                     Prev
                   </Button>
@@ -742,7 +801,9 @@ function HeaderForm({
                     variant="contained"
                     size="small"
                     disabled={regionIndex >= bedRegionCount - 1}
-                    onClick={() => { void jumpRegion(1); }}
+                    onClick={() => {
+                      void jumpRegion(1)
+                    }}
                   >
                     Next
                   </Button>
@@ -753,28 +814,36 @@ function HeaderForm({
                 label="Shift region left by half a window"
                 icon={faAngleLeft}
                 disabled={!regionUsable}
-                onClick={() => { shiftRegion(-1); }}
+                onClick={() => {
+                  shiftRegion(-1)
+                }}
               />
               <RegionControlButton
                 testid="widenRegion"
                 label={`Widen region ${REGION_ZOOM_FACTOR}x`}
                 icon={faExpand}
                 disabled={!regionUsable}
-                onClick={() => { scaleRegion(REGION_ZOOM_FACTOR); }}
+                onClick={() => {
+                  scaleRegion(REGION_ZOOM_FACTOR)
+                }}
               />
               <RegionControlButton
                 testid="narrowRegion"
                 label={`Narrow region ${REGION_ZOOM_FACTOR}x`}
                 icon={faCompress}
                 disabled={!regionUsable}
-                onClick={() => { scaleRegion(1 / REGION_ZOOM_FACTOR); }}
+                onClick={() => {
+                  scaleRegion(1 / REGION_ZOOM_FACTOR)
+                }}
               />
               <RegionControlButton
                 testid="shiftRegionRight"
                 label="Shift region right by half a window"
                 icon={faAngleRight}
                 disabled={!regionUsable}
-                onClick={() => { shiftRegion(1); }}
+                onClick={() => {
+                  shiftRegion(1)
+                }}
               />
             </Box>
           )}
@@ -783,9 +852,13 @@ function HeaderForm({
               <RegionInput
                 regionInfo={regionInfo}
                 inputRef={regionInputRef}
-                handleRegionChange={coords => { void handleRegionChange(coords); }}
+                handleRegionChange={coords => {
+                  void handleRegionChange(coords)
+                }}
                 region={region}
-                onSubmit={() => { handleGoButton(); }}
+                onSubmit={() => {
+                  handleGoButton()
+                }}
               />
             </Box>
           )}
@@ -797,7 +870,10 @@ function HeaderForm({
         </Box>
         {recentlyUploaded.length > 0 && (
           <Alert severity="success" sx={{ mt: 1, mb: 1 }}>
-            <strong>Loaded {recentlyUploaded.length} file{recentlyUploaded.length === 1 ? '' : 's'}:</strong>{' '}
+            <strong>
+              Loaded {recentlyUploaded.length} file
+              {recentlyUploaded.length === 1 ? '' : 's'}:
+            </strong>{' '}
             {recentlyUploaded.map(f => truncateMiddle(f, 40)).join(', ')}.{' '}
             {pathInfo.length > 0
               ? 'Pick a path below or type a region to view it.'
@@ -809,16 +885,24 @@ function HeaderForm({
             pathInfo={pathInfo}
             readCounts={readCounts}
             isOpen={pathsPanelOpen}
-            onToggle={() => { setPathsPanelOpen(o => !o); }}
-            onLoadPath={region => { void changeRegionAndGo(region); }}
-            onCopyToRegion={region => { setChosenRegion(region); }}
+            onToggle={() => {
+              setPathsPanelOpen(o => !o)
+            }}
+            onLoadPath={region => {
+              void changeRegionAndGo(region)
+            }}
+            onCopyToRegion={region => {
+              setChosenRegion(region)
+            }}
           />
         )}
         {fileSizeAlert && (
           <Alert
             severity="error"
             sx={{ mt: 2 }}
-            onClose={() => { setFileSizeAlert(false); }}
+            onClose={() => {
+              setFileSizeAlert(false)
+            }}
           >
             <strong>File size too big! </strong>
             You may only upload files with a maximum size of{' '}
@@ -838,7 +922,9 @@ function HeaderForm({
             }}
           >
             <DataPositionFormRow
-              handleGoButton={() => { handleGoButton(); }}
+              handleGoButton={() => {
+                handleGoButton()
+              }}
               currentViewTarget={currentViewTarget}
               viewTargetHasChange={
                 !viewTargetsEqual(buildViewTarget(), currentViewTarget)
@@ -852,8 +938,12 @@ function HeaderForm({
                 <SimplifyButton
                   simplify={simplify}
                   removeSequences={removeSequences}
-                  setSimplify={(next) => { setSimplify(next); }}
-                  setRemoveSequences={(next) => { setRemoveSequences(next); }}
+                  setSimplify={next => {
+                    setSimplify(next)
+                  }}
+                  setRemoveSequences={next => {
+                    setRemoveSequences(next)
+                  }}
                   simplifyAvailable={apiMode !== 'local'}
                 />
               </Box>

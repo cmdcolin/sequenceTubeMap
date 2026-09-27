@@ -147,7 +147,9 @@ export const TrackFilePicker = ({
             aria-label="Upload a track file"
             accept={acceptedExtensions}
             ref={uploadFileInput}
-            onChange={() => { void uploadOnChange(); }}
+            onChange={() => {
+              void uploadOnChange()
+            }}
           />
         </div>
         {uploadError ? (

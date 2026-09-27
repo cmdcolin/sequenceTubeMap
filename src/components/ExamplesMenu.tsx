@@ -39,7 +39,10 @@ export function ExamplesMenu({
           <MenuItem
             key={ds.name}
             selected={dataType === dataTypes.BUILT_IN && name === ds.name}
-            onClick={() => { onSelect(ds.name!); close(); }}
+            onClick={() => {
+              onSelect(ds.name!)
+              close()
+            }}
           >
             {ds.name}
           </MenuItem>
@@ -65,7 +68,10 @@ export function ExamplesMenu({
             <Divider />
             <MenuItem
               selected={dataType === dataTypes.EXAMPLES}
-              onClick={() => { onSelect(dataTypes.EXAMPLES); close(); }}
+              onClick={() => {
+                onSelect(dataTypes.EXAMPLES)
+                close()
+              }}
             >
               Synthetic examples
             </MenuItem>

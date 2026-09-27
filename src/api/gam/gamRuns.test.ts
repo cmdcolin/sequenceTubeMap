@@ -125,10 +125,21 @@ describe('readAlignmentsForRuns', () => {
 
   it('stops decoding at the past-end offset of the run', async () => {
     const { compressed, firstRun, secondRun } = twoGroupGam()
-    expect(names(await readAlignmentsForRuns(sourceOf(compressed), [firstRun], 1n, 100n)))
-      .toEqual(['read-a', 'read-b'])
-    expect(names(await readAlignmentsForRuns(sourceOf(compressed), [secondRun], 1n, 100n)))
-      .toEqual(['read-c'])
+    expect(
+      names(
+        await readAlignmentsForRuns(sourceOf(compressed), [firstRun], 1n, 100n),
+      ),
+    ).toEqual(['read-a', 'read-b'])
+    expect(
+      names(
+        await readAlignmentsForRuns(
+          sourceOf(compressed),
+          [secondRun],
+          1n,
+          100n,
+        ),
+      ),
+    ).toEqual(['read-c'])
   })
 
   it('keeps only alignments inside the queried node range', async () => {

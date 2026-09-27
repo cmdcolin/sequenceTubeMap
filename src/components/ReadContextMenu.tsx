@@ -29,12 +29,16 @@ const ReadContextMenu = ({
   const items: ContextMenuItem[] = [
     {
       label: 'Show only this read',
-      onClick: () => { onFilter(readName); },
+      onClick: () => {
+        onFilter(readName)
+      },
     },
     {
       label: alreadyInSet ? 'Already in set' : 'Add to set',
       disabled: alreadyInSet,
-      onClick: () => { onAddToSet(readName); },
+      onClick: () => {
+        onAddToSet(readName)
+      },
     },
   ]
   if (activeGroup) {
@@ -43,7 +47,9 @@ const ReadContextMenu = ({
         ? `Already in "${activeGroup.name}"`
         : `Add to "${activeGroup.name}"`,
       disabled: alreadyInActiveGroup,
-      onClick: () => { onAddToActiveGroup(readName); },
+      onClick: () => {
+        onAddToActiveGroup(readName)
+      },
     })
   }
   return (

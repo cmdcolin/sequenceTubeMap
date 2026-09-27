@@ -128,7 +128,9 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /upload & use/i }))
 
-    await waitFor(() => { expect(onUploaded).toHaveBeenCalled() })
+    await waitFor(() => {
+      expect(onUploaded).toHaveBeenCalled()
+    })
 
     expect(handleFileUpload).toHaveBeenCalledTimes(1)
     expect(uploaded).toEqual([{ type: 'read', name: 'reads.sorted.gam' }])
@@ -169,7 +171,9 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /load files/i }))
 
-    await waitFor(() => { expect(onUploaded).toHaveBeenCalled() })
+    await waitFor(() => {
+      expect(onUploaded).toHaveBeenCalled()
+    })
 
     expect(handleFileUpload).toHaveBeenCalledTimes(2)
     expect(uploaded.map(u => u.name).sort()).toEqual([
@@ -184,7 +188,9 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
   })
 
   it('accepts .xg / .vg / .gbz graphs in server mode', async () => {
-    const handleFileUpload = vi.fn(async (_type: FileType, file: File) => file.name)
+    const handleFileUpload = vi.fn(
+      async (_type: FileType, file: File) => file.name,
+    )
     const onUploaded = vi.fn()
 
     render(
@@ -209,11 +215,20 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /upload & use/i }))
 
-    await waitFor(() => { expect(onUploaded).toHaveBeenCalled() })
+    await waitFor(() => {
+      expect(onUploaded).toHaveBeenCalled()
+    })
 
     expect(handleFileUpload).toHaveBeenCalledTimes(3)
-    const tracks = onUploaded.mock.calls[0]![0] as { trackFile: string; trackType: FileType }[]
-    expect(tracks.map(t => t.trackFile).sort()).toEqual(['alt.vg', 'big.gbz', 'graph.xg'])
+    const tracks = onUploaded.mock.calls[0]![0] as {
+      trackFile: string
+      trackType: FileType
+    }[]
+    expect(tracks.map(t => t.trackFile).sort()).toEqual([
+      'alt.vg',
+      'big.gbz',
+      'graph.xg',
+    ])
     expect(tracks.every(t => t.trackType === 'graph')).toBe(true)
   })
 

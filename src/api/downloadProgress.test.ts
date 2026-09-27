@@ -96,13 +96,7 @@ describe('GBZBaseAPI download progress', () => {
     await trackFileReader(api).resolveTrackFile(url, null)
 
     expect(updates.map(u => u.received)).toEqual([0, 4, 8, 12, 12])
-    expect(updates.map(u => u.done)).toEqual([
-      false,
-      false,
-      false,
-      false,
-      true,
-    ])
+    expect(updates.map(u => u.done)).toEqual([false, false, false, false, true])
     expect(updates.every(u => u.url === url && u.total === 12)).toBe(true)
     expect(getDownloadProgressSnapshot().some(s => s.url === url)).toBe(false)
   })

@@ -121,11 +121,7 @@ type TrackKey =
   | 'inputTracks3'
   | 'inputTracks4'
   | 'inputTracks5'
-type GraphKey =
-  | 'k3138'
-  | 'reverseAlignmentGraph'
-  | 'cycleGraph'
-  | 'cycle2Graph'
+type GraphKey = 'k3138' | 'reverseAlignmentGraph' | 'cycleGraph' | 'cycle2Graph'
 type ReadsKey =
   | 'demoReads'
   | 'mixedAlignmentReads'
@@ -167,9 +163,7 @@ export function computeExampleData(
       typeof graphRaw === 'string' ? JSON.parse(graphRaw) : graphRaw
     const readsRaw = data[example.reads]
     const reads: VgRead[] =
-      typeof readsRaw === 'string'
-        ? readsFromStringToArray(readsRaw)
-        : readsRaw
+      typeof readsRaw === 'string' ? readsFromStringToArray(readsRaw) : readsRaw
     const nodes = tubeMap.vgExtractNodes(vg)
     const tracks = tubeMap.vgExtractTracks(vg, 0, 0)
     return {

@@ -6,7 +6,10 @@ import HeaderForm from './components/HeaderForm.tsx'
 import TubeMapContainer, {
   DEFAULT_READ_RENDER_LIMIT,
 } from './components/TubeMapContainer.tsx'
-import { urlParamsToViewTarget, urlParamsToVisOptions } from './urlViewTarget.ts'
+import {
+  urlParamsToViewTarget,
+  urlParamsToVisOptions,
+} from './urlViewTarget.ts'
 import {
   EMPTY_VIEW_TARGET,
   pushHistoryEntry,
@@ -22,7 +25,11 @@ import {
   type FetchKey,
   type TubeMapData,
 } from './components/tubeMapData.ts'
-import { isRecord, readStored, writeStored } from './components/persistedState.ts'
+import {
+  isRecord,
+  readStored,
+  writeStored,
+} from './components/persistedState.ts'
 import { dataOriginTypes } from './enums.ts'
 import './config-client.js'
 import { config } from './config-global.mjs'
@@ -86,7 +93,9 @@ function validateReadRenderLimit(value: unknown): number | null | undefined {
 }
 
 function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
-  return tracks.map(t => t.trackColorSettings ?? defaultTrackColors(t.trackType))
+  return tracks.map(
+    t => t.trackColorSettings ?? defaultTrackColors(t.trackType),
+  )
 }
 
 // qs (copy link) and SWR's key hashing both treat an explicitly-undefined
@@ -157,8 +166,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     },
   )
   const [visOptions, setVisOptions] = useState<VisOptions>(() => ({
-    ...(readStored(VIS_OPTIONS_KEY, validateVisOptions) ??
-      DEFAULT_VIS_OPTIONS),
+    ...(readStored(VIS_OPTIONS_KEY, validateVisOptions) ?? DEFAULT_VIS_OPTIONS),
     ...urlVisOptions,
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
   }))
@@ -327,11 +335,15 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         serverModeId={isLocalMode ? 'upstream' : 'server'}
         loading={isValidating}
         legendTracks={legendVisible ? legendTracks : undefined}
-        onEscape={() => { setLegend(false); }}
+        onEscape={() => {
+          setLegend(false)
+        }}
         visMenus={
           <ViewMenu
             legendVisible={legendVisible}
-            toggleLegend={() => { setLegend(!legendVisible); }}
+            toggleLegend={() => {
+              setLegend(!legendVisible)
+            }}
             visOptions={visOptions}
             toggleVisOptionFlag={toggleVisOptionFlag}
             handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
@@ -347,12 +359,18 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
           data={data}
           error={error}
           isValidating={isValidating}
-          onRetry={() => { void mutate(); }}
+          onRetry={() => {
+            void mutate()
+          }}
           readRenderLimit={readRenderLimit}
-          onReadRenderLimitChange={limit => { setReadRenderLimit(limit); }}
+          onReadRenderLimitChange={limit => {
+            setReadRenderLimit(limit)
+          }}
           legendVisible={legendVisible}
           legendTracks={legendTracks}
-          onLegendClose={() => { setLegend(false); }}
+          onLegendClose={() => {
+            setLegend(false)
+          }}
         />
       </div>
       <BackendSelector

@@ -17,7 +17,11 @@ describe('HelpButton', () => {
       await userEvent.click(screen.getByRole('button'))
     })
 
-    await waitFor(() => { expect(screen.getByText('Instructions')).toBeTruthy(); })
-    await waitFor(() => { expect(screen.queryByText('#')).toBeFalsy(); })
+    await waitFor(() => {
+      expect(screen.getByText('Instructions')).toBeTruthy()
+    })
+    await waitFor(() => {
+      expect(screen.queryByText('#')).toBeFalsy()
+    })
   })
 })

@@ -126,13 +126,8 @@
       "dataType": "built-in"
     }
   ],
-  "vgPath": [
-    ""
-  ],
-  "chunkixPath": [
-    "/data",
-    "scripts"
-  ],
+  "vgPath": [""],
+  "chunkixPath": ["/data", "scripts"],
   "dataPath": "/data",
   "internalDataPath": "exampleData/internal/",
   "tempDirPath": "temp",
@@ -172,9 +167,6 @@
     "translation": ".tsv,.trans"
   },
   "MAXUPLOADSIZE": 5242880,
-  "pickerTypeOptions": [
-    "mounted",
-    "upload"
-  ],
+  "pickerTypeOptions": ["mounted", "upload"],
   "fileExpirationTime": 86400
 }

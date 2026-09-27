@@ -210,7 +210,9 @@ describe('a database with haplotype side tables', () => {
     expect(names.every(n => !n.startsWith('unknown#'))).toBe(true)
     // --distinct collapses identical walks and reports how many haplotypes
     // share each one; convertSchema copies that into `freq` for track width.
-    expect(paths.every(p => typeof p.freq === 'number' && p.freq >= 1)).toBe(true)
+    expect(paths.every(p => typeof p.freq === 'number' && p.freq >= 1)).toBe(
+      true,
+    )
     for (const path of paths) {
       expect(path.mapping.length).toBeGreaterThan(0)
     }
@@ -400,7 +402,9 @@ describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC v2.1', () => {
       new AbortController().signal,
     )
     const paths = view.graph?.path ?? []
-    const names = paths.map(p => p.name).filter((n): n is string => n !== undefined)
+    const names = paths
+      .map(p => p.name)
+      .filter((n): n is string => n !== undefined)
 
     expect(names.some(n => n.startsWith('GRCh38'))).toBe(true)
     // Every haplotype is named through the companion index, so nothing comes
@@ -464,7 +468,12 @@ describe('pathQueryFor', () => {
 
 describe('displayName', () => {
   it('drops the generic sample so the name round-trips as a bare contig', () => {
-    const name = { sample: GENERIC_SAMPLE, contig: 'x', haplotype: 0, fragment: 0 }
+    const name = {
+      sample: GENERIC_SAMPLE,
+      contig: 'x',
+      haplotype: 0,
+      fragment: 0,
+    }
     expect(displayName(name)).toBe('x')
     expect(pathQueryFor(displayName(name))).toEqual({ contig: 'x' })
   })
@@ -547,9 +556,7 @@ describe('reads returned with a graph view', () => {
     expect(reads.length).toBeGreaterThan(0)
     for (const read of reads) {
       const visits = (read.path?.mapping ?? []).some(m =>
-        m.position === undefined
-          ? false
-          : nodeIds.has(`${m.position.node_id}`),
+        m.position === undefined ? false : nodeIds.has(`${m.position.node_id}`),
       )
       expect(visits).toBe(true)
     }

@@ -65,7 +65,9 @@ function ExampleSelectButtons({ showExample }: ExampleSelectButtonsProps) {
     <Box
       component="form"
       sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}
-      onSubmit={e => { e.preventDefault(); }}
+      onSubmit={e => {
+        e.preventDefault()
+      }}
     >
       {EXAMPLE_BUTTONS.map(({ id, origin, label }) => (
         <Button
@@ -73,7 +75,9 @@ function ExampleSelectButtons({ showExample }: ExampleSelectButtonsProps) {
           variant="contained"
           size="small"
           id={id}
-          onClick={() => { showExample(origin); }}
+          onClick={() => {
+            showExample(origin)
+          }}
         >
           {label}
         </Button>

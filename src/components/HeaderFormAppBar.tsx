@@ -3,7 +3,13 @@ import AppBar from '@mui/material/AppBar'
 import Box from '@mui/material/Box'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
-import type { AvailableTrack, FileType, Track, Tracks, ViewTarget } from '../Types.ts'
+import type {
+  AvailableTrack,
+  FileType,
+  Track,
+  Tracks,
+  ViewTarget,
+} from '../Types.ts'
 import HelpButton from './HelpButton.tsx'
 import { ExamplesMenu } from './ExamplesMenu.tsx'
 import { FileMenu } from './FileMenu.tsx'
@@ -18,7 +24,10 @@ interface HeaderFormAppBarProps {
   tracks: Tracks
   availableTracks: AvailableTrack[]
   onTracksChange: (tracks: Tracks) => void
-  handleFileUpload: (fileType: FileType, file: File) => Promise<string | undefined>
+  handleFileUpload: (
+    fileType: FileType,
+    file: File,
+  ) => Promise<string | undefined>
   onUploaded: (tracks: Track[]) => void
   onOpenCustomFiles: () => void
   apiMode: 'local' | 'server' | 'upstream'
@@ -48,9 +57,18 @@ export function HeaderFormAppBar({
   visMenus,
 }: HeaderFormAppBarProps) {
   return (
-    <AppBar position="static" color="primary" elevation={2} sx={{ background: '#1a5276', mb: 1 }}>
+    <AppBar
+      position="static"
+      color="primary"
+      elevation={2}
+      sx={{ background: '#1a5276', mb: 1 }}
+    >
       <Toolbar variant="dense">
-        <img src="./logo.svg" alt="seqTubeMaps" style={{ height: 32, marginRight: 8 }} />
+        <img
+          src="./logo.svg"
+          alt="seqTubeMaps"
+          style={{ height: 32, marginRight: 8 }}
+        />
         <ExamplesMenu
           visibleDataSources={visibleDataSources}
           discoveredDataSources={discoveredDataSources}

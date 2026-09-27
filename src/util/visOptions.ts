@@ -101,10 +101,7 @@ const EXAMPLE_GRAPH_SCHEMES: Record<string, ColorScheme> = {
 // Examples with no reads name the pair anyway, so the legend describes the
 // same colors the renderer would reach for.
 export function exampleColorSchemes(dataOrigin: string): ColorScheme[] {
-  return [
-    EXAMPLE_GRAPH_SCHEMES[dataOrigin] ?? CATEGORICAL_GRAPH,
-    EXAMPLE_READS,
-  ]
+  return [EXAMPLE_GRAPH_SCHEMES[dataOrigin] ?? CATEGORICAL_GRAPH, EXAMPLE_READS]
 }
 
 // `nodeSequences` is false when the backend stripped node sequences, which

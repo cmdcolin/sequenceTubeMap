@@ -46,7 +46,9 @@ function DataPositionFormRow({
     <Box
       component="form"
       sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1 }}
-      onSubmit={e => { e.preventDefault(); }}
+      onSubmit={e => {
+        e.preventDefault()
+      }}
     >
       <Button
         size="small"
@@ -56,7 +58,9 @@ function DataPositionFormRow({
         startIcon={
           loading ? <CircularProgress size={14} color="inherit" /> : undefined
         }
-        onClick={() => { handleGoButton(); }}
+        onClick={() => {
+          handleGoButton()
+        }}
         disabled={goDisabled}
       >
         Go
@@ -67,7 +71,9 @@ function DataPositionFormRow({
         id="zoomInButton"
         aria-label="Zoom in"
         title="Zoom in"
-        onClick={() => { tubeMap.zoomBy(ZOOM_FACTOR); }}
+        onClick={() => {
+          tubeMap.zoomBy(ZOOM_FACTOR)
+        }}
       >
         <Icon icon={faSearchPlus} />
       </Button>
@@ -77,7 +83,9 @@ function DataPositionFormRow({
         id="zoomOutButton"
         aria-label="Zoom out"
         title="Zoom out"
-        onClick={() => { tubeMap.zoomBy(1.0 / ZOOM_FACTOR); }}
+        onClick={() => {
+          tubeMap.zoomBy(1.0 / ZOOM_FACTOR)
+        }}
       >
         <Icon icon={faSearchMinus} />
       </Button>

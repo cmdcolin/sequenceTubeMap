@@ -26,7 +26,9 @@ it('copies the current address, which describes the current view', async () => {
   expect(writeText).toHaveBeenCalledWith(window.location.href)
   expect(window.location.search).toEqual('?region=x%3A1-100')
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: /Copied link!/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Copied link!/ }),
+    ).toBeInTheDocument()
   })
 })
 
@@ -37,13 +39,19 @@ it('stops claiming a link was copied once the view moves on', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: /Copy link/ }))
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: /Copied link!/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Copied link!/ }),
+    ).toBeInTheDocument()
   })
 
   // App hands out a new view target object per commit.
-  rerender(<CopyLink currentViewTarget={{ ...VIEW_TARGET, region: 'x:200-300' }} />)
+  rerender(
+    <CopyLink currentViewTarget={{ ...VIEW_TARGET, region: 'x:200-300' }} />,
+  )
 
-  expect(screen.getByRole('button', { name: /Copy link to data/ })).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: /Copy link to data/ }),
+  ).toBeInTheDocument()
 })
 
 it('falls back to a dialog when the clipboard is unavailable', async () => {

@@ -53,9 +53,9 @@ server.
 
 The pure-JS GAM parser (`src/api/gam/`) plus `@gmod/gbz-base` let the gh-pages
 deploy show reads on top of a graph without any server at all, and read a
-whole-pangenome `.gbz.db` from an object store by range requests — which
-is the real win over just proxying upstream. Conversion of `.gbz` to `.gbz.db`
-stays offline (`gbz-base construct`, see `doc/gbz-base.md`).
+whole-pangenome `.gbz.db` from an object store by range requests — which is the
+real win over just proxying upstream. Conversion of `.gbz` to `.gbz.db` stays
+offline (`gbz-base construct`, see `doc/gbz-base.md`).
 
 ## What was changed in the meantime
 

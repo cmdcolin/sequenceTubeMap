@@ -14,9 +14,7 @@ import { DEFAULT_VIS_OPTIONS, VIS_OPTION_FLAGS } from './util/visOptions.ts'
 import type { Track, ViewTarget } from './Types.ts'
 
 const roundTrip = (target: ViewTarget) =>
-  urlParamsToViewTarget(
-    `http://localhost/?${viewTargetToUrlParams(target)}`,
-  )
+  urlParamsToViewTarget(`http://localhost/?${viewTargetToUrlParams(target)}`)
 
 describe('urlViewTarget round trip', () => {
   it('preserves booleans at every level', () => {
@@ -227,7 +225,9 @@ describe('urlViewTarget fragment params', () => {
 describe('fragmentWithoutView', () => {
   it('drops the view params and keeps the dev flag valueless', () => {
     expect(
-      fragmentWithoutView('#local&region=x:1-100&tracks=graph:x.vg&vis=compressedView'),
+      fragmentWithoutView(
+        '#local&region=x:1-100&tracks=graph:x.vg&vis=compressedView',
+      ),
     ).toBe('local')
   })
 
@@ -321,9 +321,9 @@ describe('tracks short form', () => {
     const params = viewTargetToUrlParams({ region: 'x:1-100', tracks })
 
     expect(params).toContain('%2C')
-    expect(urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks).toEqual(
-      tracks,
-    )
+    expect(
+      urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks,
+    ).toEqual(tracks)
   })
 
   it('carries palettes positionally, empty where a track takes its default', () => {
@@ -343,9 +343,9 @@ describe('tracks short form', () => {
     const params = viewTargetToUrlParams({ region: 'x:1-100', tracks })
 
     expect(params).toContain('colors=,blues/%23ff0000')
-    expect(urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks).toEqual(
-      tracks,
-    )
+    expect(
+      urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks,
+    ).toEqual(tracks)
   })
 
   it('leaves colors out entirely when every track takes its default', () => {
@@ -367,9 +367,9 @@ describe('tracksJson escape hatch', () => {
     const params = viewTargetToUrlParams({ region: 'x:1-100', tracks })
 
     expect(params).toContain('tracksJson=')
-    expect(urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks).toEqual(
-      tracks,
-    )
+    expect(
+      urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks,
+    ).toEqual(tracks)
   })
 
   it('falls back for the per-track mapping-quality color flags', () => {
@@ -406,14 +406,16 @@ describe('tracksJson escape hatch', () => {
     const params = viewTargetToUrlParams({ region: 'x:1-100', tracks })
 
     expect(params).toContain('tracksJson=')
-    expect(urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks).toEqual(
-      tracks,
-    )
+    expect(
+      urlParamsToViewTarget(`http://localhost/?${params}`)?.tracks,
+    ).toEqual(tracks)
   })
 
   it('ignores malformed JSON rather than throwing', () => {
     expect(
-      urlParamsToViewTarget('http://localhost/?region=x:1-100&tracksJson=%7Bnope'),
+      urlParamsToViewTarget(
+        'http://localhost/?region=x:1-100&tracksJson=%7Bnope',
+      ),
     ).toBe(null)
   })
 })
@@ -465,10 +467,7 @@ describe('name resolution against configured data sources', () => {
 
   it('resolves a name with no tracks to the configured source', () => {
     expect(
-      urlParamsToViewTarget(
-        'http://localhost/?name=snp1kg-BRCA1',
-        dataSources,
-      ),
+      urlParamsToViewTarget('http://localhost/?name=snp1kg-BRCA1', dataSources),
     ).toEqual(dataSources[0])
   })
 

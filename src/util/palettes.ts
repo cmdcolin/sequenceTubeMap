@@ -79,9 +79,24 @@ export interface PaletteInfo {
 
 export const PALETTES: readonly PaletteInfo[] = [
   { name: 'greys', label: 'Greys', kind: 'sequential', colors: greys },
-  { name: 'ygreys', label: 'Greys (with purple)', kind: 'sequential', colors: ygreys },
+  {
+    name: 'ygreys',
+    label: 'Greys (with purple)',
+    kind: 'sequential',
+    colors: ygreys,
+  },
   { name: 'blues', label: 'Blues', kind: 'sequential', colors: blues },
   { name: 'reds', label: 'Reds', kind: 'sequential', colors: reds },
-  { name: 'plainColors', label: 'Plain (categorical)', kind: 'categorical', colors: plainColors },
-  { name: 'lightColors', label: 'Light (categorical)', kind: 'categorical', colors: lightColors },
+  {
+    name: 'plainColors',
+    label: 'Plain (categorical)',
+    kind: 'categorical',
+    colors: plainColors,
+  },
+  {
+    name: 'lightColors',
+    label: 'Light (categorical)',
+    kind: 'categorical',
+    colors: lightColors,
+  },
 ]

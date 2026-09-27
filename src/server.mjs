@@ -250,19 +250,22 @@ async function lockDirectories(directoryPaths, lockType, func) {
 }
 
 // deletes any files in the download directory past the set fileExpirationTime set in config
-const expiredFileCleanupTask = setInterval(async () => {
-  console.log('scheduled expired file check')
-  // attempt to acquire a write lock for each on the directory before attempting to delete files
-  for (const dir of [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH]) {
-    try {
-      await lockDirectory(dir, lockTypes.WRITE_LOCK, async function () {
-        deleteExpiredFiles(dir)
-      })
-    } catch (e) {
-      console.error('Error checking for expired files in ' + dir + ':', e)
+const expiredFileCleanupTask = setInterval(
+  async () => {
+    console.log('scheduled expired file check')
+    // attempt to acquire a write lock for each on the directory before attempting to delete files
+    for (const dir of [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH]) {
+      try {
+        await lockDirectory(dir, lockTypes.WRITE_LOCK, async function () {
+          deleteExpiredFiles(dir)
+        })
+      } catch (e) {
+        console.error('Error checking for expired files in ' + dir + ':', e)
+      }
     }
-  }
-}, 60 * 60 * 1000)
+  },
+  60 * 60 * 1000,
+)
 
 const app = express()
 
@@ -1899,9 +1902,11 @@ function cleanUpChunkIfOwned(req, _res) {
     // Clean up the temp directory for the request recursively. Nothing waits
     // on this, so a failure has to be logged rather than thrown into an
     // unhandled rejection.
-    fs.promises.rm(req.chunkDir, { recursive: true, force: true }).catch(err => {
-      console.error('Could not remove chunk directory ' + req.chunkDir, err)
-    })
+    fs.promises
+      .rm(req.chunkDir, { recursive: true, force: true })
+      .catch(err => {
+        console.error('Could not remove chunk directory ' + req.chunkDir, err)
+      })
   }
 }
 
@@ -2885,7 +2890,11 @@ function shutDown(reason) {
   process.exit()
 }
 
-process.on('SIGINT', () => { shutDown('SIGINT') })
+process.on('SIGINT', () => {
+  shutDown('SIGINT')
+})
 // `pnpm start` runs the backend with an IPC channel to vite, which closes
 // however vite exits.
-process.on('disconnect', () => { shutDown('dev server exit') })
+process.on('disconnect', () => {
+  shutDown('dev server exit')
+})

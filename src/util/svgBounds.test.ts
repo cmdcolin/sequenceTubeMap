@@ -67,9 +67,7 @@ describe('measureSvgContent — bounds', () => {
   it('includes bezier control points, so the box contains the curve', () => {
     // The curve itself never reaches y=100, but staying inside the control
     // hull is what makes the box safe to crop to.
-    const box = boundsOf(
-      svgFrom('<path d="M 0 0 C 0 100 10 100 10 0"/>'),
-    )
+    const box = boundsOf(svgFrom('<path d="M 0 0 C 0 100 10 100 10 0"/>'))
     expect(box).toEqual({ x: 0, y: 0, width: 10, height: 100 })
   })
 
@@ -89,12 +87,18 @@ describe('measureSvgContent — bounds', () => {
   })
 
   it('boxes polygons, circles and text anchors', () => {
-    expect(
-      boundsOf(svgFrom('<polygon points="1,2 5,2 5,8"/>')),
-    ).toEqual({ x: 1, y: 2, width: 4, height: 6 })
-    expect(
-      boundsOf(svgFrom('<circle cx="10" cy="10" r="3"/>')),
-    ).toEqual({ x: 7, y: 7, width: 6, height: 6 })
+    expect(boundsOf(svgFrom('<polygon points="1,2 5,2 5,8"/>'))).toEqual({
+      x: 1,
+      y: 2,
+      width: 4,
+      height: 6,
+    })
+    expect(boundsOf(svgFrom('<circle cx="10" cy="10" r="3"/>'))).toEqual({
+      x: 7,
+      y: 7,
+      width: 6,
+      height: 6,
+    })
     expect(boundsOf(svgFrom('<text x="4" y="9">hi</text>'))).toEqual({
       x: 4,
       y: 9,
@@ -117,11 +121,9 @@ describe('measureSvgContent — bounds', () => {
 
 describe('measureSvgContent — non-finite geometry', () => {
   it('is zero for a healthy drawing', () => {
-    expect(
-      brokenIn(
-        svgFrom('<rect x="0" y="0" width="1" height="1"/>'),
-      ),
-    ).toBe(0)
+    expect(brokenIn(svgFrom('<rect x="0" y="0" width="1" height="1"/>'))).toBe(
+      0,
+    )
   })
 
   it('counts each element carrying a non-finite coordinate', () => {

@@ -47,7 +47,10 @@ function PaletteSwatch({ palette }: { palette: string }) {
     )
   } else if (resolved.kind === 'categorical') {
     return (
-      <div title={`${palette} (categorical)`} style={{ display: 'flex', gap: 1 }}>
+      <div
+        title={`${palette} (categorical)`}
+        style={{ display: 'flex', gap: 1 }}
+      >
         {resolved.info.colors.map((c, i) => (
           <div
             key={`${palette}-${i}`}
@@ -87,7 +90,15 @@ interface LegendProps {
   onClose?: () => void
 }
 
-function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, ignoreStrand = false, title = 'Color legend', onClose }: LegendProps) {
+function Legend({
+  tracks,
+  colorSchemes,
+  readGroups,
+  otherReadsColor,
+  ignoreStrand = false,
+  title = 'Color legend',
+  onClose,
+}: LegendProps) {
   if (tracks.length === 0) {
     return null
   }
@@ -123,7 +134,9 @@ function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, ignoreStran
         {onClose && (
           <button
             type="button"
-            onClick={() => { onClose() }}
+            onClick={() => {
+              onClose()
+            }}
             aria-label="Hide legend"
             title="Hide legend"
             style={{
@@ -143,7 +156,10 @@ function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, ignoreStran
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {sections.map((section, i) => (
           <div key={`${i}-${section.label}`}>
-            <div style={{ fontWeight: 600, marginBottom: 2 }} title={section.label}>
+            <div
+              style={{ fontWeight: 600, marginBottom: 2 }}
+              title={section.label}
+            >
               {truncateMiddle(section.label, 40)}{' '}
               <span style={{ color: '#666', fontWeight: 400 }}>
                 ({section.kind})
@@ -168,7 +184,9 @@ function Legend({ tracks, colorSchemes, readGroups, otherReadsColor, ignoreStran
                 ))}
               </div>
             ) : (
-              <div style={{ color: '#999', paddingLeft: 8 }}>no color scheme</div>
+              <div style={{ color: '#999', paddingLeft: 8 }}>
+                no color scheme
+              </div>
             )}
           </div>
         ))}

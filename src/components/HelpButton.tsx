@@ -36,11 +36,15 @@ function HelpImage({ alt, src, baseURL, ...props }: HelpImageProps) {
 export const HelpButton = ({ file }: HelpButtonProps) => {
   const fileURL = new URL(file, document.baseURI)
   const [open, setOpen] = useState(false)
-  const { data, error } = useSWR(file, (f: string) => fetch(f).then(r => r.text()), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    shouldRetryOnError: false,
-  })
+  const { data, error } = useSWR(
+    file,
+    (f: string) => fetch(f).then(r => r.text()),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    },
+  )
   const content = error ? 'Could not fetch help' : (data ?? '')
 
   const options = {
@@ -58,12 +62,21 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
       <IconButton
         color="inherit"
         title="Help — region format, controls, and feature reference"
-        onClick={() => { setOpen(!open); }}
+        onClick={() => {
+          setOpen(!open)
+        }}
       >
         <Icon icon={faCircleQuestion} />
       </IconButton>
-      <PopupDialog open={open} close={() => { setOpen(false); }}>
-        <div style={{ maxHeight: '80vh', overflowY: 'auto', overflowX: 'hidden' }}>
+      <PopupDialog
+        open={open}
+        close={() => {
+          setOpen(false)
+        }}
+      >
+        <div
+          style={{ maxHeight: '80vh', overflowY: 'auto', overflowX: 'hidden' }}
+        >
           <Markdown options={options}>{content}</Markdown>
         </div>
       </PopupDialog>

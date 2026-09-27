@@ -81,7 +81,9 @@ const PaletteRow = ({
     <ColorPicker
       color={palette}
       presetColors={presetColors}
-      onChange={color => { setColor(field, color); }}
+      onChange={color => {
+        setColor(field, color)
+      }}
     />
   </Box>
 )

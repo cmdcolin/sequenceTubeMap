@@ -83,9 +83,7 @@ class WorkerAPI {
     )
   }
 
-  async getFilenames(
-    cancelID: number | undefined,
-  ): Promise<FilenamesResponse> {
+  async getFilenames(cancelID: number | undefined): Promise<FilenamesResponse> {
     return await this.#withCancel(cancelID, signal =>
       this.#api.getFilenames(signal),
     )

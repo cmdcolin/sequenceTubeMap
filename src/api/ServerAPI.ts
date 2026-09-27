@@ -1,6 +1,17 @@
 import { fetchAndParse } from '../fetchAndParse.ts'
-import type { APIInterface, ChunkedDataResponse, FilenameSubscription } from './APIInterface.ts'
-import type { FileType, FilenamesResponse, PathInfo, RegionInfo, Track, ViewTarget } from '../Types.ts'
+import type {
+  APIInterface,
+  ChunkedDataResponse,
+  FilenameSubscription,
+} from './APIInterface.ts'
+import type {
+  FileType,
+  FilenamesResponse,
+  PathInfo,
+  RegionInfo,
+  Track,
+  ViewTarget,
+} from '../Types.ts'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
@@ -52,11 +63,20 @@ export class ServerAPI implements APIInterface {
     })
   }
 
-  async getChunkedData(viewTarget: ViewTarget, cancelSignal: AbortSignal | null): Promise<ChunkedDataResponse> {
-    return await this.postJSON<ChunkedDataResponse>('getChunkedData', viewTarget, cancelSignal)
+  async getChunkedData(
+    viewTarget: ViewTarget,
+    cancelSignal: AbortSignal | null,
+  ): Promise<ChunkedDataResponse> {
+    return await this.postJSON<ChunkedDataResponse>(
+      'getChunkedData',
+      viewTarget,
+      cancelSignal,
+    )
   }
 
-  async getFilenames(cancelSignal: AbortSignal | null): Promise<FilenamesResponse> {
+  async getFilenames(
+    cancelSignal: AbortSignal | null,
+  ): Promise<FilenamesResponse> {
     return await this.request<FilenamesResponse>('getFilenames', cancelSignal, {
       method: 'GET',
     })
@@ -179,16 +199,37 @@ export class ServerAPI implements APIInterface {
     })
   }
 
-  async getBedRegions(bedFile: string, cancelSignal: AbortSignal | null): Promise<{ bedRegions?: RegionInfo }> {
-    return await this.postJSON<{ bedRegions?: RegionInfo }>('getBedRegions', { bedFile }, cancelSignal)
+  async getBedRegions(
+    bedFile: string,
+    cancelSignal: AbortSignal | null,
+  ): Promise<{ bedRegions?: RegionInfo }> {
+    return await this.postJSON<{ bedRegions?: RegionInfo }>(
+      'getBedRegions',
+      { bedFile },
+      cancelSignal,
+    )
   }
 
-  async getPathNames(graphFile: string, cancelSignal: AbortSignal | null): Promise<{ pathNames: string[] }> {
-    return await this.postJSON<{ pathNames: string[] }>('getPathNames', { graphFile }, cancelSignal)
+  async getPathNames(
+    graphFile: string,
+    cancelSignal: AbortSignal | null,
+  ): Promise<{ pathNames: string[] }> {
+    return await this.postJSON<{ pathNames: string[] }>(
+      'getPathNames',
+      { graphFile },
+      cancelSignal,
+    )
   }
 
-  async getPathInfo(graphFile: string, cancelSignal: AbortSignal | null): Promise<{ pathInfo: PathInfo[] }> {
-    return await this.postJSON<{ pathInfo: PathInfo[] }>('getPathInfo', { graphFile }, cancelSignal)
+  async getPathInfo(
+    graphFile: string,
+    cancelSignal: AbortSignal | null,
+  ): Promise<{ pathInfo: PathInfo[] }> {
+    return await this.postJSON<{ pathInfo: PathInfo[] }>(
+      'getPathInfo',
+      { graphFile },
+      cancelSignal,
+    )
   }
 
   async getChunkTracks(
@@ -196,7 +237,11 @@ export class ServerAPI implements APIInterface {
     chunk: string,
     cancelSignal: AbortSignal | null,
   ): Promise<{ tracks?: Track[] }> {
-    return await this.postJSON<{ tracks?: Track[] }>('getChunkTracks', { bedFile, chunk }, cancelSignal)
+    return await this.postJSON<{ tracks?: Track[] }>(
+      'getChunkTracks',
+      { bedFile, chunk },
+      cancelSignal,
+    )
   }
 }
 

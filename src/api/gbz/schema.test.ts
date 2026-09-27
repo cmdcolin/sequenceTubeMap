@@ -30,9 +30,7 @@ describe('convertSchema subpath normalization', () => {
     const out = convertSchema({
       nodes,
       edges: [],
-      paths: [
-        { name: 'x', path: [{ id: 1, is_reverse: false }], weight: 3 },
-      ],
+      paths: [{ name: 'x', path: [{ id: 1, is_reverse: false }], weight: 3 }],
     })
     expect(out.path[0]!.freq).toBe(3)
     expect(out.path[0]).not.toHaveProperty('path')

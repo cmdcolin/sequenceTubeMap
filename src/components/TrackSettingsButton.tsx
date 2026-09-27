@@ -31,14 +31,18 @@ export const TrackSettingsButton = ({
   testID = 'settings-button-component',
 }: TrackSettingsButtonProps) => {
   const [open, setOpen] = useState(false)
-  const close = () => { setOpen(false); }
+  const close = () => {
+    setOpen(false)
+  }
   return (
     <>
       <Button
         variant="contained"
         size="small"
         aria-label="Track color settings"
-        onClick={() => { setOpen(!open); }}
+        onClick={() => {
+          setOpen(!open)
+        }}
       >
         <Icon icon={faGear} data-testid={testID} />
       </Button>

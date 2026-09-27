@@ -141,7 +141,9 @@ export function displayName({ sample, contig, haplotype }: PathName): string {
   if (sample === GENERIC_SAMPLE) {
     return contig
   }
-  return haplotype === 0 ? `${sample}#${contig}` : `${sample}#${haplotype}#${contig}`
+  return haplotype === 0
+    ? `${sample}#${contig}`
+    : `${sample}#${haplotype}#${contig}`
 }
 
 // Match the server-side filtering: skip internal `_…` paths and the
@@ -296,7 +298,12 @@ export class GBZBaseAPI implements APIInterface {
         const reader = response.body.getReader()
         const chunks: Uint8Array[] = []
         let received = 0
-        this.progressListener({ url: resolved, received: 0, total, done: false })
+        this.progressListener({
+          url: resolved,
+          received: 0,
+          total,
+          done: false,
+        })
         try {
           for (;;) {
             const { done, value } = await reader.read()
@@ -374,8 +381,7 @@ export class GBZBaseAPI implements APIInterface {
         } catch (e) {
           this.graphs.delete(key)
           if (e instanceof SchemaVersionError) {
-            const found =
-              e.found === undefined ? 'unreadable' : `"${e.found}"`
+            const found = e.found === undefined ? 'unreadable' : `"${e.found}"`
             throw new Error(
               `"${trackFile}" is a gbz-base database, but its schema version is ${found} and this app reads "${SCHEMA_VERSION}". Rebuild it with a gbz-base release that writes that version, or update this app to a reader that understands yours.`,
               { cause: e },

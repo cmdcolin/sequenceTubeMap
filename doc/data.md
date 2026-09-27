@@ -101,8 +101,8 @@ In the dialog click **Switch to in-browser →**, drop your files, and click
 **Load files**. A `.gbz.db` hosted on an HTTPS server with CORS and range
 support can instead be given as a track URL — it is read by range requests
 rather than downloaded, so a whole-pangenome graph works without pulling the
-whole file. The bundled **HPRC v2.1 whole genome** example is exactly that: 10 GB
-on HPRC's S3, browsed a window at a time.
+whole file. The bundled **HPRC v2.1 whole genome** example is exactly that: 10
+GB on HPRC's S3, browsed a window at a time.
 
 ---
 
@@ -148,15 +148,15 @@ release 2.1 does this heavily: 292 indexed paths under 219 distinct names.
 
 ## How wide a region will draw
 
-A tube map draws every haplotype through the window, and the cost of that is
-the number of nodes those haplotypes visit between them rather than the number
-of bases or nodes on their own: one node that 464 haplotypes walk is 464 ribbon
+A tube map draws every haplotype through the window, and the cost of that is the
+number of nodes those haplotypes visit between them rather than the number of
+bases or nodes on their own: one node that 464 haplotypes walk is 464 ribbon
 segments. On a pangenome graph it climbs fast, and superlinearly, because a
 wider window is also a window more haplotypes diverge in. Measured on HPRC
 release 2.1, which carries 464:
 
-| Region                                   | Nodes | Distinct walks | Node visits |
-| ---------------------------------------- | ----: | -------------: | ----------: |
+| Region                                     | Nodes | Distinct walks | Node visits |
+| ------------------------------------------ | ----: | -------------: | ----------: |
 | `GRCh38#chr6:160620000-160620500` (500 bp) |    57 |             23 |         874 |
 | `GRCh38#chr20:48000600-48001000` (400 bp)  |   104 |            240 |      14,518 |
 | `GRCh38#chr6:31500000-31502000` (2 kb)     |   129 |             25 |       2,146 |

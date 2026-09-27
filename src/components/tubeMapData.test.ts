@@ -35,8 +35,8 @@ describe.skipIf(!RUN_NETWORK)('the graph render cap, against HPRC v2.1', () => {
   }, 180000)
 
   it('refuses a 10 kb window, which is a 9 MB SVG', async () => {
-    expect(await nodeVisitsFor('GRCh38#chr6:31500000-31510000')).toBeGreaterThan(
-      GRAPH_RENDER_LIMIT,
-    )
+    expect(
+      await nodeVisitsFor('GRCh38#chr6:31500000-31510000'),
+    ).toBeGreaterThan(GRAPH_RENDER_LIMIT)
   }, 180000)
 })

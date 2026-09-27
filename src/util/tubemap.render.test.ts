@@ -373,9 +373,7 @@ describe('tubemap.getRenderedColoring', () => {
   it('reports what the drawing was colored with, groups and their names', () => {
     tubeMap.setColorSet(0, { mainPalette: 'greys', auxPalette: 'ygreys' })
     tubeMap.setColorSet(1, { mainPalette: 'blues', auxPalette: 'reds' })
-    tubeMap.setReadGroups([
-      { name: 'Carriers', color: 'reds', reads: ['r1'] },
-    ])
+    tubeMap.setReadGroups([{ name: 'Carriers', color: 'reds', reads: ['r1'] }])
     tubeMap.setOtherReadsColor('greys')
     tubeMap.setIgnoreStrandFlag(true)
 

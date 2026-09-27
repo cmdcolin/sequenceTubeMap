@@ -17,7 +17,9 @@ export const TrackAddButton = ({
       variant="contained"
       size="small"
       aria-label="Add track"
-      onClick={() => { onChange(); }}
+      onClick={() => {
+        onChange()
+      }}
       data-testid={testID}
       sx={{ ml: 3, mt: 1 }}
     >

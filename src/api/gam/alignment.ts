@@ -18,7 +18,13 @@ import {
   WIRE_VARINT,
 } from './protoDecode.ts'
 import { readSignedVarint32, readVarint32, readVarint64 } from './varint.ts'
-import type { VgEdit, VgMapping, VgPath, VgPosition, VgRead } from '../../util/tubemap.ts'
+import type {
+  VgEdit,
+  VgMapping,
+  VgPath,
+  VgPosition,
+  VgRead,
+} from '../../util/tubemap.ts'
 
 export function decodeAlignment(buf: Uint8Array): VgRead {
   let offset = 0

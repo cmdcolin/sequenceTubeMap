@@ -37,7 +37,9 @@ const NodeContextMenu = ({
           ? 'No reads through this node'
           : `Add ${count} read${s} through this node to read set`,
       disabled: count === 0,
-      onClick: () => { onAddReadsToSet(readNames); },
+      onClick: () => {
+        onAddReadsToSet(readNames)
+      },
     },
     ...(count > 0
       ? [
@@ -45,13 +47,17 @@ const NodeContextMenu = ({
             ? [
                 {
                   label: `Add ${count} read${s} to "${activeGroup.name}"`,
-                  onClick: () => { onAddReadsToActiveGroup(readNames); },
+                  onClick: () => {
+                    onAddReadsToActiveGroup(readNames)
+                  },
                 },
               ]
             : []),
           {
             label: `Add ${count} read${s} as new group`,
-            onClick: () => { onAddReadsAsNewGroup(readNames); },
+            onClick: () => {
+              onAddReadsAsNewGroup(readNames)
+            },
           },
         ]
       : []),
@@ -60,7 +66,9 @@ const NodeContextMenu = ({
         ? 'Already in node set'
         : 'Add this node to node set',
       disabled: alreadyInNodeSet,
-      onClick: () => { onAddNodeToNodeSet(nodeName); },
+      onClick: () => {
+        onAddNodeToNodeSet(nodeName)
+      },
     },
   ]
   return (

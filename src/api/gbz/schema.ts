@@ -79,24 +79,26 @@ export function convertSchema(inGraph: GbzGraph): ConvertedGraph {
   // `visits` and `weight` are the GBZ spellings of `mapping` and `freq`, so
   // they are destructured out rather than spread through: keeping them would
   // send every path twice across the worker's structured-clone boundary.
-  const path: VgPath[] = inGraph.paths.map(({ path: visits, weight, ...rest }) => {
-    const match = rest.name === undefined ? null : subpathRe.exec(rest.name)
-    return {
-      ...rest,
-      ...(match ? { name: match[1], indexOfFirstBase: match[2] } : {}),
-      ...(weight !== undefined ? { freq: weight } : {}),
-      mapping: visits.map(visit => {
-        const length = nodeLength.get(visit.id)
-        if (length === undefined) {
-          throw new Error(`Path visit references unknown node ${visit.id}`)
-        }
-        return {
-          position: { node_id: visit.id, is_reverse: visit.is_reverse },
-          edit: [{ from_length: length, to_length: length }],
-        }
-      }),
-    }
-  })
+  const path: VgPath[] = inGraph.paths.map(
+    ({ path: visits, weight, ...rest }) => {
+      const match = rest.name === undefined ? null : subpathRe.exec(rest.name)
+      return {
+        ...rest,
+        ...(match ? { name: match[1], indexOfFirstBase: match[2] } : {}),
+        ...(weight !== undefined ? { freq: weight } : {}),
+        mapping: visits.map(visit => {
+          const length = nodeLength.get(visit.id)
+          if (length === undefined) {
+            throw new Error(`Path visit references unknown node ${visit.id}`)
+          }
+          return {
+            position: { node_id: visit.id, is_reverse: visit.is_reverse },
+            edit: [{ from_length: length, to_length: length }],
+          }
+        }),
+      }
+    },
+  )
 
   return { node: inGraph.nodes, edge, path }
 }

@@ -9,7 +9,13 @@ import DialogActions from '@mui/material/DialogActions'
 import MuiButton from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 
-export function HelpIcon({ label, helpText }: { label: string; helpText: string }) {
+export function HelpIcon({
+  label,
+  helpText,
+}: {
+  label: string
+  helpText: string
+}) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -18,17 +24,36 @@ export function HelpIcon({ label, helpText }: { label: string; helpText: string 
         aria-label={`Help: ${label}`}
         title={`Help: ${label}`}
         sx={{ ml: 0.5, color: 'action.active' }}
-        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        onClick={e => {
+          e.stopPropagation()
+          setOpen(true)
+        }}
       >
         <Icon icon={faCircleInfo} size="xs" />
       </IconButton>
-      <Dialog open={open} onClose={() => { setOpen(false); }} maxWidth="xs" fullWidth onClick={(e) => { e.stopPropagation(); }}>
+      <Dialog
+        open={open}
+        onClose={() => {
+          setOpen(false)
+        }}
+        maxWidth="xs"
+        fullWidth
+        onClick={e => {
+          e.stopPropagation()
+        }}
+      >
         <DialogTitle>{label}</DialogTitle>
         <DialogContent>
           <Typography variant="body2">{helpText}</Typography>
         </DialogContent>
         <DialogActions>
-          <MuiButton onClick={() => { setOpen(false); }}>Close</MuiButton>
+          <MuiButton
+            onClick={() => {
+              setOpen(false)
+            }}
+          >
+            Close
+          </MuiButton>
         </DialogActions>
       </Dialog>
     </>

@@ -61,7 +61,9 @@ const shots = [
     query: `?name=${V21}&region=${KIV2}`,
     local: false,
     until: `document.querySelector('[data-testid="examplesMenuButton"]')`,
-    then: [`document.querySelector('[data-testid="examplesMenuButton"]').click()`],
+    then: [
+      `document.querySelector('[data-testid="examplesMenuButton"]').click()`,
+    ],
     element: '.MuiMenu-paper, .MuiPopover-paper',
     pad: 10,
     height: 1400,
@@ -88,7 +90,9 @@ if (!page) {
   throw new Error(`no page target at ${CDP} — is headless Chrome running?`)
 }
 const ws = new WebSocket(page.webSocketDebuggerUrl)
-await new Promise(resolve => { ws.onopen = resolve })
+await new Promise(resolve => {
+  ws.onopen = resolve
+})
 
 let nextId = 1
 const pending = new Map()
@@ -143,7 +147,15 @@ await send('Page.enable')
 await send('Runtime.enable')
 
 for (const shot of shots) {
-  const { out, query, until, element, pad = 10, height = 900, local = true } = shot
+  const {
+    out,
+    query,
+    until,
+    element,
+    pad = 10,
+    height = 900,
+    local = true,
+  } = shot
   await send('Emulation.setDeviceMetricsOverride', {
     width: 1700,
     height,
@@ -153,7 +165,9 @@ for (const shot of shots) {
   // `#local` is what keeps config-client from pointing the app at the express
   // backend in dev (see doc/development.md); the menu shot wants it pointed
   // there, and nothing else does.
-  await send('Page.navigate', { url: `${APP}/${query}${local ? '#local' : ''}` })
+  await send('Page.navigate', {
+    url: `${APP}/${query}${local ? '#local' : ''}`,
+  })
   await sleep(2000)
   await waitFor(until)
   for (const action of shot.then ?? []) {

@@ -25,7 +25,18 @@ describe('readVarint32', () => {
 
 describe('readVarint64', () => {
   it('decodes the maximum uint64', () => {
-    const max = bytes(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01)
+    const max = bytes(
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0x01,
+    )
     expect(readVarint64(max, 0)).toEqual({
       value: 2n ** 64n - 1n,
       offset: 10,
@@ -34,7 +45,17 @@ describe('readVarint64', () => {
 
   it('rejects an eleven byte varint', () => {
     const tooLong = bytes(
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      0x01,
     )
     expect(() => readVarint64(tooLong, 0)).toThrow(/too long/)
   })

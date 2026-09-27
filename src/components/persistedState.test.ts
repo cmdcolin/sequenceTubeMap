@@ -35,7 +35,9 @@ it('ignores unparseable JSON instead of throwing', () => {
 it('keeps null apart from a missing value', () => {
   writeStored('limit', null)
 
-  expect(readStored('limit', value => (value === null ? null : undefined))).toBeNull()
+  expect(
+    readStored('limit', value => (value === null ? null : undefined)),
+  ).toBeNull()
 })
 
 it('recognizes plain objects only', () => {

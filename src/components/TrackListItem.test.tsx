@@ -7,11 +7,7 @@ import {
 } from '@testing-library/react'
 import { TrackListItem } from './TrackListItem.tsx'
 import { selectMuiOption } from '../testUtils.ts'
-import type {
-  AvailableTrack,
-  ColorPaletteName,
-  ColorScheme,
-} from '../Types.ts'
+import type { AvailableTrack, ColorPaletteName, ColorScheme } from '../Types.ts'
 
 describe('TrackListItem', () => {
   const trackFile = undefined
@@ -41,7 +37,8 @@ describe('TrackListItem', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
     const { getByText, getByRole } = render(
-      <TrackListItem apiMode="server"
+      <TrackListItem
+        apiMode="server"
         trackProps={{
           trackFile,
           trackType,
@@ -66,7 +63,8 @@ describe('TrackListItem', () => {
     const fakeOnDelete = vi.fn()
 
     const { getByText, getByTestId, rerender } = render(
-      <TrackListItem apiMode="server"
+      <TrackListItem
+        apiMode="server"
         trackProps={{
           trackFile,
           trackType,
@@ -91,7 +89,8 @@ describe('TrackListItem', () => {
     expect(fakeOnChange).toHaveBeenCalledTimes(1)
 
     rerender(
-      <TrackListItem apiMode="server"
+      <TrackListItem
+        apiMode="server"
         trackProps={{
           trackFile,
           trackType: 'haplotype',
@@ -120,7 +119,8 @@ describe('TrackListItem', () => {
     })
 
     rerender(
-      <TrackListItem apiMode="server"
+      <TrackListItem
+        apiMode="server"
         trackProps={{
           trackFile: 'fileB1.gbwt',
           trackType: 'haplotype',
@@ -147,7 +147,8 @@ describe('TrackListItem', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()
     const { getByTestId } = render(
-      <TrackListItem apiMode="server"
+      <TrackListItem
+        apiMode="server"
         trackProps={{
           trackFile,
           trackType,

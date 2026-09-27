@@ -79,12 +79,16 @@ export const UploadPanel = ({
     const reasons: string[] = []
     const extRejected = arr.length - extOk.length
     if (extRejected > 0) {
-      reasons.push(`${extRejected} skipped — browser mode only accepts .gbz.db / .gam / .gai`)
+      reasons.push(
+        `${extRejected} skipped — browser mode only accepts .gbz.db / .gam / .gai`,
+      )
     }
     const sizeRejected = extOk.length - accepted.length
     if (sizeRejected > 0) {
       const mb = (config.MAXUPLOADSIZE / (1024 * 1024)).toFixed(0)
-      reasons.push(`${sizeRejected} skipped — file exceeds ${mb} MB server limit`)
+      reasons.push(
+        `${sizeRejected} skipped — file exceeds ${mb} MB server limit`,
+      )
     }
     setError(reasons.length > 0 ? reasons.join('; ') : null)
     setFiles(prev => [...prev, ...accepted.map(stageFile)])
@@ -159,13 +163,19 @@ export const UploadPanel = ({
       ) : null}
 
       <div
-        onDrop={e => { onDrop(e) }}
+        onDrop={e => {
+          onDrop(e)
+        }}
         onDragOver={e => {
           e.preventDefault()
           setDragging(true)
         }}
-        onDragLeave={() => { setDragging(false) }}
-        onClick={() => { inputRef.current?.click() }}
+        onDragLeave={() => {
+          setDragging(false)
+        }}
+        onClick={() => {
+          inputRef.current?.click()
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
@@ -185,7 +195,9 @@ export const UploadPanel = ({
           color: '#555',
         }}
       >
-        <div style={{ fontWeight: 500 }}>Drop files here or click to choose</div>
+        <div style={{ fontWeight: 500 }}>
+          Drop files here or click to choose
+        </div>
         <div style={{ fontSize: 11, marginTop: 4, color: '#888' }}>
           {isLocal
             ? 'Graph: .gbz.db   •   Reads: .sorted.gam + .sorted.gam.gai'
@@ -218,11 +230,19 @@ export const UploadPanel = ({
         <div style={{ color: '#c00', marginBottom: 8 }}>{error}</div>
       ) : null}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+        }}
+      >
         <Button
           variant="contained"
           size="small"
-          onClick={() => { void upload() }}
+          onClick={() => {
+            void upload()
+          }}
           disabled={
             files.length === 0 ||
             uploading ||
@@ -230,8 +250,12 @@ export const UploadPanel = ({
           }
         >
           {uploading
-            ? (isLocal ? 'Loading…' : 'Uploading…')
-            : (isLocal ? 'Load files' : 'Upload & use')}
+            ? isLocal
+              ? 'Loading…'
+              : 'Uploading…'
+            : isLocal
+              ? 'Load files'
+              : 'Upload & use'}
         </Button>
       </div>
     </div>

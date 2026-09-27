@@ -44,9 +44,13 @@ function copyExampleData() {
     async closeBundle() {
       const from = path.resolve(__dirname, 'exampleData')
       if (fs.existsSync(from)) {
-        await fs.promises.cp(from, path.resolve(__dirname, 'build', 'exampleData'), {
-          recursive: true,
-        })
+        await fs.promises.cp(
+          from,
+          path.resolve(__dirname, 'build', 'exampleData'),
+          {
+            recursive: true,
+          },
+        )
       }
     },
   }

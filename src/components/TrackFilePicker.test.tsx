@@ -22,7 +22,8 @@ describe('TrackFilePicker', () => {
   it('should render without errors', () => {
     const fakeOnChange = vi.fn()
     const { getByPlaceholderText } = render(
-      <TrackFilePicker apiMode="server"
+      <TrackFilePicker
+        apiMode="server"
         tracks={testTracks}
         fileType="graph"
         pickerType="mounted"
@@ -37,7 +38,8 @@ describe('TrackFilePicker', () => {
   it('should allow value to be controlled', () => {
     const fakeOnChange = vi.fn()
     const { getByDisplayValue, rerender } = render(
-      <TrackFilePicker apiMode="server"
+      <TrackFilePicker
+        apiMode="server"
         tracks={testTracks}
         fileType="graph"
         pickerType="mounted"
@@ -50,7 +52,8 @@ describe('TrackFilePicker', () => {
     expect(getByDisplayValue('fileA1.vg')).toBeTruthy()
 
     rerender(
-      <TrackFilePicker apiMode="server"
+      <TrackFilePicker
+        apiMode="server"
         tracks={testTracks}
         fileType="graph"
         pickerType="mounted"
@@ -66,7 +69,8 @@ describe('TrackFilePicker', () => {
   it('should call onChange when an option is selected', async () => {
     const fakeOnChange = vi.fn()
     const { getByTestId, findByRole } = render(
-      <TrackFilePicker apiMode="server"
+      <TrackFilePicker
+        apiMode="server"
         tracks={testTracks}
         fileType="haplotype"
         pickerType="mounted"
@@ -94,7 +98,8 @@ describe('TrackFilePicker', () => {
   it('should call onChange when queried by input value', async () => {
     const fakeOnChange = vi.fn()
     const { getByTestId, findByRole } = render(
-      <TrackFilePicker apiMode="server"
+      <TrackFilePicker
+        apiMode="server"
         tracks={testTracks}
         fileType="graph"
         pickerType="mounted"
@@ -118,7 +123,8 @@ describe('TrackFilePicker', () => {
     const fakeHandleFileUpload = vi.fn()
 
     const { getByTestId } = render(
-      <TrackFilePicker apiMode="server"
+      <TrackFilePicker
+        apiMode="server"
         tracks={testTracks}
         fileType="graph"
         pickerType="upload"
@@ -153,7 +159,9 @@ describe('TrackFilePicker', () => {
         handleFileUpload={() => Promise.resolve(undefined)}
       />,
     )
-    const accept = container.querySelector('input[type="file"]')?.getAttribute('accept')
+    const accept = container
+      .querySelector('input[type="file"]')
+      ?.getAttribute('accept')
     expect(accept).toContain('.gbz')
     expect(accept).toContain('.xg')
   })
@@ -169,7 +177,9 @@ describe('TrackFilePicker', () => {
         handleFileUpload={() => Promise.resolve(undefined)}
       />,
     )
-    const accept = container.querySelector('input[type="file"]')?.getAttribute('accept')
+    const accept = container
+      .querySelector('input[type="file"]')
+      ?.getAttribute('accept')
     expect(accept).toBe('.gbz.db,.db')
   })
 })

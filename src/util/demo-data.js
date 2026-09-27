@@ -41,7 +41,7 @@ export const inputTracks1 = [
   { id: 2, sourceTrackID: 0, name: 'Track C', sequence: ['A', 'B', 'D', 'E', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'Q', 'S', 'V', 'W', 'X', 'Z', 'AB', 'AE', 'AG'], freq: 300 },
   { id: 3, sourceTrackID: 0, name: 'Track D', sequence: ['B', 'C', 'D', 'E', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'U', 'W', 'Y', 'Z', 'AC', 'AF', 'AG'], freq: 4 },
   { id: 4, sourceTrackID: 0, name: 'Track E', sequence: ['B', 'D', 'F', 'G', 'I', 'J', 'L', 'M', 'O', 'P', 'Q', 'S', 'T', 'V', 'W', 'Y', 'Z', 'AD', 'AF', 'AG'], freq: 2 },
-];
+]
 
 // prettier-ignore
 export const inputTracks2 = [
@@ -50,7 +50,7 @@ export const inputTracks2 = [
   { id: 2, sourceTrackID: 0, name: 'Track C', sequence: ['A', 'B', 'D', 'F', '-H', '-G', '-E', 'J', 'K', 'M', 'N', 'P', 'Q', 'S', 'AB', 'V', 'W', 'X', '-AA', '-Z', 'AG'], freq: 30 },
   { id: 3, sourceTrackID: 0, name: 'Track D', sequence: ['B', 'C', 'D', 'E', 'G', 'H', 'J', 'L', '-P', '-N', '-M', 'R', 'S', 'U', 'W', 'Y', 'Z', 'AC', 'AF', 'AG'], freq: 10 },
   { id: 4, sourceTrackID: 0, name: 'Track E', sequence: ['B', 'D', 'F', '-J', '-I', '-G', 'L', 'M', 'O', 'P', 'Q', 'S', 'T', 'V', 'W', 'Y', 'Z', 'AD', 'AF', 'AG'], freq: 3 },
-];
+]
 
 // prettier-ignore
 export const inputTracks3 = [
@@ -59,7 +59,7 @@ export const inputTracks3 = [
   { id: 2, sourceTrackID: 0, name: 'Track C', sequence: ['A', 'B', 'D', '-H', 'G', '-E', 'J', 'K', 'M', 'N', 'P', 'Q', 'S', 'AB', 'V', 'W', 'X', '-AE', '-AA', '-Z', 'AG'] },
   { id: 3, sourceTrackID: 0, name: 'Track D', sequence: ['B', 'C', 'D', 'E', 'G', 'H', 'J', 'L', '-P', '-N', '-M', 'R', 'S', 'U', 'W', 'Y', 'Z', 'AC', 'AF', 'AG'] },
   { id: 4, sourceTrackID: 0, name: 'Track E', sequence: ['B', 'D', 'F', 'G', 'I', 'J', 'L', 'M', 'O', 'P', 'Q', 'S', 'T', 'V', 'W', 'Y', 'Z', 'AD', 'AF', 'AG'] },
-];
+]
 
 // prettier-ignore
 export const inputTracks4 = [
@@ -68,7 +68,7 @@ export const inputTracks4 = [
   { id: 2, sourceTrackID: 0, name: 'Track C', sequence: ['A', 'B', 'D', 'E', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'Q', 'S', 'V', 'W', 'X', 'Z', 'AB', 'AE', 'AG'] },
   { id: 3, sourceTrackID: 0, name: 'Track D', sequence: ['B', 'C', 'D', 'E', 'D', 'E', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'U', 'W', 'Y', 'Z', 'AC', 'AF', 'AG'] },
   { id: 4, sourceTrackID: 0, name: 'Track E', sequence: ['B', 'D', 'F', 'G', 'I', 'J', 'L', 'M', 'O', 'P', 'Q', 'S', 'T', 'V', 'W', 'Y', 'Z', 'AD', 'AF', 'AG'] },
-];
+]
 
 // prettier-ignore
 export const inputTracks5 = [
@@ -77,7 +77,7 @@ export const inputTracks5 = [
   { id: 2, sourceTrackID: 0, name: 'Track C', sequence: ['A', 'B', 'D', 'E', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'Q', 'S', 'V', 'W', 'X', 'Z', 'AB', 'AE', 'AG'] },
   { id: 3, sourceTrackID: 0, name: 'Track D', sequence: ['B', 'C', 'D', 'H', 'E', 'G', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'U', 'W', 'Y', 'Z', 'AC', 'AF', 'AG'] },
   { id: 4, sourceTrackID: 0, name: 'Track E', sequence: ['B', 'D', 'F', 'G', 'I', 'J', 'L', 'M', 'O', 'P', 'Q', 'S', 'T', 'V', 'W', 'Y', 'Z', 'AD', 'AF', 'AG'] },
-];
+]
 
 export const k3138 = `
 {"node": [{"sequence": "G", "id": 1},

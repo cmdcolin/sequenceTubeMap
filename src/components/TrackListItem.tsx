@@ -69,7 +69,7 @@ export const TrackListItem = ({
       <Box sx={{ width: 140 }} data-track-field="type">
         <TrackTypeDropdown
           value={trackProps.trackType}
-          onChange={(newType) => {
+          onChange={newType => {
             updateTrack({
               trackType: newType,
               trackFile: undefined,
@@ -83,7 +83,9 @@ export const TrackListItem = ({
       <Box sx={{ width: 140 }} data-track-field="source">
         <TrackTypeDropdown
           value={pickerType}
-          onChange={(v) => { setPickerType(v); }}
+          onChange={v => {
+            setPickerType(v)
+          }}
           testID={`picker-type-select-component${trackID}`}
           options={config.pickerTypeOptions}
         />
@@ -95,7 +97,9 @@ export const TrackListItem = ({
           value={trackProps.trackFile}
           pickerType={pickerType}
           apiMode={apiMode}
-          handleInputChange={(trackFile) => { updateTrack({ trackFile }); }}
+          handleInputChange={trackFile => {
+            updateTrack({ trackFile })
+          }}
           testID={`file-select-component${trackID}`}
           handleFileUpload={handleFileUpload}
         />
@@ -104,20 +108,23 @@ export const TrackListItem = ({
         <TrackSettingsButton
           fileType={trackProps.trackType}
           trackColorSettings={trackProps.trackColorSettings}
-          setTrackColorSetting={(key, value) =>
-            { updateTrack({
+          setTrackColorSetting={(key, value) => {
+            updateTrack({
               trackColorSettings: {
-                ...(trackProps.trackColorSettings ?? defaultTrackColors(trackProps.trackType)),
+                ...(trackProps.trackColorSettings ??
+                  defaultTrackColors(trackProps.trackType)),
                 [key]: value,
               },
-            }); }
-          }
+            })
+          }}
           availableColors={availableColors}
           label={trackProps.trackType}
           testID={`settings-button-component${trackID}`}
         />
         <TrackDeleteButton
-          onClick={() => { onDelete(trackID); }}
+          onClick={() => {
+            onDelete(trackID)
+          }}
           testID={`delete-button-component${trackID}`}
         />
       </Box>
