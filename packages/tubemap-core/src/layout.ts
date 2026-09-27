@@ -47,6 +47,8 @@ export interface LayoutOptions {
   // fixed: every node one width
   nodeWidthOption?: NodeWidthOption
   charWidth?: number
+  // a haplotype tube's width in layout px, where no `freq` scales it
+  trackWidth?: number
   mappingQualityCutoff?: number
   focusReadNames?: string[] | null
   bed?: BedRecord[] | null
@@ -86,6 +88,7 @@ interface LayoutConfig {
   ignoreStrand: boolean
   nodeWidthOption: NodeWidthOption
   charWidth: number
+  trackWidth: number
   mappingQualityCutoff: number
   focusReadNames: string[] | null
   showExonsFlag: boolean
@@ -112,6 +115,7 @@ function configFrom(options: LayoutOptions): LayoutConfig {
     ignoreStrand: options.ignoreStrand ?? false,
     nodeWidthOption: options.nodeWidthOption ?? 'normal',
     charWidth: options.charWidth ?? 8.401,
+    trackWidth: options.trackWidth ?? 15,
     mappingQualityCutoff: options.mappingQualityCutoff ?? 0,
     focusReadNames: options.focusReadNames ?? null,
     showExonsFlag: options.showExons ?? false,
@@ -2412,7 +2416,7 @@ function calculateTrackWidth(): void {
   let allAreFour = true
 
   const NARROW_WIDTH = 4
-  const WIDE_WIDTH = 15
+  const WIDE_WIDTH = config.trackWidth
 
   tracks.forEach(track => {
     if (track.freq !== undefined) {

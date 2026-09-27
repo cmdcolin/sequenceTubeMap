@@ -80,6 +80,13 @@ describe('layoutTubeMap', () => {
     expect(start.y).toBeGreaterThan(Math.max(...haplotypesThere))
   })
 
+  it('draws tubes as wide as asked', () => {
+    const layout = layoutTubeMap(nodes, tracks, [], { trackWidth: 6 })!
+    expect(layout.tracks.map(t => t.width)).toEqual([6, 6])
+    const heights = layout.shapes.rectangles.map(r => r.yEnd - r.yStart + 1)
+    expect(new Set(heights)).toEqual(new Set([6]))
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()

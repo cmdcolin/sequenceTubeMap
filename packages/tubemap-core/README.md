@@ -48,18 +48,19 @@ the same shape.
 
 ## Options
 
-| option                 | default     |                                                  |
-| ---------------------- | ----------- | ------------------------------------------------ |
-| `nodeWidthOption`      | `'normal'`  | `normal`, `compressed` (log2), `small`, `fixed`  |
-| `charWidth`            | `8.401`     | px per base under `normal`                       |
-| `mergeNodes`           | `true`      | merge runs of nodes every track passes through   |
-| `showReads`            | `true`      |                                                  |
-| `coarsenedReadView`    | `false`     | one band per edge, weighted by read count        |
-| `ignoreStrand`         | `false`     | coarsened bands merge both traversals of an edge |
-| `mappingQualityCutoff` | `0`         | drop reads below it                              |
-| `focusReadNames`       | `null`      | draw only these reads                            |
-| `trackColor`           | categorical | `(track, highlight) => color`                    |
-| `trackAlpha`           | `1`         | `(track) => alpha`                               |
+| option                 | default     |                                                   |
+| ---------------------- | ----------- | ------------------------------------------------- |
+| `nodeWidthOption`      | `'normal'`  | `normal`, `compressed` (log2), `small`, `fixed`   |
+| `charWidth`            | `8.401`     | px per base under `normal`                        |
+| `trackWidth`           | `15`        | a haplotype tube's width, unless `freq` scales it |
+| `mergeNodes`           | `true`      | merge runs of nodes every track passes through    |
+| `showReads`            | `true`      |                                                   |
+| `coarsenedReadView`    | `false`     | one band per edge, weighted by read count         |
+| `ignoreStrand`         | `false`     | coarsened bands merge both traversals of an edge  |
+| `mappingQualityCutoff` | `0`         | drop reads below it                               |
+| `focusReadNames`       | `null`      | draw only these reads                             |
+| `trackColor`           | categorical | `(track, highlight) => color`                     |
+| `trackAlpha`           | `1`         | `(track) => alpha`                                |
 
 ## Developing
 
