@@ -425,24 +425,18 @@ export function isForwardIndex(n: number): boolean {
 // Operates on the per-render `nodes`/`tracks` copies; inputs are left untouched.
 function straightenTrack(index: number): void {
   const nodesToInvert = new Set<string>()
-
-  // find out which nodes should be inverted
-  let currentSequence = tracks[index]!.sequence
-  for (let i = 0; i < currentSequence.length; i += 1) {
-    const cur = currentSequence[i]!
-    if (isReverse(cur)) {
-      const nodeName = forward(cur)
-      const firstForwardIndex = currentSequence.indexOf(nodeName)
-      if (firstForwardIndex === -1 || firstForwardIndex > i) {
-        // only if this inverted node is no repeat
-        nodesToInvert.add(nodeName)
-      }
+  const visitedForward = new Set<string>()
+  for (const visit of tracks[index]!.sequence) {
+    if (!isReverse(visit)) {
+      visitedForward.add(visit)
+    } else if (!visitedForward.has(forward(visit))) {
+      nodesToInvert.add(forward(visit))
     }
   }
 
   // invert nodes in the tracks' sequence
   for (const track of tracks) {
-    currentSequence = track.sequence
+    const currentSequence = track.sequence
     for (let j = 0; j < currentSequence.length; j += 1) {
       const cur = currentSequence[j]!
       if (!isReverse(cur)) {
