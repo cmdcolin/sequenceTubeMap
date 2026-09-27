@@ -5,22 +5,27 @@ How a region in the URL bar becomes a drawn tube map.
 ## The two backends
 
 Everything that fetches data goes through `APIInterface`
-(`src/api/APIInterface.ts`). There are two implementations, and `App` picks the
-live one once, at startup, from `config.BACKEND_URL`:
+(`src/api/APIInterface.ts`). There are two implementations:
 
-| `BACKEND_URL`                   | implementation | where the work happens          |
-| ------------------------------- | -------------- | ------------------------------- |
-| a string (`""` for same origin) | `ServerAPI`    | express + `vg chunk`, over HTTP |
-| literal `false`                 | `LocalAPI`     | the browser, in a worker        |
+| implementation | where the work happens          |
+| -------------- | ------------------------------- |
+| `LocalAPI`     | the browser, in a worker        |
+| `ServerAPI`    | express + `vg chunk`, over HTTP |
 
-`src/App.tsx` reads that once (`isLocalMode`) and constructs the interface. The
-app can also switch at runtime — the upload dialog builds a `ServerAPI` pointed
-at the vgteam's public backend — but nothing below `App` knows which
-implementation it holds. The page keeps one `LocalAPI`, so switching back to
-in-browser mode finds the same worker and the files uploaded to it.
+The page opens on `LocalAPI` and the first `.gbz.db` data source, unless a link
+names a view whose graph only a vg server reads and a self-hosted server is
+configured. `config.BACKEND_URL` says whether one is: a string (`""` for same
+origin) names it, and literal `false` means there is none. `src/App.tsx` reads
+it once (`hasSelfHostedServer`).
+
+File → Open switches backends at runtime, between the in-browser reader, a
+`ServerAPI` pointed at the vgteam's public backend, and the self-hosted server
+when there is one. Nothing below `App` knows which implementation it holds. The
+page keeps one `LocalAPI`, so switching back to in-browser mode finds the same
+worker and the files uploaded to it.
 
 In development `config-client.js` rewrites `false` to `""` so `pnpm start`
-reaches the local express backend through the Vite dev server's `/api` proxy;
+offers the local express backend through the Vite dev server's `/api` proxy;
 the `#local` hash opts out of that rewrite. Production gh-pages builds keep
 `false`.
 

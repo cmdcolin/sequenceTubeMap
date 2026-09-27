@@ -5,14 +5,13 @@ import config from './config.json' with { type: 'json' }
 const GLOBAL_NAME = '__sequence_tube_map_config'
 const GLOBAL_HOME = globalThis
 
-// In dev, talk to the express backend at the same origin, where the Vite dev
+// In dev, offer the express backend at the same origin, where the Vite dev
 // server proxies /api. Production builds keep whatever config.json says —
-// typically BACKEND_URL=false on gh-pages, which selects the in-browser
-// LocalAPI.
+// typically BACKEND_URL=false on gh-pages, which offers no self-hosted backend.
 //
-// Append `#local` to the dev URL to skip this override and run LocalAPI in dev
-// without the express backend; `pnpm start:local` starts Vite alone and opens
-// that URL. The flag lives in the hash so a view's query string never collides
+// Append `#local` to the dev URL to skip this override when the express
+// backend isn't running; `pnpm start:local` starts Vite alone and opens that
+// URL. The flag lives in the hash so a view's query string never collides
 // with it, and reads as one `&`-separated flag among the fragment's params, so
 // `#local&region=...` works alongside a fragment-encoded view.
 const forceLocal =

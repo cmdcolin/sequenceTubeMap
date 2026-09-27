@@ -35,10 +35,11 @@ To work on the browser-only path without a backend at all:
 pnpm start:local
 ```
 
-That launches the Vite dev server alone and opens `/#local`. In development
-`config-client.js` normally rewrites `BACKEND_URL: false` to `''` so the app
-talks to the express backend; the `#local` hash skips that rewrite, leaving
-`config.json`'s `false` in place, which selects `LocalAPI`.
+That launches the Vite dev server alone and opens `/#local`. Both commands
+open on the in-browser backend. In development `config-client.js` normally
+rewrites `BACKEND_URL: false` to `''` so File → Open offers the express backend
+too; the `#local` hash skips that rewrite, leaving `config.json`'s `false` in
+place, so the app never asks for a backend that isn't running.
 
 ## Checks
 
@@ -127,5 +128,5 @@ pnpm build       # production bundle into build/
 ```
 
 CI builds and publishes `build/` to the `gh-pages` branch automatically on every
-push to `master`. That build ships `BACKEND_URL: false`, which selects the
-in-browser backend. See [data.md](data.md#option-2--in-browser).
+push to `master`. That build ships `BACKEND_URL: false`, so it offers no
+self-hosted backend. See [data.md](data.md#option-2--in-browser).

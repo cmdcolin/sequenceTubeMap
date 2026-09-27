@@ -117,11 +117,11 @@ function normalizeViewTarget(target: ViewTarget): ViewTarget {
   }
 }
 
-// BACKEND_URL semantics: literal `false` selects the in-browser LocalAPI; any string
-// (possibly empty for same-origin via the dev-server proxy) means ServerAPI.
-const isLocalMode = config.BACKEND_URL === false
+// BACKEND_URL semantics: literal `false` means no self-hosted backend; any
+// string (possibly empty for same-origin via the dev-server proxy) names one.
+const hasSelfHostedServer = config.BACKEND_URL !== false
 
-const defaultApiUrl = isLocalMode ? '' : `${config.BACKEND_URL}/api/v0`
+const defaultApiUrl = hasSelfHostedServer ? `${config.BACKEND_URL}/api/v0` : ''
 
 const UPSTREAM_API_URL = 'https://api.tubemap.graphs.vg/api/v0'
 
@@ -137,12 +137,19 @@ const localDefaultViewTarget: ViewTarget = normalizeViewTarget(
 
 // Passing the configured sources lets `?name=<data source>` stand in for the
 // tracks, colors and BED that source already spells out.
-const defaultViewTarget: ViewTarget = normalizeViewTarget(
-  urlParamsToViewTarget(document.location, config.DATA_SOURCES) ??
-    (isLocalMode
-      ? localDefaultViewTarget
-      : (config.DATA_SOURCES[0] ?? EMPTY_VIEW_TARGET)),
+const urlViewTarget = urlParamsToViewTarget(
+  document.location,
+  config.DATA_SOURCES,
 )
+
+const defaultViewTarget: ViewTarget = urlViewTarget
+  ? normalizeViewTarget(urlViewTarget)
+  : localDefaultViewTarget
+
+// The in-browser reader opens the page unless a link names a view only the
+// self-hosted server can read.
+const startsInBrowser =
+  !hasSelfHostedServer || isLocalCompatibleDataSource(defaultViewTarget)
 
 // A vg server rejects .gbz.db graphs, so switching to one never falls back to
 // a view that only the in-browser reader can open.
@@ -189,7 +196,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     colorSchemes: getColorSchemesFromTracks(defaultViewTarget.tracks),
   }))
   const [apiInterface, setApiInterface] = useState<APIInterface>(
-    () => api ?? (isLocalMode ? sharedLocalAPI() : new ServerAPI(apiUrl)),
+    () => api ?? (startsInBrowser ? sharedLocalAPI() : new ServerAPI(apiUrl)),
   )
   // What the header form re-seeds from when the view changed from outside it
   // (Back/Forward, or a switch of backend). Identity is the signal, so one
@@ -361,7 +368,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         goForward={viewHistory.forward}
         APIInterface={apiInterface}
         onAPIMode={setAPIMode}
-        selfHostedServer={!isLocalMode}
+        selfHostedServer={hasSelfHostedServer}
         loading={isValidating}
         legendTracks={legendVisible ? legendTracks : undefined}
         onEscape={() => {

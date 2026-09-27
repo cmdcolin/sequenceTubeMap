@@ -64,8 +64,19 @@ async function setUp() {
       },
     },
   })
-  // Create the application.
   render(<App apiUrl={serverState.getApiUrl()} />)
+  // The page opens on the in-browser reader; these tests are about the server.
+  for (const testid of ['fileMenuButton', 'openCustomFiles', 'mode-server']) {
+    await act(async () => {
+      fireEvent.click(screen.getByTestId(testid))
+    })
+  }
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  })
+  await waitFor(() => {
+    expect(screen.queryByTestId('UploadPanel')).toBeNull()
+  })
 }
 
 // This needs to be called by global and per-scope afterEach
@@ -151,11 +162,6 @@ async function clickCopyLink() {
     await userEvent.click(copyButton)
   })
 }
-it('initially renders as loading', () => {
-  const loader = document.getElementById('loader')
-  expect(loader).toBeTruthy()
-})
-
 it('populates the available example dropdown', async () => {
   // Default region reflects the default data source (snp1kg-BRCA1)
   expect(getRegionInput().value).toContain('17:1-100')
