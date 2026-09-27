@@ -188,7 +188,12 @@ export interface VgJson {
 }
 
 type AnySelection = d3.Selection<Element, unknown, HTMLElement, unknown>
-type SvgGroupSelection = d3.Selection<SVGGElement, unknown, HTMLElement, unknown>
+type SvgGroupSelection = d3.Selection<
+  SVGGElement,
+  unknown,
+  HTMLElement,
+  unknown
+>
 
 // Font stack we will use in the SVG
 // We start with Courier New because it exists a lot more places than
@@ -299,7 +304,6 @@ export function releaseDomBindings(): void {
   highlightedTrack = null
 }
 
-
 // The tracks array of the most recent create() call. Reference equality with
 // it and inputNodes tells a redraw of the same dataset, which keeps the user's
 // pan/zoom, hidden tracks and track order, from a new one.
@@ -329,13 +333,11 @@ export function create(params: CreateParams): void {
   createTubeMap(sameDataset)
 }
 
-
 // The next layout straightens against the new first track
 function moveTrackToFirstPosition(index: number): void {
   inputTracks.unshift(inputTracks[index]!) // add element to beginning
   inputTracks.splice(index + 1, 1) // remove 1 element from the middle
 }
-
 
 export function changeTrackVisibility(trackID: number): void {
   const track = inputTracks.find(t => t.id === trackID)
@@ -376,7 +378,9 @@ export function getTrackVisibilitySnapshot(): TrackVisibilityItem[] {
 
 export function subscribeTrackVisibility(cb: () => void): () => void {
   visibilitySubscribers.add(cb)
-  return () => { visibilitySubscribers.delete(cb) }
+  return () => {
+    visibilitySubscribers.delete(cb)
+  }
 }
 
 function emitTrackVisibility(): void {
@@ -442,7 +446,10 @@ export function setAlphaReadsByMappingQualityFlag(value: boolean): void {
   config.alphaReadsByMappingQuality = value
 }
 
-export function setColorSet(fileID: number | string, newColor: ColorScheme): void {
+export function setColorSet(
+  fileID: number | string,
+  newColor: ColorScheme,
+): void {
   config.colorSchemes[Number(fileID)] = newColor
 }
 
@@ -725,10 +732,13 @@ function minZoom(): number {
   // getImageDimensions leaves the min/max sentinels crossed when no node got
   // coordinates, which would otherwise produce a negative scale factor.
   if (parentElement && contentWidth > 0 && contentHeight > 0) {
-    return MIN_ZOOM_PADDING * Math.min(
-      1,
-      parentElement.clientWidth / contentWidth,
-      parentElement.clientHeight / contentHeight,
+    return (
+      MIN_ZOOM_PADDING *
+      Math.min(
+        1,
+        parentElement.clientWidth / contentWidth,
+        parentElement.clientHeight / contentHeight,
+      )
     )
   }
   return 1
@@ -773,8 +783,7 @@ function alignSVG(preserveViewport: boolean): () => void {
   // centred initial transform) from a re-draw (should preserve the user's
   // pan/zoom across a re-create that was triggered by, e.g., a visOptions
   // change or a spurious parent re-render).
-  const previousTransform = (svgElement as { __zoom?: d3.ZoomTransform })
-    .__zoom
+  const previousTransform = (svgElement as { __zoom?: d3.ZoomTransform }).__zoom
 
   // rAF-coalesce zoom events so a burst of wheel/pointer ticks only triggers
   // one transform write (and one browser repaint) per frame instead of one per
@@ -790,10 +799,12 @@ function alignSVG(preserveViewport: boolean): () => void {
       // Counter-scale node labels so they stay at constant visual size when zoomed out
       // Cap counter-scale so labels don't grow unboundedly when zoomed far out
       const labelScale = Math.min(1 / pendingK, 4)
-      drawing.selectAll<SVGGElement, Node>('.node-label-group').attr('transform', d => {
-        const { cx, cy } = nodeLabelAnchor(d)
-        return `translate(${cx},${cy}) scale(${labelScale})`
-      })
+      drawing
+        .selectAll<SVGGElement, Node>('.node-label-group')
+        .attr('transform', d => {
+          const { cx, cy } = nodeLabelAnchor(d)
+          return `translate(${cx},${cy}) scale(${labelScale})`
+        })
       // Hide per-base detail (mismatches, sequence text) when the zoom is too
       // far out for the glyphs to be readable. Only touch the styles when
       // crossing the threshold so we're not writing attrs every frame. This is
@@ -803,8 +814,12 @@ function alignSVG(preserveViewport: boolean): () => void {
       if (shouldHide !== detailHidden) {
         detailHidden = shouldHide
         const display = shouldHide ? 'none' : ''
-        drawing.select<SVGGElement>('g.mismatches-layer').style('display', display)
-        drawing.select<SVGGElement>('g.sequence-labels-layer').style('display', display)
+        drawing
+          .select<SVGGElement>('g.mismatches-layer')
+          .style('display', display)
+        drawing
+          .select<SVGGElement>('g.sequence-labels-layer')
+          .style('display', display)
         debugLog(
           `detail layers ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
         )
@@ -820,7 +835,9 @@ function alignSVG(preserveViewport: boolean): () => void {
   let gestureMoved = false
   function zoomed(event: d3.D3ZoomEvent<Element, unknown>): void {
     const { x, y, k } = event.transform
-    debugLog(`[zoom] zoomed k=${k.toFixed(3)} tx=${x.toFixed(1)} ty=${y.toFixed(1)}`)
+    debugLog(
+      `[zoom] zoomed k=${k.toFixed(3)} tx=${x.toFixed(1)} ty=${y.toFixed(1)}`,
+    )
     pendingTransform = String(event.transform)
     pendingK = k
     if (!gestureMoved) {
@@ -835,7 +852,9 @@ function alignSVG(preserveViewport: boolean): () => void {
   }
 
   zoom = d3.zoom()
-  zoom.on('start', () => { gestureMoved = false })
+  zoom.on('start', () => {
+    gestureMoved = false
+  })
   zoom.on('zoom', zoomed)
   zoom.on('end', () => {
     // Make sure the final transform is applied before re-enabling hit-testing,
@@ -859,7 +878,10 @@ function alignSVG(preserveViewport: boolean): () => void {
     const minScaleFactor = minZoom()
     debugLog('[zoom] configureZoomBounds:', {
       viewport: { w: parentElement.clientWidth, h: parentElement.clientHeight },
-      content: { x: [imageBounds.minX, imageBounds.maxX], y: [imageBounds.minY, imageBounds.maxY] },
+      content: {
+        x: [imageBounds.minX, imageBounds.maxX],
+        y: [imageBounds.minY, imageBounds.maxY],
+      },
       minScaleFactor,
     })
 
@@ -880,7 +902,13 @@ function alignSVG(preserveViewport: boolean): () => void {
       .scaleExtent([minScaleFactor, MAX_ZOOM])
       .translateExtent([
         [imageBounds.minX, imageBounds.minY - RAIL_SPACE],
-        [imageBounds.maxX, Math.max(imageBounds.maxY, parentElement.clientHeight / minScaleFactor)],
+        [
+          imageBounds.maxX,
+          Math.max(
+            imageBounds.maxY,
+            parentElement.clientHeight / minScaleFactor,
+          ),
+        ],
       ])
   }
 
@@ -1147,7 +1175,10 @@ export function coverage(
     if (currRead?.sequenceNew) {
       const numNodes = currRead.sequenceNew.length
       //  if current node is the last node on the read path, add the finalNodeCoverLength number of bases
-      if (numNodes === readPathIndex + 1 && currRead.finalNodeCoverLength !== undefined) {
+      if (
+        numNodes === readPathIndex + 1 &&
+        currRead.finalNodeCoverLength !== undefined
+      ) {
         countBases += currRead.finalNodeCoverLength
         // otherwise add the node's sequence length (width of node in bases)
       } else {
@@ -1159,7 +1190,10 @@ export function coverage(
   for (const readVisit of node.internalReads) {
     const currRead = allReads[readVisit]
     countBases += subtractDeletions(currRead)
-    if (currRead?.finalNodeCoverLength !== undefined && currRead.firstNodeOffset !== undefined) {
+    if (
+      currRead?.finalNodeCoverLength !== undefined &&
+      currRead.firstNodeOffset !== undefined
+    ) {
       countBases += currRead.finalNodeCoverLength - currRead.firstNodeOffset
     }
   }
@@ -1206,7 +1240,7 @@ const NODE_LABEL_Y_OFFSET = 14
 // Shared anchor for a node's label: horizontally centred over the node, with
 // a fixed gap above it. Used by drawNodeLabels (initial placement) and by the
 // zoom flush (re-applied with a counter-scale on every transform).
-function nodeLabelAnchor(d: Node): { cx: number, cy: number } {
+function nodeLabelAnchor(d: Node): { cx: number; cy: number } {
   return { cx: d.x + d.pixelWidth / 2, cy: d.y - NODE_LABEL_Y_OFFSET }
 }
 
@@ -1265,14 +1299,14 @@ function drawNodeLabels(dNodes: Node[]): void {
     const textEl = d3.select(this).select<SVGTextElement>('text').node()
     if (!textEl) return
     const { x, y, width, height } = labelTextBox(textEl, d.name)
-    d3.select(this).select('rect')
+    d3.select(this)
+      .select('rect')
       .attr('x', x - NODE_LABEL_PADDING)
       .attr('y', y - NODE_LABEL_PADDING)
       .attr('width', width + NODE_LABEL_PADDING * 2)
       .attr('height', height + NODE_LABEL_PADDING * 2)
   })
 }
-
 
 // If nodes are spaced closely together (based on the threshold value) then those nodes would be grouped together
 //  in a larger interval. If the nodes are spaced further apart (based on the threshold) then those nodes would form a
@@ -1360,13 +1394,14 @@ function drawRuler(): void {
     if (config.nodeWidthOption !== 'normal' && !is_region) {
       // Actually always mark at an edge of the node, if we are scaling the node nonlinearly
       // and if we are not highlighting the input region
-      offsetIntoNodeForward = currentNodeIsReverse
-        ? nodeSeqLen - 1
-        : 0
+      offsetIntoNodeForward = currentNodeIsReverse ? nodeSeqLen - 1 : 0
     }
 
     // Where should we mark in the visualization?
-    return clampedXCoordinateOfBaseWithinNode(currentNode, offsetIntoNodeForward)
+    return clampedXCoordinateOfBaseWithinNode(
+      currentNode,
+      offsetIntoNodeForward,
+    )
   }
 
   // Get the region in bp in the scale bar's coordinate space to highlight as
@@ -1429,10 +1464,7 @@ function drawRuler(): void {
       ticks_region.push([end_region, xCoordEnd])
     }
 
-    while (
-      nextUnmarkedIndex <
-      indexOfFirstBaseInNode + nodeSeqLen
-    ) {
+    while (nextUnmarkedIndex < indexOfFirstBaseInNode + nodeSeqLen) {
       // We are thinking of marking a position on this node.
 
       // Where should we mark in the visualization?
@@ -1470,7 +1502,8 @@ function drawRuler(): void {
   ticks.forEach(tick => {
     if (
       separatedTicks.length === 0 ||
-      tick[1] - separatedTicks[separatedTicks.length - 1]![1] >= markingClearance
+      tick[1] - separatedTicks[separatedTicks.length - 1]![1] >=
+        markingClearance
     ) {
       // Take only the first tick or ticks far enough from the previous tick taken.
       separatedTicks.push(tick)
@@ -1570,7 +1603,9 @@ function drawRulerMarking(
 /// 2 items, no connecting line is drawn.
 function drawRulerMarkingRegion(ticks_region: [number, number][]): void {
   // Each tick is a base coordinate and an image coordinate
-  ticks_region.forEach(tick => { drawRulerMarkingEndpoint(tick[1]); })
+  ticks_region.forEach(tick => {
+    drawRulerMarkingEndpoint(tick[1])
+  })
 
   const lineY = imageBounds.minY - NODE_MARGIN - 6
 
@@ -1652,9 +1687,7 @@ function drawTrackRectangles(
   groupTrack: SvgGroupSelection,
 ): void {
   appendTrackRectangles(
-    rectangles
-      .filter(rect => rect.type === type)
-      .map(insetBandRectangle),
+    rectangles.filter(rect => rect.type === type).map(insetBandRectangle),
     groupTrack,
   )
 }
@@ -1701,7 +1734,13 @@ function defineHoverPattern(): void {
   })
   pattern
     .append('rect')
-    .call(applyAttrs, { x: 0, y: 0, width: tile, height: tile, fill: '#FFFFFF' })
+    .call(applyAttrs, {
+      x: 0,
+      y: 0,
+      width: tile,
+      height: tile,
+      fill: '#FFFFFF',
+    })
   for (const y of [0, gap]) {
     for (const x of [0, gap]) {
       pattern
@@ -1806,12 +1845,14 @@ function positionHoverTooltip(event: MouseEvent): void {
   const pad = 12
   const { innerWidth, innerHeight } = window
   const rect = el.getBoundingClientRect()
-  const x = event.clientX + pad + rect.width > innerWidth
-    ? event.clientX - pad - rect.width
-    : event.clientX + pad
-  const y = event.clientY + pad + rect.height > innerHeight
-    ? event.clientY - pad - rect.height
-    : event.clientY + pad
+  const x =
+    event.clientX + pad + rect.width > innerWidth
+      ? event.clientX - pad - rect.width
+      : event.clientX + pad
+  const y =
+    event.clientY + pad + rect.height > innerHeight
+      ? event.clientY - pad - rect.height
+      : event.clientY + pad
   el.style.left = `${Math.max(0, x)}px`
   el.style.top = `${Math.max(0, y)}px`
 }
@@ -1819,7 +1860,12 @@ function positionHoverTooltip(event: MouseEvent): void {
 // The elements making up the track currently under the cursor, remembered so
 // mouseout can restore them without re-running the class selector over an SVG
 // that may hold hundreds of thousands of elements.
-let highlightedTrack: d3.Selection<d3.BaseType, unknown, HTMLElement, unknown> | null = null
+let highlightedTrack: d3.Selection<
+  d3.BaseType,
+  unknown,
+  HTMLElement,
+  unknown
+> | null = null
 
 function clearTrackHighlight(): void {
   highlightedTrack?.each(function restoreFill() {
@@ -1929,7 +1975,9 @@ function trackSingleClick(this: SVGElement): void {
 // drawn as a read but names an edge.
 function trackRightClick(this: SVGElement, event: MouseEvent): void {
   const trackID = Number(d3.select(this).attr('trackID'))
-  const current_track = isCoarsenedId(trackID) ? undefined : getTrackByID(trackID)
+  const current_track = isCoarsenedId(trackID)
+    ? undefined
+    : getTrackByID(trackID)
   if (current_track?.type === 'read') {
     event.preventDefault()
     config.readContextMenuCallback({
@@ -1976,7 +2024,6 @@ export function vgExtractNodes(
   return result
 }
 
-
 export interface ExtractedVgTrack {
   id: number
   sequence: string[]
@@ -2017,10 +2064,9 @@ export function vgExtractTracks(
       sequence,
       isCompletelyReverse,
       // But haplotypes will have names starting with "thread_".
-      sourceTrackID:
-        path.name?.startsWith('thread_')
-          ? haplotypeSourceTrackID
-          : pathSourceTrackId,
+      sourceTrackID: path.name?.startsWith('thread_')
+        ? haplotypeSourceTrackID
+        : pathSourceTrackId,
     }
     // Even non-haplotype paths will be assigned a "freq" field by vg. See
     // <https://github.com/vgteam/vg/blob/6b34cd50e851eb9a91be3a605e040c9be1d4b78e/src/haplotype_extracter.cpp#L52-L55>.
@@ -2090,10 +2136,7 @@ function append_cigar_operation(
   const last_operation = cigar[cigar.length - 1]
   const last_length = cigar[cigar.length - 2]
   // if duplicate operations, add the two operations and replace the most recent operation with this
-  if (
-    last_operation === operator &&
-    typeof last_length === 'number'
-  ) {
+  if (last_operation === operator && typeof last_length === 'number') {
     cigar[cigar.length - 2] = last_length + length
   } else {
     cigar.push(length)
@@ -2262,7 +2305,6 @@ export function vgExtractReads(
   return extracted
 }
 
-
 // Below this zoom scale, a 12px mismatch glyph is <~6px on screen — unreadable
 // noise. The zoom flush handler toggles the layer's `display` so the browser
 // skips paint and hit-test for mismatches when the user is zoomed out far
@@ -2331,7 +2373,14 @@ function drawMismatches(): void {
                   mm.pos + mm.seq.length,
                 )
                 if (x2 !== null) {
-                  drawSubstitution(layer, x + 1, x2, y + READ_WIDTH, node.y, mm.seq)
+                  drawSubstitution(
+                    layer,
+                    x + 1,
+                    x2,
+                    y + READ_WIDTH,
+                    node.y,
+                    mm.seq,
+                  )
                 }
               }
             }
@@ -2466,4 +2515,3 @@ function substitutionMouseOut(this: SVGElement): void {
   d3.select(this).attr('fill', 'black')
   d3.selectAll('.substitutionHighlight').remove()
 }
-
