@@ -41,7 +41,6 @@ import https from 'https'
 import net from 'net'
 import sanitize from 'sanitize-filename'
 import { createHash, randomUUID } from 'node:crypto'
-import { RWLock } from 'readers-writer-lock'
 
 /// Return the python script chunkix.py
 /// Checks config.chunkixPath.
@@ -110,16 +109,6 @@ const fileTypes = {
   READ: 'read',
   BED: 'bed',
   TRANSLATION: 'translation',
-}
-
-const lockMap = new Map()
-
-// Requests that read or add files in the upload and download directories
-// share a READ_LOCK on them; the expired-file sweep takes the WRITE_LOCK to
-// delete from them.
-const lockTypes = {
-  READ_LOCK: 'read_lock',
-  WRITE_LOCK: 'write_lock',
 }
 
 // The ETag of each URL's copy on disk, so an unchanged file isn't downloaded
@@ -210,67 +199,43 @@ function deleteExpiredFiles(directoryPath) {
   })
 }
 
-// takes in an async function, locks the directory for the duration of the function
-async function lockDirectory(directoryPath, lockType, func) {
-  console.log('Acquiring', lockType, 'for', directoryPath)
-  // look into lockMap to see if there is a lock assigned to the directory
-  let lock = lockMap.get(directoryPath)
-  // if there are no locks, create a new lock and store it in the lock dictionary
-  if (!lock) {
-    lock = new RWLock()
+// How many requests are using files in the download and upload directories.
+// The expired-file sweep waits for there to be none; a lock would instead
+// hold every new request up behind a sweep waiting on a slow one.
+let dataDirectoryUsers = 0
 
-    lockMap.set(directoryPath, lock)
-  }
-
-  if (lockType == lockTypes.READ_LOCK) {
-    // lock is released when func returns
-    return lock.read(func)
-  } else if (lockType == lockTypes.WRITE_LOCK) {
-    return lock.write(func)
-  } else {
-    console.log('Not a valid lock type:', lockType)
-    return 1
+// Wrap a route handler to count as using the data directories until it
+// settles, which is after every subprocess it started has exited.
+function withDataDirectoriesInUse(handler) {
+  return async (req, res, next) => {
+    dataDirectoryUsers += 1
+    try {
+      return await handler(req, res, next)
+    } finally {
+      dataDirectoryUsers -= 1
+    }
   }
 }
 
-// expects an array of directory paths, attempting to acquire all directory locks
-// all uses of this function requires the array of directoryPaths to be in the same order
-// e.g locking [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH] should always lock DOWNLOAD_DATA_PATH first to prevent deadlock
-async function lockDirectories(directoryPaths, lockType, func) {
-  // input is unexpected
-  if (!directoryPaths || directoryPaths.length === 0) {
+const SWEEP_INTERVAL_MS = 60 * 60 * 1000
+let lastSweep = Date.now()
+
+// About hourly, at a moment no request is using them, delete the files in
+// the download and upload directories unread for fileExpirationTime.
+// deleteExpiredFiles is synchronous, so no request starts partway through.
+const expiredFileCleanupTask = setInterval(() => {
+  if (dataDirectoryUsers > 0 || Date.now() - lastSweep < SWEEP_INTERVAL_MS) {
     return
   }
-
-  // last lock to acquire, ready to proceed
-  if (directoryPaths.length === 1) {
-    return lockDirectory(directoryPaths[0], lockType, func)
-  }
-
-  // attempt to acquire a lock for the next directory, and call lockDirectories on the remaining directories
-  const [currDirectory, ...remainingPaths] = directoryPaths
-  return lockDirectory(currDirectory, lockType, async function () {
-    return lockDirectories(remainingPaths, lockType, func)
-  })
-}
-
-// deletes any files in the download directory past the set fileExpirationTime set in config
-const expiredFileCleanupTask = setInterval(
-  async () => {
-    console.log('scheduled expired file check')
-    // attempt to acquire a write lock for each on the directory before attempting to delete files
-    for (const dir of [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH]) {
-      try {
-        await lockDirectory(dir, lockTypes.WRITE_LOCK, async function () {
-          deleteExpiredFiles(dir)
-        })
-      } catch (e) {
-        console.error('Error checking for expired files in ' + dir + ':', e)
-      }
+  lastSweep = Date.now()
+  for (const dir of [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH]) {
+    try {
+      deleteExpiredFiles(dir)
+    } catch (e) {
+      console.error('Error checking for expired files in ' + dir + ':', e)
     }
-  },
-  60 * 60 * 1000,
-)
+  }
+}, 60 * 1000)
 
 const app = express()
 
@@ -306,8 +271,8 @@ api.post(
   async (req, res) => {
     console.log('/trackFileSubmission')
     console.log(req.file)
-    // We don't get a lock because we're putting new files in and so we don't
-    // need to block using them or cleaning old files.
+    // The expired-file sweep only deletes files unread for a day, and these
+    // are new, so this doesn't count as using the data directories.
 
     if (req.file === undefined) {
       throw new BadRequestError('No trackFile was uploaded with the request')
@@ -486,19 +451,7 @@ async function parseGFATranslation(filePath) {
   return nameMap
 }
 
-// Wrap a route handler to hold a READ_LOCK on the download and upload
-// directories until it settles, which is after every subprocess it started
-// has exited.
-function withDataDirectoriesLocked(handler) {
-  return (req, res, next) =>
-    lockDirectories(
-      [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH],
-      lockTypes.READ_LOCK,
-      () => handler(req, res, next),
-    )
-}
-
-api.post('/getChunkedData', withDataDirectoriesLocked(getChunkedData))
+api.post('/getChunkedData', withDataDirectoriesInUse(getChunkedData))
 
 /*
 graph = {
@@ -1600,86 +1553,89 @@ function runVgLines(args, onLine, signal) {
   return runProcessLines(find_vg(), args, onLine, signal)
 }
 
-api.post('/getPathInfo', async (req, res, next) => {
-  console.log('received request for pathInfo')
-  const graphFile = req.body.graphFile
+api.post(
+  '/getPathInfo',
+  withDataDirectoriesInUse(async (req, res, next) => {
+    console.log('received request for pathInfo')
+    const graphFile = req.body.graphFile
 
-  if (!isAllowedPath(graphFile)) {
-    throw new BadRequestError(
-      'Path to Graph file not allowed: ' + req.body.graphFile,
-    )
-  }
-  if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
-    throw new BadRequestError(
-      'Path to Graph file does not end in valid extension: ' +
-        req.body.graphFile,
-    )
-  }
-
-  const signal = requestSignal(res)
-  try {
-    if (graphFile.endsWith('.pos.bed.gz')) {
-      // pgtabix mode: names only, lengths/cyclicity not available
-      const names = []
-      await runProcessLines(
-        'tabix',
-        ['-l', graphFile],
-        line => {
-          names.push(line)
-        },
-        signal,
+    if (!isAllowedPath(graphFile)) {
+      throw new BadRequestError(
+        'Path to Graph file not allowed: ' + req.body.graphFile,
       )
-      const pathInfo = names
-        .filter(a => a !== '' && !a.startsWith('_'))
-        .sort()
-        .map(name => ({ name, length: null, cyclic: false }))
-      res.json({ pathInfo })
-      return
+    }
+    if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
+      throw new BadRequestError(
+        'Path to Graph file does not end in valid extension: ' +
+          req.body.graphFile,
+      )
     }
 
-    const lengthLines = []
-    const cyclicNames = new Set()
-    await Promise.all([
-      runVgLines(
-        ['paths', '-E', '-x', graphFile],
-        line => {
-          lengthLines.push(line)
-        },
-        signal,
-      ),
-      // vg paths -C outputs: name\tdirected-(a)cyclic\tundirected-(a)cyclic
-      runVgLines(
-        ['paths', '-C', '-x', graphFile],
-        line => {
-          if (line && !line.startsWith('_')) {
-            const [name, directed, undirected] = line.split('\t')
-            if (
-              directed === 'directed-cyclic' ||
-              undirected === 'undirected-cyclic'
-            ) {
-              cyclicNames.add(name)
+    const signal = requestSignal(res)
+    try {
+      if (graphFile.endsWith('.pos.bed.gz')) {
+        // pgtabix mode: names only, lengths/cyclicity not available
+        const names = []
+        await runProcessLines(
+          'tabix',
+          ['-l', graphFile],
+          line => {
+            names.push(line)
+          },
+          signal,
+        )
+        const pathInfo = names
+          .filter(a => a !== '' && !a.startsWith('_'))
+          .sort()
+          .map(name => ({ name, length: null, cyclic: false }))
+        res.json({ pathInfo })
+        return
+      }
+
+      const lengthLines = []
+      const cyclicNames = new Set()
+      await Promise.all([
+        runVgLines(
+          ['paths', '-E', '-x', graphFile],
+          line => {
+            lengthLines.push(line)
+          },
+          signal,
+        ),
+        // vg paths -C outputs: name\tdirected-(a)cyclic\tundirected-(a)cyclic
+        runVgLines(
+          ['paths', '-C', '-x', graphFile],
+          line => {
+            if (line && !line.startsWith('_')) {
+              const [name, directed, undirected] = line.split('\t')
+              if (
+                directed === 'directed-cyclic' ||
+                undirected === 'undirected-cyclic'
+              ) {
+                cyclicNames.add(name)
+              }
             }
+          },
+          signal,
+        ),
+      ])
+      const pathInfo = lengthLines
+        .filter(line => line !== '' && !line.startsWith('_'))
+        .map(line => {
+          const [name, lengthStr] = line.split('\t')
+          return {
+            name,
+            length: Number(lengthStr),
+            cyclic: cyclicNames.has(name),
           }
-        },
-        signal,
-      ),
-    ])
-    const pathInfo = lengthLines
-      .filter(line => line !== '' && !line.startsWith('_'))
-      .map(line => {
-        const [name, lengthStr] = line.split('\t')
-        return {
-          name,
-          length: Number(lengthStr),
-          cyclic: cyclicNames.has(name),
-        }
-      })
-      .sort((a, b) => a.name.localeCompare(b.name))
-    res.json({ pathInfo })
-  } catch (err) {
-    next(err)
-  }
-})
+        })
+        .sort((a, b) => a.name.localeCompare(b.name))
+      res.json({ pathInfo })
+    } catch (err) {
+      next(err)
+    }
+  }),
+)
 
 // Given a string, return a filename-safe string that is a hash of that string.
 // The hash is collision-resistant.
@@ -2053,7 +2009,7 @@ async function getChunkTracks(bedFile, chunk, signal) {
 // Returns tracks retrieved from getChunkTracks
 api.post(
   '/getChunkTracks',
-  withDataDirectoriesLocked(async (req, res) => {
+  withDataDirectoriesInUse(async (req, res) => {
     console.log('received request for chunk tracks')
     if (!req.body.bedFile || !req.body.chunk) {
       throw new BadRequestError(
@@ -2072,7 +2028,7 @@ api.post(
 
 api.post(
   '/getBedRegions',
-  withDataDirectoriesLocked(async (req, res) => {
+  withDataDirectoriesInUse(async (req, res) => {
     console.log('received request for bedRegions')
     if (req.body.bedFile) {
       res.json({

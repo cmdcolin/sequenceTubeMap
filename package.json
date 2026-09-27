@@ -21,7 +21,6 @@
     "pako-esm2": "^2.0.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "readers-writer-lock": "^1.0.0",
     "sanitize-filename": "^1.6.4",
     "swr": "^2.5.1",
     "websocket": "^1.0.35"
