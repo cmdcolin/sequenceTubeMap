@@ -262,7 +262,12 @@ export function layoutTubeMap(
         ? -1
         : tracks.findIndex(t => t.name === trackForRuler)
     const refIndex = rulerIndex === -1 ? 0 : rulerIndex
+    const ref = tracks[refIndex]!
+    // A deduplicated reference walk also stands for the haplotypes identical to
+    // it through the window; those belong in the bands, not the reference lane.
+    const refDuplicates = (ref.freq ?? 1) - 1
     const altHaplotypes = tracks.filter((_, i) => i !== refIndex)
+    if (refDuplicates > 0) altHaplotypes.push({ ...ref, freq: refDuplicates })
     if (altHaplotypes.length > 0) {
       const bands = buildCoarsenedSyntheticBands(altHaplotypes, 'haplotype')
       // A haplotype that only ever visits one node produces no edge, so an
@@ -271,7 +276,7 @@ export function layoutTubeMap(
       // nodes a y/contentHeight. Keep them off to the side instead of
       // dropping them silently.
       if (bands.length > 0) {
-        tracks = [tracks[refIndex]!]
+        tracks = [ref]
         reads = bands
       }
     }
@@ -2821,6 +2826,8 @@ function buildCoarsenedSyntheticBands(
   for (const item of source) {
     const seq = item.indexSequence
     if (!seq || seq.length < 2) continue
+    // a deduplicated walk stands for `freq` identical haplotypes
+    const weight = Math.max(item.freq ?? 1, 1)
     for (let i = 0; i < seq.length - 1; i += 1) {
       const sSigned = seq[i]!
       const dSigned = seq[i + 1]!
@@ -2844,11 +2851,11 @@ function buildCoarsenedSyntheticBands(
           dSigned,
           sName: sSigned < 0 ? `-${srcNode.name}` : srcNode.name,
           dName: dSigned < 0 ? `-${dstNode.name}` : dstNode.name,
-          count: 1,
+          count: weight,
           sourceTrackID: item.sourceTrackID,
         })
       } else {
-        existing.count += 1
+        existing.count += weight
       }
     }
   }

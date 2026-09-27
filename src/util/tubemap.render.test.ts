@@ -425,6 +425,25 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
     expect(names).not.toContain('alt3')
   })
 
+  it('weighs a deduplicated walk by its freq, including copies of the reference', () => {
+    const [ref, alt1, alt2, alt3] = tracks as [
+      InputTrack,
+      InputTrack,
+      InputTrack,
+      InputTrack,
+    ]
+    const deduplicated = [{ ...ref, freq: 3 }, alt1, alt2, { ...alt3, freq: 5 }]
+    expect(
+      trackNames(deduplicated)
+        .filter(name => name.includes('→'))
+        .sort(),
+    ).toEqual([
+      '4 haplotypes: Node 2 → Node 3',
+      '5 haplotypes: Node 2 → Node 4',
+      '9 haplotypes: Node 1 → Node 2',
+    ])
+  })
+
   // A mapping-quality cutoff (or a focus-name filter) can filter every read
   // out of a graph that does have reads loaded. That must not read as "no
   // reads loaded" and fall back to bunching the haplotypes instead -- the
