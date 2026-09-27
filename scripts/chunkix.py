@@ -584,10 +584,11 @@ if args.a != '' and args.j:
             pathl_remain = apath['pathl_remain']
             offset = apath['offset']
             cigar = []
-            if 'cs' in apath['tags']:
-                cigar = parseCigar(apath['tags']['cs'])
-            elif 'cg' in apath['tags']:
-                cigar = parseCigar(apath['tags']['cg'], cs_type='cg')
+            tags = apath.get('tags', {})
+            if 'cs' in tags:
+                cigar = parseCigar(tags['cs'])
+            elif 'cg' in tags:
+                cigar = parseCigar(tags['cg'], cs_type='cg')
             no_overlap = True
             for nidx, no in enumerate(path):
                 if nidx != 0:
