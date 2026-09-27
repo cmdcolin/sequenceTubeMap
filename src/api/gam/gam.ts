@@ -17,6 +17,7 @@
 //     read by HTTP range requests instead of being downloaded whole.
 
 import { unzip } from '@gmod/bgzf-filehandle'
+import { Inflate } from 'pako-esm2'
 import type { GenericFilehandle } from 'generic-filehandle2'
 import { decodeAlignment } from './alignment.ts'
 import { iterateMessages } from './messageStream.ts'
@@ -108,11 +109,10 @@ function collectNodeIds(buf: Uint8Array, depth: number, out: bigint[]): void {
   }
 }
 
-// vg's `vg gamsort` writes BGZF; older or hand-rolled .gam files are plain
-// gzip. `unzip` from @gmod/bgzf-filehandle handles BGZF; for plain gzip we
-// go through DecompressionStream because vg's protobuf-stream emits a
-// concatenation of independent gzip members (so a single pako ungzip call
-// only returns the first member).
+// `vg gamsort` writes BGZF; older .gam files are plain gzip, written as many
+// concatenated members. DecompressionStream, pako's ungzip and
+// bgzf-filehandle's plain-gzip fallback all stop after the first member, so
+// plain gzip is inflated one member at a time.
 async function decompress(buf: Uint8Array): Promise<Uint8Array> {
   const isBgzf = buf.length > 4 && buf[0] === 0x1f && buf[1] === 0x8b && (buf[3]! & 0x04) !== 0
   if (isBgzf) {
@@ -121,19 +121,27 @@ async function decompress(buf: Uint8Array): Promise<Uint8Array> {
   return decompressGzipMultiMember(buf)
 }
 
-async function decompressGzipMultiMember(buf: Uint8Array): Promise<Uint8Array> {
-  // Build the input stream via Response rather than Blob.stream() — jsdom's
-  // Blob doesn't implement stream(). Response accepts an ArrayBuffer (a copy
-  // is needed because the Uint8Array<ArrayBufferLike> typing isn't a
-  // BodyInit directly).
-  const ab = new ArrayBuffer(buf.byteLength)
-  new Uint8Array(ab).set(buf)
-  const source = new Response(ab).body
-  if (!source) {
-    throw new Error('Response.body unavailable; cannot decompress gzip')
+function decompressGzipMultiMember(buf: Uint8Array): Uint8Array {
+  const members: Uint8Array[] = []
+  let offset = 0
+  while (offset < buf.length) {
+    const inflator = new Inflate({})
+    inflator.push(buf.subarray(offset), false)
+    if (inflator.err || !inflator.ended) {
+      throw new Error(
+        `gzip member at byte ${offset}: ${inflator.msg || 'truncated'}`,
+      )
+    }
+    members.push(inflator.result as Uint8Array)
+    offset = buf.length - (inflator.strm?.avail_in ?? 0)
   }
-  const decompressed = source.pipeThrough(new DecompressionStream('gzip'))
-  return new Uint8Array(await new Response(decompressed).arrayBuffer())
+  const out = new Uint8Array(members.reduce((sum, m) => sum + m.length, 0))
+  let position = 0
+  for (const member of members) {
+    out.set(member, position)
+    position += member.length
+  }
+  return out
 }
 
 export async function readGamRegion(

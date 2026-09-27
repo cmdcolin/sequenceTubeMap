@@ -86,6 +86,12 @@ describe('readGam', () => {
     const reads = await readGam(blob)
     expect(reads.length).toBeGreaterThan(50000)
   })
+
+  it('rejects a plain-gzip GAM cut off mid-member', async () => {
+    const whole = await loadAsBlob('exampleData/cactus-NA12879.gam').arrayBuffer()
+    const truncated = new Blob([whole.slice(0, 9000)])
+    await expect(readGam(truncated)).rejects.toThrow('truncated')
+  })
 })
 
 describe('GAM index', () => {
