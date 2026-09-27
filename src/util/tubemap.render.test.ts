@@ -470,6 +470,21 @@ describe('tubemap.create — node click pops info dialog', () => {
   })
 })
 
+describe('tubemap.create — reads', () => {
+  beforeEach(() => {
+    setupSvg()
+  })
+
+  it('names a hovered read in the tooltip', () => {
+    const { nodes, tracks, reads } = dataForExample('7')
+    const svg = render(nodes, tracks, reads)
+    svg
+      .querySelector(`[trackID="${reads[0]!.id}"]`)!
+      .dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+    expect(document.body.lastElementChild?.textContent).toBe('Read0 (read)')
+  })
+})
+
 describe('tubemap.create — empty inputs', () => {
   beforeEach(() => {
     setupSvg()

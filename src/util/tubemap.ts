@@ -1867,7 +1867,7 @@ function ensureHoverTooltip(): HTMLDivElement {
 }
 
 function trackTooltipText(trackID: number): string {
-  const t = inputTracks.find(x => x.id === trackID)
+  const t = getTrackByID(trackID)
   if (!t) return String(trackID)
   const display = formatTrackDisplayName(t.name, t.freq)
   const kind = t.type === 'read' ? 'read' : 'haplotype'
