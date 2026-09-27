@@ -4,12 +4,21 @@
 
 process.env.SERVER_PORT = '0'
 
+import fs from 'node:fs'
 import http from 'node:http'
+import path from 'node:path'
 import { start } from './server.mjs'
+import { vg_available } from './vg.mjs'
+
+const HAS_VG = vg_available()
 
 const serverConfig = globalThis.__sequence_tube_map_config
 
 let serverState = undefined
+
+// Scratch directories the current test made under tmp/, which the server
+// accepts paths in.
+let fixtureDirs = []
 
 beforeAll(async () => {
   serverState = await start()
@@ -21,7 +30,44 @@ afterAll(async () => {
 
 afterEach(() => {
   delete serverConfig.allowedPrivateFetchAddresses
+  for (const dir of fixtureDirs) {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+  fixtureDirs = []
 })
+
+// Write a BED file with one line per [region, chunk] entry, next to copies of
+// the named exampleData chunk directories leaving out the `omit` files.
+// Returns the BED file's path.
+function makeBedWithChunks(entries, { omit = [] } = {}) {
+  const dir = fs.mkdtempSync('tmp/test-')
+  fixtureDirs.push(dir)
+  const lines = []
+  for (const [region, chunk] of entries) {
+    const [contig, range] = region.split(':')
+    const [start, end] = range.split('-')
+    lines.push([contig, start, end, region, chunk].join('\t'))
+    fs.cpSync(path.join('exampleData', chunk), path.join(dir, chunk), {
+      recursive: true,
+      filter: source => !omit.includes(path.basename(source)),
+    })
+  }
+  const bedFile = path.join(dir, 'regions.bed')
+  fs.writeFileSync(bedFile, lines.join('\n') + '\n')
+  return bedFile
+}
+
+const CACTUS_GRAPH = {
+  trackFile: 'exampleData/cactus.vg.xg',
+  trackType: 'graph',
+}
+
+async function expectServerStillUp() {
+  const { status } = await post('getBedRegions', {
+    bedFile: 'exampleData/cactus.bed',
+  })
+  expect(status).toBe(200)
+}
 
 async function post(route, body) {
   const response = await fetch(`${serverState.getApiUrl()}/${route}`, {
@@ -121,5 +167,38 @@ describe('fetching URLs', () => {
     } finally {
       await remote.close()
     }
+  })
+})
+
+describe.skipIf(!HAS_VG)('pre-fetched chunks', () => {
+  it('serves a chunk with its reads', async () => {
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:2000-3000',
+      bedFile: 'exampleData/cactus.bed',
+      tracks: [CACTUS_GRAPH],
+    })
+    expect(status).toBe(200)
+    expect(body.graph.node.length).toBeGreaterThan(0)
+    expect(body.graph.path[0]).toMatchObject({
+      name: 'ref',
+      indexOfFirstBase: '1955',
+    })
+    expect(body.gam).toHaveLength(1)
+    expect(body.gam[0].length).toBeGreaterThan(0)
+  })
+
+  it('reports a chunk without regions.tsv as an error', async () => {
+    const bedFile = makeBedWithChunks(
+      [['ref:500-600', 'chunk-cactus-no-reads']],
+      { omit: ['regions.tsv', 'tracks.json'] },
+    )
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:500-600',
+      bedFile,
+      tracks: [CACTUS_GRAPH],
+    })
+    expect(status).toBe(500)
+    expect(body.error).toMatch(/regions\.tsv/)
+    await expectServerStillUp()
   })
 })

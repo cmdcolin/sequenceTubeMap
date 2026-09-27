@@ -907,7 +907,7 @@ async function getChunkedData(req, res, next) {
               }
               req.region = [rangeRegion.start, rangeRegion.end]
               // vg chunk always puts the path we reference on first automatically
-              processAnnotationFile(req, res, next)
+              void processAnnotationFile(req, res, next)
             } catch (error) {
               next(error)
             }
@@ -1343,7 +1343,7 @@ function finishGraphAndProcess(
   // with no paths at all comes back from vg view without a path field.
   req.graph.path = organizePathsTargetFirst(parsedRegion, req.graph.path)
 
-  processAnnotationFile(req, res, next)
+  void processAnnotationFile(req, res, next)
 }
 
 const SUBRANGE_REGEX = /\[([0-9]+)(-([0-9]+))?\]$/
@@ -1533,67 +1533,49 @@ async function getChunkPath(bed, parsedRegion) {
   return chunkPath
 }
 
-function processAnnotationFile(req, res, next) {
+async function readLines(file) {
+  const text = await fs.promises.readFile(file, 'utf-8')
+  return text.split(/\r?\n/).filter(line => line !== '')
+}
+
+async function processAnnotationFile(req, res, next) {
   try {
-    // find annotation file
     console.time(`processing annotation file-${req.reqId}`)
-    fs.readdirSync(req.chunkDir).forEach(file => {
+    for (const file of await fs.promises.readdir(req.chunkDir)) {
       if (file.endsWith('annotate.txt')) {
         req.annotationFile = req.chunkDir + '/' + file
       }
-    })
-
-    if (
-      !Object.prototype.hasOwnProperty.call(req, 'annotationFile') ||
-      typeof req.annotationFile === 'undefined'
-    ) {
+    }
+    if (req.annotationFile === undefined) {
       throw new VgExecutionError('annotation file not created')
     }
     console.log(`annotationFile: ${req.annotationFile}`)
 
-    if (req.graph.path === undefined) {
-      // A graph with no paths comes back from vg view / chunkix without a
-      // path field at all, and everything downstream wants to iterate it.
-      req.graph.path = []
-    }
+    // A graph with no paths comes back from vg view / chunkix without a path
+    // field at all, and everything downstream wants to iterate it.
+    req.graph.path ??= []
 
-    // read annotation file
-    const lineReader = rl.createInterface({
-      input: fs.createReadStream(req.annotationFile),
-    })
-
-    let i = 0
-    lineReader.on('line', line => {
-      // WARNING may break normal vg chunk output if it doesn't use tabs
-      const arr = line.split('\t')
-      // const arr = line.replace(/\s+/g, " ").split(" ");
+    const lines = await readLines(req.annotationFile)
+    lines.forEach((line, i) => {
+      const [name, freq] = line.split('\t')
       const graphPath = req.graph.path[i]
       if (graphPath === undefined) {
         console.log('Annotation file has more lines than the graph has paths')
-      } else if (graphPath.name === arr[0]) {
-        graphPath.freq = arr[1]
+      } else if (graphPath.name === name) {
+        graphPath.freq = freq
       } else {
         console.log('Mismatch')
       }
-      i += 1
     })
-
-    lineReader.on('close', () => {
-      try {
-        console.timeEnd(`processing annotation file-${req.reqId}`)
-        if (req.withGam === true) {
-          processGamFiles(req, res, next)
-        } else {
-          processRegionFile(req, res, next)
-        }
-      } catch (error) {
-        next(error)
-      }
-    })
+    console.timeEnd(`processing annotation file-${req.reqId}`)
   } catch (error) {
-    // Send errors into Express's processing instead of off into Node's event
-    // machinery.
-    return next(error)
+    next(error)
+    return
+  }
+  if (req.withGam === true) {
+    processGamFiles(req, res, next)
+  } else {
+    void processRegionFile(req, res, next)
   }
 }
 
@@ -1704,7 +1686,7 @@ function collectGamResult(req, res, next, gamJSON, gamFileNumber, gamFile) {
     .map(line => parseSubprocessJSON(line, gamFile))
   req.gamRemaining -= 1
   if (req.gamRemaining === 0) {
-    processRegionFile(req, res, next)
+    void processRegionFile(req, res, next)
   }
 }
 
@@ -1779,22 +1761,18 @@ function processGamFiles(req, res, next) {
   }
 }
 
-// Function to do the step of reading the "region" file, a BED inside the chunk
-// that records the path and start offset that were used to define the chunk.
-//
-// Calls out to the next step, processNodeColorsFile
-function processRegionFile(req, res, next) {
-  // TODO: With subpaths in vg chunk we no longer really need the concept of a
-  // region file. Now we just use it to find the targeted path and mark it.
+// Read the "region" file, a BED inside the chunk that records the path and
+// start offset that defined the chunk, and mark the targeted path with it.
+async function processRegionFile(req, res, next) {
   try {
     console.time(`processing region file-${req.reqId}`)
     let regionFile = `${req.chunkDir}/regions.tsv`
     if (!fs.existsSync(regionFile)) {
-      fs.readdirSync(req.chunkDir).forEach(file => {
+      for (const file of await fs.promises.readdir(req.chunkDir)) {
         if (file.endsWith('regions.tsv')) {
           regionFile = req.chunkDir + '/' + file
         }
-      })
+      }
     }
     if (!isAllowedPath(regionFile)) {
       throw new BadRequestError(
@@ -1802,55 +1780,36 @@ function processRegionFile(req, res, next) {
       )
     }
 
-    const lineReader = rl.createInterface({
-      input: fs.createReadStream(regionFile),
-    })
-
-    lineReader.on('line', line => {
+    for (const line of await readLines(regionFile)) {
       console.log('Region: ' + line)
-      const arr = line.replace(/\s+/g, ' ').split(' ')
+      const [name, start, end] = line.split(/\s+/)
+      const subpathName = `${name}[${start}-${end}]`
 
-      // First 3 fields are path base name, start, and end.
-      // Build the subpath string we are talking about
-      const subpathName = arr[0] + '[' + arr[1] + '-' + arr[2] + ']'
-
-      req.graph.path.forEach(p => {
+      for (const p of req.graph.path) {
         if (p.name === subpathName) {
-          // Remove subpath from name and store indexOfFirstBase instead, so
-          // the frontend draws the ruler on the base path.
+          // Drop the subrange and record where it starts, so the frontend
+          // draws the ruler on the base path.
           console.log(
-            'Rename ' +
-              subpathName +
-              ' to ' +
-              arr[0] +
-              ' and mark start as ' +
-              arr[1],
+            `Rename ${subpathName} to ${name} and mark start as ${start}`,
           )
-          p.name = arr[0]
-          p.indexOfFirstBase = arr[1]
-        } else if (p.name === arr[0]) {
-          // We might be looking at a pre-extracted region that predates real
-          // subpath support (like the Lancet paper data), in which case we
-          // need to grab the real start point from the regions file.
-          p.indexOfFirstBase = arr[1]
+          p.name = name
+          p.indexOfFirstBase = start
+        } else if (p.name === name) {
+          // A pre-extracted region that predates subpath support (like the
+          // Lancet paper data) only records its start here.
+          p.indexOfFirstBase = start
         }
-      })
-    })
-
-    lineReader.on('close', () => {
-      try {
-        console.timeEnd(`processing region file-${req.reqId}`)
-        processNodeColorsFile(req, res, next)
-      } catch (error) {
-        next(error)
       }
-    })
+    }
+    console.timeEnd(`processing region file-${req.reqId}`)
   } catch (error) {
-    return next(error)
+    next(error)
+    return
   }
+  void processNodeColorsFile(req, res, next)
 }
 
-function processNodeColorsFile(req, res, next) {
+async function processNodeColorsFile(req, res, next) {
   try {
     console.time(`processing node colors file-${req.reqId}`)
     const nodeColorsFile = `${req.chunkDir}/nodeColors.tsv`
@@ -1859,37 +1818,15 @@ function processNodeColorsFile(req, res, next) {
         'Path to node colors file not allowed: ' + nodeColorsFile,
       )
     }
-
-    req.coloredNodes = []
-
-    // check if file exists
-    if (!fs.existsSync(nodeColorsFile)) {
-      console.timeEnd(`processing node colors file-${req.reqId}`)
-      cleanUpAndSendResult(req, res, next)
-      return
-    }
-
-    const lineReader = rl.createInterface({
-      input: fs.createReadStream(nodeColorsFile),
-    })
-
-    lineReader.on('line', line => {
-      console.log('Node name: ' + line)
-      const nodeName = line.replace('\n', '')
-      req.coloredNodes.push(nodeName)
-    })
-
-    lineReader.on('close', () => {
-      try {
-        console.timeEnd(`processing node colors file-${req.reqId}`)
-        cleanUpAndSendResult(req, res, next)
-      } catch (error) {
-        next(error)
-      }
-    })
+    req.coloredNodes = fs.existsSync(nodeColorsFile)
+      ? await readLines(nodeColorsFile)
+      : []
+    console.timeEnd(`processing node colors file-${req.reqId}`)
   } catch (error) {
-    return next(error)
+    next(error)
+    return
   }
+  cleanUpAndSendResult(req, res, next)
 }
 
 // Cleanup function shared between success and error code paths.
