@@ -621,7 +621,6 @@ async function runPipeline(req, stages) {
 
 // read a graph object and remove "sequence" fields in place
 function removeNodeSequencesInPlace(graph) {
-  console.log('graph:', graph)
   if (!graph.node) {
     return
   }
