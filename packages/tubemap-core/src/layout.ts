@@ -22,7 +22,14 @@ import type {
   TrackType,
 } from './types.ts'
 
-const DEBUG = false
+const DEBUG = false as boolean
+
+function debugLog(...args: unknown[]): void {
+  if (DEBUG) {
+    // oxlint-disable-next-line no-console
+    console.log(...args)
+  }
+}
 
 export type NodeWidthOption = 'normal' | 'compressed' | 'small' | 'fixed'
 
@@ -251,7 +258,7 @@ export function layoutTubeMap(
 
   generateNodeSuccessors()
   generateNodeDegree()
-  if (DEBUG) console.log(`${nodes.length} nodes.`)
+  debugLog(`${nodes.length} nodes.`)
   generateNodeOrder()
   maxOrder = getMaxOrder()
 
@@ -352,14 +359,9 @@ export function layoutTubeMap(
   generateNodeXCoords()
 
   generateSVGShapesFromPath()
-  if (DEBUG) {
-    console.log('Tracks:')
-    console.log(tracks)
-    console.log('Nodes:')
-    console.log(nodes)
-    console.log('Lane assignment:')
-    console.log(assignments)
-  }
+  debugLog('Tracks:', tracks)
+  debugLog('Nodes:', nodes)
+  debugLog('Lane assignment:', assignments)
   getImageDimensions()
   return {
     nodes,
@@ -651,10 +653,7 @@ function placeReads(): void {
     bottomY[segment.order]! += read.width
   })
 
-  if (DEBUG) {
-    console.log('Reads:')
-    console.log(reads)
-  }
+  debugLog('Reads:', reads)
 }
 
 // Place a particular collection of reads, identified by a list of read
@@ -1469,7 +1468,7 @@ function generateNodeOrder(): void {
   generateNodeOrderOfSingleTrack(tracks[0]!.indexSequence)
 
   for (let i = 1; i < tracksAndReads.length; i += 1) {
-    if (DEBUG) console.log(`generating order for track ${i + 1}`)
+    debugLog(`generating order for track ${i + 1}`)
     rightIndex = generateNodeOrderTrackBeginning(
       tracksAndReads[i]!.indexSequence,
     )!
@@ -2977,19 +2976,18 @@ function buildCoarsenedSyntheticBands(
     i += 1
   }
 
-  // Single-line debug summary so the user can verify node sizing.
-  let tallestName = '?'
-  let tallestH = 0
-  for (const n of nodes) {
-    if (!n) continue
-    const h = n.contentHeight
-    if (h > tallestH) {
-      tallestH = h
-      tallestName = n.name
-    }
-  }
   if (DEBUG) {
-    console.log(
+    let tallestName = '?'
+    let tallestH = 0
+    for (const n of nodes) {
+      if (!n) continue
+      const h = n.contentHeight
+      if (h > tallestH) {
+        tallestH = h
+        tallestName = n.name
+      }
+    }
+    debugLog(
       `[coarsened] ${unit}s_in=${source.length} edges_out=${synthetic.length} ` +
         `tallestNodeBeforePlace=${tallestName}(${tallestH.toFixed(1)})`,
     )
