@@ -616,14 +616,18 @@ async function getChunkedData(req, res, next) {
     )
   }
 
-  // There's a chance this request was sent before the proper tracks were fetched
-  // This can happen when the bed file is a url and track names need to be downloaded
-  // Check if there are tracks specified by the bedFile
-  if (req.body.bedFile && req.body.bedFile !== 'none') {
-    const chunk = await getChunkName(req.body.bedFile, parsedRegion)
-    const fetchedTracks = await getChunkTracks(req.body.bedFile, chunk)
+  // A BED region with a pre-fetched chunk can list its own tracks in
+  // tracks.json, which replace the requested ones. The request may have gone
+  // out before the client fetched that list.
+  let chunkPath = ''
+  const chunk =
+    req.body.bedFile && req.body.bedFile !== 'none'
+      ? await getChunkName(req.body.bedFile, parsedRegion)
+      : ''
+  if (chunk !== '') {
+    chunkPath = await getChunkPath(req.body.bedFile, chunk)
+    const fetchedTracks = readChunkTracks(chunkPath)
 
-    // We're always replacing the given tracks if we were able to find tracks from the bed file
     if (fetchedTracks) {
       // Color Settings are retained from the initial request
       // if newly fetched tracks have matching file names
@@ -719,11 +723,6 @@ async function getChunkedData(req, res, next) {
     req.nameMap = await parseGFATranslation(translationFile)
   }
 
-  req.withBed = true
-  if (!bedFile || bedFile === 'none') {
-    req.withBed = false
-    console.log('no BED file provided.')
-  }
   // client is going to send simplify = true if they want to simplify view
   req.simplify = false
   if (req.body.simplify) {
@@ -737,14 +736,6 @@ async function getChunkedData(req, res, next) {
   req.removeSequences = false
   if (req.body.removeSequences) {
     req.removeSequences = true
-  }
-
-  // check the bed file if this region has been pre-fetched
-  let chunkPath = ''
-  if (req.withBed) {
-    // We need to parse the BED file we have been referred to so we can look up
-    // the pre-parsed chunk.
-    chunkPath = await getChunkPath(bedFile, parsedRegion)
   }
 
   // We only want to have one downstream callback chain out of here, and we
@@ -1486,23 +1477,9 @@ async function getChunkName(bed, parsedRegion) {
   return chunk
 }
 
-// Gets the chunk path from a region specified in a bedfile, which may be a URL
-// or an allowed local path.
-//
-// Also downloads the chunk data if the bed is an URL and it has not been
-// downloaded yet.
-//
-// The returned path is either an allowed path, or an empty string if we are
-// using a BED without a pre-generated chunk for the given region.
-async function getChunkPath(bed, parsedRegion) {
-  const chunk = await getChunkName(bed, parsedRegion)
-
-  if (chunk === '') {
-    // There is no pre-generated chunk for this region.
-    return ''
-  }
-
-  // Work out where data for this chunk will be, locally
+// Get the allowed local path of a BED file's chunk, downloading the chunk
+// first if the BED is a URL.
+async function getChunkPath(bed, chunk) {
   const chunkPath = bedChunkLocalPath(bed, chunk)
 
   if (isValidURL(bed)) {
@@ -2539,29 +2516,23 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
   }
 }
 
-// Expects a bed file and a chunk name
-// Attempts to download tracks associated with the chunk name from the bed file if it is a URL
-// Returns tracks found from local directories as a tracks object
+// The tracks listed in a local chunk directory's tracks.json, or null if it
+// has none.
+function readChunkTracks(chunkPath) {
+  const tracksFile = path.resolve(chunkPath, 'tracks.json')
+  if (!fs.existsSync(tracksFile)) {
+    return null
+  }
+  return JSON.parse(fs.readFileSync(tracksFile, 'utf-8'))
+}
+
+// The tracks a BED file's chunk lists, fetching only its tracks.json when the
+// BED is a URL.
 async function getChunkTracks(bedFile, chunk) {
-  // Download tracks.json file if it is a URL
   if (isValidURL(bedFile)) {
     await retrieveChunk(bedFile, chunk, false)
   }
-
-  // Get the path to where the track is downloaded
-  const chunkPath = bedChunkLocalPath(bedFile, chunk)
-  const track_json = path.resolve(chunkPath, 'tracks.json')
-  let tracks = null
-  // Attempt to read tracks.json and convert it into a tracks object
-  if (fs.existsSync(track_json)) {
-    // Create string of tracks data
-    const string_data = fs.readFileSync(track_json)
-
-    // Convert to object container like the client component prop types expect
-    tracks = JSON.parse(string_data)
-  }
-
-  return tracks
+  return readChunkTracks(bedChunkLocalPath(bedFile, chunk))
 }
 
 // Expects a request with a bed file and a chunk name
@@ -2667,35 +2638,13 @@ async function getBedRegions(bed) {
     throw new BadRequestError('BED file is empty: ' + bed)
   }
 
-  // check for a tracks.json file to prefill tracks configuration
+  // Prefill each region's tracks from a tracks.json already on disk (a URL
+  // BED's is downloaded when the region is first selected). A null keeps
+  // whatever tracks the client already has.
   for (const chunk of bed_info['chunk']) {
-    let tracks = null
-
-    if (chunk !== '') {
-      // There is a premade chunk for this BED region.
-
-      // Work out where it should be locally.
-      const chunk_path = bedChunkLocalPath(bed, chunk)
-
-      // See if we have downloaded tracks.json in a previous instance
-      const track_json = path.resolve(chunk_path, 'tracks.json')
-
-      // If json file specifying the tracks exists, pass its information into a tracks object
-      // future selection of this region won't re-fetch tracks.json
-      if (fs.existsSync(track_json)) {
-        // Create string of tracks data
-        const string_data = fs.readFileSync(track_json)
-
-        // Convert to object container like the client component prop types expect
-        tracks = JSON.parse(string_data)
-      }
-    }
-
-    // If there is no tracks JSON or no pre-made chunk, we send a falsey value
-    // for tracks, which means whatever tracks were already selected will be
-    // retained.
-
-    bed_info['tracks'].push(tracks)
+    bed_info['tracks'].push(
+      chunk === '' ? null : readChunkTracks(bedChunkLocalPath(bed, chunk)),
+    )
   }
 
   console.log('returning bed_info, ', bed_info)

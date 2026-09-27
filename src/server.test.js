@@ -17,8 +17,10 @@ const serverConfig = globalThis.__sequence_tube_map_config
 let serverState = undefined
 
 // Scratch directories the current test made under tmp/, which the server
-// accepts paths in.
+// accepts paths in, and the HTTP servers it started for the server to fetch
+// from.
 let fixtureDirs = []
+let remoteServers = []
 
 beforeAll(async () => {
   serverState = await start()
@@ -28,12 +30,16 @@ afterAll(async () => {
   await serverState.close()
 })
 
-afterEach(() => {
+afterEach(async () => {
   delete serverConfig.allowedPrivateFetchAddresses
   for (const dir of fixtureDirs) {
     fs.rmSync(dir, { recursive: true, force: true })
   }
   fixtureDirs = []
+  await Promise.all(
+    remoteServers.map(server => new Promise(resolve => server.close(resolve))),
+  )
+  remoteServers = []
 })
 
 // Write a BED file with one line per [region, chunk] entry, next to copies of
@@ -78,10 +84,13 @@ async function post(route, body) {
   return { status: response.status, body: await response.json() }
 }
 
-// Serve `routes` (path to handler) on loopback, for tests that need the
-// server to fetch URLs. Returns the base URL and a function to stop serving.
+// Serve `routes` (path to handler) on loopback until the test ends, for tests
+// that need the server to fetch URLs. Returns the base URL and the paths
+// requested so far.
 async function serveRoutes(routes) {
+  const requests = []
   const server = http.createServer((req, res) => {
+    requests.push(req.url)
     const handler = routes[req.url]
     if (handler === undefined) {
       res.writeHead(404).end()
@@ -91,10 +100,8 @@ async function serveRoutes(routes) {
   })
   server.listen(0, '127.0.0.1')
   await new Promise(resolve => server.once('listening', resolve))
-  return {
-    url: `http://127.0.0.1:${server.address().port}`,
-    close: () => new Promise(resolve => server.close(resolve)),
-  }
+  remoteServers.push(server)
+  return { url: `http://127.0.0.1:${server.address().port}`, requests }
 }
 
 function redirectTo(location) {
@@ -103,10 +110,21 @@ function redirectTo(location) {
   }
 }
 
-function sendText(text) {
+function sendBody(body) {
   return (req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' }).end(text)
+    res.writeHead(200).end(body)
   }
+}
+
+// Routes serving an exampleData chunk directory at /<chunk>/.
+function chunkRoutes(chunk) {
+  const routes = {}
+  for (const file of fs.readdirSync(path.join('exampleData', chunk))) {
+    routes[`/${chunk}/${file}`] = sendBody(
+      fs.readFileSync(path.join('exampleData', chunk, file)),
+    )
+  }
+  return routes
 }
 
 describe('fetching URLs', () => {
@@ -137,36 +155,68 @@ describe('fetching URLs', () => {
   it('refuses a chunk file that redirects to a non-public address', async () => {
     serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
     const remote = await serveRoutes({
-      '/chunk/chunk_contents.txt': sendText('tracks.json\n'),
+      '/chunk/chunk_contents.txt': sendBody('tracks.json\n'),
       '/chunk/tracks.json': redirectTo('http://[::ffff:7f00:2]/tracks.json'),
     })
-    try {
-      const { status, body } = await post('getChunkTracks', {
-        bedFile: `${remote.url}/regions.bed`,
-        chunk: 'chunk',
-      })
-      expect(status).toBe(400)
-      expect(body.error).toMatch(/Refusing to fetch .*::ffff:7f00:2/)
-    } finally {
-      await remote.close()
-    }
+    const { status, body } = await post('getChunkTracks', {
+      bedFile: `${remote.url}/regions.bed`,
+      chunk: 'chunk',
+    })
+    expect(status).toBe(400)
+    expect(body.error).toMatch(/Refusing to fetch .*::ffff:7f00:2/)
   })
 
   it('follows redirects between allowed hosts', async () => {
     serverConfig.allowedPrivateFetchAddresses = ['127.0.0.0/8']
     const remote = await serveRoutes({
       '/moved.bed': redirectTo('/regions.bed'),
-      '/regions.bed': sendText('ref\t1\t10\tfirst ten\n'),
+      '/regions.bed': sendBody('ref\t1\t10\tfirst ten\n'),
     })
-    try {
-      const { status, body } = await post('getBedRegions', {
-        bedFile: `${remote.url}/moved.bed`,
-      })
-      expect(status).toBe(200)
-      expect(body.bedRegions.desc).toEqual(['first ten'])
-    } finally {
-      await remote.close()
-    }
+    const { status, body } = await post('getBedRegions', {
+      bedFile: `${remote.url}/moved.bed`,
+    })
+    expect(status).toBe(200)
+    expect(body.bedRegions.desc).toEqual(['first ten'])
+  })
+})
+
+describe.skipIf(!HAS_VG)('BED files at URLs', () => {
+  beforeEach(() => {
+    serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
+  })
+
+  it('renders a region that has no chunk', async () => {
+    const remote = await serveRoutes({
+      '/regions.bed': sendBody('ref\t1\t100\tfirst hundred\n'),
+    })
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:1-100',
+      bedFile: `${remote.url}/regions.bed`,
+      tracks: [CACTUS_GRAPH],
+    })
+    expect(status).toBe(200)
+    expect(body.graph.node.length).toBeGreaterThan(0)
+    expect(remote.requests).toEqual(['/regions.bed'])
+  })
+
+  it('downloads a chunk once per request', async () => {
+    const remote = await serveRoutes({
+      '/regions.bed': sendBody(
+        'ref\t500\t600\tno reads\tchunk-cactus-no-reads\n',
+      ),
+      ...chunkRoutes('chunk-cactus-no-reads'),
+    })
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:500-600',
+      bedFile: `${remote.url}/regions.bed`,
+      tracks: [CACTUS_GRAPH],
+    })
+    expect(status).toBe(200)
+    expect(body.graph.node.length).toBeGreaterThan(0)
+    const fetches = path =>
+      remote.requests.filter(request => request === path).length
+    expect(fetches('/regions.bed')).toBe(1)
+    expect(fetches('/chunk-cactus-no-reads/chunk_contents.txt')).toBe(1)
   })
 })
 
