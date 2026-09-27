@@ -28,6 +28,15 @@ describe('encoding', () => {
     read(id, { name: `r${id}`, is_reverse: true }),
   ])
 
+  // Double-clicking a track makes it the reference, which leaves track 0
+  // among the other paths
+  it('colors every other path, track 0 included', () => {
+    const scale = colorScaleFor('path', SCHEME, {})
+    const reds = paletteColors('reds')
+    expect(scale.color({ id: 0, sourceTrackID: 0 })).toBe(reds.at(-1))
+    expect(scale.color({ id: 1, sourceTrackID: 0 })).toBe(reds[0])
+  })
+
   it('keys every color it draws a read in', () => {
     expect(keyed('read', {}, reads)).toBe(true)
     expect(keyed('read', { ignoreStrand: true }, reads)).toBe(true)

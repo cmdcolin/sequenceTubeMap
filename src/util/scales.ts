@@ -88,7 +88,7 @@ export function pathScale(scheme: Scheme): ColorScale {
   return {
     color: track => {
       const colors = paletteColors(aux)
-      return colors[(track.id - 1) % colors.length]!
+      return colors[(track.id - 1 + colors.length) % colors.length]!
     },
     rows: noun => [{ label: capitalize(noun), palette: aux }],
   }
