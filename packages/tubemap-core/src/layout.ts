@@ -1220,7 +1220,12 @@ function generateTrackIndexSequences(tracksOrReads: Track[]): void {
     track.indexSequence = track.sequence.map(nodeName => {
       let signed = signedIndexOf.get(nodeName)
       if (signed === undefined) {
-        const index = nodeMap.get(forward(nodeName))!
+        const index = nodeMap.get(forward(nodeName))
+        if (index === undefined) {
+          throw new Error(
+            `Track ${track.name ?? track.id} visits unknown node ${nodeName}`,
+          )
+        }
         signed = isReverse(nodeName) ? -index : index
         signedIndexOf.set(nodeName, signed)
       }

@@ -176,6 +176,15 @@ describe('layoutTubeMap', () => {
     expect(JSON.stringify(layout.shapes)).not.toContain('null')
   })
 
+  it('names the track and node when a track visits a node it was not given', () => {
+    expect(() =>
+      layoutTubeMap(nodes, [
+        tracks[0]!,
+        { id: 1, name: 'alt', sequence: ['1', '-9', '4'], sourceTrackID: 0 },
+      ]),
+    ).toThrow('Track alt visits unknown node -9')
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()
