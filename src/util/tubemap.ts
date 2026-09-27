@@ -6,8 +6,14 @@ import '../config-client.js'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import _externalConfig from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
-import { mappingQualityAlpha, mappingQualityColor } from './mappingQuality.ts'
-import { greys, haplotypeShareColor, PALETTES } from './palettes.ts'
+import {
+  alphaScaleFor,
+  type Coloring,
+  colorScaleFor,
+  markOf,
+} from './encoding.ts'
+import { paletteColors } from './palettes.ts'
+import type { Scheme } from './scales.ts'
 import { formatTrackDisplayName } from './trackName.ts'
 import {
   clampedXCoordinateOfBaseWithinNode,
@@ -84,10 +90,7 @@ export {
 
 export type InputRegion = (number | null)[]
 
-export interface ColorScheme {
-  mainPalette: string
-  auxPalette?: string
-}
+export type ColorScheme = Scheme
 
 export interface ReadGroup {
   color: string
@@ -443,7 +446,7 @@ export function setCoarsenedReadViewFlag(value: boolean): void {
 }
 
 // Treat forward and reverse strands as equivalent. In normal mode this drops
-// the auxPalette branch in generateTrackColor; in coarsened mode this merges
+// the reverse-strand palette; in coarsened mode this merges
 // (+A→+B) and (-B→-A) into one band.
 export function setIgnoreStrandFlag(value: boolean): void {
   config.ignoreStrand = value
@@ -567,16 +570,14 @@ export function setMappingQualityCutoff(value: number): void {
   config.mappingQualityCutoff = value
 }
 
-export interface RenderedColoring {
+export interface RenderedColoring extends Coloring {
   // Indexed by source track, holes where nothing set one.
   colorSchemes: ColorScheme[]
-  readGroups: { name: string; color: string }[]
+  readGroups: { name?: string; color: string }[]
   otherReadsColor: string
   ignoreStrand: boolean
   colorReadsByMappingQuality: boolean
   alphaReadsByMappingQuality: boolean
-  // What the latest layout drew as bands, which take none of the per-read
-  // coloring
   coarsened: Coarsening | undefined
 }
 
@@ -590,10 +591,7 @@ export function getRenderedColoring(): RenderedColoring {
   }
   return {
     colorSchemes,
-    readGroups: config.readGroups.map((group, i) => ({
-      name: group.name ?? `Group ${i + 1}`,
-      color: group.color,
-    })),
+    readGroups: config.readGroups.map(({ reads, ...group }) => group),
     otherReadsColor: config.otherReadsColor,
     ignoreStrand: config.ignoreStrand,
     colorReadsByMappingQuality: config.colorReadsByMappingQuality,
@@ -1014,17 +1012,6 @@ export function zoomBy(zoomFactor: number): void {
     )
 }
 
-
-
-function getColorSet(colorSetName: string | undefined): readonly string[] {
-  // A single custom color arrives as a bare hex string rather than a palette name.
-  if (colorSetName?.startsWith('#')) {
-    return [colorSetName]
-  }
-  const palette = PALETTES.find(entry => entry.name === colorSetName)
-  return palette === undefined ? greys : palette.colors
-}
-
 // The scheme for a track's source file: whatever the UI last set, else the
 // type-appropriate default. Computed rather than cached into config.colorSchemes
 // so coloring stays a pure read of config.
@@ -1035,75 +1022,22 @@ function colorSchemeFor(track: ColorableTrack): ColorScheme {
   )
 }
 
-// A band stands for many reads or haplotypes, so a read group or a mapping
-// quality, which belong to one read, don't color it. A haplotype band is
-// shaded by its share of the haplotypes; a read band takes its track's strand
-// coloring.
 function generateTrackColor(track: ColorableTrack, highlight = 'plain'): string {
-  if (track.haplotypeShare !== undefined) {
-    return haplotypeShareColor(
-      track.haplotypeShare,
-      track.is_reverse === true && !config.ignoreStrand,
-    )
+  const mark = markOf(track, inputTracks[0]?.id)
+  if (
+    config.showExonsFlag &&
+    highlight === 'plain' &&
+    (mark === 'reference' || mark === 'path')
+  ) {
+    const colorSet = paletteColors(config.exonColors)
+    return colorSet[track.id % colorSet.length]!
   }
-  const scheme = colorSchemeFor(track)
-  if (isCoarsenedId(track.id)) {
-    return strandColor(track, scheme)
-  }
-  if (track.type === 'read') {
-    // Custom group coloring: last group wins on overlap. A group's color
-    // can be a single hex (#rrggbb) or a palette name; getColorSet handles
-    // both and we stagger across reads in the group via track.id.
-    const name = track.name
-    for (let i = config.readGroups.length - 1; i >= 0; i--) {
-      if (name !== undefined && config.readGroups[i]!.reads.has(name)) {
-        const groupColors = getColorSet(config.readGroups[i]!.color)
-        return groupColors[track.id % groupColors.length]!
-      }
-    }
-    // When any group is active, every read is colored through the group
-    // system — ungrouped reads use otherReadsColor so strand/palette and
-    // group-based coloring don't fight each other on screen.
-    if (config.readGroups.length > 0) {
-      const otherColors = getColorSet(config.otherReadsColor)
-      return otherColors[track.id % otherColors.length]!
-    }
-    return config.colorReadsByMappingQuality
-      ? mappingQualityColor(track.mapping_quality)
-      : strandColor(track, scheme)
-  }
-  if (!config.showExonsFlag || highlight !== 'plain') {
-    // Don't repeat the color of the first track (reference) to highlight is better.
-    // TODO: Allow using color 0 for other schemes not the same as the one for the reference path.
-    // TODO: Stop reads from taking this color?
-    const auxColorSet = getColorSet(scheme.auxPalette)
-    const primaryColorSet = getColorSet(scheme.mainPalette)
-    // The reference is whatever track currently sits in the first input
-    // position, which trackDoubleClick / moveTrackToFirstPosition can change.
-    if (track.id === inputTracks[0]?.id) {
-      return primaryColorSet[0]!
-    }
-    return auxColorSet[(track.id - 1) % auxColorSet.length]!
-  }
-  const colorSet = getColorSet(config.exonColors)
-  return colorSet[track.id % colorSet.length]!
-}
-
-// Forward from the main palette, reverse from the aux, staggered by id
-function strandColor(track: ColorableTrack, scheme: ColorScheme): string {
-  const reverseStrand = track.is_reverse === true && !config.ignoreStrand
-  const colorSet = getColorSet(
-    reverseStrand ? scheme.auxPalette : scheme.mainPalette,
-  )
-  return colorSet[track.id % colorSet.length]!
+  return colorScaleFor(mark, colorSchemeFor(track), config).color(track)
 }
 
 function generateTrackAlpha(track: ColorableTrack): number {
-  return track.type === 'read' &&
-    !isCoarsenedId(track.id) &&
-    config.alphaReadsByMappingQuality
-    ? mappingQualityAlpha(track.mapping_quality)
-    : 1
+  const mark = markOf(track, inputTracks[0]?.id)
+  return alphaScaleFor(mark, config)?.alpha(track) ?? 1
 }
 
 // to avoid problems with wrong overlapping of tracks, draw them in order of their color

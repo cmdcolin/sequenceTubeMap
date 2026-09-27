@@ -3,7 +3,7 @@
 // being a file, so it carries no CSS and measures its own text.
 
 import type { LegendRow, LegendSection } from './legend.ts'
-import { PALETTES } from './palettes.ts'
+import { paletteColors } from './palettes.ts'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -25,17 +25,8 @@ function textWidth(text: string, size = FONT_SIZE): number {
   return text.length * size * CHAR_WIDTH
 }
 
-// A row's colors: its ramp, its palette's, or the single color a hex names.
-// Unknown names would otherwise draw an empty swatch, so they fall back the way
-// getColorSet does.
 function swatchColors(row: LegendRow): readonly string[] {
-  if ('ramp' in row) {
-    return row.ramp
-  }
-  return row.palette.startsWith('#')
-    ? [row.palette]
-    : (PALETTES.find(p => p.name === row.palette)?.colors ??
-        PALETTES.find(p => p.name === 'greys')!.colors)
+  return 'ramp' in row ? row.ramp : paletteColors(row.palette)
 }
 
 function element(

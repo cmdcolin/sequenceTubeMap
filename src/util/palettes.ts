@@ -134,3 +134,11 @@ export const PALETTES: readonly PaletteInfo[] = [
     colors: lightColors,
   },
 ]
+
+// A palette by name, or a single custom color given as a bare hex
+export function paletteColors(name: string | undefined): readonly string[] {
+  if (name?.startsWith('#')) {
+    return [name]
+  }
+  return PALETTES.find(entry => entry.name === name)?.colors ?? greys
+}

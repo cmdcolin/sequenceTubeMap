@@ -136,6 +136,18 @@ describe('legendSections', () => {
     ])
   })
 
+  it('names the greys the renderer falls back to without an aux palette', () => {
+    expect(
+      legendSections({
+        tracks: GRAPH_AND_READS,
+        colorSchemes: [{ mainPalette: 'blues' }, { mainPalette: 'reds' }],
+      }).map(s => s.rows.map(describeRow)),
+    ).toEqual([
+      ['Reference path=blues', 'Other paths=greys'],
+      ['Forward reads=reds', 'Reverse reads=greys'],
+    ])
+  })
+
   it('says nothing rather than guessing when a track has no scheme', () => {
     expect(
       legendSections({
