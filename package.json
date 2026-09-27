@@ -26,8 +26,8 @@
     "websocket": "^1.0.35"
   },
   "scripts": {
-    "start": "concurrently -n frontend,backend -c cyan,green 'vite' 'pnpm:serve'",
-    "start:local": "vite --open '/#local'",
+    "start": "vite",
+    "start:local": "vite --mode browser-only --open '/#local'",
     "build": "vite build",
     "test": "vitest run",
     "serve": "node --experimental-strip-types ./src/server.mjs",
@@ -52,7 +52,6 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
-    "concurrently": "^10.0.5",
     "jsdom": "^30.1.1",
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",

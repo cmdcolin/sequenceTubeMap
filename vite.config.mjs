@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { spawn } from 'child_process'
 import { readFileSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -14,6 +15,24 @@ const serverPort = process.env.SERVER_PORT
   ? parseInt(process.env.SERVER_PORT, 10)
   : (appConfig.serverPort ?? 3000)
 const backendTarget = `http://localhost:${serverPort}`
+
+// `pnpm start` is the dev server plus the express backend; `start:local` and
+// vitest run under other modes and leave it out. One backend outlives config
+// reloads, and the IPC channel lets it exit whenever vite does.
+function startBackend() {
+  return {
+    name: 'start-backend',
+    apply: (_config, { command, mode }) =>
+      command === 'serve' && mode === 'development',
+    configureServer() {
+      globalThis.tubemapBackend ??= spawn(
+        process.execPath,
+        ['--experimental-strip-types', './src/server.mjs'],
+        { stdio: ['inherit', 'inherit', 'inherit', 'ipc'] },
+      )
+    },
+  }
+}
 
 // exampleData is the mounted data directory the express backend serves from,
 // and the built-in data sources reference it by relative path, so the built
@@ -55,6 +74,7 @@ export default defineConfig({
     // so the React Compiler has to be run as its own Babel pass.
     await babel({ presets: [reactCompilerPreset()] }),
     copyExampleData(),
+    startBackend(),
   ],
   server: {
     proxy: {
@@ -74,9 +94,9 @@ export default defineConfig({
     // under parallel load several cross vitest's 5s default and fail as
     // timeouts rather than on their assertions.
     testTimeout: 20000,
-    // The express backend's own close() now stops the cron task, the file
-    // watcher and the websocket server, so teardown no longer needs vitest's
-    // 10s default to finish.
+    // The express backend's own close() stops the cleanup interval, the file
+    // watcher and the websocket server, so teardown doesn't need vitest's 10s
+    // default to finish.
     teardownTimeout: 5000,
   },
 })

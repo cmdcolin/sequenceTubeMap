@@ -7,10 +7,9 @@
 // Each shot names the element it is about and is cropped to that element's
 // bounding box, so a layout change moves the crop instead of ruining it.
 //
-// Usage — three terminals, or three backgrounded commands:
+// Usage — two terminals, or two backgrounded commands:
 //
-//   pnpm serve                                   # the express backend
-//   pnpm vite --port 5200                        # the frontend
+//   pnpm start --port 5200                       # frontend and backend
 //   google-chrome --headless=new --remote-debugging-port=9222 about:blank
 //   node scripts/screenshot-ui.mjs               # writes into doc/images/
 //

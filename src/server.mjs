@@ -2878,11 +2878,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   void start()
 }
 
-process.on('SIGINT', function () {
-  console.log('\nshutting down from SIGINT')
+function shutDown(reason) {
+  console.log(`\nshutting down from ${reason}`)
   clearInterval(expiredFileCleanupTask)
-  // remove the temporary directory
   fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
-
   process.exit()
-})
+}
+
+process.on('SIGINT', () => { shutDown('SIGINT') })
+// `pnpm start` runs the backend with an IPC channel to vite, which closes
+// however vite exits.
+process.on('disconnect', () => { shutDown('dev server exit') })

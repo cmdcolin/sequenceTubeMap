@@ -20,8 +20,8 @@ pnpm install
 pnpm start
 ```
 
-Runs two processes under `concurrently`: the Vite dev server for the frontend
-and `src/server.mjs` for the backend. Vite serves on 5173 unless that is taken,
+Runs the Vite dev server for the frontend, which starts `src/server.mjs` for
+the backend alongside it and stops it on exit. Vite serves on 5173 unless that is taken,
 and proxies `/api` (including websockets) to the backend. The backend listens on
 `SERVER_PORT`, else `serverPort` in `src/config.json`, else 3000; Vite reads the
 same two to find it.
@@ -109,8 +109,7 @@ the render cap's notice, the paths panel, the Examples menu — comes from
 protocol and crops each shot to the element it is about:
 
 ```
-pnpm serve &                                                  # for the menu shot
-pnpm vite --port 5200 &
+pnpm start --port 5200 &                  # the backend is for the menu shot
 google-chrome --headless=new --remote-debugging-port=9222 about:blank &
 node scripts/screenshot-ui.mjs        # overwrites the PNGs in doc/images/
 ```
