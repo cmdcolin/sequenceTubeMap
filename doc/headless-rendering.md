@@ -173,15 +173,16 @@ that comes out 23835 by 1549 units — too wide for a page, and at that many lan
 solid color soup: 464 haplotypes read as noise, not signal. `--coarsened` (see
 [View options](#view-options) above) fixes both: with no reads loaded, it
 aggregates every haplotype but the reference into one band per node-to-node edge
-instead, so the figure comes out 14144 by 385. The [README](../README.md)'s two
-chr20 figures are crops of it, one over the allele staircase and one where the
-haplotypes come back into register:
+instead, each shaded by its share of the haplotypes, so the figure comes out
+14100 by 374. The [README](../README.md)'s two chr20 figures are crops of it,
+one over the allele staircase and one where the haplotypes come back into
+register:
 
 ```bash
 rsvg-convert -z 1 str.svg -o str.png
 magick str.png -crop 3700x385+1200+0  +repage -background white -flatten \
   doc/images/hprc-v2.1-chr20-str.png
-magick str.png -crop 1300x385+10750+0 +repage -background white -flatten \
+magick str.png -crop 1300x385+10708+0 +repage -background white -flatten \
   doc/images/hprc-v2.1-chr20-register.png
 ```
 

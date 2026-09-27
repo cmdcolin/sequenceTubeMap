@@ -15,8 +15,9 @@ et al.
 464 HPRC v2.1 haplotypes at a chr20 CT microsatellite — 46 allele lengths, 240
 distinct routes. Read straight from HPRC's 10 GB hosted `.gbz.db` by range
 request: no server, no download. Coarsened (Sankey) view bands the haplotypes by
-node-to-node edge instead of drawing all 464 as separate lines; haplotypes named
-from the companion index (`HG01243#2#…`, not `unknown#57`).
+node-to-node edge instead of drawing all 464 as separate lines, darker the more
+haplotypes take that edge; haplotypes named from the companion index
+(`HG01243#2#…`, not `unknown#57`).
 
 ![HPRC v2.1 chr20 haplotypes in register](doc/images/hprc-v2.1-chr20-register.png)
 
