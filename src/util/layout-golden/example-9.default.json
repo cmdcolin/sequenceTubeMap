@@ -140,6 +140,5 @@
     {"xStart":1,"yStart":76,"xEnd":7,"yEnd":126,"color":"#8c564b","id":5,"type":"read"},
     {"xStart":14,"yStart":63,"xEnd":50,"yEnd":69,"color":"#8c564b","id":5,"type":"read"}
   ],
-  "featureRectangles": [],
   "bands": []
 }

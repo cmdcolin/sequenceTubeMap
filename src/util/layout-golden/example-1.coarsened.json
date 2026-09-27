@@ -209,7 +209,6 @@
   ],
   "corners": [],
   "verticalRectangles": [],
-  "featureRectangles": [],
   "bands": [
     {"id":1000000000,"count":3314,"label":"3,314 haplotypes (>99%): Node A → Node B"},
     {"id":1000000001,"count":3316,"label":"3,316 haplotypes (>99%): Node B → Node D"},

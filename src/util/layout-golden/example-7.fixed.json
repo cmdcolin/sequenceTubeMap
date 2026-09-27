@@ -74,6 +74,5 @@
     {"xStart":152.71428571428572,"yStart":94,"xEnd":158.71428571428572,"yEnd":123,"color":"#9467bd","id":4,"type":"read"},
     {"xStart":165.71428571428572,"yStart":129,"xEnd":181.71428571428572,"yEnd":135,"color":"#9467bd","id":4,"type":"read"}
   ],
-  "featureRectangles": [],
   "bands": []
 }

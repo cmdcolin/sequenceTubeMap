@@ -54,30 +54,13 @@ export interface TrackCorner {
   type?: TrackType
 }
 
-export interface TrackFeature {
-  start?: number
-  end?: number
-  type?: string
-  name?: string
-  continue?: boolean
-}
-
 export interface Segment {
   order: number
   lane?: number | null
   isForward: boolean
   node: number | null
   y?: number
-  features?: TrackFeature[]
   betweenCycleReverseTraversal?: boolean
-}
-
-export interface BedRecord {
-  track: string
-  start: number
-  end: number
-  type: string
-  name: string
 }
 
 // Loose input shape: just the basics produced by vgExtractTracks /
@@ -182,7 +165,6 @@ export interface TrackShapes {
   corners: TrackCorner[]
   // drawn separately so they don't overlap the horizontal rectangles
   verticalRectangles: TrackRectangle[]
-  featureRectangles: TrackRectangle[]
 }
 
 export function emptyTrackShapes(): TrackShapes {
@@ -191,7 +173,6 @@ export function emptyTrackShapes(): TrackShapes {
     curves: [],
     corners: [],
     verticalRectangles: [],
-    featureRectangles: [],
   }
 }
 

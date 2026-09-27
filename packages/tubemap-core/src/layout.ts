@@ -5,7 +5,6 @@
 import { emptyTrackShapes } from './types.ts'
 
 import type {
-  BedRecord,
   HaplotypeShare,
   ImageBounds,
   InputNode,
@@ -18,7 +17,6 @@ import type {
   Segment,
   SegmentAssignment,
   Track,
-  TrackFeature,
   TrackShapes,
   TrackType,
 } from './types.ts'
@@ -41,7 +39,7 @@ type MaybeUnplacedNode = MaybeUnset<LayoutNode, 'x' | 'y'>
 export type NodeWidthOption = 'normal' | 'compressed' | 'small' | 'fixed'
 
 // What a track looks like to its colouring: the layout asks for a colour per
-// track and highlight, and leaves palettes to the caller.
+// track, and leaves palettes to the caller.
 export interface ColorableTrack {
   id: number
   sourceTrackID: number
@@ -67,9 +65,7 @@ export interface LayoutOptions {
   trackWidth?: number
   mappingQualityCutoff?: number
   focusReadNames?: string[] | null
-  bed?: BedRecord[] | null
-  showExons?: boolean
-  trackColor?: (track: ColorableTrack, highlight: string) => string
+  trackColor?: (track: ColorableTrack) => string
   trackAlpha?: (track: ColorableTrack) => number
 }
 
@@ -121,8 +117,7 @@ interface LayoutConfig {
   trackWidth: number
   mappingQualityCutoff: number
   focusReadNames: string[] | null
-  showExonsFlag: boolean
-  trackColor: (track: ColorableTrack, highlight: string) => string
+  trackColor: (track: ColorableTrack) => string
   trackAlpha: (track: ColorableTrack) => number
 }
 
@@ -148,7 +143,6 @@ function configFrom(options: LayoutOptions): LayoutConfig {
     trackWidth: options.trackWidth ?? 15,
     mappingQualityCutoff: options.mappingQualityCutoff ?? 0,
     focusReadNames: options.focusReadNames ?? null,
-    showExonsFlag: options.showExons ?? false,
     trackColor:
       options.trackColor ??
       (track => DEFAULT_TRACK_COLORS[track.id % DEFAULT_TRACK_COLORS.length]!),
@@ -157,7 +151,6 @@ function configFrom(options: LayoutOptions): LayoutConfig {
 }
 
 let config: LayoutConfig = configFrom({})
-let bed: BedRecord[] | null = null
 
 // Sparse like TubeMapLayout.nodes, but forEach, map and sort skip the hole and
 // noUncheckedIndexedAccess already types indexed reads as possibly undefined,
@@ -193,7 +186,6 @@ export function layoutTubeMap(
   options: LayoutOptions = {},
 ): TubeMapLayout | undefined {
   config = configFrom(options)
-  bed = options.bed ?? null
   shapes = emptyTrackShapes()
   assignments = []
   extraLeft = []
@@ -328,8 +320,6 @@ export function layoutTubeMap(
   calculateTrackWidth()
   generateLaneAssignment()
 
-  if (config.showExonsFlag && bed !== null) addTrackFeatures()
-
   // Coarsened (Sankey) mode: collapse the read list (or, when coarsening
   // haplotypes, the alt haplotypes pulled out above) to one synthetic "read"
   // per (srcSigned → dstSigned) edge BEFORE the normal read placement runs.
@@ -386,11 +376,8 @@ export function layoutTubeMap(
   }
 }
 
-function generateTrackColor(
-  track: ColorableTrack,
-  highlight = 'plain',
-): string {
-  return config.trackColor(track, highlight)
+function generateTrackColor(track: ColorableTrack): string {
+  return config.trackColor(track)
 }
 
 function generateTrackAlpha(track: ColorableTrack): number {
@@ -2352,47 +2339,6 @@ function compareNodesByOrder(
   return 0
 }
 
-function addTrackFeatures(): void {
-  let nodeStart: number
-  let nodeEnd: number
-  let feature: TrackFeature = {}
-
-  bed!.forEach(line => {
-    let i = 0
-    while (i < tracks.length && tracks[i]!.name !== line.track) i += 1
-    if (i < tracks.length) {
-      nodeStart = 0
-      tracks[i]!.path.forEach(node => {
-        if (node.node !== null) {
-          feature = {}
-          nodeEnd = nodeStart + nodes[node.node]!.sequenceLength - 1
-
-          if (nodeStart >= line.start && nodeStart <= line.end) {
-            feature.start = 0
-          }
-          if (nodeStart < line.start && nodeEnd >= line.start) {
-            feature.start = line.start - nodeStart
-          }
-          if (nodeEnd <= line.end && nodeEnd >= line.start) {
-            feature.end = nodeEnd - nodeStart
-            if (nodeEnd < line.end) feature.continue = true
-          }
-          if (nodeEnd > line.end && nodeStart <= line.end) {
-            feature.end = line.end - nodeStart
-          }
-          if (feature.start !== undefined) {
-            feature.type = line.type
-            feature.name = line.name
-            node.features ??= []
-            node.features.push(feature)
-          }
-          nodeStart = nodeEnd + 1
-        }
-      })
-    }
-  })
-}
-
 function calculateTrackWidth(): void {
   // flag: if vg returns freq of 0 for all tracks, we will increase width manually
   let allAreFour = true
@@ -2482,9 +2428,6 @@ function generateSVGShapesFromPath(): void {
   let yEnd: number
   let trackColor: string
   let trackAlpha: number
-  let highlight: string
-  let dummy: { highlight: string; xStart: number }
-  let reversalFlag: boolean
 
   for (let i = 0; i <= maxOrder; i += 1) {
     extraLeft.push(0)
@@ -2512,19 +2455,8 @@ function generateSVGShapesFromPath(): void {
   tracks.sort(compareTrackByInitialOrdering)
 
   tracks.forEach(track => {
-    highlight = 'plain'
-    // Both are pure functions of (track, highlight); alpha doesn't even look at
-    // highlight. Recomputing them per path segment was pure overhead.
-    trackColor = generateTrackColor(track, highlight)
+    trackColor = generateTrackColor(track)
     trackAlpha = generateTrackAlpha(track)
-    let colorHighlight = highlight
-    const colorForCurrentHighlight = (): string => {
-      if (colorHighlight !== highlight) {
-        colorHighlight = highlight
-        trackColor = generateTrackColor(track, highlight)
-      }
-      return trackColor
-    }
 
     // start of path
     yStart = track.path[0]!.y!
@@ -2542,31 +2474,13 @@ function generateSVGShapesFromPath(): void {
 
     // middle of path
     for (let i = 0; i < track.path.length; i += 1) {
-      if (track.path[i]!.y === yStart) {
-        if (track.path[i]!.features !== undefined) {
-          reversalFlag =
-            i > 0 && track.path[i - 1]!.order === track.path[i]!.order
-          dummy = createFeatureRectangle(
-            track.path[i]!,
-            orderStartX[track.path[i]!.order]!,
-            orderEndX[track.path[i]!.order]!,
-            highlight,
-            track,
-            xStart,
-            yStart,
-            reversalFlag,
-          )
-          highlight = dummy.highlight
-          xStart = dummy.xStart
-        }
-      } else {
+      if (track.path[i]!.y !== yStart) {
         if (track.path[i - 1]!.isForward) {
           xEnd = orderEndX[track.path[i - 1]!.order]!
         } else {
           xEnd = orderStartX[track.path[i - 1]!.order]!
         }
         if (xEnd !== xStart) {
-          trackColor = colorForCurrentHighlight()
           shapes.rectangles.push({
             xStart: Math.min(xStart, xEnd),
             yStart,
@@ -2586,7 +2500,6 @@ function generateSVGShapesFromPath(): void {
           xStart = xEnd
           xEnd = orderStartX[track.path[i]!.order]!
           yEnd = track.path[i]!.y!
-          trackColor = colorForCurrentHighlight()
           shapes.curves.push({
             xStart,
             yStart,
@@ -2610,7 +2523,6 @@ function generateSVGShapesFromPath(): void {
           xStart = xEnd
           xEnd = orderEndX[track.path[i]!.order]!
           yEnd = track.path[i]!.y!
-          trackColor = colorForCurrentHighlight()
           shapes.curves.push({
             xStart: xStart + 1,
             yStart,
@@ -2664,22 +2576,6 @@ function generateSVGShapesFromPath(): void {
             xStart = orderStartX[track.path[i]!.order]!
             yStart = track.path[i]!.y!
           }
-        }
-
-        if (track.path[i]!.features !== undefined) {
-          reversalFlag = track.path[i - 1]!.order === track.path[i]!.order
-          dummy = createFeatureRectangle(
-            track.path[i]!,
-            orderStartX[track.path[i]!.order]!,
-            orderEndX[track.path[i]!.order]!,
-            highlight,
-            track,
-            xStart,
-            yStart,
-            reversalFlag,
-          )
-          highlight = dummy.highlight
-          xStart = dummy.xStart
         }
       }
     }
@@ -2933,156 +2829,6 @@ function formatShare({ count, total }: HaplotypeShare): string {
   if (share < 0.01) return '<1%'
   if (share > 0.99 && count < total) return '>99%'
   return `${Math.round(share * 100)}%`
-}
-
-function createFeatureRectangle(
-  node: Segment,
-  nodeXStart: number,
-  nodeXEnd: number,
-  highlight: string,
-  track: Track,
-  rectXStart: number,
-  yStart: number,
-  reversalFlag: boolean,
-): { highlight: string; xStart: number } {
-  let currentHighlight: string = highlight
-  let c: string
-  let co: string
-  let featureXStart: number
-  let featureXEnd: number
-
-  nodeXStart -= 8
-  nodeXEnd += 8
-  const nodeWidth = nodes[node.node!]!.sequenceLength
-
-  node.features!.sort((a, b) => a.start! - b.start!)
-  node.features!.forEach(feature => {
-    if (currentHighlight !== feature.type) {
-      // finish incoming rectangle
-      c = generateTrackColor(track, currentHighlight)
-      if (node.isForward) {
-        featureXStart =
-          nodeXStart +
-          Math.round((feature.start! * (nodeXEnd - nodeXStart + 1)) / nodeWidth)
-
-        // overwrite narrow post-inversion rectangle if highlight starts near beginning of node
-        if (reversalFlag && featureXStart < nodeXStart + 8) {
-          featureXEnd =
-            nodeXStart +
-            Math.round(
-              ((feature.end! + 1) * (nodeXEnd - nodeXStart + 1)) / nodeWidth,
-            ) -
-            1
-          co = generateTrackColor(track, feature.type)
-          shapes.featureRectangles.push({
-            xStart: featureXStart,
-            yStart,
-            xEnd: featureXEnd,
-            yEnd: yStart + track.width - 1,
-            color: co,
-            id: track.id,
-            name: track.name,
-            type: track.type,
-          })
-        }
-
-        if (featureXStart > rectXStart + 1) {
-          shapes.featureRectangles.push({
-            xStart: rectXStart,
-            yStart,
-            xEnd: featureXStart - 1,
-            yEnd: yStart + track.width - 1,
-            color: c,
-            id: track.id,
-            name: track.name,
-            type: track.type,
-          })
-        }
-      } else {
-        featureXStart =
-          nodeXEnd -
-          Math.round((feature.start! * (nodeXEnd - nodeXStart + 1)) / nodeWidth)
-
-        // overwrite narrow post-inversion rectangle if highlight starts near beginning of node
-        if (reversalFlag && featureXStart > nodeXEnd - 8) {
-          featureXEnd =
-            nodeXEnd -
-            Math.round(
-              ((feature.end! + 1) * (nodeXEnd - nodeXStart + 1)) / nodeWidth,
-            ) -
-            1
-          co = generateTrackColor(track, feature.type)
-          shapes.featureRectangles.push({
-            xStart: featureXEnd,
-            yStart,
-            xEnd: featureXStart,
-            yEnd: yStart + track.width - 1,
-            color: co,
-            id: track.id,
-            name: track.name,
-            type: track.type,
-          })
-        }
-
-        if (rectXStart > featureXStart + 1) {
-          shapes.featureRectangles.push({
-            xStart: featureXStart + 1,
-            yStart,
-            xEnd: rectXStart,
-            yEnd: yStart + track.width - 1,
-            color: c,
-            id: track.id,
-            name: track.name,
-            type: track.type,
-          })
-        }
-      }
-      rectXStart = featureXStart
-      currentHighlight = feature.type!
-    }
-    if (feature.end! < nodeWidth - 1 || feature.continue === undefined) {
-      // finish internal rectangle
-      c = generateTrackColor(track, currentHighlight)
-      if (node.isForward) {
-        featureXEnd =
-          nodeXStart +
-          Math.round(
-            ((feature.end! + 1) * (nodeXEnd - nodeXStart + 1)) / nodeWidth,
-          ) -
-          1
-        shapes.featureRectangles.push({
-          xStart: rectXStart,
-          yStart,
-          xEnd: featureXEnd,
-          yEnd: yStart + track.width - 1,
-          color: c,
-          id: track.id,
-          name: track.name,
-          type: track.type,
-        })
-      } else {
-        featureXEnd =
-          nodeXEnd -
-          Math.round(
-            ((feature.end! + 1) * (nodeXEnd - nodeXStart + 1)) / nodeWidth,
-          ) -
-          1
-        shapes.featureRectangles.push({
-          xStart: featureXEnd,
-          yStart,
-          xEnd: rectXStart,
-          yEnd: yStart + track.width - 1,
-          color: c,
-          id: track.id,
-          name: track.name,
-          type: track.type,
-        })
-      }
-      rectXStart = featureXEnd + 1
-      currentHighlight = 'plain'
-    }
-  })
-  return { xStart: rectXStart, highlight: currentHighlight }
 }
 
 const MIN_BEND_WIDTH = 7

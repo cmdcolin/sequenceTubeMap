@@ -196,6 +196,5 @@
     {"xStart":1227.1428571428573,"yStart":91,"xEnd":1233.1428571428573,"yEnd":109,"color":"#2ca02c","id":2,"type":"haplotype"},
     {"xStart":1240.1428571428573,"yStart":70,"xEnd":1246.1428571428573,"yEnd":84,"color":"#2ca02c","id":2,"type":"haplotype"}
   ],
-  "featureRectangles": [],
   "bands": []
 }

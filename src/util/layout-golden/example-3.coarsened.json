@@ -299,7 +299,6 @@
     {"xStart":860.9532677302126,"yStart":166.47344732326982,"xEnd":866.9532677302126,"yEnd":249.67257585737016,"color":"#ff7f0e","id":1000000033,"type":"read"},
     {"xStart":873.9532677302126,"yStart":255.67257585737016,"xEnd":879.9532677302126,"yEnd":292.27214012442033,"color":"#ff7f0e","id":1000000033,"type":"read"}
   ],
-  "featureRectangles": [],
   "bands": [
     {"id":1000000000,"count":2,"label":"2 haplotypes (50%): Node A → Node B"},
     {"id":1000000001,"count":3,"label":"3 haplotypes (75%): Node B → Node D"},

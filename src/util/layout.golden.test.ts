@@ -88,8 +88,7 @@ function describeLayout(layout: TubeMapLayout | undefined) {
   layout.nodes.forEach(({ name, order, x, y, pixelWidth, contentHeight }) => {
     nodes.push({ name, order, x, y, pixelWidth, contentHeight })
   })
-  const { rectangles, curves, corners, verticalRectangles, featureRectangles } =
-    layout.shapes
+  const { rectangles, curves, corners, verticalRectangles } = layout.shapes
   const withoutName = <T extends { name?: string }>({ name: _, ...rest }: T) =>
     rest
   return {
@@ -111,7 +110,6 @@ function describeLayout(layout: TubeMapLayout | undefined) {
     ].map(withoutName),
     corners: corners.map(withoutName),
     verticalRectangles: verticalRectangles.map(withoutName),
-    featureRectangles: featureRectangles.map(withoutName),
     bands: [...layout.coarsenedEdgeMeta].map(([id, meta]) => ({ id, ...meta })),
   }
 }

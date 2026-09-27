@@ -232,7 +232,6 @@
   ],
   "corners": [],
   "verticalRectangles": [],
-  "featureRectangles": [],
   "bands": [
     {"id":1000000000,"count":2,"label":"2 reads: Node 2 → Node 3"},
     {"id":1000000001,"count":3,"label":"3 reads: Node 3 → Node 5"},

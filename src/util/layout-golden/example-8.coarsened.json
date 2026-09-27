@@ -46,7 +46,6 @@
     {"xStart":1,"yStart":85.47665940288702,"xEnd":7,"yEnd":109,"color":"#2ca02c","id":1000000002,"type":"read"},
     {"xStart":14,"yStart":35,"xEnd":20,"yEnd":78.47665940288702,"color":"#2ca02c","id":1000000002,"type":"read"}
   ],
-  "featureRectangles": [],
   "bands": [
     {"id":1000000000,"count":5,"label":"5 reads, 10 crossings: Node 60080786 → Node 60080785"},
     {"id":1000000001,"count":5,"label":"5 reads, 10 crossings: Node 60080785 → Node 60080783"},

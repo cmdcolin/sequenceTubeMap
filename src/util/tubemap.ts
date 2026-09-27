@@ -11,7 +11,6 @@ import {
   colorScaleFor,
   markOf,
 } from './encoding.ts'
-import { paletteColors } from './palettes.ts'
 import type { Scheme } from './scales.ts'
 import { formatTrackDisplayName } from './trackName.ts'
 import {
@@ -30,7 +29,6 @@ import {
   reverse,
 } from '@gmod/tubemap-core'
 import type {
-  BedRecord,
   CoarsenedEdgeMeta,
   Coarsening,
   ColorableTrack,
@@ -111,7 +109,6 @@ export type InfoAttribute = [string, string | number | null | undefined]
 interface TubeMapConfig {
   mergeNodesFlag: boolean
   transparentNodesFlag: boolean
-  showExonsFlag: boolean
   nodeWidthOption: 'normal' | 'compressed' | 'small' | 'fixed'
   showNodeLabels: boolean
   showReads: boolean
@@ -122,7 +119,6 @@ interface TubeMapConfig {
   alphaReadsByMappingQuality: boolean
   colorSchemes: Record<number, ColorScheme>
   coloredNodes: string[]
-  exonColors: string
   mappingQualityCutoff: number
   nodeIntervalThreshold: number
   showInfoCallback: (info: InfoAttribute[]) => void
@@ -139,7 +135,6 @@ export interface CreateParams {
   tracks: InputTrack[]
   reads?: InputTrack[] | null
   region?: InputRegion
-  bed?: BedRecord[] | null
 }
 
 // vg-json shapes. vg is permissive (mixes string/number, sometimes omits
@@ -234,7 +229,6 @@ let zoomRoot: AnySelection | null = null
 const config: TubeMapConfig = {
   mergeNodesFlag: true,
   transparentNodesFlag: false,
-  showExonsFlag: false,
   // Options for the width of sequence nodes:
   // normal...scale node width linear with number of bases within node
   // compressed...scale node width with log2 of number of bases within node
@@ -250,7 +244,6 @@ const config: TubeMapConfig = {
   alphaReadsByMappingQuality: false,
   colorSchemes: {},
   // colors corresponds with tracks(input files), [haplotype, read1, read2, ...]
-  exonColors: 'lightColors',
   mappingQualityCutoff: 0,
   // How far apart can nodes be before making a break in the coordinate bar?
   nodeIntervalThreshold: 150,
@@ -306,7 +299,6 @@ export function releaseDomBindings(): void {
   highlightedTrack = null
 }
 
-let bed: BedRecord[] | null = null
 
 // The tracks array of the most recent create() call. Reference equality with
 // it and inputNodes tells a redraw of the same dataset, which keeps the user's
@@ -334,7 +326,6 @@ export function create(params: CreateParams): void {
   svg = d3.select(params.svgID)
   inputReads = params.reads ?? []
   inputRegion = params.region ?? []
-  bed = params.bed ?? null
   createTubeMap(sameDataset)
 }
 
@@ -390,14 +381,13 @@ export function subscribeTrackVisibility(cb: () => void): () => void {
 
 function emitTrackVisibility(): void {
   const items: TrackVisibilityItem[] = []
-  // The layout takes a track with no type for a haplotype, and draws it with
-  // the 'plain' highlight
+  // The layout takes a track with no type for a haplotype
   for (const t of inputTracks) {
     if (t.type === 'haplotype' || t.type === undefined) {
       items.push({
         id: t.id,
         name: t.name ?? String(t.id),
-        color: generateTrackColor(t, 'plain'),
+        color: generateTrackColor(t),
         hidden: t.hidden === true,
         ...(t.freq !== undefined ? { freq: t.freq } : {}),
       })
@@ -661,8 +651,6 @@ function createTubeMap(preserveViewport = true): void {
       config.nodeWidthOption === 'normal' ? measureCharWidth() : undefined,
     mappingQualityCutoff: config.mappingQualityCutoff,
     focusReadNames: config.focusReadNames,
-    bed,
-    showExons: config.showExonsFlag,
     trackColor: generateTrackColor,
     trackAlpha: generateTrackAlpha,
   })
@@ -699,7 +687,6 @@ function createTubeMap(preserveViewport = true): void {
     'haplotype',
     trackGroup,
   )
-  drawTrackRectangles(shapes.featureRectangles, 'haplotype', trackGroup)
   drawTrackRectangles(shapes.rectangles, 'read', trackGroup)
   drawTrackCurves('read', trackGroup)
 
@@ -979,16 +966,8 @@ function colorSchemeFor(track: ColorableTrack): ColorScheme {
   )
 }
 
-function generateTrackColor(track: ColorableTrack, highlight = 'plain'): string {
+function generateTrackColor(track: ColorableTrack): string {
   const mark = markOf(track, inputTracks[0]?.id)
-  if (
-    config.showExonsFlag &&
-    highlight === 'plain' &&
-    (mark === 'reference' || mark === 'path')
-  ) {
-    const colorSet = paletteColors(config.exonColors)
-    return colorSet[track.id % colorSet.length]!
-  }
   return colorScaleFor(mark, colorSchemeFor(track), config).color(track)
 }
 

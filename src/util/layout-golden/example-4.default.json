@@ -167,6 +167,5 @@
     {"xStart":414.42857142857133,"yStart":11,"xEnd":420.42857142857133,"yEnd":44,"color":"#ff7f0e","id":1,"type":"haplotype"},
     {"xStart":427.42857142857133,"yStart":50,"xEnd":433.42857142857133,"yEnd":64,"color":"#ff7f0e","id":1,"type":"haplotype"}
   ],
-  "featureRectangles": [],
   "bands": []
 }
