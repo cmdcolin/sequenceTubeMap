@@ -28,6 +28,7 @@ import { fileURLToPath } from 'url'
 import {
   parseRegion,
   convertRegionToRangeRegion,
+  regionSpanBp,
   stringifyRangeRegion,
   stringifyRegion,
   isValidURL,
@@ -667,6 +668,15 @@ async function getChunkedData(req, res) {
       console.log('Using new fetched tracks', JSON.stringify(fetchedTracks))
       req.body.tracks = fetchedTracks
     }
+  }
+
+  // A region vg has to cut is bounded; a pre-fetched chunk is whatever size
+  // its author cut.
+  const spanBp = regionSpanBp(parsedRegion)
+  if (chunk === '' && spanBp !== undefined && spanBp > config.maxRegionBp) {
+    throw new BadRequestError(
+      `Region ${req.body.region} spans ${spanBp.toLocaleString()} bp, more than the ${config.maxRegionBp.toLocaleString()} bp this server cuts for one request (maxRegionBp in config.json).`,
+    )
   }
 
   // We always have an graph file

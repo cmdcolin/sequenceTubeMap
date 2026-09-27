@@ -112,6 +112,7 @@ interface RenderOptions {
   onReadRenderLimitChange?: (limit: number | null) => void
   onCoarsen?: () => void
   legendVisible?: boolean
+  largeRegion?: { spanBp: number; onLoadAnyway: () => void }
 }
 
 function renderContainer(options: RenderOptions = {}) {
@@ -123,6 +124,7 @@ function renderContainer(options: RenderOptions = {}) {
     error: options.error,
     isValidating: options.isValidating ?? false,
     onRetry: options.onRetry ?? (() => {}),
+    largeRegion: options.largeRegion,
     readRenderLimit:
       options.readRenderLimit === undefined ? 100 : options.readRenderLimit,
     onReadRenderLimitChange: options.onReadRenderLimitChange ?? (() => {}),
@@ -209,6 +211,22 @@ describe('TubeMapContainer', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Draw anyway' }))
 
     expect(screen.getByTestId('tubeMap')).toBeInTheDocument()
+  })
+
+  // App holds the fetch of a wide region; the container says so in place of
+  // the loader, which would otherwise spin for a fetch that never starts.
+  it('shows the wide-region notice in place of the loader', async () => {
+    const onLoadAnyway = vi.fn()
+    renderContainer({ largeRegion: { spanBp: 1_000_000, onLoadAnyway } })
+
+    expect(
+      screen.getByText(/This region is 1,000,000 bp wide/),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Load anyway' }))
+
+    expect(onLoadAnyway).toHaveBeenCalledOnce()
   })
 
   it('draws a graph under the cap without asking', () => {

@@ -18,6 +18,7 @@ import {
   subgraphAroundNodes,
 } from '@gmod/gbz-base'
 import type { PathName, Subgraph } from '@gmod/gbz-base'
+import { SubgraphLimitError } from '@gmod/gbz-base'
 
 import {
   isGbzDbFilename,
@@ -213,6 +214,24 @@ const NODE_RANGE_CONTEXT_STEPS = 20
 // refused rather than walked across the graph.
 const MAX_NODE_REGION = 10000
 
+// The most nodes a path region takes in before gbz-base gives up on it, a
+// backstop for the width notice in App: the width of a region says little
+// about its size on a base-level graph, and gbz-base stops walking the
+// reference at the limit, before it has read a haplotype or built a byte of
+// JSON. On HPRC v2.1 a 500 kb window is 18,832 nodes and 221 MB of JSON, so
+// this sits where a confirmed load is still something the browser survives.
+export const SUBGRAPH_NODE_LIMIT = 50_000
+
+// gbz-base says how far along the reference it got when the limit tripped,
+// which bounds what would fit, with a margin for the context past the window.
+function subgraphLimitMessage(region: string, e: SubgraphLimitError): string {
+  const fits =
+    e.walkedBp !== undefined && e.walkedBp > 0
+      ? ` A region of about ${Math.floor(e.walkedBp * 0.8).toLocaleString()} bp would fit.`
+      : ''
+  return `${region} takes in more than ${e.limit.toLocaleString()} graph nodes, the most the browser reads for one view.${fits}`
+}
+
 // The server's node regions, cut the way `vg chunk` cuts them:
 // `node:first-last` is the nodes with ids in that range and everything within
 // 20 edges of them, and `node:id+steps` is node `id` and everything within
@@ -290,6 +309,11 @@ async function nodeRegionSubgraph(
  */
 export class GBZBaseAPI implements APIInterface {
   readonly mode = 'local' as const
+  private subgraphNodeLimit: number
+
+  constructor(subgraphNodeLimit = SUBGRAPH_NODE_LIMIT) {
+    this.subgraphNodeLimit = subgraphNodeLimit
+  }
   // User-uploaded files, indexed by string id (the array index).
   private registry = new UploadRegistry()
   // Index of upload ids by track type.
@@ -582,7 +606,11 @@ export class GBZBaseAPI implements APIInterface {
           pathQueryFor(contig),
           start,
           end + 1,
-          { haplotypes: 'distinct', signal: cancelSignal ?? undefined },
+          {
+            haplotypes: 'distinct',
+            limit: this.subgraphNodeLimit,
+            signal: cancelSignal ?? undefined,
+          },
         )
         if (!subgraph) {
           throw new Error(
@@ -601,6 +629,11 @@ export class GBZBaseAPI implements APIInterface {
     } catch (e) {
       if (isAbortError(e)) {
         throw e
+      }
+      if (e instanceof SubgraphLimitError) {
+        throw new Error(subgraphLimitMessage(viewTarget.region, e), {
+          cause: e,
+        })
       }
       throw new Error(
         `Failed to query "${graphFile}" at ${viewTarget.region}: ${errorMessage(e)}`,

@@ -147,6 +147,25 @@ describe('when a file is uploaded', () => {
     )
   })
 
+  // gbz-base stops at the node limit while still walking the reference, so
+  // the error can say how much of the region would have fit.
+  it('stops reading a path region at the node limit and says what would fit', async () => {
+    const limited = new GBZBaseAPI(5)
+    const name = await limited.putFile(
+      'graph',
+      fixtureFile('exampleData/x.gbz.db', 'x.gbz.db'),
+      new AbortController().signal,
+    )
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [{ trackFile: name, trackType: 'graph' }],
+      region: 'x:1-1000',
+    }
+    await expect(limited.getChunkedData(viewTarget, null)).rejects.toThrow(
+      /x:1-1000 takes in more than 5 graph nodes.* about \d+ bp would fit/,
+    )
+  })
+
   // The server's node regions, which used to reach gbz-base as a path named
   // "node" that nothing covers.
   describe('node regions', () => {

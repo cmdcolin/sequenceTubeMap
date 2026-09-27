@@ -320,6 +320,19 @@ gets a cap of 1,000,000 visits instead. Coarsened, the 10 kb row draws in 0.6 s
 and zooms at 30 ms a step; the 50 kb row draws in 1.3 s and zooms at 85 ms a
 step; the 150 kb row takes 4 s and 300 ms or more a step, so it stays refused.
 
+### How wide a region will load
+
+The render cap counts what arrived, and past a point the fetch is the problem:
+in the browser the same MHC locus is 76 MB of JSON at 150 kb and 221 MB at 500
+kb, and 1 Mb is more than a tab holds. So a region wider than 200 kb is held
+before its fetch, with a notice and a **Load anyway** button, whether it was
+typed or arrived in a shared link. Width says little about size on its own (a
+sparse graph loads far wider windows), so this is the only guard that asks
+rather than refuses. Two backstops sit behind it: the browser stops reading a
+path region at 50,000 nodes, before it has read a haplotype, and says how wide a
+region would have fit; and the vgteam server refuses a region wider than its
+`maxRegionBp` (2 Mb by default, see [request limits](server.md#request-limits)).
+
 A coarsened window wide enough to hold a structural variant is still far wider
 than a page, so a figure of one is best cropped to its breakpoints. Across the
 30 kb window `GRCh38#chr1:109675000-109705000`, about 70% of the HPRC v2.1

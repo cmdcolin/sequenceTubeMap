@@ -61,6 +61,10 @@ do:
 - `requestTimeout` (seconds, default 300): the server kills a request's `vg` and
   chunkix processes and stops its downloads after this long, or as soon as its
   client disconnects.
+- `maxRegionBp` (default 2,000,000): the widest path region `vg chunk` is asked
+  to cut. The app holds a region wider than 200 kb until the user says to load
+  it, and this is the ceiling on what Load anyway can ask for. A pre-fetched BED
+  chunk is served whatever its width.
 - `fetchTimeout` (seconds, default 15): the longest a single download from a URL
   may take.
 - `maxFileSizeBytes` (default 1 GB): the most the files of one chunk downloaded

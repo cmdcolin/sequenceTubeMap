@@ -455,6 +455,25 @@ describe.skipIf(!HAS_VG)('BED files at URLs', () => {
   })
 })
 
+describe('request limits', () => {
+  it('refuses a region wider than maxRegionBp before cutting it', async () => {
+    const maxRegionBp = serverConfig.maxRegionBp
+    serverConfig.maxRegionBp = 1000
+    try {
+      const { status, body } = await post('getChunkedData', {
+        region: 'ref:1-5000',
+        tracks: [CACTUS_GRAPH],
+      })
+      expect(status).toBe(400)
+      expect(body.error).toMatch(
+        /ref:1-5000 spans 4,999 bp, more than the 1,000 bp this server cuts/,
+      )
+    } finally {
+      serverConfig.maxRegionBp = maxRegionBp
+    }
+  })
+})
+
 describe.skipIf(!HAS_VG)('chunking a graph', () => {
   it('pipes vg chunk through vg simplify', async () => {
     const { status, body } = await post('getChunkedData', {

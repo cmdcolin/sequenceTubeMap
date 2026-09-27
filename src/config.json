@@ -185,6 +185,7 @@
   "fetchTimeout": 15,
   "requestTimeout": 300,
   "maxFileSizeBytes": 1000000000,
+  "maxRegionBp": 2000000,
 
   "defaultGraphColorPalette": {
     "mainPalette": "#000000",

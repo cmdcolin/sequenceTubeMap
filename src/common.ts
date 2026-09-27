@@ -81,6 +81,16 @@ export function convertRegionToRangeRegion(region: Region): RangeRegion {
   }
 }
 
+// How many bases a region spans, or undefined for a node region, whose
+// numbers are node ids.
+export function regionSpanBp(region: Region): number | undefined {
+  if (region.contig === 'node') {
+    return undefined
+  }
+  const { start, end } = convertRegionToRangeRegion(region)
+  return Math.max(0, end - start)
+}
+
 export function stringifyRangeRegion({
   contig,
   start,

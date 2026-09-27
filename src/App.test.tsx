@@ -635,6 +635,77 @@ describe('loading and empty states', () => {
   })
 })
 
+// Past a point the fetch itself is what hangs the browser, so a wide region
+// is held before it, whether it was typed or arrived in a link.
+describe('wide regions', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/')
+  })
+
+  const recordingAPI = (asked: string[]) =>
+    fakeAPI({
+      getChunkedData: async target => {
+        asked.push(target.region)
+        return {}
+      },
+    })
+
+  const goTo = async (region: string) => {
+    await userEvent.clear(getRegionInput())
+    await userEvent.type(getRegionInput(), region)
+    await userEvent.click(screen.getByRole('button', { name: 'Go' }))
+  }
+
+  it('holds the fetch until told to load anyway, once per view', async () => {
+    const asked: string[] = []
+    renderApp(recordingAPI(asked))
+    await waitFor(() => {
+      expect(asked).toEqual(['17:1-100'])
+    })
+
+    await goTo('17:1-1000000')
+
+    expect(
+      await screen.findByText(/This region is 999,999 bp wide/),
+    ).toBeInTheDocument()
+    expect(asked).toEqual(['17:1-100'])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Load anyway' }))
+    await waitFor(() => {
+      expect(asked).toEqual(['17:1-100', '17:1-1000000'])
+    })
+    expect(screen.queryByText(/bp wide/)).not.toBeInTheDocument()
+
+    await goTo('17:1-2000000')
+
+    expect(
+      await screen.findByText(/This region is 1,999,999 bp wide/),
+    ).toBeInTheDocument()
+    expect(asked).toEqual(['17:1-100', '17:1-1000000'])
+  })
+
+  it('opens a shared link to a wide region on the notice', async () => {
+    window.history.replaceState(
+      null,
+      '',
+      '/?region=x:1-500000&tracks=graph:x.vg',
+    )
+    vi.resetModules()
+    const { default: UrlApp } = await import('./App.tsx')
+    const asked: string[] = []
+    render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <UrlApp api={recordingAPI(asked)} />
+      </SWRConfig>,
+    )
+
+    expect(
+      await screen.findByText(/This region is 499,999 bp wide/),
+    ).toBeInTheDocument()
+    expect(asked).toEqual([])
+  })
+})
+
 describe('leaving a view before it loads', () => {
   const pick = async (name: string) => {
     await userEvent.click(screen.getByTestId('examplesMenuButton'))

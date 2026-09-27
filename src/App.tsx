@@ -5,6 +5,7 @@ import './App.css'
 import HeaderForm from './components/HeaderForm.tsx'
 import TubeMapContainer, {
   DEFAULT_READ_RENDER_LIMIT,
+  LARGE_REGION_BP,
 } from './components/TubeMapContainer.tsx'
 import {
   urlParamsToViewTarget,
@@ -35,7 +36,12 @@ import { config } from './config-global.mjs'
 import ServerAPI from './api/ServerAPI.ts'
 import { LocalAPI } from './api/LocalAPI.ts'
 import type { APIInterface } from './api/APIInterface.ts'
-import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
+import {
+  defaultTrackColors,
+  isLocalCompatibleDataSource,
+  parseRegion,
+  regionSpanBp,
+} from './common.ts'
 import { isAbortError } from './util/error.ts'
 import {
   DEFAULT_VIS_OPTIONS,
@@ -77,6 +83,16 @@ function validateVisOptions(value: unknown): StoredVisOptions | undefined {
     }
   }
   return undefined
+}
+
+// The width of a view's region in bases, or undefined when it is a node
+// region or not a region at all, neither of which this measures.
+function viewSpanBp(viewTarget: ViewTarget): number | undefined {
+  try {
+    return regionSpanBp(parseRegion(viewTarget.region))
+  } catch {
+    return undefined
+  }
 }
 
 function validateBoolean(value: unknown) {
@@ -202,13 +218,30 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   // (Back/Forward, or a switch of backend). Identity is the signal, so one
   // change re-seeds the form once rather than on every render.
   const [seedViewTarget, setSeedViewTarget] = useState<ViewTarget | null>(null)
+  // The view the user said to load despite its width. A wide region is held
+  // before its fetch, since past a point the fetch itself is what hangs the
+  // browser and no cap after it can help; a shared link opens on the notice
+  // too. Load anyway names one view, so the next wide region asks again.
+  const [confirmedWideView, setConfirmedWideView] = useState<ViewTarget | null>(
+    null,
+  )
+  const spanBp = viewSpanBp(viewTarget)
+  const holdingWideRegion =
+    dataOrigin === dataOriginTypes.API &&
+    viewTarget.tracks.length > 0 &&
+    spanBp !== undefined &&
+    spanBp > LARGE_REGION_BP &&
+    !(
+      confirmedWideView !== null &&
+      viewTargetsEqual(confirmedWideView, viewTarget)
+    )
 
   // The tube map data lives here rather than in TubeMapContainer so the Go
   // button can show that a load is in flight, and so `keepPreviousData` can
   // leave the previous region on screen while the next one arrives.
   const fetchKey: FetchKey | null =
     dataOrigin === dataOriginTypes.API
-      ? viewTarget.tracks.length === 0
+      ? viewTarget.tracks.length === 0 || holdingWideRegion
         ? null
         : ['tubeMap.api', apiInterface.mode, viewTarget]
       : ['tubeMap.example', dataOrigin]
@@ -406,6 +439,16 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
           onRetry={() => {
             void mutate()
           }}
+          largeRegion={
+            holdingWideRegion
+              ? {
+                  spanBp,
+                  onLoadAnyway: () => {
+                    setConfirmedWideView(viewTarget)
+                  },
+                }
+              : undefined
+          }
           readRenderLimit={readRenderLimit}
           onReadRenderLimitChange={limit => {
             setReadRenderLimit(limit)

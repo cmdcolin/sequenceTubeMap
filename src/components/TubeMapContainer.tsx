@@ -54,6 +54,16 @@ export const DEFAULT_READ_RENDER_LIMIT = READ_LIMIT_PRESETS[0]
 // The presets plus "render everything", as offered by the banner's buttons.
 const READ_LIMIT_CHOICES: (number | null)[] = [...READ_LIMIT_PRESETS, null]
 
+// How wide a region loads without asking. Width is a poor measure of cost,
+// which tracks how many haplotypes diverge across the window, so this is set
+// where a dense pangenome graph stops being drawable and starts being
+// dangerous to fetch: on HPRC v2.1 in the browser a 150 kb window is 6,651
+// nodes and 76 MB of JSON (the coarsened view's limit, see below), a 500 kb
+// one is 18,832 nodes and 221 MB, and 1 Mb is too much to hold. A sparse graph
+// with a handful of haplotypes draws far wider windows, and Load anyway is one
+// click.
+export const LARGE_REGION_BP = 200_000
+
 // Cap on the graph itself. Drawing cost tracks how many nodes the haplotype
 // walks visit between them, because the renderer emits a ribbon segment per
 // visit — nodes alone say little, since one node visited by 464 haplotypes
@@ -140,6 +150,40 @@ function LargeGraphNotice({
         {onCoarsen
           ? 'Coarsen the view to draw the haplotypes as one band per edge, which handles windows many times wider, or narrow the region.'
           : 'Narrow the region and it will draw straight away; a graph with many haplotypes gets expensive within a few kb.'}
+      </Alert>
+    </Box>
+  )
+}
+
+function LargeRegionNotice({
+  spanBp,
+  onLoadAnyway,
+}: {
+  spanBp: number
+  onLoadAnyway: () => void
+}) {
+  return (
+    <Box sx={{ px: 2 }}>
+      <Alert
+        severity="warning"
+        sx={{ '& .MuiAlert-action': { flexShrink: 0 } }}
+        action={
+          <Button
+            color="warning"
+            variant="outlined"
+            onClick={() => {
+              onLoadAnyway()
+            }}
+          >
+            Load anyway
+          </Button>
+        }
+      >
+        <strong>This region is {spanBp.toLocaleString()} bp wide</strong> — more
+        than the {LARGE_REGION_BP.toLocaleString()} bp this loads without
+        asking. On a pangenome graph a window this wide is hundreds of megabytes
+        to fetch and more than the map can draw, and may hang the browser.
+        Narrow the region, or load it anyway.
       </Alert>
     </Box>
   )
@@ -266,6 +310,9 @@ interface TubeMapContainerProps {
   error: Error | undefined
   isValidating: boolean
   onRetry: () => void
+  // Set while the view's region is wider than LARGE_REGION_BP and App is
+  // holding its fetch until the user says to load it anyway.
+  largeRegion: { spanBp: number; onLoadAnyway: () => void } | undefined
   // Cap on how many reads get rendered, persisted by App as a preference.
   // Each new region starts from it again.
   readRenderLimit: number | null
@@ -288,6 +335,7 @@ function TubeMapContainer({
   error,
   isValidating,
   onRetry,
+  largeRegion,
   readRenderLimit: readRenderLimitPreference,
   onReadRenderLimitChange,
   legendVisible,
@@ -418,6 +466,11 @@ function TubeMapContainer({
         {errorMessage(error)}
       </Alert>
     </Box>
+  ) : largeRegion ? (
+    <LargeRegionNotice
+      spanBp={largeRegion.spanBp}
+      onLoadAnyway={largeRegion.onLoadAnyway}
+    />
   ) : data === undefined ? (
     <Box sx={{ px: 2 }}>{loader}</Box>
   ) : null
