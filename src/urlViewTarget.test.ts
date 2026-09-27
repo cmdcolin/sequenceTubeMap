@@ -146,7 +146,7 @@ describe('urlViewTarget vis options', () => {
 // work while that name is still in the config. Resolving them here turns a
 // rename into a failing test rather than dead links.
 describe('doc demo links', () => {
-  const links = ['README.md', 'doc/gallery.md'].flatMap(file =>
+  const links = ['README.md'].flatMap(file =>
     [
       ...readFileSync(file, 'utf8').matchAll(
         /^\[demo-[a-z0-9-]+\]:\s+(\S+)$/gm,

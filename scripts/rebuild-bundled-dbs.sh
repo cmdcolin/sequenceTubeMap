@@ -2,7 +2,7 @@
 # Rebuild every `*.gbz.db` under exampleData/ from its `*.gbz` with upstream
 # gbz-base (`gbz-base construct`, or `gbz2db` on releases up to 0.5.1), then
 # add the haplotype side tables when gbz-haplotype-index is on PATH. See
-# doc/gbz-base.md.
+# doc/data.md.
 
 set -euo pipefail
 

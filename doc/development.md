@@ -39,7 +39,7 @@ That launches the Vite dev server alone and opens `/#local`. In development
 `config-client.js` normally rewrites `BACKEND_URL: false` to `''` so the app
 talks to the express backend; the `#local` hash skips that rewrite, leaving
 `config.json`'s `false` in place, which selects `LocalAPI`. See
-[ADR 0004](../agent-docs/architectural-decision-records/0004-api-selection.md).
+[decision 4](architecture.md#4--two-api-backends-selected-by-backend_url).
 
 ## Checks
 
@@ -129,4 +129,4 @@ pnpm build       # production bundle into build/
 
 CI builds and publishes `build/` to the `gh-pages` branch automatically on every
 push to `master`. That build ships `BACKEND_URL: false`, which selects the
-in-browser backend. See [gbz-base.md](gbz-base.md).
+in-browser backend. See [data.md](data.md#option-2--in-browser).

@@ -1,5 +1,5 @@
 // The tube map layout + d3 drawing engine. Ported from the original
-// sequenceTubeMap JS; see src/util/tubemap-phase2.md for the remaining
+// sequenceTubeMap JS; see doc/todo.md for the remaining
 // clean-up plan.
 import * as d3 from 'd3'
 import '../config-client.js'
@@ -320,7 +320,7 @@ const fonts = '"Courier New", "Courier", "Lucida Console", monospace'
 // ---------------------------------------------------------------------------
 // Module state, in three groups: the inputs from create(), the per-render
 // layout scratch (all reset together at the top of createTubeMap), and the UI
-// state that has to outlive a render. See src/util/tubemap-phase2.md for the
+// state that has to outlive a render. See doc/todo.md for the
 // plan to thread the layout scratch through as a parameter instead.
 // ---------------------------------------------------------------------------
 

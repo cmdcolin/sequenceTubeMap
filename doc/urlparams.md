@@ -105,7 +105,7 @@ tracksJson=[{"trackType":"graph","trackColorSettings":{"mainPalette":"blues","au
 
 A hosted graph whose haplotype names live in a separate index carries both
 files, which is the form the in-browser backend reads (see
-[gbz-base.md](gbz-base.md#pointing-a-track-at-a-companion-index)):
+[data.md](data.md#pointing-a-track-at-a-companion-index)):
 
 ```
 tracksJson=[{"trackType":"graph","trackFile":"https://example.org/graph.gbz.db","haplotypeIndexFile":"https://example.org/graph.haplotype-index.db"}]

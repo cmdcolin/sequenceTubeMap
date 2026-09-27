@@ -7,9 +7,8 @@ Pangenome graph viewer. Runs in-browser — no server needed, nothing uploaded.
 > vgteam. Same core tube-map visualization, with a server-free in-browser mode,
 > ribbon-style reads, MUI rewrite, and other additions on top.
 
-**Opening data** — File → Sample data for built-ins, or File → Open custom files
-for your own `.gbz.db` / `.gam` / `.gbwt` files. Use the Track Picker to add
-tracks.
+**Opening data** — the Examples menu for built-ins, or File → Open… for your own
+`.gbz.db` / `.gam` / `.gbwt` files. Use the Track Picker to add tracks.
 
 [How to prepare your own files →](https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md#option-2--in-browser)
 

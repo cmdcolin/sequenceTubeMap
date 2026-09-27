@@ -4,7 +4,7 @@
 import { execFileSync, execSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 
-const ROOTS = 'src|scripts|doc|agent-docs|exampleData|docker|public'
+const ROOTS = 'src|scripts|doc|exampleData|docker|public'
 const CITATION = new RegExp(
   '`((?:' + ROOTS + ')/[A-Za-z0-9/_.-]+?)(?::\\d+)?`',
   'g',

@@ -33,7 +33,8 @@ fork replaces that:
   `unknown#N`, and the paths panel shows exact lengths.
 
 The GitHub Pages build ships `BACKEND_URL: false`, so the public demo runs with
-no server at all. See [gbz-base.md](gbz-base.md).
+no server at all. See [data.md](data.md#option-2--in-browser) and
+[architecture.md](architecture.md#in-browser-path).
 
 ## Uploading to the vgteam server
 
@@ -95,8 +96,8 @@ and opens the per-track visibility checklist as a dialog) — plus:
 | Worker IPC | `worker-rpc`                                              | Comlink                                                  |
 | Routing    | react-router                                              | none — query params only                                 |
 
-Non-obvious calls are recorded as ADRs in
-[`agent-docs/architectural-decision-records/`](../agent-docs/architectural-decision-records/).
+Non-obvious calls are recorded under [Decisions](architecture.md#decisions) in
+the architecture doc.
 
 ## What is unchanged
 

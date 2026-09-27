@@ -11,7 +11,7 @@ the app for the first two.
 
 Running the Express backend yourself unlocks a further set of options — built-in
 `Examples` entries, pre-extracted chunks, tabix indexes. Those live in
-[server-data.md](server-data.md).
+[server.md](server.md).
 
 ---
 
@@ -51,7 +51,10 @@ Drop the graph and read files in the dialog and click **Upload & use**.
 ## Option 2 — In-browser
 
 Everything runs in your browser — no server, no upload. Files never leave your
-machine and there is no size limit.
+machine and there is no size limit. The browser reads `.gbz.db` files with
+[`@gmod/gbz-base`](https://github.com/GMOD/gbz-base-js), a pure TypeScript port
+of the `gbz-base query` subgraph queries that walks the SQLite b-trees directly
+and fetches only the pages a query touches.
 
 **Accepted formats**
 
@@ -62,27 +65,115 @@ machine and there is no size limit.
 
 ### Converting a graph to `.gbz.db`
 
-This needs two tools, once per graph:
-
-- [`vg`](https://github.com/vgteam/vg) — `mamba install -c bioconda vg`
-- [`gbz-base`](https://github.com/jltsiren/gbz-base) —
-  `cargo install --git https://github.com/jltsiren/gbz-base`
+This needs [`gbz-base`](https://github.com/jltsiren/gbz-base)
+(`cargo install --git https://github.com/jltsiren/gbz-base`), and
+[`vg`](https://github.com/vgteam/vg) (`mamba install -c bioconda vg`) if you are
+not starting from a `.gbz`:
 
 ```bash
-# .xg (or .vg) → .gbz → .gbz.db
+# from an .xg (or .vg): build a GBZ with embedded paths
 vg gbwt --xg-name input.xg --index-paths --gbz-format -g input.gbz
-gbz-base construct input.gbz
+# from a GFA (keeps PanSN sample names intact)
+vg gbwt -G input.gfa --gbz-format -g input.gbz
+
+# GBZ -> SQLite database
+gbz-base construct input.gbz            # writes input.gbz.db
+gbz-base construct --output other.db --overwrite input.gbz
 ```
 
-If you already have a `.gbz`, skip the first command. Starting from a GFA
-instead, `vg gbwt -G input.gfa --gbz-format -g input.gbz` keeps PanSN sample
-names intact.
+Releases up to 0.5.1 call the binary `gbz2db` instead of `gbz-base construct`.
+`scripts/rebuild-bundled-dbs.sh` runs the conversion over every `.gbz` under
+`exampleData/`.
 
-By default haplotypes are reported as `unknown#N`. To get real
-`sample#haplotype#contig` names, run the optional `gbz-haplotype-index` step,
-which writes them either into the database or into a companion file a graph
-track names as `haplotypeIndexFile` — that, and the rest of the `.gbz.db`
-details, are in [gbz-base.md](gbz-base.md).
+The app recognizes any graph track ending in `.db`, not only `.gbz.db`, since
+`--output` will call the database whatever you like. The reader refuses a file
+that turns out not to be a gbz-base database when it opens it, not when it is
+named.
+
+The reader accepts exactly one schema tag, `GBZ-base version 4`
+(`SCHEMA_VERSION` in `@gmod/gbz-base`), which every `gbz-base` release from
+0.5.0 on writes. It refuses anything else, older or newer, with a
+`SchemaVersionError` rather than reading it on a guess, so a future upstream
+version 5 would need a matching reader release first.
+
+### Naming haplotypes (optional)
+
+Upstream gbz-base cannot say which haplotype a subgraph path belongs to, so by
+default haplotypes are reported as `unknown#N#contig`. The package ships a small
+Rust tool that adds side tables (`HaplotypeSamples`, `HaplotypeLengths`,
+`HaplotypeAnchors`) to an existing database; with them, every haplotype through
+a window is reported under its real `sample#haplotype#contig` name, and the
+paths panel shows exact lengths. What the tables hold, and the `--output` form
+that writes them as a companion file beside a database you did not build, is in
+the [gbz-base README](https://github.com/GMOD/gbz-base-js#readme).
+
+```bash
+cd node_modules/@gmod/gbz-base/tools/haplotype-index && cargo build --release
+./target/release/gbz-haplotype-index --interval 4096 graph.gbz graph.gbz.db
+# or, without the .gbz at hand:
+./target/release/gbz-haplotype-index --from-db graph.gbz.db
+```
+
+Build cost scales with total path length, not graph size: the full HPRC v2.1
+graph (5.5 GB GBZ, 53,150 paths, 1,305 Gbp walked) takes about 13 minutes on 24
+cores and yields a 7.9 GB companion database. The bundled examples take seconds.
+
+`--interval` (default 4096 bp) is the size/latency knob: it sets how far apart
+the samples along each path are, so halving it roughly doubles the table and
+halves the `lf()` walk needed to name a path that missed every sample. Small
+graphs like the bundled examples are fine at the default; the published HPRC
+v2.1 tables were built at 16384. `--anchor-spacing` (default 131072 bp) does the
+same for `HaplotypeAnchors`.
+
+Upstream `gbz-base query` keeps working on the augmented database. The bundled
+`exampleData/micb-kir3dl1.gbz.db` (an HPRC slice from the package's test data)
+carries the side tables inside it, so its haplotypes read as real
+`sample#haplotype#contig` names. `exampleData/hprc-chrM.gbz.db` does not: its
+tables are the separate `exampleData/hprc-chrM.haplotype-index.db`, which is the
+companion form below, 53 kB beside a 110 kB database.
+
+#### Pointing a track at a companion index
+
+A database somebody else hosts cannot be augmented in place, which is what
+`--output` is for: the side tables go in a file of their own, and the graph
+track names it beside the database.
+
+```json
+{
+  "trackFile": "https://example.org/graph.gbz.db",
+  "haplotypeIndexFile": "https://example.org/graph.haplotype-index.db",
+  "trackType": "graph"
+}
+```
+
+`haplotypeIndexFile` works wherever a graph track is spelled out for the
+in-browser backend — `DATA_SOURCES` in `src/config.json`, or `tracksJson=` in a
+link — and the browser reads it by range request like the database itself. Only
+that backend uses it: a vg server ignores it, since the graph it chunks carries
+the path names already.
+
+The published HPRC release 2.1 graph is the case this exists for. HPRC hosts the
+10 GB database, JBrowse hosts the 7.9 GB companion, and the bundled "HPRC v2.1
+whole genome" example reads both:
+
+```json
+{
+  "trackFile": "https://s3-us-west-2.amazonaws.com/human-pangenomics/pangenomes/freeze/release2/minigraph-cactus/v2.1/hprc-v2.1-mc-grch38/hprc-v2.1-mc-grch38.gbz.db",
+  "haplotypeIndexFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38.haplotype-index.anchored.db",
+  "trackType": "graph"
+}
+```
+
+Measured against those two files from a home connection, 500 bp inside _LPA_'s
+KIV-2 array (`GRCh38#chr6:160620000-160620500`, the example's default region): 2
+s, 15 range requests, 1 MB, for 57 nodes and 23 distinct haplotype walks — named
+`HG03942#2#CM088404.1` rather than `unknown#2`.
+
+The paths panel is the other reason to name the index. It asks for a length per
+indexed path, and the companion answers that out of `HaplotypeLengths` instead
+of walking the graph to the end of each one: the release 2.1 graph's 292 indexed
+paths cost 2.3 s and 3.6 MB with the companion open, and 6 s and 41 MB without
+it.
 
 ### Indexing reads for region queries
 
@@ -98,11 +189,43 @@ Drop both `.sorted.gam` and `.sorted.gam.gai` into the dialog together.
 ### Loading
 
 In the dialog click **Switch to in-browser →**, drop your files, and click
-**Load files**. A `.gbz.db` hosted on an HTTPS server with CORS and range
-support can instead be given as a track URL — it is read by range requests
-rather than downloaded, so a whole-pangenome graph works without pulling the
-whole file. The bundled **HPRC v2.1 whole genome** example is exactly that: 10
-GB on HPRC's S3, browsed a window at a time.
+**Load files**. The browser reads an uploaded file in place from its `File`
+object, and it never leaves your machine.
+
+A `.gbz.db` hosted on an HTTPS server with CORS (`Access-Control-Allow-Origin`)
+and range support, which S3 and CloudFront provide, can instead be given as a
+track URL. The browser reads it by range requests rather than downloading it, so
+a whole-pangenome graph works without pulling the whole file. The bundled **HPRC
+v2.1 whole genome** example is exactly that: 10 GB on HPRC's S3, where a 500 bp
+window costs 15 requests and a megabyte. Bigger windows cost proportionally
+more; the reader's README has numbers for MHC- and LPA-scale queries.
+
+### Which bundled examples read in the browser
+
+The **Examples** menu groups its entries by backend, and a `(gbz-base)` in the
+name says the same thing: that graph is a `.gbz.db` the browser reads itself.
+
+![The Examples menu, grouped by backend](images/examples-menu-grouped.png)
+
+That is the menu with a server configured. In-browser mode shows the first group
+alone, since it is the only one it can open — `Discovered` is whatever
+`manifest.json` files the server's data directory holds
+([server.md](server.md)). The entries that read a `.gbz.db`, from `DATA_SOURCES`
+in `src/config.json`:
+
+| Example                                        | Graph                                | Haplotype names                                                                |
+| ---------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
+| snp1kg-BRCA1 (gbz-base)                        | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
+| cactus (gbz-base)                              | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
+| backward (gbz-base)                            | bundled, `fwd` and `rev` paths       | `_gbwt_ref` paths, no haplotypes                                               |
+| HPRC chrM (gbz-base, companion index)          | bundled, PanSN sample names          | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
+| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes) | bundled, an HPRC slice               | real, side tables inside the database                                          |
+| HPRC v2.1 whole genome (gbz-base, URL-hosted)  | hosted, 10 GB, read by range request | real, from the [companion index](#pointing-a-track-at-a-companion-index)       |
+
+Everything else in the menu — `snp1kg-BRCA1`, `vg "small" example`, `cactus`,
+`cactus multiple reads`, `Lancet example` — is an `.xg`/`.vg`/`.gbz` graph that
+`vg chunk` has to cut, so it needs the vgteam server or a self-hosted one and
+the in-browser mode hides it.
 
 ---
 
@@ -116,10 +239,9 @@ docker run -it -p 3210:3000 -v $(pwd):/data quay.io/jmonlong/sequencetubemap:vg1
 ```
 
 Open http://localhost:3210 and set the backend URL under **Backend
-configuration** at the bottom of the page. See
-[../docker/README.md](../docker/README.md) for SSH tunnelling and build
-instructions, and [server-data.md](server-data.md) for what you can do with the
-data directory once it is running.
+configuration** at the bottom of the page. [server.md](server.md) covers SSH
+tunnelling, building the image, and what the data directory can hold once the
+server is running.
 
 ---
 
@@ -135,9 +257,15 @@ contains. Region syntax:
 | Node ID range    | `node:42-55`     |
 | Node + context   | `node:42+5`      |
 
-For PanSN graphs, `<sample>#<contig>:<start>-<end>` and
-`<sample>#<haplotype>#<contig>:<start>-<end>` select a specific reference path
-or haplotype; see [gbz-base.md](gbz-base.md#region-syntax).
+### Region syntax for PanSN graphs
+
+`<contig>:<start>-<end>` queries the generic (`_gbwt_ref`) path;
+`<sample>#<contig>:<start>-<end>` a PanSN reference path (haplotype 0);
+`<sample>#<haplotype>#<contig>:<start>-<end>` a specific haplotype. Only paths
+the database indexed for random access (generic paths and the samples in the
+GBWT `reference_samples` tag) can be queried, whichever form is used.
+
+### Fragmented contigs
 
 A graph that splits a contig into fragments lists one row per fragment, all
 under the contig's name, so each row also carries the offset it starts at —
