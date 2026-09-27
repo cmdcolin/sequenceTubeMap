@@ -154,7 +154,6 @@ function HeaderForm({
   const [dataType, setDataType] = useState(
     currentViewTarget.dataType ?? dataTypes.BUILT_IN,
   )
-  const [fileSizeAlert, setFileSizeAlert] = useState(false)
   const [manualError, setManualError] = useState<Error | null>(null)
   const [simplify, setSimplify] = useState(currentViewTarget.simplify ?? false)
   const [removeSequences, setRemoveSequences] = useState(
@@ -533,7 +532,6 @@ function HeaderForm({
     setName(undefined)
     setTracks(newTracks)
     setDataType(dataTypes.CUSTOM_FILES)
-    setFileSizeAlert(false)
     setManualError(null)
     setRecentlyUploaded(
       newTracks.map(t => t.trackDisplayName ?? t.trackFile ?? '(unnamed)'),
@@ -588,8 +586,9 @@ function HeaderForm({
     file: File,
   ): Promise<string | undefined> {
     if (apiMode !== 'local' && file.size > config.MAXUPLOADSIZE) {
-      setFileSizeAlert(true)
-      return undefined
+      throw new Error(
+        `${file.name} is larger than the ${MAX_UPLOAD_SIZE_DESCRIPTION} upload limit.`,
+      )
     }
     const fileName = await APIInterface.putFile(fileType, file, null)
     if (fileType === 'graph') {
@@ -855,19 +854,6 @@ function HeaderForm({
               setChosenRegion(region)
             }}
           />
-        )}
-        {fileSizeAlert && (
-          <Alert
-            severity="error"
-            sx={{ mt: 2 }}
-            onClose={() => {
-              setFileSizeAlert(false)
-            }}
-          >
-            <strong>File size too big! </strong>
-            You may only upload files with a maximum size of{' '}
-            {MAX_UPLOAD_SIZE_DESCRIPTION}.
-          </Alert>
         )}
         {examplesFlag ? (
           <ExampleSelectButtons showExample={showExample} />

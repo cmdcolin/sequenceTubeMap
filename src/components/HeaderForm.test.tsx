@@ -1,6 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
+import '../config-client.js'
+import { config } from '../config-global.mjs'
+import { selectMuiOption } from '../testUtils.ts'
 import HeaderForm from './HeaderForm.tsx'
 import type { APIInterface } from '../api/APIInterface.ts'
 import type { RegionInfo, ViewTarget } from '../Types.ts'
@@ -255,6 +258,30 @@ it('shows a spinner on Go while the committed view loads', () => {
   const go = screen.getByRole('button', { name: 'Go' })
   expect(go).toBeDisabled()
   expect(go).toHaveAttribute('title', 'Loading the current view…')
+})
+
+it('says inside Manage tracks when an upload is over the size limit', async () => {
+  const putFile = vi.fn(async () => 'uploaded')
+  renderForm({ api: fakeAPI({ putFile }) })
+  await userEvent.click(screen.getByTestId('fileMenuButton'))
+  await userEvent.click(screen.getByTestId('manageTracks'))
+  const picker = screen.getByTestId('TrackPicker')
+  await selectMuiOption(
+    within(picker).getByTestId('picker-type-select-component0'),
+    'upload',
+  )
+  const big = new File(['x'], 'big.vg')
+  Object.defineProperty(big, 'size', { value: config.MAXUPLOADSIZE + 1 })
+
+  await userEvent.upload(
+    within(picker).getByLabelText('Upload a track file'),
+    big,
+  )
+
+  expect(
+    await within(picker).findByText(/big\.vg is larger than the 5 MB/),
+  ).toBeInTheDocument()
+  expect(putFile).not.toHaveBeenCalled()
 })
 
 it('shows every live error at once', async () => {
