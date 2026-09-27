@@ -170,6 +170,19 @@ describe('fetching URLs', () => {
   })
 })
 
+describe.skipIf(!HAS_VG)('chunking a graph', () => {
+  it('pipes vg chunk through vg simplify', async () => {
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:1-100',
+      tracks: [CACTUS_GRAPH],
+      simplify: true,
+    })
+    expect(status).toBe(200)
+    expect(body.graph.node.length).toBeGreaterThan(0)
+    expect(body.graph.path[0].name).toBe('ref')
+  })
+})
+
 describe.skipIf(!HAS_VG)('pre-fetched chunks', () => {
   it('serves a chunk with its reads', async () => {
     const { status, body } = await post('getChunkedData', {

@@ -33,6 +33,7 @@ import {
   readsExist,
 } from './common.ts'
 import { once } from 'events'
+import { pipeline } from 'stream'
 import { finished } from 'stream/promises'
 import dns from 'dns'
 import http from 'http'
@@ -567,6 +568,16 @@ function parseSubprocessJSON(text, source) {
   }
 }
 
+// Feed one child's output to the next. A stage that dies early shows in its
+// own exit status, so a pipe broken by it only needs logging.
+function pipeChildren(from, to) {
+  pipeline(from.stdout, to.stdin, err => {
+    if (err) {
+      console.log('Pipe between subprocesses broke: ' + err.message)
+    }
+  })
+}
+
 // read a graph object and remove "sequence" fields in place
 function removeNodeSequencesInPlace(graph) {
   console.log('graph:', graph)
@@ -1073,21 +1084,10 @@ async function getChunkedData(req, res, next) {
         req.error += data
       })
 
-      vgChunkCall.stdout.on('data', function (data) {
-        if (req.simplify) {
-          vgSimplifyCall.stdin.write(data)
-        } else {
-          vgViewCall.stdin.write(data)
-        }
-      })
+      pipeChildren(vgChunkCall, req.simplify ? vgSimplifyCall : vgViewCall)
 
       vgChunkCall.on('close', code => {
         console.log(`vg chunk exited with code ${code}`)
-        if (req.simplify) {
-          vgSimplifyCall.stdin.end()
-        } else {
-          vgViewCall.stdin.end()
-        }
         if (code !== 0) {
           console.log('Error from ' + find_vg() + ' ' + vgChunkParams.join(' '))
           // Execution failed, so tear down the rest of the pipeline rather
@@ -1121,13 +1121,10 @@ async function getChunkedData(req, res, next) {
           req.error += data
         })
 
-        vgSimplifyCall.stdout.on('data', function (data) {
-          vgViewCall.stdin.write(data)
-        })
+        pipeChildren(vgSimplifyCall, vgViewCall)
 
         vgSimplifyCall.on('close', code => {
           console.log(`vg simplify exited with code ${code}`)
-          vgViewCall.stdin.end()
           if (code !== 0) {
             console.log('Error from ' + find_vg() + ' ' + 'simplify - ')
             // Execution failed
@@ -1239,13 +1236,10 @@ async function getChunkedData(req, res, next) {
         req.error += data
       })
 
-      vgSimplifyCall.stdout.on('data', function (data) {
-        vgViewCall.stdin.write(data)
-      })
+      pipeChildren(vgSimplifyCall, vgViewCall)
 
       vgSimplifyCall.on('close', code => {
         console.log(`vg simplify exited with code ${code}`)
-        vgViewCall.stdin.end()
         if (code !== 0) {
           console.log('Error from ' + find_vg() + ' simplify ' + filename)
           // Execution failed
@@ -1629,9 +1623,7 @@ function processGamFile(req, res, next, gamFile, gamFileNumber) {
         // if input was a GAF, run vg convert and pipe stdout to vg view
         const vgConvertChild = spawn(find_vg(), vgConvertParams)
 
-        vgConvertChild.stdout.on('data', function (data) {
-          vgViewChild.stdin.write(data)
-        })
+        pipeChildren(vgConvertChild, vgViewChild)
 
         vgConvertChild.stderr.on('data', data => {
           console.log(`vg convert err data: ${data}`)
@@ -1640,7 +1632,6 @@ function processGamFile(req, res, next, gamFile, gamFileNumber) {
 
         vgConvertChild.on('close', code => {
           console.log(`vg convert exited with code ${code}`)
-          vgViewChild.stdin.end()
           if (code !== 0) {
             console.log(
               'Error from ' + find_vg() + ' ' + vgConvertParams.join(' '),
