@@ -43,6 +43,29 @@ function stageFile(file: File): StagedFile {
   }
 }
 
+// The files a mode takes, and why it turned any others away.
+function screenFiles(files: File[], isLocal: boolean) {
+  const extOk = isLocal ? files.filter(f => isLocallyAccepted(f.name)) : files
+  // Server-mode uploads have a size limit (5 MB by default); local mode
+  // streams the blob in-browser, so no cap.
+  const accepted = isLocal
+    ? extOk
+    : extOk.filter(f => f.size <= config.MAXUPLOADSIZE)
+  const reasons: string[] = []
+  const extRejected = files.length - extOk.length
+  if (extRejected > 0) {
+    reasons.push(
+      `${extRejected} skipped — browser mode only accepts .gbz.db / .gam / .gai`,
+    )
+  }
+  const sizeRejected = extOk.length - accepted.length
+  if (sizeRejected > 0) {
+    const mb = (config.MAXUPLOADSIZE / (1024 * 1024)).toFixed(0)
+    reasons.push(`${sizeRejected} skipped — file exceeds ${mb} MB server limit`)
+  }
+  return { accepted, error: reasons.length > 0 ? reasons.join('; ') : null }
+}
+
 export const UploadPanel = ({
   onUploaded,
   handleFileUpload,
@@ -58,39 +81,24 @@ export const UploadPanel = ({
 
   const isLocal = apiMode === 'local'
 
-  // Clear staged files when the user flips the local/server toggle, since
-  // the accepted file set differs. Adjust state during render rather than in
-  // an effect — see https://react.dev/learn/you-might-not-need-an-effect.
+  // Flipping the local/server toggle changes which files are accepted, so
+  // drop the staged ones the new mode would have turned away. Adjust state
+  // during render rather than in an effect — see
+  // https://react.dev/learn/you-might-not-need-an-effect.
   const [lastApiMode, setLastApiMode] = useState(apiMode)
   if (apiMode !== lastApiMode) {
     setLastApiMode(apiMode)
-    setFiles([])
-    setError(null)
+    const { accepted, error } = screenFiles(
+      files.map(f => f.file),
+      isLocal,
+    )
+    setFiles(files.filter(f => accepted.includes(f.file)))
+    setError(error)
   }
 
   const addFiles = (list: FileList | File[]) => {
-    const arr = Array.from(list)
-    const extOk = isLocal ? arr.filter(f => isLocallyAccepted(f.name)) : arr
-    // Server-mode uploads have a size limit (5 MB by default); local mode
-    // streams the blob in-browser, so no cap.
-    const accepted = isLocal
-      ? extOk
-      : extOk.filter(f => f.size <= config.MAXUPLOADSIZE)
-    const reasons: string[] = []
-    const extRejected = arr.length - extOk.length
-    if (extRejected > 0) {
-      reasons.push(
-        `${extRejected} skipped — browser mode only accepts .gbz.db / .gam / .gai`,
-      )
-    }
-    const sizeRejected = extOk.length - accepted.length
-    if (sizeRejected > 0) {
-      const mb = (config.MAXUPLOADSIZE / (1024 * 1024)).toFixed(0)
-      reasons.push(
-        `${sizeRejected} skipped — file exceeds ${mb} MB server limit`,
-      )
-    }
-    setError(reasons.length > 0 ? reasons.join('; ') : null)
+    const { accepted, error } = screenFiles(Array.from(list), isLocal)
+    setError(error)
     setFiles(prev => [...prev, ...accepted.map(stageFile)])
   }
 

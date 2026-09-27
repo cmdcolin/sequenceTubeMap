@@ -486,9 +486,10 @@ describe('the Open dialog', () => {
     window.history.replaceState(null, '', '/')
   })
 
-  it('stays open across a switch of upload mode', async () => {
+  it('stays open, with its staged files, across a switch of upload mode', async () => {
     renderApp(fakeAPI({ mode: 'local' }))
     await openCustomFiles()
+    await stageFile('graph.gbz.db')
 
     await userEvent.click(screen.getByTestId('mode-server'))
 
@@ -497,6 +498,7 @@ describe('the Open dialog', () => {
       'aria-pressed',
       'true',
     )
+    expect(screen.getByText('graph.gbz.db')).toBeInTheDocument()
   })
 
   it('leaves the view on screen until files are loaded', async () => {

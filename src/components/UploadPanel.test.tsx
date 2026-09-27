@@ -285,8 +285,8 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
   })
 })
 
-describe('UploadPanel mode flip clears staged files', () => {
-  it('discards staged files when apiMode changes', async () => {
+describe('UploadPanel mode flip', () => {
+  it('drops the staged files the new mode cannot take and keeps the rest', async () => {
     const { rerender } = render(
       <UploadPanel
         onUploaded={vi.fn()}
@@ -301,7 +301,10 @@ describe('UploadPanel mode flip clears staged files', () => {
       .getByTestId('UploadPanel')
       .querySelector<HTMLInputElement>('input[type="file"]')!
 
-    await userEvent.upload(input, [fakeFile('graph.xg')])
+    await userEvent.upload(input, [
+      fakeFile('graph.xg'),
+      fakeFile('graph.gbz.db'),
+    ])
     expect(screen.getByText('graph.xg')).toBeTruthy()
 
     rerender(
@@ -315,5 +318,9 @@ describe('UploadPanel mode flip clears staged files', () => {
     )
 
     expect(screen.queryByText('graph.xg')).toBeNull()
+    expect(screen.getByText('graph.gbz.db')).toBeTruthy()
+    expect(
+      screen.getByText(/1 skipped — browser mode only accepts/),
+    ).toBeTruthy()
   })
 })
