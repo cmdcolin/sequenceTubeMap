@@ -296,6 +296,8 @@ export function releaseDomBindings(): void {
     cleanupParentBindings()
     cleanupParentBindings = null
   }
+  // A zoom transition would otherwise run on into the next drawing
+  zoomRoot?.interrupt()
   zoomRoot = null
   hoverTooltip?.remove()
   hoverTooltip = undefined
@@ -765,6 +767,10 @@ function alignSVG(preserveViewport: boolean): () => void {
   const parentElement = getSvgParent()
   if (!svgElement || !parentElement) return () => {}
   const root = svg
+  // The zoom handlers below write to this <g> rather than to the module's svg,
+  // which a later draw repoints at the root while a gesture or transition may
+  // still be finishing
+  const drawing = root.append('g')
 
   // d3-zoom stores the current transform on the SVG node as __zoom. It is
   // undefined until the first time we attach a zoom behaviour. By capturing it
@@ -785,11 +791,11 @@ function alignSVG(preserveViewport: boolean): () => void {
   function flushTransform(): void {
     rafHandle = null
     if (pendingTransform !== null) {
-      svg.attr('transform', pendingTransform)
+      drawing.attr('transform', pendingTransform)
       // Counter-scale node labels so they stay at constant visual size when zoomed out
       // Cap counter-scale so labels don't grow unboundedly when zoomed far out
       const labelScale = Math.min(1 / pendingK, 4)
-      svg.selectAll<SVGGElement, Node>('.node-label-group').attr('transform', d => {
+      drawing.selectAll<SVGGElement, Node>('.node-label-group').attr('transform', d => {
         const { cx, cy } = nodeLabelAnchor(d)
         return `translate(${cx},${cy}) scale(${labelScale})`
       })
@@ -802,8 +808,8 @@ function alignSVG(preserveViewport: boolean): () => void {
       if (shouldHide !== detailHidden) {
         detailHidden = shouldHide
         const display = shouldHide ? 'none' : ''
-        svg.select<SVGGElement>('g.mismatches-layer').style('display', display)
-        svg.select<SVGGElement>('g.sequence-labels-layer').style('display', display)
+        drawing.select<SVGGElement>('g.mismatches-layer').style('display', display)
+        drawing.select<SVGGElement>('g.sequence-labels-layer').style('display', display)
         debugLog(
           `detail layers ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
         )
@@ -828,7 +834,7 @@ function alignSVG(preserveViewport: boolean): () => void {
       // gesture. With ~600k SVG children, per-event hit-testing is what makes
       // pan/zoom feel sticky; the outer SVG still receives pointer events
       // (it's the zoom target), so the gesture itself keeps working.
-      svg.style('pointer-events', 'none')
+      drawing.style('pointer-events', 'none')
     }
     rafHandle ??= requestAnimationFrame(flushTransform)
   }
@@ -844,7 +850,7 @@ function alignSVG(preserveViewport: boolean): () => void {
       flushTransform()
     }
     if (gestureMoved) {
-      svg.style('pointer-events', null)
+      drawing.style('pointer-events', null)
     }
   })
 
@@ -888,7 +894,7 @@ function alignSVG(preserveViewport: boolean): () => void {
   root.call(zoom).on('dblclick.zoom', null)
   zoomRoot = root
   // @ts-expect-error — d3 Selection<SVGGElement> is not structurally assignable to Selection<Element> due to callback this-type invariance, but works at runtime.
-  svg = root.append('g')
+  svg = drawing
 
   // createTubeMap already released the previous draw's bindings, so attaching
   // fresh ones here cannot stack up.

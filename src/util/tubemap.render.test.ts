@@ -233,6 +233,19 @@ describe('tubemap.zoomBy', () => {
     )
   })
 
+  it('stops a zoom still running when its drawing is released', async () => {
+    const svg = setupSvg()
+    const { nodes, tracks } = dataForExample('1')
+    render(nodes, tracks)
+    tubeMap.zoomBy(2)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    tubeMap.changeAllTracksVisibility(false)
+    await settle()
+    tubeMap.changeAllTracksVisibility(true)
+    expect(svg.getAttribute('transform')).toBeNull()
+    expect(svg.style.pointerEvents).toBe('')
+  })
+
   // Example 7 is narrower and shorter than the viewport
   it('zooms out to a small graph centred across the viewport, its top in view', async () => {
     setupSvg(1800, 1200)
