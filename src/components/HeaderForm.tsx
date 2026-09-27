@@ -330,14 +330,21 @@ function HeaderForm({
       : null,
   ].filter(message => message !== null)
 
-  // Every error that's currently live, so one failure can't hide another.
-  const errors: unknown[] = [
-    manualError,
-    filenamesError,
-    bedRegionsError,
-    pathInfoError,
-    noFilesMessage,
-  ].filter(e => e !== null && e !== undefined)
+  // Every distinct error that's currently live, so one failure can't hide
+  // another while an outage that fails every fetch the same way shows once.
+  const errorMessages = [
+    ...new Set(
+      [
+        manualError,
+        filenamesError,
+        bedRegionsError,
+        pathInfoError,
+        noFilesMessage,
+      ]
+        .filter(e => e !== null && e !== undefined)
+        .map(errorMessage),
+    ),
+  ]
 
   const desc = regionDescByCoords(region, regionInfo)
 
@@ -674,9 +681,9 @@ function HeaderForm({
         visMenus={visMenus}
       />
       <Box sx={{ px: 2 }}>
-        {errors.map((e, i) => (
-          <Alert severity="error" key={i} sx={{ mb: 1 }}>
-            {errorMessage(e)}
+        {errorMessages.map(message => (
+          <Alert severity="error" key={message} sx={{ mb: 1 }}>
+            {message}
           </Alert>
         ))}
         {pending.length > 0 && (

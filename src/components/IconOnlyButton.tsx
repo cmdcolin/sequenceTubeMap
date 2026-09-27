@@ -28,6 +28,7 @@ export function IconOnlyButton({
       aria-label={label}
       title={label}
       data-testid={testid}
+      sx={{ minWidth: 0, px: 1.25 }}
       disabled={disabled}
       onClick={() => {
         onClick()

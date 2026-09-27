@@ -11,6 +11,19 @@ function parseJson(text: string): Record<string, unknown> | undefined {
   }
 }
 
+// Proxies and frameworks answer errors with a whole HTML page; the alert only
+// needs its text.
+function htmlToText(text: string): string {
+  if (!/^\s*<(!doctype|html)/i.test(text)) {
+    return text
+  }
+  const body = /<body[^>]*>([\s\S]*)<\/body>/i.exec(text)?.[1] ?? text
+  return body
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // Fetch a JSON response and throw if the server returns an error code, the
 // response is not valid JSON, or the response body contains an "error" field.
 //
@@ -26,7 +39,7 @@ export async function fetchAndParse<T = unknown>(
   const error = json?.error
   if (!response.ok) {
     throw new Error(
-      `Server responded with error code ${response.status}: ${error === undefined ? text : String(error)}`,
+      `Server responded with error code ${response.status}: ${error === undefined ? htmlToText(text) : String(error)}`,
     )
   }
   if (error) {

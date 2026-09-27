@@ -36,7 +36,17 @@ describe('fetchAndParse', () => {
       statusText: 'Bad Gateway',
     })
     await expect(fetchAndParse('/getFilenames')).rejects.toThrow(
-      'Server responded with error code 502: <html>Bad Gateway</html>',
+      'Server responded with error code 502: Bad Gateway',
+    )
+  })
+
+  it('reduces an HTML error page to its body text', async () => {
+    respondWith(
+      '<!DOCTYPE html>\n<html lang="en">\n<head>\n<title>Error</title>\n</head>\n<body>\n<pre>Cannot GET /api/v0/getFilenames</pre>\n</body>\n</html>\n',
+      { status: 404 },
+    )
+    await expect(fetchAndParse('/getFilenames')).rejects.toThrow(
+      /^Server responded with error code 404: Cannot GET \/api\/v0\/getFilenames$/,
     )
   })
 
