@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import type { ColorHex, ColorPaletteName, Palette } from '../Types.ts'
@@ -152,6 +152,57 @@ const PaletteChooser = ({
   )
 }
 
+// Committed on blur or Enter, not per keystroke, because each rename redraws
+// the whole map
+function GroupNameInput({
+  name,
+  active,
+  onRename,
+}: {
+  name: string
+  active: boolean
+  onRename: (name: string) => void
+}) {
+  const [draft, setDraft] = useState(name)
+  const [lastName, setLastName] = useState(name)
+  if (name !== lastName) {
+    setLastName(name)
+    setDraft(name)
+  }
+
+  function commitDraft() {
+    if (draft.trim() === '') {
+      setDraft(name)
+    } else if (draft !== name) {
+      onRename(draft)
+    }
+  }
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      style={{
+        ...NAME_INPUT_STYLE,
+        borderColor: active ? '#888' : 'transparent',
+      }}
+      onChange={e => {
+        setDraft(e.target.value)
+      }}
+      onBlur={() => {
+        commitDraft()
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commitDraft()
+        }
+      }}
+      aria-label={`Name for ${name}`}
+    />
+  )
+}
+
 export interface ReadGroup {
   id: string
   name: string
@@ -213,17 +264,12 @@ const ReadGroupsPanel = ({
               onRecolor(group.id, c)
             }}
           />
-          <input
-            type="text"
-            value={group.name}
-            style={{
-              ...NAME_INPUT_STYLE,
-              borderColor: isActive ? '#888' : 'transparent',
+          <GroupNameInput
+            name={group.name}
+            active={isActive}
+            onRename={name => {
+              onRename(group.id, name)
             }}
-            onChange={e => {
-              onRename(group.id, e.target.value)
-            }}
-            aria-label={`Name for ${group.name}`}
           />
           <span style={COUNT_STYLE}>
             {group.reads.length} read{group.reads.length === 1 ? '' : 's'}
