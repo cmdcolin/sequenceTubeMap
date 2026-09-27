@@ -2,7 +2,7 @@
 // updates out of the LocalAPI Web Worker.
 //
 // GBZBaseAPI.resolveTrackFile reads URL-backed track files chunk-by-chunk and
-// hands each update to its progress listener. That listener is
+// hands its progress listener an update at most ten times a second. That listener is
 // `applyProgress` when GBZBaseAPI runs on the main thread, and a
 // Comlink-proxied callback into `applyProgress` when it runs in the worker —
 // which is the only reason DownloadProgressPanel sees anything at all, since

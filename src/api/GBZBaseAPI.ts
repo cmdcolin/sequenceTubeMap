@@ -180,6 +180,11 @@ async function pathNodeRanges(
 
 const READ_COUNT_MAX_BYTES = 32 * 1024 * 1024
 
+// A download arrives in thousands of chunks, and each progress update is a
+// message out of the worker and a render of the progress panel, so a download
+// reports at most this often, then once more when it ends.
+const PROGRESS_INTERVAL_MS = 100
+
 // The URL of the file beside `url` whose name adds `suffix`. The suffix goes
 // on the path, so a query string such as a cache-buster stays at the end
 // instead of swallowing it.
@@ -397,6 +402,7 @@ export class GBZBaseAPI implements APIInterface {
           total,
           done: false,
         })
+        let reportedAt = Date.now()
         try {
           for (;;) {
             const { done, value } = await reader.read()
@@ -405,12 +411,16 @@ export class GBZBaseAPI implements APIInterface {
             }
             chunks.push(value)
             received += value.length
-            this.progressListener({
-              url: resolved,
-              received,
-              total,
-              done: false,
-            })
+            const now = Date.now()
+            if (now - reportedAt >= PROGRESS_INTERVAL_MS) {
+              reportedAt = now
+              this.progressListener({
+                url: resolved,
+                received,
+                total,
+                done: false,
+              })
+            }
           }
         } finally {
           this.progressListener({ url: resolved, received, total, done: true })

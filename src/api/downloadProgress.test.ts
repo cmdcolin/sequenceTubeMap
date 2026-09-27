@@ -12,7 +12,15 @@ const realFetch = globalThis.fetch
 
 afterEach(() => {
   globalThis.fetch = realFetch
+  vi.restoreAllMocks()
 })
+
+// Each look at the clock moves it `step` ms on, standing in for chunks that
+// arrive that far apart.
+function clockAdvancing(step: number) {
+  let now = 0
+  vi.spyOn(Date, 'now').mockImplementation(() => (now += step))
+}
 
 // Stubs fetch with a streaming body of N chunks. The chunked stream is what
 // lets `resolveTrackFile` publish progress mid-download — a one-shot Response
@@ -51,6 +59,7 @@ function trackFileReader(api: GBZBaseAPI) {
 describe('GBZBaseAPI download progress', () => {
   it('publishes progress while a URL-backed track file is being fetched', async () => {
     const url = 'https://test.example/tiny.gbz.db'
+    clockAdvancing(100)
     globalThis.fetch = vi.fn().mockResolvedValue(fakeStreamingResponse(CHUNKS))
 
     // Capture every subscriber notification so we can confirm progress was
@@ -87,6 +96,7 @@ describe('GBZBaseAPI download progress', () => {
   // hands each update back across Comlink; this is that seam.
   it('sends progress to an installed listener instead of the module store', async () => {
     const url = 'https://test.example/injected.gbz.db'
+    clockAdvancing(100)
     globalThis.fetch = vi.fn().mockResolvedValue(fakeStreamingResponse(CHUNKS))
 
     const api = new GBZBaseAPI()
@@ -99,6 +109,25 @@ describe('GBZBaseAPI download progress', () => {
     expect(updates.map(u => u.done)).toEqual([false, false, false, false, true])
     expect(updates.every(u => u.url === url && u.total === 12)).toBe(true)
     expect(getDownloadProgressSnapshot().some(s => s.url === url)).toBe(false)
+  })
+
+  // One update per network chunk re-rendered the panel hundreds of times a
+  // second on a fast connection.
+  it('reports at most every 100 ms, and always when the download ends', async () => {
+    const url = 'https://test.example/fast.gbz.db'
+    clockAdvancing(50)
+    globalThis.fetch = vi.fn().mockResolvedValue(fakeStreamingResponse(CHUNKS))
+
+    const api = new GBZBaseAPI()
+    const updates: ProgressUpdate[] = []
+    api.setProgressListener(update => updates.push(update))
+    await trackFileReader(api).resolveTrackFile(url, null)
+
+    expect(updates.map(u => [u.received, u.done])).toEqual([
+      [0, false],
+      [8, false],
+      [12, true],
+    ])
   })
 
   it('clears progress and forgets the download when the fetch fails', async () => {
