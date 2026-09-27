@@ -1680,14 +1680,6 @@ function switchNodeOrientation(): void {
     countPaths = countPaths.concat(reads)
   }
   switchNodeOrientationForPaths(countPaths, pivotPath)
-  if (config.showReads && reads.length > 0) {
-    // Any changes should be committed back
-    for (let i = 0; i < reads.length; i++) {
-      if (reads[i] !== countPaths[i + tracks.length - 1]) {
-        throw new Error('Read inequality')
-      }
-    }
-  }
 }
 
 // If more of the given paths pass through a specific node in reverse direction than in
@@ -1836,7 +1828,7 @@ function generateLaneAssignment(): void {
   // SegmentAssignment object for the visit of that track to that order slot.
   // When an order slot is visited multiple times, holds whatever
   // SegmentAssignment was created most recently.
-  const prevSegmentPerOrderPerTrack: (SegmentAssignment | null)[][] = []
+  const prevSegmentPerOrderPerTrack: SegmentAssignment[][] = []
   // Index into assignments[order] by node, so addToAssignment can find an
   // existing entry without scanning the whole order slot.
   const assignmentByOrderAndNode: Map<number, NodeAssignment>[] = []
@@ -1846,9 +1838,6 @@ function generateLaneAssignment(): void {
     assignments[i] = []
     assignmentByOrderAndNode[i] = new Map()
     prevSegmentPerOrderPerTrack[i] = []
-    for (let j = 0; j < tracks.length; j += 1) {
-      prevSegmentPerOrderPerTrack[i]![j] = null
-    }
   }
 
   tracks.forEach((track, trackNo) => {
@@ -2127,7 +2116,7 @@ function addToAssignment(
   nodeIndex: number | null,
   trackNo: number,
   segmentID: number,
-  prevSegmentPerOrderPerTrack: (SegmentAssignment | null)[][],
+  prevSegmentPerOrderPerTrack: SegmentAssignment[][],
   assignmentByOrderAndNode: Map<number, NodeAssignment>[],
 ): void {
   const segment: SegmentAssignment = {
@@ -2590,7 +2579,6 @@ function generateSVGShapesFromPath(): void {
             track,
             xStart,
             yStart,
-            trackColor,
             reversalFlag,
           )
           highlight = dummy.highlight
@@ -2715,7 +2703,6 @@ function generateSVGShapesFromPath(): void {
             track,
             xStart,
             yStart,
-            trackColor,
             reversalFlag,
           )
           highlight = dummy.highlight
@@ -2814,11 +2801,8 @@ function buildCoarsenedSyntheticBands(
     for (let i = 0; i < seq.length - 1; i += 1) {
       const sSigned = seq[i]!
       const dSigned = seq[i + 1]!
-      const sIdx = Math.abs(sSigned)
-      const dIdx = Math.abs(dSigned)
-      const srcNode = nodes[sIdx]
-      const dstNode = nodes[dIdx]
-      if (!srcNode || !dstNode) continue
+      const srcNode = nodes[Math.abs(sSigned)]!
+      const dstNode = nodes[Math.abs(dSigned)]!
       const key = ignoreStrand
         ? Math.min(edgeKey(sSigned, dSigned), edgeKey(-dSigned, -sSigned))
         : edgeKey(sSigned, dSigned)
@@ -2891,7 +2875,7 @@ function buildCoarsenedSyntheticBands(
     // for fully-reverse synthetics. The math works out: pre-flip values of
     // (srcLen, 0) become post-flip (newSrcLen, 0), which is the same pattern
     // — bands stay edge-only regardless of orientation.
-    const srcLen = nodes[Math.abs(edge.sSigned)]?.sequenceLength ?? 0 // node may be absent for a dangling edge
+    const srcLen = nodes[Math.abs(edge.sSigned)]!.sequenceLength
     synthetic.push({
       id,
       sourceTrackID: edge.sourceTrackID,
@@ -2986,7 +2970,6 @@ function createFeatureRectangle(
   track: Track,
   rectXStart: number,
   yStart: number,
-  trackColor: string,
   reversalFlag: boolean,
 ): { highlight: string; xStart: number } {
   let currentHighlight: string = highlight
@@ -3423,10 +3406,7 @@ function mergeNodes(): void {
           pred,
           succ,
         )
-        if (
-          predecessorIndex !== 0 &&
-          mergeableWithSucc(predecessorIndex, pred, succ)
-        ) {
+        if (predecessorIndex !== 0) {
           if (i > 0) {
             read.sequence.splice(i, 1)
             // adjust position of mismatches
