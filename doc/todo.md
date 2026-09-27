@@ -33,21 +33,27 @@ Open items from the coarsened-view sessions:
 
 ## The layout engine
 
-`packages/tubemap-core/src/layout.ts` and `src/util/tubemap.ts` are
-typecheck-clean with no `@ts-nocheck`, but `.oxlintrc.json` still ignores both.
-Un-ignored, the layout reports most of the errors, in three groups:
+`packages/tubemap-core/src/layout.ts` now passes lint. `src/util/tubemap.ts` is
+typecheck-clean with no `@ts-nocheck`, but `.oxlintrc.json` still ignores it.
 
-1. **`no-unnecessary-condition` (51).** Almost all are defensive `if (node)` /
-   `if (node.y !== undefined)` guards against the sparse `nodes` array, typed
-   `LayoutNode[]` even though index 0 is a hole and unreachable nodes have no
-   `x`/`y`. Fixing this properly means typing `nodes` as
-   `(LayoutNode | undefined)[]` and narrowing at every access, which cascades
-   through the whole layout section. Do it as its own pass, not
-   opportunistically.
-2. **`no-console` (23).** All sit behind the module's `DEBUG` flag and are
-   deliberate. The file needs a per-file `no-console` override like
-   `src/components/TubeMap.tsx` has, or a small `debugLog()` wrapper.
-3. **`prefer-nullish-coalescing` (6).**
+The layout keeps `nodes` typed `LayoutNode[]` rather than
+`(LayoutNode | undefined)[]`: forEach, map and sort skip the hole at index 0,
+and `noUncheckedIndexedAccess` already types indexed reads as possibly
+undefined, so the wider type would only force guards that never fire. Fields
+that `Node` and `Track` declare but not every entry gets (an unplaced node's
+`x`/`y`, a normal read's `width` before `assignReadsToNodes`, `seq` under
+`removeSequences`) are read through a local `MaybeUnset<T, K>` view. Making them
+optional on the exported types would be more honest still, but touches
+`geometry.ts` and `tubemap.ts`.
+
+Found along the way:
+
+- **`mergeNodes` concatenates `seq`** with `+=`, so under `removeSequences` a
+  merged node's `seq` becomes `"undefinedundefined…"`; with
+  `nodeWidthOption: 'normal'` its `pixelWidth` would come from that string's
+  length. `App.tsx` locks the compressed view for `removeSequences` targets,
+  which keeps this latent. `straightenTrack` would likewise throw on
+  `node.seq.split` for an inverted node without a sequence.
 
 Structural work not yet done:
 
