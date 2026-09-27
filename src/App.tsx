@@ -170,8 +170,8 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     () => api ?? (isLocalMode ? new LocalAPI() : new ServerAPI(apiUrl)),
   )
   // What the header form re-seeds from when the view changed from outside it
-  // (Back/Forward). Identity is the signal, so one pop re-seeds the form once
-  // rather than on every render.
+  // (Back/Forward, or a switch of backend). Identity is the signal, so one
+  // change re-seeds the form once rather than on every render.
   const [seedViewTarget, setSeedViewTarget] = useState<ViewTarget | null>(null)
 
   // The tube map data lives here rather than in TubeMapContainer so the Go
@@ -227,13 +227,18 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     }
     if (mode !== apiInterface.mode) {
       const { create, viewTarget: modeViewTarget } = apiModes[mode]
+      // A copy, so the form sees a new seed even when switching back to a
+      // backend whose view it was seeded from before.
+      const target = { ...modeViewTarget }
       setApiInterface(create())
       setDataOrigin(dataOriginTypes.API)
-      setViewTarget(modeViewTarget)
+      setViewTarget(target)
       setVisOptions(v => ({
         ...v,
-        colorSchemes: getColorSchemesFromTracks(modeViewTarget.tracks),
+        colorSchemes: getColorSchemesFromTracks(target.tracks),
       }))
+      // The previous backend's files mean nothing to this one.
+      setSeedViewTarget(target)
     }
   }
 
@@ -318,9 +323,6 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   return (
     <div>
       <HeaderForm
-        // Re-seed the form's tracks/region/name/bedFile when the backend
-        // changes, since the previous backend's files aren't valid any more.
-        key={apiInterface.mode}
         setCurrentViewTarget={setCurrentViewTarget}
         showExample={showExample}
         currentViewTarget={viewTarget}

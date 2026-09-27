@@ -461,6 +461,25 @@ describe('the address bar', () => {
   })
 })
 
+describe('the Open dialog', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('stays open across a switch of upload mode', async () => {
+    renderApp(fakeAPI({ mode: 'local' }))
+    await openCustomFiles()
+
+    await userEvent.click(screen.getByTestId('mode-server'))
+
+    expect(screen.getByTestId('UploadPanel')).toBeVisible()
+    expect(screen.getByTestId('mode-server')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+})
+
 describe('loading and empty states', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '/')

@@ -75,14 +75,13 @@ interface HeaderFormProps {
   // legend is hidden.
   legendTracks: Tracks | undefined
   setCurrentViewTarget: (viewTarget: ViewTarget) => void
-  // Also seeds the form's own tracks/region/name/bedFile state on mount. App
-  // remounts the form when the backend changes, so switching backends
-  // re-seeds it from that backend's view target.
+  // Also seeds the form's own tracks/region/name/bedFile state on mount.
   currentViewTarget: ViewTarget
-  // A view that arrived from outside the form -- Back or Forward, the
-  // browser's or the form's own. App has already committed it; the form
-  // follows so its fields describe what is on screen. A new object each time
-  // is the signal to re-seed, so re-seeding happens once per navigation.
+  // A view that arrived from outside the form -- Back or Forward (the
+  // browser's or the form's own), or a switch of backend. App has already
+  // committed it; the form follows so its fields describe what is on screen.
+  // A new object each time is the signal to re-seed, so re-seeding happens
+  // once per change.
   seedViewTarget: ViewTarget | null
   // Walk the browser's history, or undefined when there is no view of the
   // app's to walk to.
@@ -379,6 +378,7 @@ function HeaderForm({
     setSimplify(target.simplify ?? false)
     setRemoveSequences(target.removeSequences ?? false)
     setManualError(null)
+    setRecentlyUploaded([])
   }
 
   function handleGoButton() {
