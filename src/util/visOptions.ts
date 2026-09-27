@@ -39,6 +39,16 @@ export const VIS_OPTION_FLAGS = [
   'ignoreStrand',
 ] as const satisfies readonly VisOptionFlag[]
 
+export const MAX_MAPPING_QUALITY_CUTOFF = 60
+
+// The View menu offers the whole numbers up to the max, and shows a blank
+// for any other value, so a link or stored preference is pulled onto one.
+export function mappingQualityCutoffFrom(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(MAX_MAPPING_QUALITY_CUTOFF, Math.max(0, Math.round(value)))
+    : undefined
+}
+
 export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   removeRedundantNodes: true,
   compressedView: false,

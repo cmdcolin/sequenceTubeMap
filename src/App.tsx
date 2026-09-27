@@ -40,6 +40,7 @@ import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
 import {
   DEFAULT_VIS_OPTIONS,
   exampleColorSchemes,
+  mappingQualityCutoffFrom,
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
 } from './util/visOptions.ts'
@@ -68,13 +69,11 @@ function validateVisOptions(value: unknown): StoredVisOptions | undefined {
         flags[flag] = stored
       }
     }
-    const cutoff = value.mappingQualityCutoff
+    const cutoff = mappingQualityCutoffFrom(value.mappingQualityCutoff)
     return {
       ...DEFAULT_VIS_OPTIONS,
       ...flags,
-      ...(typeof cutoff === 'number' &&
-        Number.isFinite(cutoff) &&
-        cutoff >= 0 && { mappingQualityCutoff: cutoff }),
+      ...(cutoff !== undefined && { mappingQualityCutoff: cutoff }),
     }
   }
   return undefined

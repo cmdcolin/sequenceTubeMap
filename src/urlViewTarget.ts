@@ -1,5 +1,6 @@
 import {
   DEFAULT_VIS_OPTIONS,
+  mappingQualityCutoffFrom,
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
 } from './util/visOptions.ts'
@@ -347,11 +348,10 @@ export function urlParamsToVisOptions(
     }
   }
 
-  const cutoff = Number(readScalar(params, 'mapq'))
+  const cutoff = mappingQualityCutoffFrom(Number(readScalar(params, 'mapq')))
   return {
     ...flags,
-    ...(Number.isFinite(cutoff) &&
-      cutoff >= 0 && { mappingQualityCutoff: cutoff }),
+    ...(cutoff !== undefined && { mappingQualityCutoff: cutoff }),
   }
 }
 

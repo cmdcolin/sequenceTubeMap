@@ -144,7 +144,8 @@ preference, adjustable from the banner above the map.
 
 ### `mapq`
 
-The mapping quality cutoff, a number. `mapq=20`.
+The mapping quality cutoff, a whole number from 0 to 60. `mapq=20`. The app
+rounds any other number to the nearest one in that range.
 
 ### `dataType`
 

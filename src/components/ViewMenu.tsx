@@ -6,6 +6,7 @@ import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
 import Typography from '@mui/material/Typography'
 import type { ViewTarget, VisOptionFlag, VisOptions } from '../Types.ts'
+import { MAX_MAPPING_QUALITY_CUTOFF } from '../util/visOptions.ts'
 import { AppBarMenu } from './AppBarMenu.tsx'
 import { CheckboxMenuItem } from './CheckboxMenuItem.tsx'
 import { HelpDialog } from './HelpDialog.tsx'
@@ -13,7 +14,10 @@ import { OpenInBandageJsMenuItem } from './OpenInBandageJsMenuItem.tsx'
 import PopupDialog from './PopupDialog.tsx'
 import TrackVisibilityPanel from './TrackVisibilityPanel.tsx'
 
-const MAPPING_QUALITY_VALUES = Array.from({ length: 61 }, (_, i) => i)
+const MAPPING_QUALITY_VALUES = Array.from(
+  { length: MAX_MAPPING_QUALITY_CUTOFF + 1 },
+  (_, i) => i,
+)
 
 interface ViewMenuProps {
   legendVisible: boolean

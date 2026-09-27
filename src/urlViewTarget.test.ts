@@ -448,6 +448,13 @@ describe('vis short form', () => {
     expect(visOf('mapq=20')).toEqual({ mappingQualityCutoff: 20 })
   })
 
+  it('pulls a cutoff the View menu cannot show onto one it can', () => {
+    expect(visOf('mapq=20.6')).toEqual({ mappingQualityCutoff: 21 })
+    expect(visOf('mapq=99')).toEqual({ mappingQualityCutoff: 60 })
+    expect(visOf('mapq=-5')).toEqual({ mappingQualityCutoff: 0 })
+    expect(visOf('mapq=high')).toEqual({})
+  })
+
   it('round trips a cutoff', () => {
     const params = viewTargetToUrlParams(
       { region: 'x:1-100', tracks: [] },
