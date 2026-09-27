@@ -431,6 +431,21 @@ function endsWithExtensions(file, extensions) {
   return false
 }
 
+// Throw unless a graph track names a graph file we let vg open.
+function assertGraphFile(graphFile) {
+  if (
+    typeof graphFile !== 'string' ||
+    !endsWithExtensions(graphFile, GRAPH_EXTENSIONS)
+  ) {
+    throw new BadRequestError(
+      'Graph file does not end in valid extension: ' + graphFile,
+    )
+  }
+  if (!isAllowedPath(graphFile)) {
+    throw new BadRequestError('Graph file path not allowed: ' + graphFile)
+  }
+}
+
 // INPUT: (track {files: }, string)
 // OUTPUT: string
 // returns the file name of the specified type in that track
@@ -810,15 +825,7 @@ async function getChunkedData(req, res, next) {
   const rangeRegion = convertRegionToRangeRegion(parsedRegion)
 
   if (chunkPath === '') {
-    // double-check that the file has a valid graph extension and is allowed
-    if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
-      throw new BadRequestError(
-        'Graph file does not end in valid extension: ' + graphFile,
-      )
-    }
-    if (!isAllowedPath(graphFile)) {
-      throw new BadRequestError('Graph file path not allowed: ' + graphFile)
-    }
+    assertGraphFile(graphFile)
 
     if (graphFile.endsWith('.pos.bed.gz')) {
       // use tabix-based pangenome (experimental)
@@ -1624,6 +1631,7 @@ async function readGamFile(req, gamFile) {
     gamJSON = await fs.promises.readFile(gamFile, 'utf-8')
   } else if (gamFile.endsWith('.gaf')) {
     const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
+    assertGraphFile(graphFile)
     gamJSON = await runPipeline(req, [
       vgStage(['convert', '-F', gamFile, graphFile]),
       vgStage(['view', '-j', '-a', '-'], { reportStderr: false }),

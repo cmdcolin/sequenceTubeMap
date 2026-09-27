@@ -322,6 +322,27 @@ describe.skipIf(!HAS_VG)('pre-fetched chunks', () => {
     }
   })
 
+  it('refuses to convert a GAF against a graph outside the data paths', async () => {
+    const bedFile = makeBedWithChunks(
+      [['ref:500-600', 'chunk-cactus-no-reads']],
+      { omit: ['tracks.json'] },
+    )
+    fs.writeFileSync(
+      path.join(path.dirname(bedFile), 'chunk-cactus-no-reads', 'chunk_0.gaf'),
+      '',
+    )
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:500-600',
+      bedFile,
+      tracks: [
+        { trackFile: '/etc/secret.vg', trackType: 'graph' },
+        CACTUS_READS,
+      ],
+    })
+    expect(status).toBe(400)
+    expect(body.error).toMatch(/Graph file path not allowed: \/etc\/secret\.vg/)
+  })
+
   it('reports a chunk without regions.tsv as an error', async () => {
     const bedFile = makeBedWithChunks(
       [['ref:500-600', 'chunk-cactus-no-reads']],
