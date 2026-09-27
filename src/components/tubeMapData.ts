@@ -172,9 +172,7 @@ export function computeExampleData(
       reads: tubeMap.vgExtractReads(nodes, tracks, reads, 0, 1),
     }
   }
-  if (dataOrigin !== dataOriginTypes.NO_DATA) {
-    console.warn('invalid example data origin type:', dataOrigin)
-  }
+  console.warn('invalid example data origin type:', dataOrigin)
   return { nodes: data.inputNodes, tracks: [], reads: [] }
 }
 
