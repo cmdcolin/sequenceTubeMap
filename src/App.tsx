@@ -377,6 +377,13 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
           onLegendClose={() => {
             setLegend(false)
           }}
+          onCoarsen={() => {
+            updateVisOptions({
+              ...visOptions,
+              showReads: true,
+              coarsenedReadView: true,
+            })
+          }}
         />
       </div>
       <BackendSelector

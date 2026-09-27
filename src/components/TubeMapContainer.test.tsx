@@ -105,15 +105,17 @@ interface RenderOptions {
   isValidating?: boolean
   viewTarget?: ViewTarget
   readRenderLimit?: number | null
+  visOptions?: VisOptions
   onRetry?: () => void
   onReadRenderLimitChange?: (limit: number | null) => void
+  onCoarsen?: () => void
 }
 
 function renderContainer(options: RenderOptions = {}) {
   const props = {
     viewTarget: options.viewTarget ?? VIEW_TARGET,
     dataOrigin: 'API',
-    visOptions: VIS_OPTIONS,
+    visOptions: options.visOptions ?? VIS_OPTIONS,
     data: options.data,
     error: options.error,
     isValidating: options.isValidating ?? false,
@@ -124,6 +126,7 @@ function renderContainer(options: RenderOptions = {}) {
     legendVisible: false,
     legendTracks: (options.viewTarget ?? VIEW_TARGET).tracks,
     onLegendClose: () => {},
+    onCoarsen: options.onCoarsen ?? (() => {}),
   }
   const result = render(<TubeMapContainer {...props} />)
   return {
@@ -223,6 +226,53 @@ describe('TubeMapContainer', () => {
     expect(
       screen.getByRole('button', { name: 'Draw anyway' }),
     ).toBeInTheDocument()
+  })
+
+  it('offers the coarsened view for a haplotype graph past the cap, and draws it there', async () => {
+    const walks = Array.from({ length: 40 }, (_, i) => makeWalk(i, 1000))
+    const onCoarsen = vi.fn()
+    const { rerenderWith } = renderContainer({
+      data: makeData(0, walks),
+      onCoarsen,
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Coarsen' }))
+    expect(onCoarsen).toHaveBeenCalled()
+
+    rerenderWith({ visOptions: { ...VIS_OPTIONS, coarsenedReadView: true } })
+    expect(screen.getByTestId('tubeMap')).toBeInTheDocument()
+  })
+
+  it('still refuses a window too wide even coarsened, without offering it', () => {
+    const walks = Array.from({ length: 2 }, (_, i) => makeWalk(i, 600_000))
+    renderContainer({
+      data: makeData(0, walks),
+      visOptions: { ...VIS_OPTIONS, coarsenedReadView: true },
+    })
+
+    expect(
+      screen.getByText(/1,200,000 node visits across 2 haplotypes/),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Coarsen' }),
+    ).not.toBeInTheDocument()
+  })
+
+  // With reads loaded the coarsened view collapses those, and the haplotypes
+  // still draw a ribbon per visit.
+  it('does not offer the coarsened view when reads are loaded', () => {
+    const walks = Array.from({ length: 40 }, (_, i) => makeWalk(i, 1000))
+    renderContainer({
+      data: makeData(5, walks),
+      visOptions: { ...VIS_OPTIONS, coarsenedReadView: true },
+    })
+
+    expect(
+      screen.getByRole('button', { name: 'Draw anyway' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Coarsen' }),
+    ).not.toBeInTheDocument()
   })
 
   it('stages a read from its context menu and saves it as a group', async () => {

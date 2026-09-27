@@ -59,26 +59,46 @@ const READ_LIMIT_CHOICES: (number | null)[] = [...READ_LIMIT_PRESETS, null]
 // visit — nodes alone say little, since one node visited by 464 haplotypes
 // costs 464 segments.
 //
-// Measured on the HPRC v2.1 graph, which draws every haplotype: the chr20
-// microsatellite in the README is 14,518 visits and lays out in a few seconds;
-// a 10 kb MHC window is 73,282 and a 9 MB SVG; a 50 kb one is 495,391 and a
-// 54 MB SVG that took 28 s outside the browser. So the cap sits above the
-// first and well below the second. Cost is superlinear in the window — the
-// same locus at 2 kb is only 2,146 visits — which is why this counts what
-// arrived rather than predicting from the region.
+// Measured in Chrome on the HPRC v2.1 graph, which draws every haplotype: the
+// chr20 microsatellite in the README is 14,518 visits; a 10 kb MHC window is
+// 73,282, draws in a second and then takes 400 ms per zoom step; a 50 kb one is
+// 495,391 and takes 10 s to draw. So the cap sits above the first and below the
+// second. Cost is superlinear in the window — the same locus at 2 kb is only
+// 2,146 visits — which is why this counts what arrived rather than predicting
+// from the region.
 export const GRAPH_RENDER_LIMIT = 30_000
+
+// The coarsened view draws a haplotype-only graph as one band per edge, not a
+// ribbon per visit. Coarsened, a 50 kb MHC window draws in 1.3 s and zooms at
+// 85 ms a step; a 150 kb one (1,975,561 visits) takes 4 s and 300 ms or more.
+export const COARSENED_GRAPH_RENDER_LIMIT = 1_000_000
 
 export function graphNodeVisits(tracks: InputTrack[]): number {
   return tracks.reduce((sum, track) => sum + track.sequence.length, 0)
 }
 
+// The layout coarsens the haplotypes themselves only when there are no reads
+// for the coarsened view to collapse instead.
+export function graphRenderLimit(
+  visOptions: Pick<VisOptions, 'showReads' | 'coarsenedReadView'>,
+  readCount: number,
+): number {
+  return visOptions.showReads && visOptions.coarsenedReadView && readCount === 0
+    ? COARSENED_GRAPH_RENDER_LIMIT
+    : GRAPH_RENDER_LIMIT
+}
+
 function LargeGraphNotice({
   nodeVisits,
   walks,
+  limit,
+  onCoarsen,
   onDrawAnyway,
 }: {
   nodeVisits: number
   walks: number
+  limit: number
+  onCoarsen: (() => void) | undefined
   onDrawAnyway: () => void
 }) {
   return (
@@ -88,28 +108,43 @@ function LargeGraphNotice({
     <Box sx={{ px: 2, position: 'relative', zIndex: 20 }}>
       <Alert
         severity="warning"
+        sx={{ '& .MuiAlert-action': { flexShrink: 0 } }}
         action={
-          <Button
-            color="warning"
-            variant="outlined"
-            size="small"
-            sx={{ flexShrink: 0 }}
-            onClick={() => {
-              onDrawAnyway()
-            }}
-          >
-            Draw anyway
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {onCoarsen ? (
+              <Button
+                color="warning"
+                variant="contained"
+                size="small"
+                onClick={() => {
+                  onCoarsen()
+                }}
+              >
+                Coarsen
+              </Button>
+            ) : null}
+            <Button
+              color="warning"
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                onDrawAnyway()
+              }}
+            >
+              Draw anyway
+            </Button>
+          </Box>
         }
       >
         <strong>
           This region is {nodeVisits.toLocaleString()} node visits across{' '}
           {walks.toLocaleString()} haplotype{walks === 1 ? '' : 's'}
         </strong>{' '}
-        — more than the {GRAPH_RENDER_LIMIT.toLocaleString()} this draws without
-        asking, and enough to freeze the browser for minutes. Narrow the region
-        and it will draw straight away; a graph with many haplotypes gets
-        expensive within a few kb.
+        — more than the {limit.toLocaleString()} this draws without asking, past
+        which the map is slow to draw and slower to zoom.{' '}
+        {onCoarsen
+          ? 'Coarsen the view to draw the haplotypes as one band per edge, which handles windows many times wider, or narrow the region.'
+          : 'Narrow the region and it will draw straight away; a graph with many haplotypes gets expensive within a few kb.'}
       </Alert>
     </Box>
   )
@@ -245,6 +280,9 @@ interface TubeMapContainerProps {
   // agree.
   legendTracks: Tracks
   onLegendClose: () => void
+  // Switches on the coarsened view, offered when a region is too big to draw
+  // without it
+  onCoarsen: () => void
 }
 
 function TubeMapContainer({
@@ -260,6 +298,7 @@ function TubeMapContainer({
   legendVisible,
   legendTracks,
   onLegendClose,
+  onCoarsen,
 }: TubeMapContainerProps) {
   const [infoDialogContent, setInfoDialogContent] = useState<
     InfoAttribute[] | undefined
@@ -514,7 +553,13 @@ function TubeMapContainer({
   // What arrived is drawable unless the walks through it are too many, and
   // then only until the user says to draw it anyway.
   const nodeVisits = tracks === undefined ? 0 : graphNodeVisits(tracks)
-  const graphTooLarge = nodeVisits > GRAPH_RENDER_LIMIT && !drawLargeGraph
+  const readCount = reads?.length ?? 0
+  const renderLimit = graphRenderLimit(visOptions, readCount)
+  const graphTooLarge = nodeVisits > renderLimit && !drawLargeGraph
+  const coarseningWouldDraw =
+    renderLimit < COARSENED_GRAPH_RENDER_LIMIT &&
+    readCount === 0 &&
+    nodeVisits <= COARSENED_GRAPH_RENDER_LIMIT
 
   return (
     <div id="tubeMapContainer" style={{ position: 'relative' }}>
@@ -643,6 +688,8 @@ function TubeMapContainer({
           <LargeGraphNotice
             nodeVisits={nodeVisits}
             walks={tracks.length}
+            limit={renderLimit}
+            onCoarsen={coarseningWouldDraw ? onCoarsen : undefined}
             onDrawAnyway={() => {
               setDrawLargeGraph(true)
             }}

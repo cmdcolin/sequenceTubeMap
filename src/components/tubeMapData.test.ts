@@ -2,7 +2,11 @@
 
 import { GBZBaseAPI } from '../api/GBZBaseAPI.ts'
 import { parseChunkedData } from './tubeMapData.ts'
-import { GRAPH_RENDER_LIMIT, graphNodeVisits } from './TubeMapContainer.tsx'
+import {
+  COARSENED_GRAPH_RENDER_LIMIT,
+  GRAPH_RENDER_LIMIT,
+  graphNodeVisits,
+} from './TubeMapContainer.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { ViewTarget } from '../Types.ts'
@@ -39,4 +43,13 @@ describe.skipIf(!RUN_NETWORK)('the graph render cap, against HPRC v2.1', () => {
       await nodeVisitsFor('GRCh38#chr6:31500000-31510000'),
     ).toBeGreaterThan(GRAPH_RENDER_LIMIT)
   }, 180000)
+
+  it('draws a 50 kb window coarsened, but not a 150 kb one', async () => {
+    expect(await nodeVisitsFor('GRCh38#chr6:31500000-31550000')).toBeLessThan(
+      COARSENED_GRAPH_RENDER_LIMIT,
+    )
+    expect(
+      await nodeVisitsFor('GRCh38#chr6:31500000-31650000'),
+    ).toBeGreaterThan(COARSENED_GRAPH_RENDER_LIMIT)
+  }, 600000)
 })
