@@ -234,7 +234,8 @@ let reads: Track[] = []
 let nodeMap: Map<string, number> = new Map()
 
 // --- UI state, outlives a render ---
-let svg: AnySelection // the svg
+// The root <svg> until alignSVG, then the zoomed <g> everything is drawn in
+let svg: AnySelection
 let zoom: d3.ZoomBehavior<Element, unknown>
 
 const config: TubeMapConfig = {
@@ -784,6 +785,7 @@ function alignSVG(preserveViewport: boolean): () => void {
   const svgElement = document.getElementById(svgID.substring(1))
   const parentElement = getSvgParent()
   if (!svgElement || !parentElement) return () => {}
+  const root = svg
 
   // d3-zoom stores the current transform on the SVG node as __zoom. It is
   // undefined until the first time we attach a zoom behaviour. By capturing it
@@ -877,8 +879,8 @@ function alignSVG(preserveViewport: boolean): () => void {
     if (!parentElement) return
     // Configure panning and zooming, given the SVG parent's size on the page.
 
-    svg.attr('height', parentElement.clientHeight)
-    svg.attr('width', parentElement.clientWidth)
+    root.attr('height', parentElement.clientHeight)
+    root.attr('width', parentElement.clientWidth)
 
     const minScaleFactor = minZoom()
     if (DEBUG) {
@@ -912,9 +914,9 @@ function alignSVG(preserveViewport: boolean): () => void {
 
   // Initially configure panning and zooming
   configureZoomBounds()
-  svg.call(zoom).on('dblclick.zoom', null)
+  root.call(zoom).on('dblclick.zoom', null)
   // @ts-expect-error — d3 Selection<SVGGElement> is not structurally assignable to Selection<Element> due to callback this-type invariance, but works at runtime.
-  svg = svg.append('g')
+  svg = root.append('g')
 
   // createTubeMap already released the previous draw's bindings, so attaching
   // fresh ones here cannot stack up.
@@ -968,7 +970,7 @@ function alignSVG(preserveViewport: boolean): () => void {
           )
           .scale(initialScale)
   return () => {
-    zoom.transform(d3.select<Element, unknown>(svgID), initialTransform)
+    zoom.transform(root, initialTransform)
   }
 }
 

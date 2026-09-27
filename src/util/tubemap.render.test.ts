@@ -180,6 +180,33 @@ describe('tubemap.create — structural details', () => {
   })
 })
 
+describe('tubemap.create — resizing', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sizes the root <svg> to its parent, not the drawing inside it', () => {
+    let resized = () => {}
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          resized = callback
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
+    setupSvg(1800, 1200)
+    const { nodes, tracks } = dataForExample('1')
+    const svg = render(nodes, tracks)
+    Object.defineProperty(svg.parentElement, 'clientWidth', { value: 900 })
+    resized()
+    expect(svg.getAttribute('width')).toBe('900')
+    expect(svg.querySelector(':scope > g')?.hasAttribute('width')).toBe(false)
+  })
+})
+
 describe('tubemap.create — node width options', () => {
   beforeEach(() => {
     setupSvg()
