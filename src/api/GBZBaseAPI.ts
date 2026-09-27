@@ -176,6 +176,8 @@ async function pathNodeRanges(
   return ranges
 }
 
+const READ_COUNT_MAX_BYTES = 32 * 1024 * 1024
+
 /**
  * API implementation that reads gbz-base databases client-side.
  *
@@ -730,12 +732,24 @@ export class GBZBaseAPI implements APIInterface {
     }
   }
 
+  // Counting reads the whole read file and scans the graph's whole
+  // ReferenceIndex table, which for a hosted file is a download and tens of MB
+  // of range requests, all for a column in the paths panel. So it only counts
+  // uploads, and only a read file small enough to decode quickly.
   private async computeReadCountsPerPath(
     graphFile: string,
     readFile: string,
     cancelSignal: AbortSignal | null,
   ): Promise<{ counts: Record<string, number> } | null> {
-    if (!this.isGbzDb(graphFile)) {
+    if (
+      !this.isGbzDb(graphFile) ||
+      !isUploadId(graphFile) ||
+      !isUploadId(readFile)
+    ) {
+      return null
+    }
+    const gamBlob = this.uploadedBlob(readFile)
+    if (gamBlob.size > READ_COUNT_MAX_BYTES) {
       return null
     }
     const db = await this.openGraph(graphFile)
@@ -751,8 +765,6 @@ export class GBZBaseAPI implements APIInterface {
       return null
     }
 
-    const gamBlob = await this.resolveTrackFile(readFile, cancelSignal)
-    cancelSignal?.throwIfAborted()
     // Bounding each read by its own min/max id lets most (path, read) pairs be
     // settled by two comparisons instead of a walk over the read's nodes.
     const reads = (await scanReadNodeIds(gamBlob))

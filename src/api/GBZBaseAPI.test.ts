@@ -386,6 +386,40 @@ describe('uploaded read + index siblings', () => {
     expect(result).not.toBeNull()
     expect(result!.counts.ref).toBeGreaterThan(0)
   })
+
+  // The paths panel asks for counts whenever a view has a read track, and
+  // counting a hosted GAM used to download all of it, index or no index.
+  it('leaves hosted reads uncounted rather than download them', async () => {
+    const graphId = await api.putFile(
+      'graph',
+      fixtureFile('exampleData/cactus.gbz.db', 'cactus.gbz.db'),
+      null,
+    )
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+    expect(
+      await api.getReadCountsPerPath(
+        graphId,
+        'https://example.test/reads.sorted.gam',
+        null,
+      ),
+    ).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+    fetchSpy.mockRestore()
+  })
+
+  it('leaves an upload too large to decode quickly uncounted', async () => {
+    const graphId = await api.putFile(
+      'graph',
+      fixtureFile('exampleData/cactus.gbz.db', 'cactus.gbz.db'),
+      null,
+    )
+    const huge = fixtureFile('exampleData/cactus0_10.gam', 'huge.gam')
+    Object.defineProperty(huge, 'size', { value: 2 ** 32 })
+    const hugeId = await api.putFile('read', huge, null)
+
+    expect(await api.getReadCountsPerPath(graphId, hugeId, null)).toBeNull()
+  })
 })
 
 // Network-gated smoke tests against the URL-hosted HPRC release 2.1 entry in

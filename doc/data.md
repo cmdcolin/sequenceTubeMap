@@ -249,7 +249,9 @@ server is running.
 ## Finding contig names
 
 Open **Paths in this graph** in the sidebar to browse the paths a graph
-contains. Region syntax:
+contains. In the browser, with an uploaded graph and a read file of up to 32 MB,
+it also counts the reads on each path; for a hosted file it leaves the Reads
+column out, since counting means downloading the whole GAM. Region syntax:
 
 |                  | Example          |
 | ---------------- | ---------------- |

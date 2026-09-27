@@ -68,8 +68,8 @@ export interface APIInterface {
   // declared in `graphFile`. Approximate — uses the gbz-base ReferenceIndex
   // sampled handles to bound each path's node-id range, so a read that
   // touches an out-of-range node missed by the sampling won't be counted.
-  // Returns null in environments that can't (or don't) implement it (i.e.
-  // ServerAPI without a counterpart endpoint).
+  // Returns null when the counts would cost more than they are worth, as for
+  // a hosted file; ServerAPI doesn't implement it at all.
   getReadCountsPerPath?: (
     graphFile: string,
     readFile: string,
