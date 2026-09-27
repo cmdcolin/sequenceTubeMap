@@ -202,14 +202,8 @@ function HeaderForm({
     data: filenamesData,
     error: filenamesError,
     mutate: refetchFilenames,
-  } = useSWR(
-    ['headerForm.filenames', apiMode] as const,
-    () => APIInterface.getFilenames(null),
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      shouldRetryOnError: false,
-    },
+  } = useSWR(['headerForm.filenames', apiMode] as const, () =>
+    APIInterface.getFilenames(null),
   )
 
   const files = filenamesData?.files ?? []
@@ -283,11 +277,6 @@ function HeaderForm({
       : null,
     ([, , graph, read]: readonly [string, string, string, string]) =>
       getReadCountsPerPath!(graph, read, null),
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      shouldRetryOnError: false,
-    },
   )
   const readCounts: Record<string, number> | undefined = readCountsData?.counts
 

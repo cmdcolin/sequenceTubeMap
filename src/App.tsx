@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import useSWR from 'swr'
+import useSWR, { SWRConfig, type SWRConfiguration } from 'swr'
 
 import './App.css'
 import HeaderForm from './components/HeaderForm.tsx'
@@ -196,12 +196,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   } = useSWR<TubeMapData, Error, FetchKey | null>(
     fetchKey,
     (key: FetchKey) => fetchTubeMapData(key, apiInterface),
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      shouldRetryOnError: false,
-      keepPreviousData: true,
-    },
+    { keepPreviousData: true },
   )
 
   // `keepPreviousData` hands back the last data for a null key too, which is
@@ -396,4 +391,22 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   )
 }
 
-export default App
+// SWR's defaults refetch on every window focus and retry a failed fetch
+// forever, where one fetch can have the in-browser backend walk a whole graph.
+// Every fetch here runs when its key changes and not otherwise. Set above App
+// rather than in index.tsx so the tests that render App get it too.
+const SWR_OPTIONS: SWRConfiguration = {
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  shouldRetryOnError: false,
+}
+
+function Root(props: AppProps) {
+  return (
+    <SWRConfig value={SWR_OPTIONS}>
+      <App {...props} />
+    </SWRConfig>
+  )
+}
+
+export default Root

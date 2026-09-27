@@ -36,14 +36,8 @@ function HelpImage({ alt, src, baseURL, ...props }: HelpImageProps) {
 export const HelpButton = ({ file }: HelpButtonProps) => {
   const fileURL = new URL(file, document.baseURI)
   const [open, setOpen] = useState(false)
-  const { data, error } = useSWR(
-    file,
-    (f: string) => fetch(f).then(r => r.text()),
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      shouldRetryOnError: false,
-    },
+  const { data, error } = useSWR(file, (f: string) =>
+    fetch(f).then(r => r.text()),
   )
   const content = error ? 'Could not fetch help' : (data ?? '')
 

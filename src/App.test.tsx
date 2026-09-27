@@ -87,6 +87,38 @@ it('offers a retry when the tube map data fails to load', async () => {
   })
 })
 
+it('leaves a failed fetch failed when the window regains focus', async () => {
+  let calls = 0
+  // SWR also holds off a focus refetch for a while after mount and after the
+  // last fetch, which would hide the one this is looking for.
+  render(
+    <SWRConfig
+      value={{
+        provider: () => new Map(),
+        dedupingInterval: 0,
+        focusThrottleInterval: 0,
+      }}
+    >
+      <App
+        api={fakeAPI({
+          getPathInfo: async () => {
+            calls += 1
+            throw new Error('Mock Path Error')
+          },
+        })}
+      />
+    </SWRConfig>,
+  )
+  await waitFor(() => {
+    expect(screen.getByText(/Mock Path Error/)).toBeInTheDocument()
+  })
+
+  window.dispatchEvent(new Event('focus'))
+  await new Promise(resolve => setTimeout(resolve, 50))
+
+  expect(calls).toBe(1)
+})
+
 it('allows the data source to be changed', async () => {
   renderApp()
   expect(getRegionInput().value).toEqual('17:1-100')
