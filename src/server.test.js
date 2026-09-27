@@ -212,6 +212,23 @@ describe('fetching URLs', () => {
     expect(body.bedRegions.desc).toEqual(['first ten'])
   })
 
+  it('decodes a gzipped response', async () => {
+    serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
+    const remote = await serveRoutes({
+      '/regions.bed': (req, res) => {
+        expect(req.headers['accept-encoding']).toContain('gzip')
+        res
+          .writeHead(200, { 'Content-Encoding': 'gzip' })
+          .end(gzipSync('ref\t1\t10\tfirst ten\n'))
+      },
+    })
+    const { status, body } = await post('getBedRegions', {
+      bedFile: `${remote.url}/regions.bed`,
+    })
+    expect(status).toBe(200)
+    expect(body.bedRegions.desc).toEqual(['first ten'])
+  })
+
   it('refuses a BED file over 10 MiB', async () => {
     serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
     const remote = await serveRoutes({

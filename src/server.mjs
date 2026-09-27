@@ -22,6 +22,7 @@ import fs from 'fs'
 import path from 'path'
 import rl from 'readline'
 import compression from 'compression'
+import zlib from 'zlib'
 import { server as WebSocketServer } from 'websocket'
 import { fileURLToPath } from 'url'
 import {
@@ -1785,13 +1786,19 @@ const downloadFile = async (fileURL, destination) => {
   }
 }
 
+// Decoders for the compressed bodies we accept, by Content-Encoding.
+const DECODERS = {
+  gzip: () => zlib.createGunzip(),
+  br: () => zlib.createBrotliDecompress(),
+}
+
 // Start a size- and host-checked GET, following redirects. Returns the
-// response along with the timer that will abort it, which the caller must
-// clear once it is done with the body. `existingLocation`, when it names a
-// file already on disk, makes the request conditional so an unchanged file
-// isn't re-downloaded.
+// response, its body as the streams to pipe it through to decode it, and the
+// timer that will abort it, which the caller must clear once it is done with
+// the body. `existingLocation`, when it names a file already on disk, makes
+// the request conditional so an unchanged file isn't re-downloaded.
 async function beginValidatedFetch(url, maxBytes, existingLocation) {
-  const headers = {}
+  const headers = { 'Accept-Encoding': Object.keys(DECODERS).join(', ') }
   if (existingLocation !== undefined && fs.existsSync(existingLocation)) {
     headers['If-None-Match'] = ETagMap.get(url) ?? '-1'
   }
@@ -1842,7 +1849,20 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
       )
     }
 
-    return { notModified: false, response, timer }
+    const encoding = response.headers['content-encoding'] ?? 'identity'
+    const body = [response]
+    if (encoding !== 'identity') {
+      const decoder = DECODERS[encoding]
+      if (decoder === undefined) {
+        response.destroy()
+        throw new BadRequestError(
+          `Fetch request for ${url} failed: unsupported Content-Encoding ${encoding}`,
+        )
+      }
+      body.push(decoder())
+    }
+
+    return { notModified: false, response, body, timer }
   } catch (e) {
     clearTimeout(timer)
     if (e instanceof TubeMapError) {
@@ -1876,7 +1896,7 @@ function byteLimit(url, maxBytes) {
 // memory. Returns true if the file was written, or false if our copy on disk
 // was already current.
 async function fetchToFile(url, maxBytes, destination) {
-  const { notModified, response, timer } = await beginValidatedFetch(
+  const { notModified, response, body, timer } = await beginValidatedFetch(
     url,
     maxBytes,
     destination,
@@ -1891,7 +1911,7 @@ async function fetchToFile(url, maxBytes, destination) {
     const partial = `${destination}.${randomUUID()}.part`
     try {
       await pipelineAsync(
-        response,
+        ...body,
         byteLimit(url, maxBytes),
         fs.createWriteStream(partial),
       )
@@ -1914,10 +1934,10 @@ const MAX_TEXT_FETCH_BYTES = 10 * 1024 * 1024
 // Download a small text document (a BED file, a chunk index) as a string.
 async function fetchText(url) {
   const maxBytes = MAX_TEXT_FETCH_BYTES
-  const { response, timer } = await beginValidatedFetch(url, maxBytes)
+  const { body, timer } = await beginValidatedFetch(url, maxBytes)
   try {
     const chunks = []
-    await pipelineAsync(response, byteLimit(url, maxBytes), async source => {
+    await pipelineAsync(...body, byteLimit(url, maxBytes), async source => {
       for await (const chunk of source) {
         chunks.push(chunk)
       }
