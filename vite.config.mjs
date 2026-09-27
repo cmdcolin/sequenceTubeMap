@@ -102,5 +102,6 @@ export default defineConfig({
     // watcher and the websocket server, so teardown doesn't need vitest's 10s
     // default to finish.
     teardownTimeout: 5000,
+    fsModuleCache: true,
   },
 })
