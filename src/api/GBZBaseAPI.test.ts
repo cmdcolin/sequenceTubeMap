@@ -1,12 +1,8 @@
 import { GENERIC_SAMPLE } from '@gmod/gbz-base'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import {
-  GBZBaseAPI,
-  displayName,
-  isUserFacingPath,
-  pathQueryFor,
-} from './GBZBaseAPI.ts'
+import { GBZBaseAPI, displayName, isUserFacingPath } from './GBZBaseAPI.ts'
+import { pathQueryFor } from './gbz/pathQuery.ts'
 import type { ConvertedGraph } from './gbz/schema.ts'
 import type { ViewTarget } from '../Types.ts'
 import { readFileSync } from 'node:fs'
