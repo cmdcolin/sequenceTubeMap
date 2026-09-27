@@ -88,6 +88,12 @@ export default defineConfig({
     // An agent editing its worktree would otherwise reload this checkout's page
     watch: { ignored: ['**/.claude/**'] },
   },
+  optimizeDeps: {
+    // The dep scan starts from index.html and never reaches the in-browser
+    // backend's worker, so its deps turned up on first use and reloaded the
+    // page mid-load.
+    entries: ['index.html', 'src/api/local/Worker.ts'],
+  },
   test: {
     globals: true,
     environment: 'jsdom',
