@@ -12,6 +12,7 @@ import {
   type Tracks,
   type ViewTarget,
 } from './Types.ts'
+import { isRecord } from './components/persistedState.ts'
 
 // `bed` is deliberately absent: a BED goes in `bedFile`, never in `tracks`,
 // and defaultTrackColors() throws for it, so accepting it here let a crafted
@@ -59,10 +60,6 @@ const VIEW_PARAM_KEYS = [
   'removeSequences',
   'skipAutoLoad',
 ]
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function asString(value: unknown) {
   return typeof value === 'string' ? value : undefined
