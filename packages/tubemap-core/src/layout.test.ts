@@ -241,6 +241,39 @@ describe('layoutTubeMap', () => {
     expect(apart!.contentHeight).toBeUndefined()
   })
 
+  it('turns the reads through a node the reference walks backwards around', () => {
+    const line: InputNode[] = [
+      { name: '1', seq: 'AAAA' },
+      { name: '2', seq: 'ACGG' },
+      { name: '3', seq: 'TTTT' },
+    ]
+    const layout = layoutTubeMap(
+      line,
+      [{ id: 0, sequence: ['1', '-2', '3'], sourceTrackID: 0 }],
+      [
+        {
+          id: 1,
+          type: 'read',
+          sequence: ['1', '-2', '3'],
+          sourceTrackID: 1,
+          sequenceNew: [
+            { nodeName: '1', mismatches: [] },
+            {
+              nodeName: '-2',
+              mismatches: [{ type: 'substitution', pos: 1, seq: 'A' }],
+            },
+            { nodeName: '3', mismatches: [] },
+          ],
+        },
+      ],
+      { mergeNodes: false },
+    )!
+    const [read] = layout.reads
+    expect(read!.sequence).toEqual(['1', '2', '3'])
+    expect(read!.path.every(s => s.isForward)).toBe(true)
+    expect(layout.shapes.corners).toEqual([])
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()

@@ -422,9 +422,10 @@ export function isForwardIndex(n: number): boolean {
   return n > 0
 }
 
-// straighten track given by index by inverting inverted nodes
-// only keep them inverted if this single track runs through them in both directions
-// Operates on the per-render `nodes`/`tracks` copies; inputs are left untouched.
+// Turn around every node the given track visits in reverse before it visits
+// it forward, so that track reads left to right, and flip every track's and
+// read's visits to those nodes to match, as switchNodeOrientationForPaths
+// does for the nodes it switches.
 function straightenTrack(index: number): void {
   const nodesToInvert = new Set<string>()
   const visitedForward = new Set<string>()
@@ -435,23 +436,16 @@ function straightenTrack(index: number): void {
       nodesToInvert.add(forward(visit))
     }
   }
+  if (nodesToInvert.size === 0) return
 
-  // invert nodes in the tracks' sequence
-  for (const track of tracks) {
-    const currentSequence = track.sequence
-    for (let j = 0; j < currentSequence.length; j += 1) {
-      const cur = currentSequence[j]!
-      if (!isReverse(cur)) {
-        if (nodesToInvert.has(cur)) {
-          currentSequence[j] = reverse(cur)
-        }
-      } else if (nodesToInvert.has(forward(cur))) {
-        currentSequence[j] = forward(cur)
+  for (const { sequence } of [...tracks, ...reads]) {
+    for (let j = 0; j < sequence.length; j += 1) {
+      if (nodesToInvert.has(forward(sequence[j]!))) {
+        sequence[j] = flip(sequence[j]!)
       }
     }
   }
 
-  // invert the sequence within the nodes
   nodes.forEach(node => {
     if (nodesToInvert.has(node.name)) {
       node.seq = node.seq.split('').reverse().join('')
