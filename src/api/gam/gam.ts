@@ -43,14 +43,9 @@ function isAlignmentTag(tag: string): boolean {
   return tag === GAM_TAG || tag === ''
 }
 
-export async function readGam(
-  blob: Blob,
-  signal?: AbortSignal | null,
-): Promise<VgRead[]> {
+export async function readGam(blob: Blob): Promise<VgRead[]> {
   const compressed = new Uint8Array(await blob.arrayBuffer())
-  signal?.throwIfAborted()
   const decompressed = await decompress(compressed)
-  signal?.throwIfAborted()
   const out: VgRead[] = []
   for (const msg of iterateMessages(decompressed)) {
     if (isAlignmentTag(msg.tag)) {

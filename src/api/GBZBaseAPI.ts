@@ -211,6 +211,10 @@ export class GBZBaseAPI implements APIInterface {
   // Sibling URLs the host answered "absent" for, so a view doesn't re-request
   // a missing `.gai` on every region change.
   private missingSiblings = new Set<string>()
+  // Every read of each unindexed read file. Without an index a view reads the
+  // whole file, and inflating and decoding it again was most of what each
+  // region change cost. The reads live as long as the file's Blob does.
+  private decodedReads = new WeakMap<Blob, Promise<VgRead[]>>()
   private debugEnabled = debugFromEnvironment()
   // Defaults to this module's own store, which is what the main thread reads.
   // In a worker LocalAPI replaces it with a proxy back across Comlink.
@@ -566,9 +570,20 @@ export class GBZBaseAPI implements APIInterface {
     // Without an index there is nothing to seek with, so the file is read
     // whole and every read filtered against the subgraph.
     const gamBlob = await this.resolveTrackFile(trackFile, cancelSignal)
-    return (await readGam(gamBlob, cancelSignal)).filter(read =>
-      alignmentVisitsAny(read, nodes.ids),
-    )
+    const reads = await raceAbort(this.allReads(gamBlob), cancelSignal)
+    return reads.filter(read => alignmentVisitsAny(read, nodes.ids))
+  }
+
+  private allReads(gamBlob: Blob): Promise<VgRead[]> {
+    let reads = this.decodedReads.get(gamBlob)
+    if (!reads) {
+      reads = readGam(gamBlob)
+      reads.catch(() => {
+        this.decodedReads.delete(gamBlob)
+      })
+      this.decodedReads.set(gamBlob, reads)
+    }
+    return reads
   }
 
   async getFilenames(

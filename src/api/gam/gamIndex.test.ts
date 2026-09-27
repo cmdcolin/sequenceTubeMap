@@ -1,7 +1,8 @@
 // @vitest-environment node
 
-import { describe, expect, it } from 'vitest'
-import { binIdRange, runsForNodeRange } from './gamIndex.ts'
+import { readFileSync } from 'node:fs'
+import { describe, expect, it, vi } from 'vitest'
+import { binIdRange, loadGamIndex, runsForNodeRange } from './gamIndex.ts'
 import type { GamIndex } from './gamIndex.ts'
 
 const UINT64_MAX = 2n ** 64n - 1n
@@ -136,5 +137,19 @@ describe('runsForNodeRange', () => {
     expect(runsForNodeRange(idx, 1n, 10n)).toEqual([
       { start: 0n, pastEnd: 100n },
     ])
+  })
+})
+
+describe('loadGamIndex', () => {
+  // Every region change asks for the index again.
+  it('parses each index file once', async () => {
+    const blob = new Blob([
+      readFileSync('exampleData/cactus-NA12879.sorted.gam.gai'),
+    ])
+    const arrayBuffer = vi.spyOn(blob, 'arrayBuffer')
+    const first = await loadGamIndex(blob)
+
+    expect(await loadGamIndex(blob)).toBe(first)
+    expect(arrayBuffer).toHaveBeenCalledTimes(1)
   })
 })

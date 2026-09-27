@@ -47,7 +47,23 @@ export interface GamIndex {
   windows: Map<bigint, bigint>
 }
 
-export async function loadGamIndex(blob: Blob): Promise<GamIndex> {
+// A view asks for its index on every region change, and parsing one is a
+// gunzip and a BigInt loop over every run, so each file is parsed once.
+const parsedIndexes = new WeakMap<Blob, Promise<GamIndex>>()
+
+export function loadGamIndex(blob: Blob): Promise<GamIndex> {
+  let index = parsedIndexes.get(blob)
+  if (!index) {
+    index = parseIndexFile(blob)
+    index.catch(() => {
+      parsedIndexes.delete(blob)
+    })
+    parsedIndexes.set(blob, index)
+  }
+  return index
+}
+
+async function parseIndexFile(blob: Blob): Promise<GamIndex> {
   const raw = new Uint8Array(await blob.arrayBuffer())
   // vg writes .gam.gai with protobuf's GzipOutputStream (raw gzip, not BGZF).
   const body: Uint8Array = ungzip(raw, {})

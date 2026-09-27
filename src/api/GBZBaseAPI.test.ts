@@ -568,6 +568,29 @@ describe('reads returned with a graph view', () => {
     }
   })
 
+  // Without an index every view reads the whole file, so decoding it again on
+  // each region change was most of what the change cost.
+  it('decodes an unindexed read file once across region changes', async () => {
+    const reads = fixtureFile('exampleData/cactus0_10.gam', 'cactus0_10.gam')
+    const arrayBuffer = vi.spyOn(reads, 'arrayBuffer')
+    const readsId = await api.putFile('read', reads, null)
+    const view = (region: string): ViewTarget => ({
+      dataType: 'mounted files',
+      tracks: [
+        { trackFile: graphId, trackType: 'graph' },
+        { trackFile: readsId, trackType: 'read' },
+      ],
+      region,
+    })
+
+    const first = await api.getChunkedData(view('ref:1-100'), null)
+    const second = await api.getChunkedData(view('ref:200-300'), null)
+
+    expect(first.gam?.[0]?.length).toBeGreaterThan(0)
+    expect(second.graph?.node.length).toBeGreaterThan(0)
+    expect(arrayBuffer).toHaveBeenCalledTimes(1)
+  })
+
   it('returns one gam entry per read track, even without a file', async () => {
     const viewTarget: ViewTarget = {
       dataType: 'mounted files',
