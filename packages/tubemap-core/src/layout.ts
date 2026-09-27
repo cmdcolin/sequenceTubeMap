@@ -94,7 +94,8 @@ export interface TubeMapLayout {
   // 1-indexed with a hole at 0: a signed index
   // is an oriented visit, and 0 has no sign
   nodes: LayoutNode[]
-  // haplotype tracks, then the reads placed with them
+  // the haplotype tracks and placed reads together, sorted by where each
+  // first meets the others, which is the order their shapes were made in
   tracks: Track[]
   // the placed reads alone
   reads: Track[]
