@@ -1750,13 +1750,41 @@ function groupBy<T, K>(items: readonly T[], key: (item: T) => K): Map<K, T[]> {
   return buckets
 }
 
+// Stacked coarsened bands of near-equal share are near-equal colors, so each
+// is drawn a little thinner than its lane, leaving a gap of page between
+// neighbours along their length but not across their ends
+const BAND_GAP = 1
+
+function insetBandRectangle(rect: TrackRectangle): TrackRectangle {
+  return isCoarsenedId(rect.id)
+    ? {
+        ...rect,
+        yStart: rect.yStart + BAND_GAP / 2,
+        yEnd: rect.yEnd - BAND_GAP / 2,
+      }
+    : rect
+}
+
+function insetBandCurve(curve: TrackCurve): TrackCurve {
+  return isCoarsenedId(curve.id)
+    ? {
+        ...curve,
+        yStart: curve.yStart + BAND_GAP / 2,
+        yEnd: curve.yEnd + BAND_GAP / 2,
+        width: curve.width - BAND_GAP,
+      }
+    : curve
+}
+
 function drawTrackRectangles(
   rectangles: TrackRectangle[],
   type: TrackType | undefined,
   groupTrack: SvgGroupSelection,
 ): void {
   appendTrackRectangles(
-    rectangles.filter(rect => rect.type === type),
+    rectangles
+      .filter(rect => rect.type === type)
+      .map(insetBandRectangle),
     groupTrack,
   )
 }
@@ -1837,7 +1865,7 @@ function drawTrackCurves(
   type: TrackType | undefined,
   groupTrack: SvgGroupSelection,
 ): void {
-  const flattenedGroups = curvePaths(shapes.curves, type)
+  const flattenedGroups = curvePaths(shapes.curves.map(insetBandCurve), type)
 
   groupTrack
     .selectAll('trackCurves')

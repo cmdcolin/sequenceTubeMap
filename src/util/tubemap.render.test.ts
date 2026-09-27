@@ -473,6 +473,26 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
     })
   })
 
+  // The widest band gets the full 60-unit lane. A curve runs M x y … x
+  // y+thickness Z, so its first and last points give how thick it is drawn.
+  it('draws each band a gap thinner than its lane', () => {
+    setupSvg()
+    tubeMap.setMergeNodesFlag(false)
+    tubeMap.setCoarsenedReadViewFlag(true)
+    const svg = render(nodes, tracks)
+    const widest = svg.querySelector('rect[trackName^="3 haplotypes"]')
+    expect(Number(widest?.getAttribute('height'))).toBeCloseTo(59)
+    const band = svg.querySelector('[trackName^="1 haplotype"]')!
+    const curve = svg.querySelector('path[trackName^="1 haplotype"]')!
+    const numbers = curve
+      .getAttribute('d')!
+      .match(/-?[\d.]+/g)!
+      .map(Number)
+    expect(numbers.at(-1)! - numbers[1]!).toBeCloseTo(
+      Number(band.getAttribute('height')),
+    )
+  })
+
   // A mapping-quality cutoff (or a focus-name filter) can filter every read
   // out of a graph that does have reads loaded. That must not read as "no
   // reads loaded" and fall back to bunching the haplotypes instead -- the

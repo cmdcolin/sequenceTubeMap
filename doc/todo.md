@@ -19,13 +19,8 @@ the `.gai` index consulted first.
 
 ## Coarsened haplotype view
 
-Open items from the sessions that weighted bands by `freq`, raised the coarsened
-cap, and shaded haplotype bands by share:
+Open items from the coarsened-view sessions:
 
-- **Adjacent bands of similar share blur together.** In the chr20 microsatellite
-  figure, neighbouring allele bands with close shares stack into nearly one
-  orange. A thin white gap between band fills would separate them without giving
-  color back to band identity.
 - **jsdom named-element rescans** are patched out in `scripts/tubemap-cli.ts`
   (`skipNamedElementRescans`) through a jsdom internal. If a jsdom upgrade moves
   `lib/generated/idl/utils.js` the CLI will throw at startup. The patch is also
