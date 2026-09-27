@@ -255,6 +255,17 @@ describe.skipIf(!HAS_VG)('pre-fetched chunks', () => {
     expect(body.gam[0].length).toBeGreaterThan(0)
   })
 
+  it('simplifies a chunk that lists its own tracks', async () => {
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:500-600',
+      bedFile: 'exampleData/cactus.bed',
+      tracks: [CACTUS_GRAPH],
+      simplify: true,
+    })
+    expect(status).toBe(200)
+    expect(body.graph.node.length).toBeGreaterThan(0)
+  })
+
   it('keeps read files in chunk order past ten of them', async () => {
     const bedFile = makeBedWithChunks([['ref:1-10', 'chunk-ref-1-20']])
     const chunkDir = path.join(path.dirname(bedFile), 'chunk-ref-1-20')
