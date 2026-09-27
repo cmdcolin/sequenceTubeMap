@@ -1071,7 +1071,7 @@ describe('reverseMismatches', () => {
     const mismatches: Mismatch[] = [{ type: 'insertion', pos: 2, seq: 'AC' }]
     reverseMismatches(mismatches, 10)
     expect(mismatches[0]!.pos).toBe(8)
-    expect(mismatches[0]!.seq).toBe('TG')
+    expect(mismatches[0]!.seq).toBe('GT')
   })
 
   it('accounts for the deleted length when flipping a deletion', () => {
@@ -1086,7 +1086,7 @@ describe('reverseMismatches', () => {
     ]
     reverseMismatches(mismatches, 10)
     expect(mismatches[0]!.pos).toBe(5)
-    expect(mismatches[0]!.seq).toBe('TCC')
+    expect(mismatches[0]!.seq).toBe('CCT')
   })
 
   it('uses the given sequence length as the pivot, not any node width', () => {

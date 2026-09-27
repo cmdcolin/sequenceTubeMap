@@ -65,11 +65,6 @@ Structural work not yet done:
   drawing code reads them, which leaves a scattering of `!` and `?? 0`. A
   `PlacedSegment` type (or splitting placement out of `Segment`) would remove
   them.
-- **`mirroredMismatch` reverse-complements a sequence and then reverses it**,
-  which nets out to a plain complement. That looks like an original-code bug,
-  but the source keeps it verbatim (and says so) because changing it would alter
-  rendered output; it needs a decision from someone who knows the intended
-  semantics. Single-base substitutions come out the same either way.
 
 ## Encodings as a grammar of graphics
 

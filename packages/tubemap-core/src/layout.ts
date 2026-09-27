@@ -1186,7 +1186,7 @@ function reverseReversedReads(state: LayoutState): void {
 }
 
 // Flip a node's mismatches onto the opposite strand: positions are measured
-// from the other end of the node, and sequences are complemented.
+// from the other end of the node, and sequences are reverse-complemented.
 // sequenceLength (not node.width, which is only equal to it in 'normal'
 // node-width mode) is the right pivot because mismatch positions are base
 // offsets.
@@ -1212,11 +1212,7 @@ export function mirroredMismatch(
   return {
     ...mm,
     pos: sequenceLength - mm.pos - span,
-    // NOTE: reverse-complement followed by reverse is a plain complement.
-    // Preserved verbatim from the original code rather than "fixed" here.
-    ...(mm.seq !== undefined && {
-      seq: getReverseComplement(mm.seq).split('').reverse().join(''),
-    }),
+    ...(mm.seq !== undefined && { seq: getReverseComplement(mm.seq) }),
   }
 }
 
