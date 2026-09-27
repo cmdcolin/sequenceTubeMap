@@ -285,19 +285,32 @@ function parseCli(): CliArgs {
 // jsdom 30 checks every property read on `document` against an index of the
 // page's named elements (<form name>, <img name>, …), which it rebuilds from the
 // whole tree after each insertion. d3 reads `document.createElementNS` on every
-// append, so a render cost O(elements²): 110 s to lay out a 10 kb MHC window.
-// This document never holds a named element, so the index never goes stale.
+// append, so a render costs O(elements²): 43 s rather than 7 s for a 10 kb MHC
+// window. This document never holds a named element, so the index never goes
+// stale. The hook is a jsdom internal; without it the render is only slower.
 function skipNamedElementRescans(document: Document): void {
-  const { implForWrapper } = createRequire(import.meta.url)(
-    'jsdom/lib/generated/idl/utils.js',
-  ) as {
-    implForWrapper: (wrapper: object) => {
-      _clearNamedPropertyCache?: () => void
-    } | null
-  }
-  const impl = implForWrapper(document)
+  const impl = documentImpl(document)
   if (typeof impl?._clearNamedPropertyCache === 'function') {
     impl._clearNamedPropertyCache = () => {}
+  } else {
+    console.error(
+      'warning: jsdom internals changed, so large renders will be slow (see skipNamedElementRescans)',
+    )
+  }
+}
+
+function documentImpl(document: Document) {
+  try {
+    const { implForWrapper } = createRequire(import.meta.url)(
+      'jsdom/lib/generated/idl/utils.js',
+    ) as {
+      implForWrapper?: (wrapper: object) => {
+        _clearNamedPropertyCache?: unknown
+      } | null
+    }
+    return implForWrapper?.(document)
+  } catch {
+    return undefined
   }
 }
 

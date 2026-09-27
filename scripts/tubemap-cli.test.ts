@@ -34,11 +34,16 @@ afterAll(async () => {
   await rm(outDir, { force: true, recursive: true })
 })
 
-async function render(name: string, args: string[], cwd = REPO) {
+async function renderWithStderr(
+  name: string,
+  args: string[],
+  { cwd = REPO, nodeArgs = [] as string[] } = {},
+) {
   const out = path.join(outDir, `${name}.svg`)
-  await run(
+  const { stderr } = await run(
     process.execPath,
     [
+      ...nodeArgs,
       '--experimental-strip-types',
       path.join(REPO, 'scripts', 'tubemap-cli.ts'),
       ...args,
@@ -47,7 +52,23 @@ async function render(name: string, args: string[], cwd = REPO) {
     ],
     { cwd },
   )
-  return readFile(out, 'utf8')
+  return { svg: await readFile(out, 'utf8'), stderr }
+}
+
+async function render(name: string, args: string[], cwd = REPO) {
+  return (await renderWithStderr(name, args, { cwd })).svg
+}
+
+const JSDOM_INTERNAL = 'jsdom/lib/generated/idl/utils.js'
+
+// Preloads a module hook that hides or swaps out the jsdom internal the CLI patches.
+function jsdomInternalHook(mode: 'missing' | 'reshaped') {
+  const resolve =
+    mode === 'missing'
+      ? `(s, c, next) => { if (s === ${JSON.stringify(JSDOM_INTERNAL)}) throw new Error('gone'); return next(s, c) }`
+      : `(s, c, next) => next(s === ${JSON.stringify(JSDOM_INTERNAL)} ? 'jsdom/package.json' : s, c)`
+  const source = `import { registerHooks } from 'node:module'; registerHooks({ resolve: ${resolve} })`
+  return `--import=data:text/javascript,${encodeURIComponent(source)}`
 }
 
 describe('tubemap-cli', () => {
@@ -101,6 +122,29 @@ describe('tubemap-cli', () => {
     ])
     expect(flags === link).toBe(true)
   }, 60_000)
+
+  it.concurrent('patches jsdom without a warning when its internal is where the CLI expects', async () => {
+    const { stderr } = await renderWithStderr('jsdom-internal-present', [
+      '--example',
+      '1',
+    ])
+    expect(stderr).not.toMatch(/jsdom internals changed/)
+  }, 60_000)
+
+  it.concurrent.each(['missing', 'reshaped'] as const)(
+    'still renders, with one warning, when the jsdom internal is %s',
+    async mode => {
+      const [{ svg, stderr }, sample] = await Promise.all([
+        renderWithStderr(`jsdom-internal-${mode}`, ['--example', '1'], {
+          nodeArgs: [jsdomInternalHook(mode)],
+        }),
+        readFile(path.join(SAMPLES, 'demo-example-1.svg'), 'utf8'),
+      ])
+      expect(svg === sample).toBe(true)
+      expect(stderr.match(/jsdom internals changed/g)).toHaveLength(1)
+    },
+    60_000,
+  )
 
   it.concurrent('names haplotypes from --haplotype-index as the configured source does', async () => {
     const graph = [
