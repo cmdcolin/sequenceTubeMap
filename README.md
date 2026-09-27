@@ -20,8 +20,9 @@ from the companion index (`HG01243#2#…`, not `unknown#57`).
 
 [![HPRC v2.1 chr20 haplotypes in register](doc/images/hprc-v2.1-chr20-register.png)][demo-chr20]
 
-Same locus, ~170 bp right: haplotypes back in register. Both figures are crops
-of one drawing the app lays out end to end and lets you scroll.
+Same locus, view scrolled ~260 bp right: haplotypes back in register. Both
+figures are crops of one drawing the app lays out end to end and lets you
+scroll.
 
 ## What a tube map shows
 
@@ -118,7 +119,7 @@ _Claude Code AI was used during this work._
 [demo-brca1]:
   https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-100
 [demo-chr20]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20v2.1%20whole%20genome%20(gbz-base%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000
+  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20v2.1%20whole%20genome%20(gbz-base%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000&vis=coarsenedReadView
 [demo-reads]:
   https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView
 [demo-coarsened]:

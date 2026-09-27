@@ -104,4 +104,27 @@ describe('layoutTubeMap', () => {
       expect(nodeOutlinePath(node)).not.toContain('NaN')
     })
   })
+
+  it('coarsens haplotypes by edge when there are no reads, keeping track 0 as the reference', () => {
+    const fourWay: InputTrack[] = [
+      { id: 0, name: 'ref', sequence: ['1', '2', '4'], sourceTrackID: 0 },
+      // No `name`: with no track carrying a ruler coordinate,
+      // trackForRuler is undefined too, so a naive
+      // `findIndex(t => t.name === trackForRuler)` would match this track
+      // by coincidence instead of falling back to track 0.
+      { id: 1, sequence: ['1', '2', '4'], sourceTrackID: 0 },
+      { id: 2, name: 'alt2', sequence: ['1', '2', '4'], sourceTrackID: 0 },
+      { id: 3, name: 'alt3', sequence: ['1', '3', '4'], sourceTrackID: 0 },
+    ]
+    const layout = layoutTubeMap(nodes, fourWay, [], {
+      mergeNodes: false,
+      coarsenedReadView: true,
+    })!
+    const haplotypes = layout.tracks.filter(t => t.type === 'haplotype')
+    expect(haplotypes.map(t => t.id)).toEqual([0])
+    expect(layout.coarsenedEdgeMeta.size).toBeGreaterThan(0)
+    layout.nodes.forEach(node => {
+      expect(nodeOutlinePath(node)).not.toContain('NaN')
+    })
+  })
 })
