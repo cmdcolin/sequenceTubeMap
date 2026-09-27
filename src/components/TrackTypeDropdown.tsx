@@ -3,6 +3,7 @@ import MenuItem from '@mui/material/MenuItem'
 
 interface TrackTypeDropdownProps<T extends string> {
   value: T
+  label: string
   onChange: (value: T) => void
   testID?: string
   options: readonly T[]
@@ -10,6 +11,7 @@ interface TrackTypeDropdownProps<T extends string> {
 
 export function TrackTypeDropdown<T extends string>({
   value,
+  label,
   onChange,
   testID = 'file-type-select-component',
   options,
@@ -19,6 +21,7 @@ export function TrackTypeDropdown<T extends string>({
       <Select<T>
         size="small"
         value={value}
+        inputProps={{ 'aria-label': label }}
         // MUI types the change event's value as the union with a plain string,
         // so pick the matching option back out of the list we were given.
         onChange={e => {

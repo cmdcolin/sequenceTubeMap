@@ -128,6 +128,13 @@ export const TrackFilePicker = ({
             <TextField
               {...params}
               placeholder={placeholderActive ? 'Select a file' : undefined}
+              slotProps={{
+                ...params.slotProps,
+                htmlInput: {
+                  ...params.slotProps.htmlInput,
+                  'aria-label': `${fileType} file`,
+                },
+              }}
             />
           )}
         />

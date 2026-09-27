@@ -141,6 +141,31 @@ describe('TrackListItem', () => {
     expect(fakeOnChange).toHaveBeenCalledTimes(3)
   })
 
+  it('names each control after its track', () => {
+    render(
+      <TrackListItem
+        apiMode="server"
+        trackProps={{ trackFile: 'dir/fileA1.vg', trackType: 'graph' }}
+        availableTracks={availableTracks}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        trackID={0}
+        handleFileUpload={vi.fn()}
+      />,
+    )
+
+    for (const name of [
+      'Track type of fileA1.vg',
+      'File source of fileA1.vg',
+      'graph file',
+    ]) {
+      expect(screen.getByRole('combobox', { name })).toBeInTheDocument()
+    }
+    for (const name of ['Color settings for fileA1.vg', 'Delete fileA1.vg']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+  })
+
   it('should call onDelete correctly', () => {
     const fakeOnChange = vi.fn()
     const fakeOnDelete = vi.fn()

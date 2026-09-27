@@ -50,6 +50,11 @@ export const TrackListItem = ({
 }: TrackListItemProps) => {
   const [pickerType, setPickerType] = useState<PickerType>('mounted')
 
+  const trackName =
+    trackProps.trackDisplayName ??
+    trackProps.trackFile?.split('/').at(-1) ??
+    `new ${trackProps.trackType} track`
+
   const updateTrack = (changes: Partial<Track>) => {
     onChange(trackID, { ...trackProps, ...changes })
   }
@@ -71,6 +76,7 @@ export const TrackListItem = ({
       <Box sx={{ width: { xs: 120, sm: 140 } }} data-track-field="type">
         <TrackTypeDropdown
           value={trackProps.trackType}
+          label={`Track type of ${trackName}`}
           onChange={newType => {
             updateTrack({
               trackType: newType,
@@ -85,6 +91,7 @@ export const TrackListItem = ({
       <Box sx={{ width: { xs: 120, sm: 140 } }} data-track-field="source">
         <TrackTypeDropdown
           value={pickerType}
+          label={`File source of ${trackName}`}
           onChange={v => {
             setPickerType(v)
           }}
@@ -120,10 +127,11 @@ export const TrackListItem = ({
             })
           }}
           availableColors={availableColors}
-          label={trackProps.trackType}
+          label={trackName}
           testID={`settings-button-component${trackID}`}
         />
         <TrackDeleteButton
+          aria-label={`Delete ${trackName}`}
           onClick={() => {
             onDelete(trackID)
           }}

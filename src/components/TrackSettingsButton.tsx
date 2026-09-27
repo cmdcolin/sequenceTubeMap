@@ -39,7 +39,11 @@ export const TrackSettingsButton = ({
       <Button
         variant="contained"
         size="small"
-        aria-label="Track color settings"
+        aria-label={
+          label === undefined
+            ? 'Track color settings'
+            : `Color settings for ${label}`
+        }
         onClick={() => {
           setOpen(!open)
         }}

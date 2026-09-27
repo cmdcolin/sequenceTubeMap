@@ -8,6 +8,7 @@ describe('TrackTypeDropdown', () => {
     const { getByTestId } = render(
       <TrackTypeDropdown
         value="haplotype"
+        label="Track type"
         onChange={onChange}
         options={['graph', 'haplotype', 'read', 'node']}
       />,
