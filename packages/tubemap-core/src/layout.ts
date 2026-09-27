@@ -525,14 +525,14 @@ function placeReads(): void {
   sortedNodes.sort(compareNodesByOrder)
 
   // Organize read IDs by source track
-  const readsBySource = new Map<number, number[]>()
+  const readsBySource = new Map<number, Set<number>>()
   for (let i = 0; i < reads.length; i++) {
     const source = reads[i]!.sourceTrackID
     const bucket = readsBySource.get(source)
     if (bucket === undefined) {
-      readsBySource.set(source, [i])
+      readsBySource.set(source, new Set([i]))
     } else {
-      bucket.push(i)
+      bucket.add(i)
     }
   }
 
@@ -635,13 +635,10 @@ function placeReads(): void {
 // Makes the given node bigger if needed and moves other nodes down if needed.
 // If topMargin is set, applies that amount of spacing down from whatever is above the reads.
 function placeReadSet(
-  readIDs: number[],
+  toPlace: Set<number>,
   node: LayoutNode,
   topMargin: number,
 ): void {
-  // Turn the read IDs into a set
-  const toPlace = new Set(readIDs)
-
   // Get arrays of the read entry/exit/internal-ness records we want to work on
   let incomingReads = node.incomingReads.filter(([readID]) =>
     toPlace.has(readID),
