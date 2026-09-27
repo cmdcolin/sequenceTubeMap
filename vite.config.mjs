@@ -85,6 +85,8 @@ export default defineConfig({
     proxy: {
       '/api': { target: backendTarget, ws: true },
     },
+    // An agent editing its worktree would otherwise reload this checkout's page
+    watch: { ignored: ['**/.claude/**'] },
   },
   test: {
     globals: true,
