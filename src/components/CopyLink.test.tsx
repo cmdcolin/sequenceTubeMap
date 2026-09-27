@@ -61,7 +61,9 @@ it('falls back to a dialog when the clipboard is unavailable', async () => {
   await userEvent.click(screen.getByRole('button', { name: /Copy link/ }))
 
   await waitFor(() => {
-    expect(screen.getByText('Link to Data')).toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: 'Link to data' }),
+    ).toBeInTheDocument()
   })
   expect(screen.getByRole('link', { name: 'Data' })).toHaveAttribute(
     'href',

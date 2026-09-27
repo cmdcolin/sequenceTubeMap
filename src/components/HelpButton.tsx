@@ -70,6 +70,7 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
       </IconButton>
       <PopupDialog
         open={open}
+        title="Help"
         close={() => {
           setOpen(false)
         }}

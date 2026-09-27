@@ -51,8 +51,8 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
         close={() => {
           setDialogLink(undefined)
         }}
+        title="Link to data"
       >
-        <h5>Link to Data</h5>
         <p>
           <a href={dialogLink} target="_blank" rel="noopener noreferrer">
             Data

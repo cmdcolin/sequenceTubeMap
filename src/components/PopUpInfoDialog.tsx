@@ -15,8 +15,7 @@ export const PopUpInfoDialog = ({
 }: PopUpInfoDialogProps) => {
   return (
     <div>
-      <PopupDialog open={open} close={close}>
-        <h5>Object Information</h5>
+      <PopupDialog open={open} close={close} title="Object information">
         <table>
           <tbody>
             {(attributes ?? []).map(attribute => (

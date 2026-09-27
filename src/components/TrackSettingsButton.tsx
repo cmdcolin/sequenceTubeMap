@@ -50,13 +50,16 @@ export const TrackSettingsButton = ({
       >
         <Icon icon={faGear} data-testid={testID} />
       </Button>
-      <PopupDialog open={open} close={close}>
+      <PopupDialog
+        open={open}
+        close={close}
+        title={label === undefined ? 'Colors' : `${label} colors`}
+      >
         <TrackSettings
           fileType={fileType}
           trackColorSettings={trackColorSettings}
           availableColors={availableColors}
           setTrackColorSetting={setTrackColorSetting}
-          label={label}
         />
       </PopupDialog>
     </>

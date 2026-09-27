@@ -12,11 +12,17 @@ describe('TrackSettingsButton', () => {
           auxPalette: 'reds',
         }}
         setTrackColorSetting={() => {}}
+        label="graph.vg"
       />,
     )
 
-    await userEvent.click(screen.getByTestId('settings-button-component'))
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Color settings for graph.vg' }),
+    )
 
+    expect(
+      screen.getByRole('dialog', { name: 'graph.vg colors' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('heading')).toBeTruthy()
 
     await userEvent.click(screen.getByTestId('PopupDialogCloseButton'))

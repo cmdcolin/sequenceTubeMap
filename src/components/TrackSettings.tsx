@@ -17,7 +17,6 @@ interface TrackSettingsProps {
   // Partial because the node-label dialog only carries mainPalette.
   trackColorSettings?: Partial<ColorScheme>
   setTrackColorSetting: (key: PaletteField, value: Palette) => void
-  label?: string
   availableColors?: ColorPaletteName[]
   presetColors?: string[]
 }
@@ -93,38 +92,32 @@ export const TrackSettings = ({
   fileType = 'haplotype',
   trackColorSettings = DEFAULT_COLOR_SETTINGS,
   setTrackColorSetting,
-  label,
   availableColors = DEFAULT_AVAILABLE_COLORS,
   presetColors = DEFAULT_PRESET_COLORS,
 }: TrackSettingsProps) => {
   const labels = ROW_LABELS[fileType]
-  return (
-    <>
-      <h5>{label === undefined ? 'Colors' : `${label} Colors`}</h5>
-      {labels && (
-        <Box component="form">
-          <PaletteRow
-            heading={labels[0]}
-            palette={trackColorSettings.mainPalette}
-            field="mainPalette"
-            setColor={setTrackColorSetting}
-            availableColors={availableColors}
-            presetColors={presetColors}
-          />
-          {labels[1] !== undefined && (
-            <PaletteRow
-              heading={labels[1]}
-              palette={trackColorSettings.auxPalette}
-              field="auxPalette"
-              setColor={setTrackColorSetting}
-              availableColors={availableColors}
-              presetColors={presetColors}
-            />
-          )}
-        </Box>
+  return labels ? (
+    <Box component="form">
+      <PaletteRow
+        heading={labels[0]}
+        palette={trackColorSettings.mainPalette}
+        field="mainPalette"
+        setColor={setTrackColorSetting}
+        availableColors={availableColors}
+        presetColors={presetColors}
+      />
+      {labels[1] !== undefined && (
+        <PaletteRow
+          heading={labels[1]}
+          palette={trackColorSettings.auxPalette}
+          field="auxPalette"
+          setColor={setTrackColorSetting}
+          availableColors={availableColors}
+          presetColors={presetColors}
+        />
       )}
-    </>
-  )
+    </Box>
+  ) : null
 }
 
 export default TrackSettings
