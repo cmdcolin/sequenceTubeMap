@@ -498,10 +498,10 @@ function HeaderForm({
   }
 
   async function jumpRegion(offset: -1 | 1) {
-    const current = determineRegionIndex(region, regionInfo) ?? 0
-    await changeRegionAndGo(
-      regionStringFromRegionIndex(current + offset, regionInfo),
-    )
+    const target = (determineRegionIndex(region, regionInfo) ?? 0) + offset
+    if (target >= 0 && target < (regionInfo.chr?.length ?? 0)) {
+      await changeRegionAndGo(regionStringFromRegionIndex(target, regionInfo))
+    }
   }
 
   // The region controls rewrite the window and load it immediately, the way

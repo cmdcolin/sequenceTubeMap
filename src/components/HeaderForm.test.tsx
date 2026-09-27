@@ -287,6 +287,23 @@ describe('keyboard shortcuts', () => {
     expect(lastRegion(setCurrentViewTarget)).toEqual('x:500-600')
   })
 
+  it('stops [ and ] at the ends of the BED list', async () => {
+    const { setCurrentViewTarget } = renderForm({
+      viewTarget: { region: 'y:10-20', tracks: TRACKS, bedFile: 'regions.bed' },
+      api: fakeAPI({
+        getBedRegions: async () => ({ bedRegions: BED_REGIONS }),
+      }),
+    })
+    await screen.findByRole('button', { name: 'Next' })
+
+    await userEvent.keyboard(']')
+    expect(setCurrentViewTarget).not.toHaveBeenCalled()
+
+    // user-event reads a lone `[` as the start of a key descriptor.
+    await userEvent.keyboard('[[')
+    expect(lastRegion(setCurrentViewTarget)).toEqual('x:500-600')
+  })
+
   it('reports Escape to the app', async () => {
     const onEscape = vi.fn()
     renderForm({ onEscape })
