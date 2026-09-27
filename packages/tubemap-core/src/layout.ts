@@ -3442,12 +3442,14 @@ function mergeNodes(): void {
     sequence.length = kept
   })
 
-  // remove the nodes from node-array
-  for (let i = nodes.length - 1; i >= 0; i -= 1) {
-    if (absorbed[i] === 1) {
-      nodes.splice(i, 1)
+  let kept = 1
+  for (let i = 1; i < nodes.length; i += 1) {
+    if (absorbed[i] === 0) {
+      nodes[kept] = nodes[i]!
+      kept += 1
     }
   }
+  nodes.length = kept
 }
 
 // The index of the node `index` merges into, or 0 when it merges into none.

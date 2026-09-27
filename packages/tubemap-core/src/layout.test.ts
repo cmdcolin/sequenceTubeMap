@@ -87,6 +87,26 @@ describe('layoutTubeMap', () => {
     expect(new Set(heights)).toEqual(new Set([6]))
   })
 
+  it('merges an unbranched run into one node and keeps the hole at index 0', () => {
+    const run: InputNode[] = [
+      { name: 'a', seq: 'AC' },
+      { name: 'b', seq: 'GT' },
+      ...nodes,
+    ]
+    const layout = layoutTubeMap(run, [
+      { id: 0, sequence: ['a', 'b', '1', '2', '4'], sourceTrackID: 0 },
+      { id: 1, sequence: ['a', 'b', '1', '3', '4'], sourceTrackID: 0 },
+    ])!
+    expect(0 in layout.nodes).toBe(false)
+    expect(layout.nodes.flatMap(n => [`${n.name}:${n.seq}`])).toEqual([
+      'a:ACGTACGT',
+      '2:A',
+      '3:G',
+      '4:TTGCA',
+    ])
+    expect(layout.tracks.map(t => t.sequence)).toContainEqual(['a', '2', '4'])
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()
