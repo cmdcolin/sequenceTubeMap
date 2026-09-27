@@ -308,10 +308,11 @@ export class GBZBaseAPI implements APIInterface {
   // Sibling URLs the host answered "absent" for, so a view doesn't re-request
   // a missing `.gai` on every region change.
   private missingSiblings = new Set<string>()
-  // Every read of each unindexed read file. Without an index a view reads the
-  // whole file, and inflating and decoding it again was most of what each
-  // region change cost. The reads live as long as the file's Blob does.
-  private decodedReads = new WeakMap<Blob, Promise<VgRead[]>>()
+  // Every read of the unindexed read file read last. Without an index a view
+  // reads the whole file, and inflating and decoding it again was most of what
+  // each region change cost. Only one file's reads are kept: the Blobs live
+  // for the session, and the decoded reads of every file viewed would too.
+  private decodedReads: { blob: Blob; reads: Promise<VgRead[]> } | undefined
   private debugEnabled = debugFromEnvironment()
   // Defaults to this module's own store, which is what the main thread reads.
   // In a worker LocalAPI replaces it with a proxy back across Comlink.
@@ -691,15 +692,16 @@ export class GBZBaseAPI implements APIInterface {
   }
 
   private allReads(gamBlob: Blob): Promise<VgRead[]> {
-    let reads = this.decodedReads.get(gamBlob)
-    if (!reads) {
-      reads = readGam(gamBlob)
-      reads.catch(() => {
-        this.decodedReads.delete(gamBlob)
+    if (this.decodedReads?.blob !== gamBlob) {
+      const decoded = { blob: gamBlob, reads: readGam(gamBlob) }
+      decoded.reads.catch(() => {
+        if (this.decodedReads === decoded) {
+          this.decodedReads = undefined
+        }
       })
-      this.decodedReads.set(gamBlob, reads)
+      this.decodedReads = decoded
     }
-    return reads
+    return this.decodedReads.reads
   }
 
   async getFilenames(

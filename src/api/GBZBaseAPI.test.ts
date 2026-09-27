@@ -694,6 +694,39 @@ describe('reads returned with a graph view', () => {
     expect(arrayBuffer).toHaveBeenCalledTimes(1)
   })
 
+  // Uploads and downloads live for the session, so reads kept per file would
+  // hold every unindexed file ever viewed in memory.
+  it('keeps the decoded reads of the last unindexed file only', async () => {
+    const upload = async (name: string) => {
+      const file = fixtureFile(`exampleData/${name}`, name)
+      return {
+        id: await api.putFile('read', file, null),
+        arrayBuffer: vi.spyOn(file, 'arrayBuffer'),
+      }
+    }
+    const first = await upload('cactus0_10.gam')
+    const second = await upload('cactus10_20.gam')
+    const view = (readsId: string) =>
+      api.getChunkedData(
+        {
+          dataType: 'mounted files',
+          tracks: [
+            { trackFile: graphId, trackType: 'graph' },
+            { trackFile: readsId, trackType: 'read' },
+          ],
+          region: 'ref:1-100',
+        },
+        null,
+      )
+
+    await view(first.id)
+    await view(second.id)
+    await view(first.id)
+
+    expect(first.arrayBuffer).toHaveBeenCalledTimes(2)
+    expect(second.arrayBuffer).toHaveBeenCalledTimes(1)
+  })
+
   it('returns one gam entry per read track, even without a file', async () => {
     const viewTarget: ViewTarget = {
       dataType: 'mounted files',
