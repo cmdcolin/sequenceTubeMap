@@ -3357,7 +3357,9 @@ function mergeNodes(): void {
     })
 
     reads.forEach(read => {
-      const sequenceNew = read.sequenceNew ?? []
+      const sequenceNew =
+        read.sequenceNew ??
+        read.sequence.map(nodeName => ({ nodeName, mismatches: [] }))
       read.firstNodeOffset =
         (read.firstNodeOffset ?? 0) + offsetOf(read.sequence[0]!)
       read.finalNodeCoverLength =

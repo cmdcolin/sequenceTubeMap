@@ -17,6 +17,17 @@ const tracks: InputTrack[] = [
   { id: 1, name: 'alt', sequence: ['1', '3', '4'], sourceTrackID: 0 },
 ]
 
+// The same bubble behind an unbranched run a b 1, which merging makes one node
+const run: InputNode[] = [
+  { name: 'a', seq: 'AC' },
+  { name: 'b', seq: 'GT' },
+  ...nodes,
+]
+const runTracks: InputTrack[] = [
+  { id: 0, sequence: ['a', 'b', '1', '2', '4'], sourceTrackID: 0 },
+  { id: 1, sequence: ['a', 'b', '1', '3', '4'], sourceTrackID: 0 },
+]
+
 describe('layoutTubeMap', () => {
   it('puts the two alleles in one column and the flanks either side', () => {
     const layout = layoutTubeMap(nodes, tracks, [], { mergeNodes: false })!
@@ -88,15 +99,7 @@ describe('layoutTubeMap', () => {
   })
 
   it('merges an unbranched run into one node and keeps the hole at index 0', () => {
-    const run: InputNode[] = [
-      { name: 'a', seq: 'AC' },
-      { name: 'b', seq: 'GT' },
-      ...nodes,
-    ]
-    const layout = layoutTubeMap(run, [
-      { id: 0, sequence: ['a', 'b', '1', '2', '4'], sourceTrackID: 0 },
-      { id: 1, sequence: ['a', 'b', '1', '3', '4'], sourceTrackID: 0 },
-    ])!
+    const layout = layoutTubeMap(run, runTracks)!
     expect(0 in layout.nodes).toBe(false)
     expect(layout.nodes.flatMap(n => [`${n.name}:${n.seq}`])).toEqual([
       'a:ACGTACGT',
@@ -108,16 +111,12 @@ describe('layoutTubeMap', () => {
   })
 
   it('lays out a graph fetched without sequences, switching and merging nodes', () => {
-    const bare: InputNode[] = [
-      { name: 'a', sequenceLength: 2 },
-      { name: 'b', sequenceLength: 2 },
-      { name: '1', sequenceLength: 4 },
-      { name: '2', sequenceLength: 1 },
-      { name: '3', sequenceLength: 1 },
-      { name: '4', sequenceLength: 5 },
-    ]
+    const bare = run.map(({ name, seq }) => ({
+      name,
+      sequenceLength: seq!.length,
+    }))
     const walks: InputTrack[] = [
-      { id: 0, sequence: ['a', 'b', '1', '2', '4'], sourceTrackID: 0 },
+      runTracks[0]!,
       { id: 1, sequence: ['a', 'b', '1', '-3', '4'], sourceTrackID: 0 },
     ]
     for (const nodeWidthOption of [
@@ -134,6 +133,13 @@ describe('layoutTubeMap', () => {
         expect(node.seq).toBe('')
       })
     }
+  })
+
+  it('merges nodes under a read that has no sequenceNew', () => {
+    const layout = layoutTubeMap(run, runTracks, [
+      { id: 0, type: 'read', sequence: ['a', 'b', '1'], sourceTrackID: 1 },
+    ])!
+    expect(layout.reads.map(r => r.sequence)).toEqual([['a']])
   })
 
   it('returns undefined when every track is hidden', () => {
