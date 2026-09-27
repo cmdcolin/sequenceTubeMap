@@ -79,6 +79,28 @@ describe('UploadPanel mode toggle', () => {
     expect(onDestChange).toHaveBeenCalledWith('server')
   })
 
+  it('holds the mode still while an upload runs', async () => {
+    const onDestChange = vi.fn()
+    render(
+      <UploadPanel
+        onUploaded={vi.fn()}
+        handleFileUpload={() => new Promise(() => {})}
+        apiMode="upstream"
+        serverModeId="upstream"
+        onDestChange={onDestChange}
+      />,
+    )
+    const input = screen
+      .getByTestId('UploadPanel')
+      .querySelector<HTMLInputElement>('input[type="file"]')!
+    await userEvent.upload(input, [fakeFile('graph.xg')])
+
+    fireEvent.click(screen.getByRole('button', { name: /upload & use/i }))
+
+    expect(await screen.findByTestId('mode-local')).toBeDisabled()
+    expect(onDestChange).not.toHaveBeenCalled()
+  })
+
   it('omits the toggle when no onDestChange is provided', () => {
     render(
       <UploadPanel

@@ -5,12 +5,14 @@ interface UploadModeToggleProps {
   apiMode: 'local' | 'server' | 'upstream'
   serverModeId: 'server' | 'upstream'
   onDestChange: (mode: string) => void
+  disabled: boolean
 }
 
 export function UploadModeToggle({
   apiMode,
   serverModeId,
   onDestChange,
+  disabled,
 }: UploadModeToggleProps) {
   const isLocal = apiMode === 'local'
 
@@ -29,6 +31,7 @@ export function UploadModeToggle({
       <ToggleButtonGroup
         value={isLocal ? 'local' : 'server'}
         exclusive
+        disabled={disabled}
         size="small"
         onChange={handleChange}
         aria-label="upload mode"

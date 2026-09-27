@@ -167,6 +167,9 @@ export const UploadPanel = ({
           apiMode={apiMode}
           serverModeId={serverModeId}
           onDestChange={onDestChange}
+          // A running upload sends its files to this backend and hands back
+          // names only this backend knows.
+          disabled={uploading}
         />
       ) : null}
 
