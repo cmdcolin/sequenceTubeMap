@@ -350,18 +350,9 @@ export function readUploadRejection(readsPath) {
 }
 
 function indexGamSorted(req, res, next) {
+  // Uploads are stored as <uuid>.gam.
   const readsPath = req.file.path
-
-  // An upload that is already named .sorted.gam must not become
-  // .sorted.sorted.gam, so it keeps its own name and the sorted stream lands
-  // on a scratch file we rename over it. The .gai records offsets into
-  // whatever vg gamsort emits, so the index is only valid against that
-  // output, never against the bytes we were handed.
-  const alreadySorted = readsPath.endsWith('.sorted.gam')
-  const sortedPath = alreadySorted
-    ? readsPath
-    : readsPath.substring(0, readsPath.lastIndexOf('.gam')) + '.sorted.gam'
-  const writePath = alreadySorted ? sortedPath + '.resorting' : sortedPath
+  const sortedPath = readsPath.replace(/\.gam$/, '.sorted.gam')
   const indexPath = sortedPath + '.gai'
 
   const vgGamsortParams = ['gamsort', '-i', indexPath, readsPath]
@@ -369,7 +360,7 @@ function indexGamSorted(req, res, next) {
 
   req.error = Buffer.alloc(0)
 
-  const sortedReadsFile = fs.createWriteStream(writePath, {
+  const sortedReadsFile = fs.createWriteStream(sortedPath, {
     encoding: 'binary',
   })
 
@@ -407,10 +398,7 @@ function indexGamSorted(req, res, next) {
       sentResponse = true
       if (code === 0) {
         finished(sortedReadsFile)
-          .then(async () => {
-            if (writePath !== sortedPath) {
-              await fs.promises.rename(writePath, sortedPath)
-            }
+          .then(() => {
             res.json({ path: path.relative('.', sortedPath) })
           })
           .catch(err => {

@@ -276,6 +276,34 @@ describe.skipIf(!HAS_VG)('chunking a graph', () => {
   })
 })
 
+describe.skipIf(!HAS_VG)('uploads', () => {
+  it('sorts and indexes an uploaded GAM', async () => {
+    const form = new FormData()
+    form.append('fileType', 'read')
+    form.append(
+      'trackFile',
+      new Blob([fs.readFileSync('exampleData/cactus-NA12879.gam')]),
+      'reads.gam',
+    )
+    const response = await fetch(
+      `${serverState.getApiUrl()}/trackFileSubmission`,
+      { method: 'POST', body: form },
+    )
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.path).toMatch(/^uploads\/[0-9a-f-]+\.sorted\.gam$/)
+    try {
+      expect(fs.statSync(body.path).size).toBeGreaterThan(0)
+      expect(fs.existsSync(body.path + '.gai')).toBe(true)
+    } finally {
+      const upload = body.path.replace(/\.sorted\.gam$/, '')
+      for (const suffix of ['.gam', '.sorted.gam', '.sorted.gam.gai']) {
+        fs.rmSync(upload + suffix, { force: true })
+      }
+    }
+  })
+})
+
 describe('the server process', () => {
   it('sweeps stale scratch directories and cleans up on SIGTERM', async () => {
     // Its own working directory, so its cleanup can't touch this checkout's.
