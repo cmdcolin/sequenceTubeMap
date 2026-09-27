@@ -1321,9 +1321,7 @@ export function axisIntervals(
 }
 
 function drawRuler(): void {
-  let rulerTrackIndex = 0
-  while (tracks[rulerTrackIndex]!.name !== trackForRuler) rulerTrackIndex += 1
-  const rulerTrack = tracks[rulerTrackIndex]!
+  const rulerTrack = tracks.find(track => track.name === trackForRuler)!
 
   // How often should we have a tick in bp?
   let markingInterval = 100
@@ -1789,20 +1787,6 @@ function appendTrackCorners(
     .on('contextmenu', trackRightClick)
 }
 
-// Get a non-read input track index by the ID stored in their d3 objects.
-function getInputTrackIndexByID(trackID: number | string): number | undefined {
-  let index = 0
-  while (
-    index < inputTracks.length &&
-    inputTracks[index]!.id !== Number(trackID)
-  ) {
-    index += 1
-  }
-  // There might not be a track
-  if (index >= inputTracks.length) return
-  return index
-}
-
 // Get any track object by ID.
 // Because of reordering of input tracks, the ID doesn't always match the index.
 function getTrackByID(trackID: number): Track | undefined {
@@ -1917,12 +1901,10 @@ function nodeMouseOut(this: SVGElement): void {
 
 // Move clicked track to first position
 function trackDoubleClick(this: SVGElement): void {
-  const trackID = d3.select(this).attr('trackID')
-  const index = getInputTrackIndexByID(trackID)
-  if (index === undefined) {
-    // Must be a read. Skip it.
-    return
-  }
+  const trackID = Number(d3.select(this).attr('trackID'))
+  const index = inputTracks.findIndex(track => track.id === trackID)
+  // Reads and bands aren't input tracks
+  if (index === -1) return
   debugLog(`moving index: ${index}`)
   moveTrackToFirstPosition(index)
   createTubeMap()
