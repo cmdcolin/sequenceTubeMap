@@ -46,7 +46,9 @@ export const TrackFilePicker = ({
 }: TrackFilePickerProps) => {
   const uploadFileInput = useRef<HTMLInputElement>(null)
   const [uploadError, setUploadError] = useState<Error>()
-  const configuredExtensions: string = config.fileTypeToExtensions[fileType]
+  const extensionsByType: Partial<Record<FileType, string>> =
+    config.fileTypeToExtensions
+  const configuredExtensions = extensionsByType[fileType] ?? ''
   const acceptedExtensions =
     apiMode === 'local'
       ? configuredExtensions.split(',').filter(isLocallyAccepted).join(',')

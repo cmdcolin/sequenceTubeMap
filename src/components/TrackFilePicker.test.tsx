@@ -182,4 +182,21 @@ describe('TrackFilePicker', () => {
       ?.getAttribute('accept')
     expect(accept).toBe('.gbz.db,.db')
   })
+
+  it.each(['local', 'server'] as const)(
+    'renders a node track, which has no configured extensions, in %s mode',
+    apiMode => {
+      const { container } = render(
+        <TrackFilePicker
+          tracks={[]}
+          fileType="node"
+          pickerType="upload"
+          apiMode={apiMode}
+          handleInputChange={() => {}}
+          handleFileUpload={() => Promise.resolve(undefined)}
+        />,
+      )
+      expect(container.querySelector('input[type="file"]')).toBeTruthy()
+    },
+  )
 })
