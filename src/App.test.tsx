@@ -181,6 +181,24 @@ it('starts from the view options in the URL', async () => {
   expect(compressed.querySelector('input[type=checkbox]')).toBeChecked()
 })
 
+it('has nothing for Go to apply on a view read from the URL', async () => {
+  window.history.replaceState(null, '', '/?region=x:1-100&tracks=graph:x.vg')
+  vi.resetModules()
+  const { default: UrlApp } = await import('./App.tsx')
+  render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <UrlApp api={fakeAPI()} />
+    </SWRConfig>,
+  )
+
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'Go' })).toHaveAttribute(
+      'title',
+      'No changes to apply; view is up to date.',
+    )
+  })
+})
+
 it('links a hosted graph to BandageJS from the View menu', async () => {
   window.history.replaceState(
     null,
@@ -349,6 +367,12 @@ describe('the address bar', () => {
     // The form follows the restored view, not just the address bar.
     await waitFor(() => {
       expect(getRegionInput().value).toEqual('17:1-100')
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Go' })).toHaveAttribute(
+        'title',
+        'No changes to apply; view is up to date.',
+      )
     })
   })
 })

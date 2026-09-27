@@ -98,19 +98,20 @@ function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
   )
 }
 
-// qs (copy link) and SWR's key hashing both treat an explicitly-undefined
-// field differently from a missing one, so drop the undefined ones.
-function removeUndefined(target: ViewTarget): ViewTarget {
+// Every view App holds passes through here. A link or config entry leaves out
+// a flag that is off, where the form writes false, so spell both flags out:
+// otherwise the same view compares unequal and hashes to a new SWR key. SWR
+// also hashes an explicitly-undefined field differently from a missing one,
+// so drop those.
+function normalizeViewTarget(target: ViewTarget): ViewTarget {
   return {
     region: target.region,
     tracks: target.tracks,
     ...(target.bedFile !== undefined && { bedFile: target.bedFile }),
     ...(target.name !== undefined && { name: target.name }),
     ...(target.dataType !== undefined && { dataType: target.dataType }),
-    ...(target.simplify !== undefined && { simplify: target.simplify }),
-    ...(target.removeSequences !== undefined && {
-      removeSequences: target.removeSequences,
-    }),
+    simplify: target.simplify ?? false,
+    removeSequences: target.removeSequences ?? false,
     ...(target.skipAutoLoad !== undefined && {
       skipAutoLoad: target.skipAutoLoad,
     }),
@@ -125,13 +126,13 @@ const defaultApiUrl = isLocalMode ? '' : `${config.BACKEND_URL}/api/v0`
 
 const UPSTREAM_API_URL = 'https://api.tubemap.graphs.vg/api/v0'
 
-const localDefaultViewTarget: ViewTarget = removeUndefined(
+const localDefaultViewTarget: ViewTarget = normalizeViewTarget(
   config.DATA_SOURCES.find(isLocalCompatibleDataSource) ?? EMPTY_VIEW_TARGET,
 )
 
 // Passing the configured sources lets `?name=<data source>` stand in for the
 // tracks, colors and BED that source already spells out.
-const defaultViewTarget: ViewTarget = removeUndefined(
+const defaultViewTarget: ViewTarget = normalizeViewTarget(
   urlParamsToViewTarget(document.location, config.DATA_SOURCES) ??
     (isLocalMode
       ? localDefaultViewTarget
@@ -247,7 +248,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   }
 
   const setCurrentViewTarget = (newTarget: ViewTarget) => {
-    const newViewTarget = removeUndefined(newTarget)
+    const newViewTarget = normalizeViewTarget(newTarget)
     if (
       !viewTargetsEqual(viewTarget, newViewTarget) ||
       dataOrigin !== dataOriginTypes.API
@@ -269,7 +270,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     viewTarget,
     visOptions,
     onRestore: (restored, restoredVisOptions) => {
-      const target = removeUndefined(restored)
+      const target = normalizeViewTarget(restored)
       setViewTarget(target)
       setDataOrigin(dataOriginTypes.API)
       setVisOptions(v => ({

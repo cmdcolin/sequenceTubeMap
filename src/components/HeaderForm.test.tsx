@@ -41,9 +41,8 @@ interface RenderOptions {
 
 function renderForm(options: RenderOptions = {}) {
   const setCurrentViewTarget = vi.fn()
-  // Committed targets always go through makeViewTarget, so the flags are set
-  // rather than undefined; the form's "anything to apply?" check compares
-  // against them.
+  // App spells out both flags on every view it holds, and the form's
+  // "anything to apply?" check compares against them.
   const viewTarget: ViewTarget = options.viewTarget ?? {
     region: 'x:100-200',
     tracks: TRACKS,
