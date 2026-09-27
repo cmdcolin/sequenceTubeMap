@@ -260,6 +260,13 @@ column out, since counting means downloading the whole GAM. Region syntax:
 | Node ID range    | `node:42-55`     |
 | Node + context   | `node:42+5`      |
 
+A node region is cut the way `vg chunk` cuts it, by either backend: `node:42-55`
+is the nodes with those ids and everything within 20 edges of them, and
+`node:42+5` is node 42 and everything within five. The browser refuses a range
+of more than 10,000 ids. With no path to anchor it, a node region has no ruler,
+and in the browser its walks are named only when the graph has a
+[companion index](#naming-haplotypes-optional).
+
 ### Region syntax for PanSN graphs
 
 `<contig>:<start>-<end>` queries the generic (`_gbwt_ref`) path;

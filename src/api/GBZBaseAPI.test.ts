@@ -147,6 +147,58 @@ describe('when a file is uploaded', () => {
     )
   })
 
+  // The server's node regions, which used to reach gbz-base as a path named
+  // "node" that nothing covers.
+  describe('node regions', () => {
+    const nodeView = async (region: string) => {
+      const view = await api.getChunkedData(
+        {
+          dataType: 'mounted files',
+          tracks: [{ trackFile: uploadName!, trackType: 'graph' }],
+          region,
+        },
+        null,
+      )
+      return { view, ids: new Set((view.graph?.node ?? []).map(n => n.id)) }
+    }
+
+    it('reads node:id+steps as a node and what lies that many edges away', async () => {
+      expect((await nodeView('node:5+0')).ids).toEqual(new Set(['5']))
+
+      const { view, ids } = await nodeView('node:5+1')
+      const edges = (view.graph as ConvertedGraph).edge
+      expect(ids.size).toBeGreaterThan(1)
+      for (const id of ids) {
+        expect(
+          id === '5' ||
+            edges.some(
+              e =>
+                (`${e.from}` === '5' && `${e.to}` === id) ||
+                (`${e.to}` === '5' && `${e.from}` === id),
+            ),
+        ).toBe(true)
+      }
+      expect(view.region).toEqual([null, null])
+      expect(view.graph?.path.length).toBeGreaterThan(0)
+    })
+
+    it('reads node:first-last as the range with context around it', async () => {
+      // x has no node 13.
+      const { ids } = await nodeView('node:11-15')
+      for (const id of ['11', '12', '14', '15']) {
+        expect(ids).toContain(id)
+      }
+      expect(ids).not.toContain('13')
+      expect(ids.size).toBeGreaterThan(4)
+    })
+
+    it('says when no node has an id in the range', async () => {
+      await expect(nodeView('node:900000-900010')).rejects.toThrow(
+        /no node with an id in 900000-900010/,
+      )
+    })
+  })
+
   it('rejects a file that is not a gbz-base database', async () => {
     const id = await api.putFile(
       'graph',
@@ -298,6 +350,23 @@ describe('a graph with a companion haplotype index', () => {
     expect(names[0]).toBe('GRCh38#0#chrM')
     expect(names.some(n => n.startsWith('unknown#'))).toBe(false)
     expect(names.some(n => /^(HG|NA)\d+#\d#/.test(n))).toBe(true)
+  })
+
+  it('names the walks through a node region too', async () => {
+    const view = await api.getChunkedData(
+      {
+        dataType: 'mounted files',
+        tracks: [
+          { trackFile: graph, trackType: 'graph', haplotypeIndexFile: index },
+        ],
+        region: 'node:77761620+3',
+      },
+      null,
+    )
+    const names = (view.graph?.path ?? []).map(p => p.name!)
+
+    expect(names.length).toBeGreaterThan(0)
+    expect(names.some(n => n.startsWith('unknown#'))).toBe(false)
   })
 
   it('answers path lengths out of the index for the paths panel', async () => {

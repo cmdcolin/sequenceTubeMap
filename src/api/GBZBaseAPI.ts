@@ -15,14 +15,16 @@ import {
   SCHEMA_VERSION,
   SchemaVersionError,
   nodes as gbzNodes,
+  subgraphAroundNodes,
 } from '@gmod/gbz-base'
-import type { PathName } from '@gmod/gbz-base'
+import type { PathName, Subgraph } from '@gmod/gbz-base'
 
 import {
   isGbzDbFilename,
   parseRegion,
   convertRegionToRangeRegion,
 } from '../common.ts'
+import type { Region } from '../common.ts'
 
 import { convertSchema, removeNodeSequencesInPlace } from './gbz/schema.ts'
 import { pathQueryFor } from './gbz/pathQuery.ts'
@@ -47,7 +49,7 @@ import type {
   Track,
   ViewTarget,
 } from '../Types.ts'
-import type { VgNode, VgRead } from '../util/tubemap.ts'
+import type { InputRegion, VgNode, VgRead } from '../util/tubemap.ts'
 
 // Set GBZBASE_DEBUG=1 / localStorage.gbzBaseDebug = '1' to re-enable the
 // chatty per-call logging that was unconditional in the original .mjs. A Web
@@ -177,6 +179,77 @@ async function pathNodeRanges(
 }
 
 const READ_COUNT_MAX_BYTES = 32 * 1024 * 1024
+
+// `vg chunk -r first:last -c 20`, which the server runs for `node:first-last`.
+const NODE_RANGE_CONTEXT_STEPS = 20
+
+// Every id in a node range costs a record lookup whether or not the node
+// exists, so a range wider than a tube map could draw is refused up front.
+const MAX_NODE_RANGE_IDS = 10000
+
+// The server's node regions, cut the way `vg chunk` cuts them:
+// `node:first-last` is the nodes with ids in that range and everything within
+// 20 edges of them, and `node:id+steps` is node `id` and everything within
+// `steps` edges. gbz-base measures its own context in bases, so the steps are
+// walked here and gbz-base asked for those nodes with none added.
+async function nodeRegionSubgraph(
+  db: GBZBase,
+  region: Region,
+  signal: AbortSignal | null,
+): Promise<Subgraph> {
+  const first = region.start
+  const last = 'end' in region ? region.end : region.start
+  const steps = 'end' in region ? NODE_RANGE_CONTEXT_STEPS : region.distance
+  if (last - first >= MAX_NODE_RANGE_IDS) {
+    throw new Error(
+      `node:${first}-${last} spans more than ${MAX_NODE_RANGE_IDS} node ids`,
+    )
+  }
+  await db.prefetchRecords(
+    gbzNodes.encodeNode(first, 'forward'),
+    gbzNodes.encodeNode(last, 'reverse'),
+  )
+  let frontier: number[] = []
+  for (let id = first; id <= last; id++) {
+    if (await db.getRecord(gbzNodes.encodeNode(id, 'forward'))) {
+      frontier.push(id)
+    }
+  }
+  if (frontier.length === 0) {
+    throw new Error(
+      first === last
+        ? `the graph has no node ${first}`
+        : `the graph has no node with an id in ${first}-${last}`,
+    )
+  }
+  const reached = new Set(frontier)
+  for (let step = 0; step < steps && frontier.length > 0; step++) {
+    signal?.throwIfAborted()
+    const next: number[] = []
+    for (const id of frontier) {
+      for (const orientation of ['forward', 'reverse'] as const) {
+        const record = await db.getRecord(gbzNodes.encodeNode(id, orientation))
+        for (const successor of record?.successors() ?? []) {
+          const neighbor = gbzNodes.nodeId(successor)
+          if (!reached.has(neighbor)) {
+            reached.add(neighbor)
+            next.push(neighbor)
+          }
+        }
+      }
+    }
+    frontier = next
+  }
+  const subgraph = await subgraphAroundNodes(db, [...reached], {
+    context: 0,
+    haplotypes: 'distinct',
+    signal: signal ?? undefined,
+  })
+  if (db.hasHaplotypeIndex) {
+    await subgraph.identifyPaths()
+  }
+  return subgraph
+}
 
 /**
  * API implementation that reads gbz-base databases client-side.
@@ -447,28 +520,41 @@ export class GBZBaseAPI implements APIInterface {
     }
     this.noteHaplotypeIndex(graphFile, graphTrack.haplotypeIndexFile)
 
-    const region = convertRegionToRangeRegion(parseRegion(viewTarget.region))
+    const parsed = parseRegion(viewTarget.region)
     const db = await this.openGraph(graphFile)
     cancelSignal?.throwIfAborted()
 
     let result
+    let region: InputRegion
     try {
-      // gbz-base resolves which fragment of a split contig covers the window
-      // and names the haplotypes itself when the database has the index.
-      //
-      // The server's `vg chunk -p contig:start-end` includes `end`, while
-      // gbz-base treats it as exclusive, so ask for one more base to keep
-      // both backends showing the same sequence for the same region string.
-      const subgraph = await db.getSubgraphForRange(
-        pathQueryFor(region.contig),
-        region.start,
-        region.end + 1,
-        { haplotypes: 'distinct', signal: cancelSignal ?? undefined },
-      )
-      if (!subgraph) {
-        throw new Error(
-          `no fragment of path ${region.contig} covers ${region.start}-${region.end}`,
+      let subgraph
+      if (parsed.contig === 'node') {
+        subgraph = await nodeRegionSubgraph(db, parsed, cancelSignal)
+        // The server's shape for a region with no path coordinates.
+        region = [null, null]
+      } else {
+        const { contig, start, end } = convertRegionToRangeRegion(parsed)
+        // gbz-base resolves which fragment of a split contig covers the
+        // window and names the haplotypes itself when the database has the
+        // index.
+        //
+        // The server's `vg chunk -p contig:start-end` includes `end`, while
+        // gbz-base treats it as exclusive, so ask for one more base to keep
+        // both backends showing the same sequence for the same region string.
+        subgraph = await db.getSubgraphForRange(
+          pathQueryFor(contig),
+          start,
+          end + 1,
+          { haplotypes: 'distinct', signal: cancelSignal ?? undefined },
         )
+        if (!subgraph) {
+          throw new Error(
+            `no fragment of path ${contig} covers ${start}-${end}`,
+          )
+        }
+        // The tubemap ruler indexes [0] and [1] as numbers to position the
+        // region-highlight ticks.
+        region = [start, end]
       }
       result = convertSchema(
         subgraph.toSubgraphJson({
@@ -480,7 +566,7 @@ export class GBZBaseAPI implements APIInterface {
         throw e
       }
       throw new Error(
-        `Failed to query "${graphFile}" at ${region.contig}:${region.start}-${region.end}: ${errorMessage(e)}`,
+        `Failed to query "${graphFile}" at ${viewTarget.region}: ${errorMessage(e)}`,
         { cause: e },
       )
     }
@@ -500,14 +586,7 @@ export class GBZBaseAPI implements APIInterface {
       removeNodeSequencesInPlace(result)
     }
 
-    return {
-      graph: result,
-      gam,
-      // Match the server's [start, end] shape; the tubemap ruler indexes [0]
-      // and [1] as numbers to position the region-highlight ticks.
-      region: [region.start, region.end],
-      coloredNodes: [],
-    }
+    return { graph: result, gam, region, coloredNodes: [] }
   }
 
   // Try to resolve a sibling file at `trackFile + suffix` (e.g. ".gai").
