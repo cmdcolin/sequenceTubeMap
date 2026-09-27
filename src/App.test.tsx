@@ -1,6 +1,6 @@
 // Tests functionality without server
 
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import App from './App.tsx'
@@ -351,6 +351,26 @@ const openCustomFiles = async () => {
   await userEvent.click(screen.getByTestId('openCustomFiles'))
 }
 
+const stageFile = async (name: string) => {
+  const panel = screen.getByTestId('UploadPanel')
+  await userEvent.upload(
+    panel.querySelector<HTMLInputElement>('input[type="file"]')!,
+    new File(['data'], name),
+  )
+}
+
+// What leaves the app with no view: new files are loaded, and no region in
+// them is picked yet.
+const uploadCustomFiles = async () => {
+  await openCustomFiles()
+  await stageFile('graph.vg')
+  await userEvent.click(
+    within(screen.getByTestId('UploadPanel')).getByRole('button', {
+      name: /upload & use/i,
+    }),
+  )
+}
+
 describe('the address bar', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '/')
@@ -372,7 +392,7 @@ describe('the address bar', () => {
       expect(window.location.search).toContain('region=17:1-100')
     })
 
-    await openCustomFiles()
+    await uploadCustomFiles()
 
     await waitFor(() => {
       expect(window.location.search).toBe('')
@@ -478,6 +498,22 @@ describe('the Open dialog', () => {
       'true',
     )
   })
+
+  it('leaves the view on screen until files are loaded', async () => {
+    renderApp()
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=17:1-100')
+    })
+
+    await openCustomFiles()
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => {
+      expect(screen.queryByTestId('UploadPanel')).not.toBeInTheDocument()
+    })
+
+    expect(window.location.search).toContain('region=17:1-100')
+    expect(screen.queryByText(/Nothing loaded/)).not.toBeInTheDocument()
+  })
 })
 
 describe('loading and empty states', () => {
@@ -493,7 +529,7 @@ describe('loading and empty states', () => {
 
   it('says there is nothing to show once no view is selected', async () => {
     renderApp()
-    await openCustomFiles()
+    await uploadCustomFiles()
 
     expect(await screen.findByText(/Nothing loaded/)).toBeInTheDocument()
   })
@@ -502,7 +538,7 @@ describe('loading and empty states', () => {
     renderApp()
     await drawSyntheticExample()
 
-    await openCustomFiles()
+    await uploadCustomFiles()
 
     await waitFor(() => {
       expect(document.querySelector('#tubeMapSVG svg')).toBeNull()

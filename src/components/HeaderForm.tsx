@@ -485,11 +485,10 @@ function HeaderForm({
     })
   }
 
-  // Shared reset for the two entry points into custom-files mode (the File
-  // menu's Open… item, and an upload completing). Always clears the rendered
-  // tube map so the previous dataset's graph doesn't linger while the user
-  // picks new files. The success banner derives its filenames directly from
-  // the tracks' `trackDisplayName` (set by UploadPanel).
+  // Point the form at files the user picks rather than a named dataset: the
+  // File menu's Open… item, with none yet, or files from its dialog. The view
+  // on screen stays until the user commits another. The success banner takes
+  // its filenames from the tracks' `trackDisplayName` (set by UploadPanel).
   function enterCustomFilesMode(newTracks: Tracks) {
     setBedFile('none')
     setChosenRegion('')
@@ -500,6 +499,12 @@ function HeaderForm({
     setRecentlyUploaded(
       newTracks.map(t => t.trackDisplayName ?? t.trackFile ?? '(unnamed)'),
     )
+  }
+
+  // Loaded files replace the view, so the previous dataset's graph doesn't
+  // linger while the user picks a region in them.
+  function loadUploadedTracks(uploadedTracks: Tracks) {
+    enterCustomFilesMode(uploadedTracks)
     setCurrentViewTarget({ tracks: [], region: '' })
   }
 
@@ -539,10 +544,6 @@ function HeaderForm({
         }
       }
     }
-  }
-
-  function handleQuickUploaded(uploadedTracks: Track[]) {
-    enterCustomFilesMode(uploadedTracks)
   }
 
   async function handleFileUpload(
@@ -620,7 +621,9 @@ function HeaderForm({
         availableTracks={availableTracks}
         onTracksChange={handleInputChange}
         handleFileUpload={handleFileUpload}
-        onUploaded={handleQuickUploaded}
+        onUploaded={uploadedTracks => {
+          loadUploadedTracks(uploadedTracks)
+        }}
         onOpenCustomFiles={() => {
           handleDataSourceChange(dataTypes.CUSTOM_FILES)
         }}

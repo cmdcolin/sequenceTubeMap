@@ -370,9 +370,9 @@ function TubeMapContainer({
     })
   }, [])
 
-  // Whether anything is selected to look at. "Open custom files" and a backend
-  // with nothing mounted both land here, and a blank page reads as a broken
-  // app rather than as a waiting one.
+  // Whether anything is selected to look at. Freshly uploaded files and a
+  // backend with nothing mounted both land here, and a blank page reads as a
+  // broken app rather than as a waiting one.
   const hasView =
     dataOrigin !== dataOriginTypes.API || viewTarget.tracks.length > 0
 

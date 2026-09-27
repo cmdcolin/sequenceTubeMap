@@ -197,8 +197,8 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
 
   // `keepPreviousData` hands back the last data for a null key too, which is
   // right while the next region loads and wrong once there is no view at all:
-  // "Open custom files" would leave the previous dataset's graph on screen
-  // under a file picker for a different one.
+  // uploading files would leave the previous dataset's graph on screen while
+  // the user picks a region in the new ones.
   const data = fetchKey === null ? undefined : fetched
 
   // Which backend each mode talks to, and the view target to fall back to
