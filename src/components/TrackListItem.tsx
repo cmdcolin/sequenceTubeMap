@@ -61,12 +61,14 @@ export const TrackListItem = ({
         flexWrap: 'wrap',
         alignItems: 'flex-start',
         gap: 1,
-        width: '900px',
+        width: 900,
+        // Clears the dialog's close button
         mr: '15px',
+        maxWidth: 'calc(100% - 15px)',
         mt: 0.5,
       }}
     >
-      <Box sx={{ width: 140 }} data-track-field="type">
+      <Box sx={{ width: { xs: 120, sm: 140 } }} data-track-field="type">
         <TrackTypeDropdown
           value={trackProps.trackType}
           onChange={newType => {
@@ -80,7 +82,7 @@ export const TrackListItem = ({
           options={TRACK_TYPE_OPTIONS}
         />
       </Box>
-      <Box sx={{ width: 140 }} data-track-field="source">
+      <Box sx={{ width: { xs: 120, sm: 140 } }} data-track-field="source">
         <TrackTypeDropdown
           value={pickerType}
           onChange={v => {

@@ -101,7 +101,7 @@ export const TrackPickerDisplay = ({
   const isEmpty = applied.length === 0
 
   return (
-    <Box sx={{ minWidth: '500px' }}>
+    <Box sx={{ minWidth: { sm: 500 } }}>
       <Box>
         <TrackList
           tracks={applied}
