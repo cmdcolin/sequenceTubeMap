@@ -307,6 +307,33 @@ gets a cap of 1,000,000 visits instead. Coarsened, the 10 kb row draws in 0.6 s
 and zooms at 30 ms a step; the 50 kb row draws in 1.3 s and zooms at 85 ms a
 step; the 150 kb row takes 4 s and 300 ms or more a step, so it stays refused.
 
+A coarsened window wide enough to hold a structural variant is still far wider
+than a page, so a figure of one is best cropped to its breakpoints. Across the
+30 kb window `GRCh38#chr1:109675000-109705000`, about 70% of the HPRC v2.1
+haplotypes skip GSTM1, the common 18 kb deletion. The dark band leaves the
+reference near 109,683,900, where a paler band of the haplotypes that keep the
+gene carries on through it:
+
+![Start of the GSTM1 deletion](images/hprc-v2.1-gstm1-deletion-start.png)
+
+The same band rejoins near 109,702,400:
+
+![End of the GSTM1 deletion](images/hprc-v2.1-gstm1-deletion-end.png)
+
+The whole window lays out 94,708 by 336 units even with compressed node widths.
+The crops come from one render, reframed by its viewBox since `rsvg-convert`
+cannot rasterize anything that wide:
+
+```bash
+pnpm tubemap-cli --source 'HPRC v2.1 whole genome (gbz-base, URL-hosted)' \
+                 --region 'GRCh38#chr1:109675000-109705000' \
+                 --coarsened --compressed --out gstm1.svg
+sed '0,/viewBox="[^"]*"/s//viewBox="52000 -20 3700 245"/' gstm1.svg |
+  rsvg-convert -b white -o doc/images/hprc-v2.1-gstm1-deletion-start.png
+sed '0,/viewBox="[^"]*"/s//viewBox="83900 -20 3700 245"/' gstm1.svg |
+  rsvg-convert -b white -o doc/images/hprc-v2.1-gstm1-deletion-end.png
+```
+
 The cap resets with each new region, and `pnpm tubemap-cli` ignores it.
 
 To see the shape of a window too wide to draw, **View → Open in BandageJS**
