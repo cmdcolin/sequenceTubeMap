@@ -35,7 +35,7 @@ import {
   scanReadNodeIds,
 } from './gam/gam.ts'
 import { UploadRegistry, isUploadId } from './local/fileRegistry.ts'
-import { errorMessage } from '../util/error.ts'
+import { errorMessage, isAbortError, toError } from '../util/error.ts'
 
 import type {
   APIInterface,
@@ -108,10 +108,28 @@ class HttpError extends Error {
   }
 }
 
-function throwIfCancelled(cancelSignal: AbortSignal | null): void {
-  if (cancelSignal?.aborted) {
-    throw new Error('Request was cancelled')
+// Settles like `promise` unless `signal` aborts first, which lets one caller
+// stop waiting on work that others still want.
+function raceAbort<T>(
+  promise: Promise<T>,
+  signal: AbortSignal | null,
+): Promise<T> {
+  if (!signal) {
+    return promise
   }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      reject(toError(signal.reason))
+    }
+    if (signal.aborted) {
+      onAbort()
+      return
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(resolve, reject).finally(() => {
+      signal.removeEventListener('abort', onAbort)
+    })
+  })
 }
 
 // gbz-base path names follow the GBWT `sample#haplotype#contig` convention.
@@ -142,7 +160,7 @@ async function pathNodeRanges(
 ): Promise<Map<number, NodeIdRange>> {
   const ranges = new Map<number, NodeIdRange>()
   for await (const { values } of db.sqlite.scan('ReferenceIndex')) {
-    throwIfCancelled(cancelSignal)
+    cancelSignal?.throwIfAborted()
     const [pathHandle, , nodeHandle] = values
     if (typeof pathHandle === 'number' && typeof nodeHandle === 'number') {
       const id = BigInt(gbzNodes.nodeId(nodeHandle))
@@ -237,9 +255,10 @@ export class GBZBaseAPI implements APIInterface {
   // stream the body and publish progress so the loader spinner can show
   // "downloading X / Y MB" instead of looking frozen.
   //
-  // The cache is keyed by URL and holds the in-flight promise, so a second
-  // caller joins the first caller's download rather than starting its own —
-  // which also means it inherits the first caller's cancel signal.
+  // The cache holds the in-flight promise, so a second caller joins the first
+  // caller's download. The download itself takes no caller's signal: a caller
+  // that gives up only stops waiting, since the view after it usually wants
+  // the same file.
   private async resolveTrackFile(
     trackFile: string,
     cancelSignal: AbortSignal | null,
@@ -250,19 +269,21 @@ export class GBZBaseAPI implements APIInterface {
     const resolved = this.resolveUrl(trackFile)
     let cached = this.urlCache.get(resolved)
     if (!cached) {
-      cached = this.downloadBlob(trackFile, resolved, cancelSignal)
+      cached = this.downloadBlob(trackFile, resolved)
+      cached.catch(() => {
+        /* reported to whoever still waits */
+      })
       this.urlCache.set(resolved, cached)
     }
-    return cached
+    return await raceAbort(cached, cancelSignal)
   }
 
   private async downloadBlob(
     trackFile: string,
     resolved: string,
-    cancelSignal: AbortSignal | null,
   ): Promise<Blob> {
     try {
-      const response = await fetch(resolved, { signal: cancelSignal })
+      const response = await fetch(resolved)
       if (!response.ok) {
         throw new HttpError(
           response.status,
@@ -307,7 +328,7 @@ export class GBZBaseAPI implements APIInterface {
       return await response.blob()
     } catch (e) {
       // A rejected promise left in the cache would fail every later attempt,
-      // including retries after a transient network error or a cancellation.
+      // including retries after a transient network error.
       this.urlCache.delete(resolved)
       throw e
     }
@@ -426,7 +447,7 @@ export class GBZBaseAPI implements APIInterface {
 
     const region = convertRegionToRangeRegion(parseRegion(viewTarget.region))
     const db = await this.openGraph(graphFile)
-    throwIfCancelled(cancelSignal)
+    cancelSignal?.throwIfAborted()
 
     let result
     try {
@@ -453,6 +474,9 @@ export class GBZBaseAPI implements APIInterface {
         }),
       )
     } catch (e) {
+      if (isAbortError(e)) {
+        throw e
+      }
       throw new Error(
         `Failed to query "${graphFile}" at ${region.contig}:${region.start}-${region.end}: ${errorMessage(e)}`,
         { cause: e },
@@ -530,7 +554,7 @@ export class GBZBaseAPI implements APIInterface {
       return []
     }
     const gaiBlob = await this.resolveSibling(trackFile, '.gai', cancelSignal)
-    throwIfCancelled(cancelSignal)
+    cancelSignal?.throwIfAborted()
     if (gaiBlob) {
       // Only the BGZF blocks the index points at are read, so a URL-hosted
       // GAM costs a few range requests per region rather than a download of
@@ -540,14 +564,13 @@ export class GBZBaseAPI implements APIInterface {
         gaiBlob,
         nodes.min,
         nodes.max,
-        nodes.ids,
+        { visits: nodes.ids, signal: cancelSignal },
       )
     }
     // Without an index there is nothing to seek with, so the file is read
     // whole and every read filtered against the subgraph.
     const gamBlob = await this.resolveTrackFile(trackFile, cancelSignal)
-    throwIfCancelled(cancelSignal)
-    return (await readGam(gamBlob)).filter(read =>
+    return (await readGam(gamBlob, cancelSignal)).filter(read =>
       alignmentVisitsAny(read, nodes.ids),
     )
   }
@@ -636,7 +659,7 @@ export class GBZBaseAPI implements APIInterface {
     }
     this.noteHaplotypeIndex(graphFile, haplotypeIndexFile)
     const db = await this.openGraph(graphFile)
-    throwIfCancelled(cancelSignal)
+    cancelSignal?.throwIfAborted()
     const paths = (await db.paths())
       .filter(p => p.isIndexed)
       .map(p => ({ path: p, name: displayName(p.name) }))
@@ -720,7 +743,7 @@ export class GBZBaseAPI implements APIInterface {
     }
 
     const gamBlob = await this.resolveTrackFile(readFile, cancelSignal)
-    throwIfCancelled(cancelSignal)
+    cancelSignal?.throwIfAborted()
     // Bounding each read by its own min/max id lets most (path, read) pairs be
     // settled by two comparisons instead of a walk over the read's nodes.
     const reads = (await scanReadNodeIds(gamBlob))

@@ -109,9 +109,13 @@ navigation. `src/urlViewTarget.ts` parses one out of the query string and
 serializes it back, which is what makes every view linkable
 ([urlparams.md](urlparams.md)). There is no router.
 
-`TubeMapContainer` turns the current `ViewTarget` into an SWR key and fetches
-through whichever `APIInterface` it was given. Fetchers return the _processed_
-shape, so revisiting a view is a cache hit and cancellation is implicit.
+`App` turns the current `ViewTarget` into an SWR key and fetches through
+whichever `APIInterface` it holds. Fetchers return the _processed_ shape, so
+revisiting a view is a cache hit. Starting a fetch aborts the one before it,
+whose view is gone: `LocalAPI` forwards the abort to the worker, which stops
+that view's range requests and GAM reads instead of finishing them ahead of the
+view on screen. A whole-file download keeps going, since the next view usually
+wants the same file.
 
 ## The layout engine
 

@@ -130,6 +130,6 @@ describe('cancellation', () => {
     }
     await expect(
       api.getChunkedData(viewTarget, controller.signal),
-    ).rejects.toThrow(/cancelled/)
+    ).rejects.toMatchObject({ name: 'AbortError' })
   })
 })

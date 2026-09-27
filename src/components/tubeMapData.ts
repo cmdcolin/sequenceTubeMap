@@ -1,3 +1,4 @@
+import type { SWRConfiguration } from 'swr'
 import * as tubeMap from '../util/tubemap.ts'
 import type {
   InputNode,
@@ -8,6 +9,7 @@ import type {
 } from '../util/tubemap.ts'
 import type { APIInterface, ChunkedDataResponse } from '../api/APIInterface.ts'
 import { dataOriginTypes } from '../enums.ts'
+import { isAbortError } from '../util/error.ts'
 import type { Tracks, ViewTarget } from '../Types.ts'
 
 // demo-data.js types are inferred from JS literals; keep this loose so the
@@ -182,16 +184,30 @@ export type FetchKey =
   | readonly ['tubeMap.api', APIInterface['mode'], ViewTarget]
   | readonly ['tubeMap.example', string]
 
+// The page draws one tube map, so a new fetch means the view the previous one
+// was for is gone: stop its range requests and GAM reads rather than let them
+// queue ahead of the view on screen.
+let inflight: AbortController | undefined
+
 export async function fetchTubeMapData(
   key: FetchKey,
   api: APIInterface,
 ): Promise<TubeMapData> {
+  inflight?.abort()
   if (key[0] === 'tubeMap.api') {
     const target = key[2]
-    return parseChunkedData(
-      await api.getChunkedData(target, null),
-      target.tracks,
-    )
+    const controller = new AbortController()
+    inflight = controller
+    try {
+      return parseChunkedData(
+        await api.getChunkedData(target, controller.signal),
+        target.tracks,
+      )
+    } finally {
+      if (inflight === controller) {
+        inflight = undefined
+      }
+    }
   }
   const demo = await import('../util/demo-data.js')
   const result = computeExampleData(key[1], demo)
@@ -202,4 +218,18 @@ export async function fetchTubeMapData(
     region: undefined,
     coloredNodes: undefined,
   }
+}
+
+// SWR retry options for the tube map fetch. An aborted fetch belongs to a view
+// the user left, so SWR retries it only if that view is on screen again: the
+// user came back before it settled, and SWR waited on it instead of fetching
+// anew.
+export const refetchAborted: Pick<
+  SWRConfiguration,
+  'shouldRetryOnError' | 'onErrorRetry'
+> = {
+  shouldRetryOnError: isAbortError,
+  onErrorRetry: (_error, _key, _config, revalidate, opts) => {
+    void revalidate(opts)
+  },
 }

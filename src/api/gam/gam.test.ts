@@ -244,7 +244,9 @@ describe('readGamRegion', () => {
     const ranged = await readGamRegion(new BlobFile(gam), gai, 1n, 24n)
     // A set covering the whole range is the same answer as no set at all.
     expect(
-      names(await readGamRegion(new BlobFile(gam), gai, 1n, 24n, whole)),
+      names(
+        await readGamRegion(new BlobFile(gam), gai, 1n, 24n, { visits: whole }),
+      ),
     ).toEqual(names(ranged))
 
     const victim = ranged[0]!
@@ -252,7 +254,9 @@ describe('readGamRegion', () => {
     for (const id of nodeIdsOf(victim)) {
       holed.delete(id)
     }
-    const punched = await readGamRegion(new BlobFile(gam), gai, 1n, 24n, holed)
+    const punched = await readGamRegion(new BlobFile(gam), gai, 1n, 24n, {
+      visits: holed,
+    })
     expect(punched.map(r => r.name)).not.toContain(victim.name)
     // Everything still in is there because it visits a node the set kept, and
     // everything dropped visited only nodes the set removed.

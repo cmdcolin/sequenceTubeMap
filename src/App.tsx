@@ -21,6 +21,7 @@ import {
 import {
   exampleTracks,
   fetchTubeMapData,
+  refetchAborted,
   type FetchKey,
   type TubeMapData,
 } from './components/tubeMapData.ts'
@@ -36,6 +37,7 @@ import ServerAPI from './api/ServerAPI.ts'
 import { LocalAPI } from './api/LocalAPI.ts'
 import type { APIInterface } from './api/APIInterface.ts'
 import { defaultTrackColors, isLocalCompatibleDataSource } from './common.ts'
+import { isAbortError } from './util/error.ts'
 import {
   DEFAULT_VIS_OPTIONS,
   exampleColorSchemes,
@@ -195,7 +197,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   } = useSWR<TubeMapData, Error, FetchKey | null>(
     fetchKey,
     (key: FetchKey) => fetchTubeMapData(key, apiInterface),
-    { keepPreviousData: true },
+    { ...refetchAborted, keepPreviousData: true },
   )
 
   // `keepPreviousData` hands back the last data for a null key too, which is
@@ -373,7 +375,9 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
           dataOrigin={dataOrigin}
           visOptions={visOptions}
           data={data}
-          error={error}
+          // The view an aborted fetch was for is gone, and SWR refetches it
+          // on the way back.
+          error={isAbortError(error) ? undefined : error}
           isValidating={isValidating}
           onRetry={() => {
             void mutate()

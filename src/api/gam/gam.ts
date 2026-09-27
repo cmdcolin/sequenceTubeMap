@@ -8,7 +8,7 @@
 //     Alignment. Suitable for small uploads or as a fallback when no .gam.gai
 //     is available.
 //
-//   readGamRegion(source, indexBlob, minNode, maxNode, visits?)
+//   readGamRegion(source, indexBlob, minNode, maxNode, { visits, signal })
 //     Index-driven region query. Uses the .gam.gai file to find compressed
 //     virtual offset runs that may contain Alignments touching the node-id
 //     range [minNode, maxNode], reads only those runs' bytes off `source`,
@@ -42,9 +42,14 @@ function isAlignmentTag(tag: string): boolean {
   return tag === GAM_TAG || tag === ''
 }
 
-export async function readGam(blob: Blob): Promise<VgRead[]> {
+export async function readGam(
+  blob: Blob,
+  signal?: AbortSignal | null,
+): Promise<VgRead[]> {
   const compressed = new Uint8Array(await blob.arrayBuffer())
+  signal?.throwIfAborted()
   const decompressed = await decompress(compressed)
+  signal?.throwIfAborted()
   const out: VgRead[] = []
   for (const msg of iterateMessages(decompressed)) {
     if (isAlignmentTag(msg.tag)) {
@@ -148,19 +153,24 @@ function decompressGzipMultiMember(buf: Uint8Array): Uint8Array {
   return out
 }
 
+export interface RegionReadOptions {
+  visits?: ReadonlySet<bigint> | undefined
+  signal?: AbortSignal | null | undefined
+}
+
 export async function readGamRegion(
   source: GenericFilehandle,
   indexBlob: Blob,
   minNode: bigint,
   maxNode: bigint,
-  visits?: ReadonlySet<bigint>,
+  opts: RegionReadOptions = {},
 ): Promise<VgRead[]> {
   const index = await loadGamIndex(indexBlob)
   const runs = runsForNodeRange(index, minNode, maxNode)
   if (runs.length === 0) {
     return []
   }
-  return readAlignmentsForRuns(source, runs, minNode, maxNode, visits)
+  return readAlignmentsForRuns(source, runs, minNode, maxNode, opts)
 }
 
 // `runsForNodeRange` hands back non-overlapping, non-adjacent runs sorted by
@@ -177,7 +187,7 @@ export async function readAlignmentsForRuns(
   runs: IndexRun[],
   minNode: bigint,
   maxNode: bigint,
-  visits?: ReadonlySet<bigint>,
+  { visits, signal }: RegionReadOptions = {},
 ): Promise<VgRead[]> {
   const { size } = await source.stat()
   const perRun = new Array<VgRead[]>(runs.length)
@@ -185,6 +195,7 @@ export async function readAlignmentsForRuns(
   const worker = async () => {
     let i = nextRun++
     while (i < runs.length) {
+      signal?.throwIfAborted()
       perRun[i] = await alignmentsInRun(
         source,
         size,
@@ -192,6 +203,7 @@ export async function readAlignmentsForRuns(
         minNode,
         maxNode,
         visits,
+        signal,
       )
       i = nextRun++
     }
@@ -221,9 +233,10 @@ async function alignmentsInRun(
   minNode: bigint,
   maxNode: bigint,
   visits: ReadonlySet<bigint> | undefined,
+  signal: AbortSignal | null | undefined,
 ): Promise<VgRead[]> {
   const out: VgRead[] = []
-  for (const msg of await messagesInRun(source, fileSize, run)) {
+  for (const msg of await messagesInRun(source, fileSize, run, signal)) {
     if (isAlignmentTag(msg.tag)) {
       const aln = decodeAlignment(msg.bytes)
       const wanted = alignmentNodeIds(aln).some(id =>
@@ -245,6 +258,7 @@ async function messagesInRun(
   source: GenericFilehandle,
   fileSize: number,
   run: IndexRun,
+  signal: AbortSignal | null | undefined,
 ) {
   const startBlock = blockOfVO(run.start)
   if (run.pastEnd <= run.start || startBlock >= fileSize) {
@@ -259,6 +273,7 @@ async function messagesInRun(
   const compressed = await source.read(
     Math.min(fileSize, endBlock + MAX_BGZF_BLOCK) - startBlock,
     startBlock,
+    { signal: signal ?? undefined },
   )
   const { data, lastBlockStart } = await inflateBlocks(
     compressed,

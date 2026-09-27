@@ -633,3 +633,39 @@ describe('loading and empty states', () => {
     })
   })
 })
+
+describe('leaving a view before it loads', () => {
+  const pick = async (name: string) => {
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(screen.getByRole('menuitem', { name }))
+  }
+
+  it('stops its fetch without reporting it, and fetches it again on the way back', async () => {
+    const asked: string[] = []
+    const aborted: string[] = []
+    renderApp(
+      fakeAPI({
+        getChunkedData: (target, signal) => {
+          asked.push(target.region)
+          return new Promise((_resolve, reject) => {
+            signal?.addEventListener('abort', () => {
+              aborted.push(target.region)
+              reject(new DOMException('Aborted', 'AbortError'))
+            })
+          })
+        },
+      }),
+    )
+    await pick('cactus')
+    await pick('vg "small" example')
+    await waitFor(() => {
+      expect(aborted).toEqual(['17:1-100', 'ref:1-100'])
+    })
+
+    await pick('cactus')
+    await waitFor(() => {
+      expect(asked).toEqual(['17:1-100', 'ref:1-100', 'x:1-100', 'ref:1-100'])
+    })
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+})
