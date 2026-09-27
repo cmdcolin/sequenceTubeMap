@@ -1961,24 +1961,11 @@ function trackDoubleClick(this: SVGElement): void {
   createTubeMap()
 }
 
-// Takes a track and returns a string describing the nodes it passes through
-// In the format of >1>2<3>4, with the integers being nodeIDs
-function getPathInfo(track: Track): string {
-  const result: string[] = []
-  if (!track.sequence) {
-    return ''
-  }
-
-  for (const nodeID of track.sequence) {
-    // Node is approached backwards if "-" is present
-    if (nodeID.startsWith('-')) {
-      result.push('<', nodeID.substring(1))
-    } else {
-      result.push('>', nodeID)
-    }
-  }
-
-  return result.join('')
+// The nodes a path visits, as >1>2<3>4 with < for a reverse visit
+function getPathInfo(sequence: readonly string[]): string {
+  return sequence
+    .map(node => (isReverse(node) ? `<${forward(node)}` : `>${node}`))
+    .join('')
 }
 
 function trackSingleClick(this: SVGElement): void {
@@ -2006,7 +1993,12 @@ function trackSingleClick(this: SVGElement): void {
     track_attributes.push(['Score', current_track.score])
     track_attributes.push(['CIGAR string', current_track.cigar_string])
     track_attributes.push(['Mapping Quality', current_track.mapping_quality])
-    track_attributes.push(['Path Info', getPathInfo(current_track)])
+    // The layout may have flipped nodes, and the whole read, to draw it
+    const inputRead = inputReads.find(read => read.id === trackID)
+    track_attributes.push([
+      'Path Info',
+      getPathInfo((inputRead ?? current_track).sequence),
+    ])
   }
   config.showInfoCallback(track_attributes)
 }

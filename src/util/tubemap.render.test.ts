@@ -483,6 +483,21 @@ describe('tubemap.create — reads', () => {
       .dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
     expect(document.body.lastElementChild?.textContent).toBe('Read0 (read)')
   })
+
+  // Read0 visits 60080785 in reverse, and the layout flips that node to draw it
+  it("gives a read's path in its own orientation, not the layout's", () => {
+    const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
+    tubeMap.setInfoCallback(onInfo)
+    const { nodes, tracks, reads } = dataForExample('7')
+    const svg = render(nodes, tracks, reads)
+    svg
+      .querySelector(`[trackID="${reads[0]!.id}"]`)!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(onInfo.mock.calls[0]?.[0]).toContainEqual([
+      'Path Info',
+      '>60080786<60080785>60080783',
+    ])
+  })
 })
 
 describe('tubemap.create — empty inputs', () => {
