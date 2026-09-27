@@ -96,9 +96,6 @@ and opens the per-track visibility checklist as a dialog) — plus:
 | Worker IPC | `worker-rpc`                                              | Comlink                                                  |
 | Routing    | react-router                                              | none — query params only                                 |
 
-Non-obvious calls are recorded under [Decisions](architecture.md#decisions) in
-the architecture doc.
-
 ## What is unchanged
 
 The layout itself — node ordering, lane assignment, loop handling, read

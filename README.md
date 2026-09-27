@@ -120,8 +120,8 @@ is how every figure here but the app screenshot was made —
   changed from vgteam/sequenceTubeMap
 - [doc/development.md](doc/development.md) — setup, dev server, checks, build
 - [doc/architecture.md](doc/architecture.md) — how a region becomes a drawn tube
-  map, and the decisions behind the code's shape
-- [doc/todo.md](doc/todo.md) — open questions and unfinished work
+  map
+- [doc/todo.md](doc/todo.md) — unfinished work
 
 ## Thanks
 

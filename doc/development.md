@@ -38,8 +38,7 @@ pnpm start:local
 That launches the Vite dev server alone and opens `/#local`. In development
 `config-client.js` normally rewrites `BACKEND_URL: false` to `''` so the app
 talks to the express backend; the `#local` hash skips that rewrite, leaving
-`config.json`'s `false` in place, which selects `LocalAPI`. See
-[decision 4](architecture.md#4--two-api-backends-selected-by-backend_url).
+`config.json`'s `false` in place, which selects `LocalAPI`.
 
 ## Checks
 

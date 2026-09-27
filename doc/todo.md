@@ -1,76 +1,17 @@
 # Open work
 
-Things that need more thought before they reach user-facing docs or final UX.
+## Wide pangenome windows
 
-## PanSN query input asymmetry
+`GRAPH_RENDER_LIMIT` in `src/components/TubeMapContainer.tsx` refuses a window
+whose haplotypes make too many node visits
+([measurements](data.md#how-wide-a-region-will-draw)) instead of freezing the
+tab, which makes the refusal safe rather than the feature done. The app draws
+every haplotype through the window; a "show me these haplotypes" selection
+through `subgraphForHaplotypes` and the companion's `HaplotypeAnchors` would
+make a chosen set cheap and turn MHC-scale windows from refused into useful.
 
-The Region field accepts `contig`, `sample#contig` and `sample#haplotype#contig`
-(`pathQueryFor` in `src/api/GBZBaseAPI.ts`); `@gmod/gbz-base` takes the
-haplotype number, so a 3-part name is no longer silently truncated. What still
-limits it is the database: only paths gbz-base indexed for random access
-(generic paths and the GBWT `reference_samples`) can anchor a query, so
-`HG00438#2#MT:1-100` fails with "has not been indexed for random access" unless
-that sample was a reference sample at construction time.
-
-- **Query input**: any indexed path, in any of the three forms.
-- **Response output**: 3-part — every haplotype traversing the queried node
-  range is returned. Names are real `sample#haplotype#contig` when the database
-  has the `HaplotypeSamples` side tables
-  ([data.md](data.md#naming-haplotypes-optional)); otherwise `unknown#N#contig`,
-  as upstream emits.
-
-Open questions:
-
-- Should the Region field explain the "not indexed" failure with a hint to pick
-  a reference sample from the paths panel?
-- Worth landing a small inline help tooltip on the Region input that explains
-  "query an indexed path; response includes all haplotypes"?
-
-## The URL-hosted HPRC release 2.1 example
-
-"HPRC v2.1 whole genome (gbz-base, URL-hosted)" is HPRC's published 10 GB
-`.gbz.db` read straight off S3 by range request, with JBrowse's 7.9 GB companion
-haplotype index beside it for the names. `skipAutoLoad` keeps a menu selection
-from firing a query on its own; the Go button does that.
-
-- Read tracks (`.gam`) given by URL are still downloaded whole; the progress UI
-  covers those. Range-reading GAM would need the `.gai` index consulted first.
-- The default region (`GRCh38#chr6:160620000-160620500`, inside _LPA_'s KIV-2
-  array) draws 23 distinct walks and is legible. The chr20 microsatellite the
-  README figures use draws 240 over the same 464 haplotypes, a far denser
-  picture — worth an entry of its own, or is one enough?
-- Every haplotype through the window is drawn; there is no "show me these
-  haplotypes" selection, so the only way to afford a wide window is not to open
-  it. `GRAPH_RENDER_LIMIT` in `src/components/TubeMapContainer.tsx` refuses one
-  instead of freezing the tab
-  ([measurements](data.md#how-wide-a-region-will-draw)), which makes the refusal
-  safe rather than the feature done. `subgraphForHaplotypes` with the
-  companion's `HaplotypeAnchors` is what would make a chosen set cheap, and
-  would turn the MHC-scale windows from refused into useful.
-
-## Navigation
-
-Hackathon ideas for reaching a region without knowing paths, coordinates or node
-IDs up front, motivated by a fragmented circular mitochondrial pangenome
-(`exampleData/Toxo`: 23 nodes, 12 overlapping `Circ*` paths, 6635 reads cycling
-through shared nodes, small enough that `node:1-23` draws the whole graph in
-under a second). Path lengths and the paths panel have landed; these have not:
-
-- **Multi-node regions** — `nodes:5,7,13+2` (a set plus context), answered with
-  `vg find -N <file> -c K` instead of `vg chunk`, so shift-clicking grows a
-  node-of-interest set. Suits a fragmented mito with no single reference path.
-- **Click to navigate** — double-clicking a node sets `node:ID+context` and
-  loads it, turning the rendering into the navigator.
-- **A whole-graph button** — for small graphs, `node:<min>-<max>` from
-  `vg stats -r`.
-- **Read-driven entry points** — with a GAM attached, `vg depth -g` once and
-  offer the most-covered nodes as quick-jump chips.
-- **Path-walk breadcrumbs** — "step 4/9 along Circ1" with prev/next, walking
-  node by node from `vg paths -X`.
-- **A CLI launcher** —
-  `scripts/open-tubemap.py --graph foo.xg --gam foo.gam --nodes 5,7,13` printing
-  (and optionally opening) the link [urlparams.md](urlparams.md) describes.
-  Pairs with multi-node regions.
+Remote `.gam` tracks are still downloaded whole; range-reading them would need
+the `.gai` index consulted first.
 
 ## The layout engine
 
