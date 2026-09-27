@@ -65,8 +65,7 @@ it('falls back to a dialog when the clipboard is unavailable', async () => {
       screen.getByRole('dialog', { name: 'Link to data' }),
     ).toBeInTheDocument()
   })
-  expect(screen.getByRole('link', { name: 'Data' })).toHaveAttribute(
-    'href',
-    window.location.href,
-  )
+  const field = screen.getByRole('textbox', { name: 'Link to this view' })
+  expect(field).toHaveValue(window.location.href)
+  expect(field).toHaveAttribute('readonly')
 })

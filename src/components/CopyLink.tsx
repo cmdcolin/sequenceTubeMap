@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import Button from '@mui/material/Button'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
 import { Icon } from './Icon.tsx'
 import { faLink } from './icons.ts'
 import PopupDialog from './PopupDialog.tsx'
@@ -53,14 +55,22 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
         }}
         title="Link to data"
       >
-        <p>
-          <a href={dialogLink} target="_blank" rel="noopener noreferrer">
-            Data
-          </a>
-          <br />
-          Click this link to return to this view. Right click link to copy this
-          view location.
-        </p>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          The browser blocked the clipboard. Copy this link to return to this
+          view.
+        </Typography>
+        <TextField
+          value={dialogLink ?? ''}
+          fullWidth
+          size="small"
+          autoFocus
+          onFocus={e => {
+            e.target.select()
+          }}
+          slotProps={{
+            htmlInput: { readOnly: true, 'aria-label': 'Link to this view' },
+          }}
+        />
       </PopupDialog>
     </>
   )
