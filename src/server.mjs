@@ -2153,6 +2153,7 @@ function getServerURL(server) {
 // To stop the server, close() the result. Server base URL can be obtained with
 // getUrl().
 export function start() {
+  removeStaleScratchDirectories()
   return new Promise((resolve, reject) => {
     // This holds the top-level state of the server and lets us close things up.
     // TODO: use a real class.
@@ -2286,23 +2287,23 @@ export function start() {
   })
 }
 
-// Per-request scratch directories left behind by a server that stopped
-// mid-request.
+// Remove the per-request scratch directories left behind by a server that
+// stopped mid-request. Another server running from the same checkout may own
+// a recent one, but no request lasts longer than requestTimeout.
 function removeStaleScratchDirectories() {
+  const staleBefore = Date.now() - 2 * config.requestTimeout * 1000
   for (const entry of fs.readdirSync(SCRATCH_DATA_PATH)) {
-    if (entry.startsWith('tmp-')) {
-      fs.rmSync(path.join(SCRATCH_DATA_PATH, entry), {
-        recursive: true,
-        force: true,
-      })
+    const scratchDir = path.join(SCRATCH_DATA_PATH, entry)
+    if (
+      entry.startsWith('tmp-') &&
+      fs.statSync(scratchDir).mtimeMs < staleBefore
+    ) {
+      fs.rmSync(scratchDir, { recursive: true, force: true })
     }
   }
 }
 
-// Tests start servers side by side in one checkout, so only a server run as
-// the main module sweeps the shared scratch directory.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  removeStaleScratchDirectories()
   void start()
 }
 

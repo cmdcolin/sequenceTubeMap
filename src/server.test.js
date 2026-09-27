@@ -538,7 +538,12 @@ describe('the server process', () => {
       fs.mkdirSync(path.join(workDir, 'exampleData', 'internal'), {
         recursive: true,
       })
-      fs.mkdirSync(path.join(workDir, 'tmp', 'tmp-stale'), { recursive: true })
+      const scratch = name => path.join(workDir, 'tmp', name)
+      fs.mkdirSync(scratch('tmp-stale'), { recursive: true })
+      const aDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      fs.utimesSync(scratch('tmp-stale'), aDayAgo, aDayAgo)
+      // Perhaps another server's request in progress
+      fs.mkdirSync(scratch('tmp-recent'))
       fs.mkdirSync(path.join(workDir, 'temp', 'download'), { recursive: true })
 
       const server = spawn(
@@ -553,7 +558,8 @@ describe('the server process', () => {
       await vi.waitFor(() => {
         expect(output).toContain('TubeMapServer listening')
       }, 10000)
-      expect(fs.existsSync(path.join(workDir, 'tmp', 'tmp-stale'))).toBe(false)
+      expect(fs.existsSync(scratch('tmp-stale'))).toBe(false)
+      expect(fs.existsSync(scratch('tmp-recent'))).toBe(true)
 
       const exited = once(server, 'exit')
       server.kill('SIGTERM')
