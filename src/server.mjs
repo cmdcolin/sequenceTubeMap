@@ -886,64 +886,28 @@ async function getChunkedData(req, res, next) {
           return
         }
 
-        // read json graph output
-        const catCall = spawn('cat', [`${req.chunkDir}/chunk.graph.json`], {
-          signal: req.clientGone,
-        })
-        let graphAsString = ''
-
-        catCall.on('error', function (err) {
-          console.log('Error executing "cat": ' + err)
-          if (!sentResponse) {
-            sentResponse = true
-            return next(new VgExecutionError('cat graph.json failed'))
-          }
+        if (sentResponse) {
           return
-        })
-
-        catCall.stderr.on('data', data => {
-          console.log(`cat graph.json err data: ${data}`)
-        })
-
-        catCall.stdout.on('data', function (data) {
-          graphAsString += data.toString()
-        })
-
-        catCall.on('close', code => {
-          console.log(`cat graph.json exited with code ${code}`)
-          console.timeEnd(`chunkix-${reqId}`)
-          if (code !== 0) {
-            // Execution failed
-            if (!sentResponse) {
-              sentResponse = true
-              return next(new VgExecutionError('cat graph.json failed'))
+        }
+        sentResponse = true
+        fs.promises
+          .readFile(`${req.chunkDir}/chunk.graph.json`, 'utf-8')
+          .then(graphAsString => {
+            console.timeEnd(`chunkix-${reqId}`)
+            if (graphAsString === '') {
+              throw new VgExecutionError('chunkix produced an empty graph')
             }
-            return
-          }
-          if (graphAsString === '') {
-            if (!sentResponse) {
-              sentResponse = true
-              return next(
-                new VgExecutionError('cat graph.json produced empty graph'),
-              )
+            req.graph = parseSubprocessJSON(graphAsString, 'chunk.graph.json')
+            if (req.removeSequences) {
+              removeNodeSequencesInPlace(req.graph)
             }
-            return
-          }
-          if (!sentResponse) {
-            sentResponse = true
-            try {
-              req.graph = parseSubprocessJSON(graphAsString, 'chunk.graph.json')
-              if (req.removeSequences) {
-                removeNodeSequencesInPlace(req.graph)
-              }
-              req.region = [rangeRegion.start, rangeRegion.end]
-              // vg chunk always puts the path we reference on first automatically
-              void processAnnotationFile(req, res, next)
-            } catch (error) {
-              next(error)
-            }
-          }
-        })
+            req.region = [rangeRegion.start, rangeRegion.end]
+            // chunkix always puts the path we reference first
+            void processAnnotationFile(req, res, next)
+          })
+          .catch(error => {
+            next(error)
+          })
       })
     } else {
       // use vg-based pangenome
