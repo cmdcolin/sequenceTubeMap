@@ -221,9 +221,7 @@ export function layoutTubeMap(
 
   for (let i = tracks.length - 1; i >= 0; i -= 1) {
     const t = tracks[i]!
-    if (t.type === undefined) {
-      t.type = 'haplotype'
-    }
+    t.type ??= 'haplotype'
     if (t.hidden === true) {
       tracks.splice(i, 1)
       continue
@@ -1362,14 +1360,12 @@ function generateNodeOrderOfSingleTrack(sequence: number[]): void {
   sequence.forEach(nodeIndex => {
     const idx = Math.abs(nodeIndex)
     if (nodeIndex < 0) {
-      if (nodeOrders[idx] === undefined) nodeOrders[idx] = backwardOrder
-      const order = nodeOrders[idx]
+      const order = (nodeOrders[idx] ??= backwardOrder)
       if (order < minOrder) minOrder = order
       forwardOrder = order
       backwardOrder = order - 1
     } else {
-      if (nodeOrders[idx] === undefined) nodeOrders[idx] = forwardOrder
-      const order = nodeOrders[idx]
+      const order = (nodeOrders[idx] ??= forwardOrder)
       forwardOrder = order + 1
       backwardOrder = order
     }
@@ -2470,7 +2466,7 @@ function addTrackFeatures(): void {
           if (feature.start !== undefined) {
             feature.type = line.type
             feature.name = line.name
-            if (node.features === undefined) node.features = []
+            node.features ??= []
             node.features.push(feature)
           }
           nodeStart = nodeEnd + 1
@@ -3269,9 +3265,7 @@ function generateNodeWidth(): void {
   // Promote the input's optional sequenceLength; Node declares it required, so
   // widen to InputNode to make the still-possibly-undefined read explicit.
   nodes.forEach((node: InputNode) => {
-    if (node.sequenceLength === undefined) {
-      node.sequenceLength = node.seq.length
-    }
+    node.sequenceLength ??= node.seq.length
   })
 
   switch (config.nodeWidthOption) {
