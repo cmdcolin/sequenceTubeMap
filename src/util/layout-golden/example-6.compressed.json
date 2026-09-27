@@ -4,7 +4,7 @@
   "trackForRuler": null,
   "coarsened": null,
   "nodes": [
-    {"name":"1","order":-1,"pixelWidth":0,"contentHeight":null},
+    {"name":"1","order":-1,"pixelWidth":0},
     {"name":"2","order":0,"x":20,"y":20,"pixelWidth":17,"contentHeight":156},
     {"name":"3","order":1,"x":129,"y":20,"pixelWidth":0,"contentHeight":96},
     {"name":"4","order":1,"x":129,"y":141,"pixelWidth":0,"contentHeight":67},

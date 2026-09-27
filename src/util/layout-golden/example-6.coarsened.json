@@ -4,7 +4,7 @@
   "trackForRuler": null,
   "coarsened": {"unit":"read","total":5,"reverse":false},
   "nodes": [
-    {"name":"1","order":-1,"pixelWidth":8,"contentHeight":null},
+    {"name":"1","order":-1,"pixelWidth":8},
     {"name":"2","order":0,"x":20,"y":20,"pixelWidth":34,"contentHeight":222.87388305621965},
     {"name":"3","order":1,"x":168.28571428571428,"y":20,"pixelWidth":8,"contentHeight":135},
     {"name":"4","order":1,"x":168.28571428571428,"y":180,"pixelWidth":8,"contentHeight":97.59956426705014},

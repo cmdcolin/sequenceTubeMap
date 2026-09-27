@@ -28,7 +28,8 @@ const layout = layoutTubeMap(
   `verticalRectangles` and `corners` (inversions)
 - `nodeOutlinePath(node)`: a node's box as SVG path data; `new Path2D(d)` on a
   canvas
-- `layout.nodes` has a hole at index 0: use `forEach`, not `for...of`
+- `layout.nodes` has a hole at index 0: use `forEach` or `filter`, not
+  `for...of` or `find`
 
 ## Options
 

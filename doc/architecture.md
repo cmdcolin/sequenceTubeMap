@@ -148,8 +148,8 @@ Invariants to know before editing it:
 - **The layout's `nodes` are 1-indexed with a real array hole at index 0.** The
   hole lets a _signed_ index encode orientation (`-i` = reverse visit of node
   `i`), and index 0 has no sign, so it must never be used.
-  `forEach`/`map`/`filter` skip holes; `for...of` and `Array.from` do not. This
-  distinction is load-bearing: `nodeOrders` used to be allocated with
+  `forEach`/`map`/`filter` skip holes; `for...of`, `find` and `Array.from` do
+  not. This distinction is load-bearing: `nodeOrders` used to be allocated with
   `new Array(n)` (all holes) and its `forEach` passes silently did nothing.
 - **`create()` is the only render trigger.** Every `set*` function just mutates
   `config`, so a batch of visOptions changes costs one layout, not one per

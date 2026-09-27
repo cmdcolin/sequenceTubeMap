@@ -227,6 +227,20 @@ describe('layoutTubeMap', () => {
     expectFiniteGeometry(rare)
   })
 
+  it('leaves a node no track reaches unsized when placing reads', () => {
+    const layout = layoutTubeMap(
+      [...nodes, { name: 'apart', seq: 'TTTT' }],
+      tracks,
+      [{ id: 2, type: 'read', sequence: ['1', '3'], sourceTrackID: 1 }],
+      { mergeNodes: false },
+    )!
+    // filter, not find: find visits the hole at index 0
+    const [apart] = layout.nodes.filter(n => n.name === 'apart')
+    expect(apart).toBeDefined()
+    expect(apart!.order).toBe(-1)
+    expect(apart!.contentHeight).toBeUndefined()
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()

@@ -541,8 +541,8 @@ function placeReads(): void {
   generateBasicPathsForReads()
   assignReadsToNodes()
 
-  // sort nodes by order, then by y-coordinate
-  const sortedNodes = nodes.slice()
+  // placed nodes by order, then by y-coordinate
+  const sortedNodes = nodes.filter(node => node.order >= 0)
   sortedNodes.sort(compareNodesByOrder)
 
   // Organize read IDs by source track

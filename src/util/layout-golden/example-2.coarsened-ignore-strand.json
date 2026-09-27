@@ -34,7 +34,7 @@
     {"name":"AB","order":14,"x":1072.954305909561,"y":157.87800159064992,"pixelWidth":8,"contentHeight":11.485194870302536},
     {"name":"AC","order":19,"x":1552.1538973521256,"y":169.49236656887,"pixelWidth":8,"contentHeight":9.58952846573709},
     {"name":"AD","order":19,"x":1552.1538973521256,"y":169.49236656887,"pixelWidth":8,"contentHeight":8.418343153985944},
-    {"name":"AE","order":-1,"pixelWidth":8,"contentHeight":null},
+    {"name":"AE","order":-1,"pixelWidth":8},
     {"name":"AF","order":20,"x":1668.902022086518,"y":82,"pixelWidth":8,"contentHeight":18.007871619723062},
     {"name":"AG","order":21,"x":1753.7823362412594,"y":20,"pixelWidth":25,"contentHeight":118.18406093524888}
   ],
