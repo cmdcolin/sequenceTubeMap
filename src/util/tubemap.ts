@@ -1100,15 +1100,21 @@ function nodeSingleClick(this: SVGElement): void {
     ['Node ID:', currentNode.name + (currentNode.switched ? '(reversed)' : '')],
     ['Node Length:', currentNode.sequenceLength + ' bases'],
     ['Haplotypes:', currentNode.degree],
-    [
-      'Aligned Reads:',
-      currentNode.incomingReads.length +
-        currentNode.internalReads.length +
-        currentNode.outgoingReads.length,
-    ],
-    ['Total Visits:', numReadsVisitNode(currentNode)],
-    ['Coverage:', coverage(currentNode, reads)],
   ]
+  // In a coarsened view the reads a node holds are bands, and a band counts
+  // an edge's crossings, which miss reads that stay inside the node
+  if (coarsened === undefined) {
+    nodeAttributes.push(
+      [
+        'Aligned Reads:',
+        currentNode.incomingReads.length +
+          currentNode.internalReads.length +
+          currentNode.outgoingReads.length,
+      ],
+      ['Total Visits:', numReadsVisitNode(currentNode)],
+      ['Coverage:', coverage(currentNode, reads)],
+    )
+  }
 
   config.showInfoCallback(nodeAttributes)
 }

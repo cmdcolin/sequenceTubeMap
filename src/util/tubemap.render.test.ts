@@ -681,6 +681,20 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
 
   // The widest band gets the full 60-unit lane. A curve runs M x y … x
   // y+thickness Z, so its first and last points give how thick it is drawn.
+  it('counts no bands as aligned reads in the node dialog', () => {
+    const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
+    tubeMap.setInfoCallback(onInfo)
+    trackNames(tracks)
+    document
+      .querySelector('g.node path[id="2"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(onInfo.mock.calls[0]?.[0].map(([label]) => label)).toEqual([
+      'Node ID:',
+      'Node Length:',
+      'Haplotypes:',
+    ])
+  })
+
   it('opens no read menu on a band', () => {
     const onMenu = vi.fn()
     tubeMap.setReadContextMenuCallback(onMenu)
