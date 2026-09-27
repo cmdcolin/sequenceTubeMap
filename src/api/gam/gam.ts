@@ -22,7 +22,7 @@ import type { GenericFilehandle } from 'generic-filehandle2'
 import { decodeAlignment } from './alignment.ts'
 import { iterateMessages } from './messageStream.ts'
 import type { TaggedMessage } from './messageStream.ts'
-import { loadGamIndex, runsForNodeRange } from './gamIndex.ts'
+import { indexBlockStarts, loadGamIndex, runsForNodeRange } from './gamIndex.ts'
 import type { IndexRun } from './gamIndex.ts'
 import {
   readFieldHeader,
@@ -152,6 +152,9 @@ function decompressGzipMultiMember(buf: Uint8Array): Uint8Array {
 export interface RegionReadOptions {
   visits?: ReadonlySet<bigint> | undefined
   signal?: AbortSignal | null | undefined
+  // Sorted offsets the index names as BGZF block starts, which bound how far
+  // past a run's last block its fetch has to reach.
+  blockStarts?: readonly number[] | undefined
 }
 
 export async function readGamRegion(
@@ -166,7 +169,10 @@ export async function readGamRegion(
   if (runs.length === 0) {
     return []
   }
-  return readAlignmentsForRuns(source, runs, minNode, maxNode, opts)
+  return readAlignmentsForRuns(source, runs, minNode, maxNode, {
+    ...opts,
+    blockStarts: indexBlockStarts(index),
+  })
 }
 
 // `runsForNodeRange` hands back non-overlapping, non-adjacent runs sorted by
@@ -191,7 +197,7 @@ export async function readAlignmentsForRuns(
   runs: IndexRun[],
   minNode: bigint,
   maxNode: bigint,
-  { visits, signal }: RegionReadOptions = {},
+  { visits, signal, blockStarts = [] }: RegionReadOptions = {},
 ): Promise<VgRead[]> {
   const { size } = await source.stat()
   // Stops the fetches still running when the read ends early or the caller
@@ -217,6 +223,7 @@ export async function readAlignmentsForRuns(
           source,
           size,
           runs[fetched.length]!,
+          blockStarts,
           done.signal,
         )
         messages.catch(() => {
@@ -282,6 +289,7 @@ async function messagesInRun(
   source: GenericFilehandle,
   fileSize: number,
   run: IndexRun,
+  blockStarts: readonly number[],
   signal: AbortSignal,
 ): Promise<TaggedMessage[]> {
   const startBlock = blockOfVO(run.start)
@@ -291,11 +299,12 @@ async function messagesInRun(
   // Fetch only the blocks this run spans, rather than the whole file: for a
   // URL-backed GAM that is a couple of range requests instead of a download
   // of everything. The last block's own size lives in a header we haven't
-  // read yet, so ask for one maximum block past where it starts and let
-  // inflateBlocks stop once it reaches it.
+  // read yet, so stop at the next block start the index knows, or one maximum
+  // block past where it starts, and let inflateBlocks stop once it reaches it.
   const endBlock = blockOfVO(run.pastEnd)
+  const nextBlock = blockStarts.find(start => start > endBlock) ?? Infinity
   const compressed = await source.read(
-    Math.min(fileSize, endBlock + MAX_BGZF_BLOCK) - startBlock,
+    Math.min(fileSize, nextBlock, endBlock + MAX_BGZF_BLOCK) - startBlock,
     startBlock,
     { signal },
   )

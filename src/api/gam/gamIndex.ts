@@ -120,6 +120,25 @@ function parseIndexBody(buf: Uint8Array): GamIndex {
   return { version, bins, windows }
 }
 
+// Every compressed offset the index's virtual offsets name as the start of a
+// BGZF block, sorted.
+export function indexBlockStarts(index: GamIndex): number[] {
+  const starts = new Set<number>()
+  const add = (vo: bigint) => {
+    starts.add(Number(vo >> 16n))
+  }
+  for (const runs of index.bins.values()) {
+    for (const run of runs) {
+      add(run.start)
+      add(run.pastEnd)
+    }
+  }
+  for (const vo of index.windows.values()) {
+    add(vo)
+  }
+  return [...starts].sort((a, b) => a - b)
+}
+
 // Return the union of virtual-offset runs that could contain Alignments
 // touching node IDs in [minNode, maxNode], pruned by the first occupied
 // window in that range.
