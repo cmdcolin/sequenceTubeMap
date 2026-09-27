@@ -23,6 +23,7 @@ function TubeMap({
   useEffect(() => {
     applyVisOptions(visOptions, nodeSequences)
     tubeMap.create({ svgID: '#svg', nodes, tracks, reads, region })
+    return tubeMap.releaseDomBindings
   }, [nodes, tracks, reads, region, visOptions, nodeSequences])
 
   return <svg id="svg" aria-label="Rendered sequence tube map visualization" />

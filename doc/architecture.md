@@ -160,7 +160,7 @@ Invariants to know before editing it:
 - **`releaseDomBindings()` releases everything attached outside the SVG**: the
   parent's wheel listener and ResizeObserver, the hover tooltip in `<body>`, and
   the cached hover highlight. `createTubeMap` calls it first, before the early
-  exits.
+  exits, and `TubeMap` calls it on unmount.
 - **`reverseMismatches` pivots on `sequenceLength`, not `node.width`.** They are
   only equal in `nodeWidthOption: 'normal'`.
 

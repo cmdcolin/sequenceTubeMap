@@ -297,9 +297,9 @@ let coarsened: Coarsening | undefined
 let cleanupParentBindings: (() => void) | null = null
 
 // Everything this module attaches outside its own <svg>: the parent's wheel
-// listener / ResizeObserver and the hover tooltip in <body>. Both are recreated
-// on demand by the next draw.
-function releaseDomBindings(): void {
+// listener / ResizeObserver and the hover tooltip in <body>. The next draw
+// recreates them, so call this when the map leaves the page.
+export function releaseDomBindings(): void {
   if (cleanupParentBindings) {
     cleanupParentBindings()
     cleanupParentBindings = null
