@@ -234,6 +234,19 @@ it('puts the View menu settings in the address bar, and only the changed ones', 
   expect(window.location.search).not.toContain('showNodeLabels')
 })
 
+// The legend accompanies a drawn map, and the synthetic examples draw one
+// without a backend behind them.
+async function drawSyntheticExample() {
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+  await userEvent.click(
+    screen.getByRole('menuitem', { name: 'Synthetic examples' }),
+  )
+  await userEvent.click(screen.getByText('Inversions'))
+  await waitFor(() => {
+    expect(document.querySelector('#tubeMapSVG svg')).toBeTruthy()
+  })
+}
+
 describe('remembered preferences', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -241,6 +254,7 @@ describe('remembered preferences', () => {
 
   it('writes the legend and view options as they change', async () => {
     renderApp()
+    await drawSyntheticExample()
     expect(screen.getByText('Color legend')).toBeInTheDocument()
 
     await userEvent.click(screen.getByTestId('viewMenuButton'))
@@ -259,21 +273,23 @@ describe('remembered preferences', () => {
     ).toMatchObject({ showNodeLabels: true })
   })
 
-  it('starts from what was written last time', () => {
+  it('starts from what was written last time', async () => {
     localStorage.setItem('sequenceTubeMap.legendVisible', 'false')
     localStorage.setItem(
       'sequenceTubeMap.visOptions',
       JSON.stringify({ showNodeLabels: true, removeRedundantNodes: false }),
     )
     renderApp()
+    await drawSyntheticExample()
 
     expect(screen.queryByText('Color legend')).not.toBeInTheDocument()
   })
 
-  it('ignores a stored value it cannot use', () => {
+  it('ignores a stored value it cannot use', async () => {
     localStorage.setItem('sequenceTubeMap.legendVisible', 'not-a-boolean')
     localStorage.setItem('sequenceTubeMap.visOptions', '{"showReads": 7}')
     renderApp()
+    await drawSyntheticExample()
 
     // Falls back to the defaults rather than rendering nothing.
     expect(screen.getByText('Color legend')).toBeInTheDocument()
@@ -355,18 +371,9 @@ describe('loading and empty states', () => {
     expect(await screen.findByText(/Nothing loaded/)).toBeInTheDocument()
   })
 
-  // The synthetic examples render real data without a backend behind them,
-  // which is what makes them a usable stand-in for a loaded dataset here.
   it('clears the drawn map when the view goes away', async () => {
     renderApp()
-    await userEvent.click(screen.getByTestId('examplesMenuButton'))
-    await userEvent.click(
-      screen.getByRole('menuitem', { name: 'Synthetic examples' }),
-    )
-    await userEvent.click(screen.getByText('Inversions'))
-    await waitFor(() => {
-      expect(document.querySelector('#tubeMapSVG svg')).toBeTruthy()
-    })
+    await drawSyntheticExample()
 
     await openCustomFiles()
 
