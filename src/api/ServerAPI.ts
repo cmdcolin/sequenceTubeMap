@@ -209,17 +209,6 @@ export class ServerAPI implements APIInterface {
     )
   }
 
-  async getPathNames(
-    graphFile: string,
-    cancelSignal: AbortSignal | null,
-  ): Promise<{ pathNames: string[] }> {
-    return await this.postJSON<{ pathNames: string[] }>(
-      'getPathNames',
-      { graphFile },
-      cancelSignal,
-    )
-  }
-
   async getPathInfo(
     graphFile: string,
     cancelSignal: AbortSignal | null,

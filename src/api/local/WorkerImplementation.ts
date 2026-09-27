@@ -108,16 +108,6 @@ class WorkerAPI {
     )
   }
 
-  async getPathNames(
-    graphFile: string,
-    cancelID: number | undefined,
-    haplotypeIndexFile?: string,
-  ): Promise<{ pathNames: string[] }> {
-    return await this.#withCancel(cancelID, signal =>
-      this.#api.getPathNames(graphFile, signal, haplotypeIndexFile),
-    )
-  }
-
   async getPathInfo(
     graphFile: string,
     cancelID: number | undefined,

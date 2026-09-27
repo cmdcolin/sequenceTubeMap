@@ -1,5 +1,4 @@
 import type {
-  AvailableTrack,
   FileType,
   FilenamesResponse,
   PathInfo,
@@ -52,12 +51,6 @@ export interface APIInterface {
   // one. Only the in-browser gbz-base backend reads it, and only to answer
   // path lengths from the index's table rather than by walking the graph; a
   // server ignores it, as its own graph already carries the paths.
-  getPathNames(
-    graphFile: string,
-    cancelSignal: AbortSignal | null,
-    haplotypeIndexFile?: string,
-  ): Promise<{ pathNames: string[] }>
-
   getPathInfo(
     graphFile: string,
     cancelSignal: AbortSignal | null,
@@ -81,14 +74,4 @@ export interface APIInterface {
     chunk: string,
     cancelSignal: AbortSignal | null,
   ): Promise<{ tracks?: Track[] }>
-}
-
-// Re-export commonly needed types so callers can import from one place.
-export type {
-  AvailableTrack,
-  FileType,
-  PathInfo,
-  RegionInfo,
-  Track,
-  ViewTarget,
 }

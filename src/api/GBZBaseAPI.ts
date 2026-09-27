@@ -759,19 +759,6 @@ export class GBZBaseAPI implements APIInterface {
     return { bedRegions: {} }
   }
 
-  async getPathNames(
-    graphFile: string,
-    cancelSignal: AbortSignal | null,
-    haplotypeIndexFile?: string,
-  ): Promise<{ pathNames: string[] }> {
-    const { pathInfo } = await this.getPathInfo(
-      graphFile,
-      cancelSignal,
-      haplotypeIndexFile,
-    )
-    return { pathNames: pathInfo.map(p => p.name) }
-  }
-
   async getPathInfo(
     graphFile: string,
     cancelSignal: AbortSignal | null,

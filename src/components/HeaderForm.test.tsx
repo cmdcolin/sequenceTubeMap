@@ -28,7 +28,6 @@ function fakeAPI(overrides: Partial<APIInterface> = {}): APIInterface {
     subscribeToFilenameChanges: () => {},
     putFile: async () => 'uploaded',
     getBedRegions: async () => ({}),
-    getPathNames: async () => ({ pathNames: [] }),
     getPathInfo: async () => ({ pathInfo: [] }),
     getChunkTracks: async () => ({}),
     ...overrides,
