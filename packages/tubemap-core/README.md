@@ -66,3 +66,8 @@ the same shape.
 The package lives in the sequenceTubeMap repo as a pnpm workspace member, and
 the app imports its TypeScript source directly. `pnpm build` here emits `dist/`,
 which is what npm gets.
+
+To release, bump `version` in this package.json, commit, and push a matching
+tag: `git tag tubemap-core-v0.1.1 && git push origin tubemap-core-v0.1.1`.
+`.github/workflows/publish-tubemap-core.yml` tests, builds and publishes it by
+npm trusted publishing, and refuses a tag that doesn't match the version.
