@@ -26,7 +26,7 @@ import {
 import type {
   BedRecord,
   CoarsenedEdgeMeta,
-  CoarsenedUnit,
+  Coarsening,
   ColorableTrack,
   ImageBounds,
   InputNode,
@@ -286,7 +286,7 @@ let trackForRuler: string | undefined
 // The coarsened bands' read counts and labels, for the hover and click
 // handlers
 let coarsenedEdgeMeta = new Map<number, CoarsenedEdgeMeta>()
-let coarsened: CoarsenedUnit | undefined
+let coarsened: Coarsening | undefined
 
 // alignSVG attaches a wheel listener and ResizeObserver to the parent each
 // time it runs; create() runs on every TubeMap prop change, so without
@@ -577,7 +577,7 @@ export interface RenderedColoring {
   alphaReadsByMappingQuality: boolean
   // What the latest layout drew as bands, which take none of the per-read
   // coloring
-  coarsened: CoarsenedUnit | undefined
+  coarsened: Coarsening | undefined
 }
 
 // What the current drawing is colored with. A legend has to describe the
@@ -1035,12 +1035,16 @@ function colorSchemeFor(track: ColorableTrack): ColorScheme {
   )
 }
 
-// A band stands for many reads or haplotypes, so it takes the strand coloring
-// of the track it came from: a read group or a mapping quality belongs to one
-// read, not to a band.
+// A band stands for many reads or haplotypes, so a read group or a mapping
+// quality, which belong to one read, don't color it. A haplotype band is
+// shaded by its share of the haplotypes; a read band takes its track's strand
+// coloring.
 function generateTrackColor(track: ColorableTrack, highlight = 'plain'): string {
   if (track.haplotypeShare !== undefined) {
-    return haplotypeShareColor(track.haplotypeShare)
+    return haplotypeShareColor(
+      track.haplotypeShare,
+      track.is_reverse === true && !config.ignoreStrand,
+    )
   }
   const scheme = colorSchemeFor(track)
   if (isCoarsenedId(track.id)) {

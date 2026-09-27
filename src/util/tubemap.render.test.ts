@@ -445,17 +445,31 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
     ])
   })
 
-  it('shades each band by its share, so both sides of an allele match', () => {
+  it('shades both sides of an allele alike, by its share', () => {
+    const bubble: InputTrack[] = [
+      { ...tracks[0]!, sequence: ['1', '2', '4'] },
+      { id: 1, name: 'alt1', sequence: ['1', '2', '4'], sourceTrackID: 0 },
+      { id: 2, name: 'alt2', sequence: ['1', '3', '4'], sourceTrackID: 0 },
+      { id: 3, name: 'alt3', sequence: ['1', '3', '4'], sourceTrackID: 0 },
+      { id: 4, name: 'alt4', sequence: ['1', '3', '4'], sourceTrackID: 0 },
+    ]
     setupSvg()
     tubeMap.setMergeNodesFlag(false)
     tubeMap.setCoarsenedReadViewFlag(true)
-    const svg = render(nodes, tracks)
-    const fillOf = (name: string) =>
-      svg.querySelector(`[trackName^="${name}"]`)?.getAttribute('color')
-    expect(fillOf('3 haplotypes')).toBe(haplotypeShareColor(1))
-    expect(fillOf('2 haplotypes')).toBe(haplotypeShareColor(2 / 3))
-    expect(fillOf('1 haplotype')).toBe(haplotypeShareColor(1 / 3))
-    expect(tubeMap.getRenderedColoring().coarsened).toBe('haplotype')
+    const svg = render(nodes, bubble)
+    const colorOf = (name: string) =>
+      svg.querySelector(`[trackName$="${name}"]`)?.getAttribute('color')
+    const common = haplotypeShareColor({ count: 3, total: 4 })
+    const rare = haplotypeShareColor({ count: 1, total: 4 })
+    expect(colorOf('Node 1 → Node 3')).toBe(common)
+    expect(colorOf('Node 3 → Node 4')).toBe(common)
+    expect(colorOf('Node 1 → Node 2')).toBe(rare)
+    expect(colorOf('Node 2 → Node 4')).toBe(rare)
+    expect(rare).not.toBe(common)
+    expect(tubeMap.getRenderedColoring().coarsened).toEqual({
+      unit: 'haplotype',
+      total: 4,
+    })
   })
 
   // A mapping-quality cutoff (or a focus-name filter) can filter every read

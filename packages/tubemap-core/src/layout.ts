@@ -6,6 +6,7 @@ import { emptyTrackShapes } from './types.ts'
 
 import type {
   BedRecord,
+  HaplotypeShare,
   ImageBounds,
   InputNode,
   InputTrack,
@@ -34,7 +35,7 @@ export interface ColorableTrack {
   name?: string
   mapping_quality?: number
   is_reverse?: boolean
-  haplotypeShare?: number
+  haplotypeShare?: HaplotypeShare
 }
 
 export interface LayoutOptions {
@@ -67,6 +68,13 @@ export interface CoarsenedEdgeMeta {
   label: string
 }
 
+// What the coarsened view drew as bands, and how many reads or haplotypes it
+// banded, counting a deduplicated walk `freq` times
+export interface Coarsening {
+  unit: CoarsenedUnit
+  total: number
+}
+
 export interface TubeMapLayout {
   // 1-indexed with a hole at 0: a signed index
   // is an oriented visit, and 0 has no sign
@@ -83,7 +91,7 @@ export interface TubeMapLayout {
   trackForRuler: string | undefined
   coarsenedEdgeMeta: Map<number, CoarsenedEdgeMeta>
   // what the coarsened view drew as bands, if it drew any
-  coarsened: CoarsenedUnit | undefined
+  coarsened: Coarsening | undefined
 }
 
 interface LayoutConfig {
@@ -259,7 +267,7 @@ export function layoutTubeMap(
   // calculateTrackWidth/generateLaneAssignment ever see them, and rejoin the
   // layout below through the same reads-style overlay used for coarsened
   // reads.
-  let coarsened: CoarsenedUnit | undefined
+  let coarsened: Coarsening | undefined
   const coarsenHaplotypes =
     config.showReads && config.coarsenedReadView && !hadInputReads
   if (coarsenHaplotypes) {
@@ -275,7 +283,10 @@ export function layoutTubeMap(
     const altHaplotypes = tracks.filter((_, i) => i !== refIndex)
     if (refDuplicates > 0) altHaplotypes.push({ ...ref, freq: refDuplicates })
     if (altHaplotypes.length > 0) {
-      const bands = buildCoarsenedSyntheticBands(altHaplotypes, 'haplotype')
+      const { bands, total } = buildCoarsenedSyntheticBands(
+        altHaplotypes,
+        'haplotype',
+      )
       // A haplotype that only ever visits one node produces no edge, so an
       // all-single-node set of alts would otherwise leave `reads` empty and
       // fall through to the no-overlay branch below, which never gives their
@@ -284,7 +295,7 @@ export function layoutTubeMap(
       if (bands.length > 0) {
         tracks = [ref]
         reads = bands
-        coarsened = 'haplotype'
+        coarsened = { unit: 'haplotype', total }
       }
     }
   }
@@ -313,8 +324,9 @@ export function layoutTubeMap(
     reverseReversedReads()
     generateTrackIndexSequences(reads)
     if (drawCoarsenedReads) {
-      reads = buildCoarsenedSyntheticBands(reads, 'read')
-      coarsened = 'read'
+      const { bands, total } = buildCoarsenedSyntheticBands(reads, 'read')
+      reads = bands
+      coarsened = { unit: 'read', total }
       reverseReversedReads()
       generateTrackIndexSequences(reads)
     }
@@ -2809,7 +2821,7 @@ export const isCoarsenedId = (id: number) => id >= COARSENED_ID_BASE
 function buildCoarsenedSyntheticBands(
   source: Track[],
   unit: CoarsenedUnit,
-): Track[] {
+): { bands: Track[]; total: number } {
   coarsenedEdgeMeta = new Map()
 
   // Aggregate by signed-edge key. Preserve orientation so e.g. (+A→+B) and
@@ -2821,19 +2833,22 @@ function buildCoarsenedSyntheticBands(
     dName: string
     count: number
     sourceTrackID: number
+    // the last source counted, so a walk that loops back over an edge, or
+    // crosses it both ways under ignoreStrand, counts once
+    lastSource: number
   }
   const edges = new Map<string, EdgeAgg>()
-  let sourceCount = 0
+  let total = 0
   // When ignoring strand, (+A→+B) and (-B→-A) refer to the same underlying
   // graph connection — collapse both into one canonical key. We pick the
   // lexicographically smaller of the two orientations so a stable canonical
   // form is chosen; whichever orientation is seen first determines the
   // visual band direction.
   const ignoreStrand = config.ignoreStrand
-  for (const item of source) {
+  for (const [sourceIndex, item] of source.entries()) {
     // a deduplicated walk stands for `freq` identical haplotypes
     const weight = Math.max(item.freq ?? 1, 1)
-    sourceCount += weight
+    total += weight
     const seq = item.indexSequence
     if (!seq || seq.length < 2) continue
     for (let i = 0; i < seq.length - 1; i += 1) {
@@ -2861,9 +2876,11 @@ function buildCoarsenedSyntheticBands(
           dName: dSigned < 0 ? `-${dstNode.name}` : dstNode.name,
           count: weight,
           sourceTrackID: item.sourceTrackID,
+          lastSource: sourceIndex,
         })
-      } else {
+      } else if (existing.lastSource !== sourceIndex) {
         existing.count += weight
+        existing.lastSource = sourceIndex
       }
     }
   }
@@ -2890,7 +2907,8 @@ function buildCoarsenedSyntheticBands(
   let i = 0
   for (const edge of edges.values()) {
     const id = COARSENED_ID_BASE + i
-    const share = unit === 'haplotype' ? edge.count / sourceCount : undefined
+    const share =
+      unit === 'haplotype' ? { count: edge.count, total } : undefined
     const shareText = share === undefined ? '' : ` (${formatShare(share)})`
     const label = `${edge.count.toLocaleString()} ${unit}${edge.count === 1 ? '' : 's'}${shareText}: Node ${edge.sName} → Node ${edge.dName}`
     coarsenedEdgeMeta.set(id, { count: edge.count, label })
@@ -2959,11 +2977,14 @@ function buildCoarsenedSyntheticBands(
         `tallestNodeBeforePlace=${tallestName}(${tallestH.toFixed(1)})`,
     )
   }
-  return synthetic
+  return { bands: synthetic, total }
 }
 
-function formatShare(share: number): string {
-  return share < 0.01 ? '<1%' : `${Math.round(share * 100)}%`
+function formatShare({ count, total }: HaplotypeShare): string {
+  const share = count / total
+  if (share < 0.01) return '<1%'
+  if (share > 0.99 && count < total) return '>99%'
+  return `${Math.round(share * 100)}%`
 }
 
 function createFeatureRectangle(

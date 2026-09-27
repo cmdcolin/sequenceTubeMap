@@ -3,9 +3,9 @@
 // that leaves without its key is one nobody else can read, and a key that
 // disagrees with the panel on screen is worse than none.
 
-import type { CoarsenedUnit } from '@gmod/tubemap-core'
+import type { Coarsening } from '@gmod/tubemap-core'
 import type { FileType, Tracks } from '../Types.ts'
-import { haplotypeShare } from './palettes.ts'
+import { haplotypeShareRamp } from './palettes.ts'
 import {
   MAX_MAPPING_QUALITY,
   mappingQualityAlpha,
@@ -49,7 +49,7 @@ export interface LegendInput {
   colorReadsByMappingQuality?: boolean
   alphaReadsByMappingQuality?: boolean
   // What the layout drew as bands, which keep only their strand coloring
-  coarsened?: CoarsenedUnit | undefined
+  coarsened?: Coarsening | undefined
 }
 
 // Everything but the track list, which is what the renderer reports
@@ -114,7 +114,7 @@ function readRows(
   input: LegendInput,
 ): LegendRow[] {
   const ignoreStrand = input.ignoreStrand ?? false
-  if (input.coarsened === 'read') {
+  if (input.coarsened?.unit === 'read') {
     return scheme === undefined
       ? []
       : strandRows('read bands', scheme, ignoreStrand)
@@ -147,6 +147,22 @@ function readRows(
     : colors
 }
 
+// A ramp from one of the haplotypes beside the reference lane to all of them
+function shareRows(total: number, ignoreStrand: boolean): LegendRow[] {
+  const of = `share of ${total.toLocaleString()} other haplotypes`
+  return ignoreStrand
+    ? [
+        {
+          label: of.charAt(0).toUpperCase() + of.slice(1),
+          ramp: haplotypeShareRamp(),
+        },
+      ]
+    : [
+        { label: `Forward bands, ${of}`, ramp: haplotypeShareRamp() },
+        { label: `Reverse bands, ${of}`, ramp: haplotypeShareRamp(true) },
+      ]
+}
+
 // Which palette actually colors what, for everything but reads.
 //
 // Everything but a read takes `mainPalette[0]` for the first track — the
@@ -164,8 +180,8 @@ function pathRows(
 ): LegendRow[] {
   const aux = scheme.auxPalette
   const bands =
-    input.coarsened === 'haplotype'
-      ? [{ label: 'Share of haplotypes, 1–100%', ramp: haplotypeShare }]
+    input.coarsened?.unit === 'haplotype'
+      ? shareRows(input.coarsened.total, input.ignoreStrand ?? false)
       : undefined
   if (type === 'graph') {
     // With a haplotype track loaded, the paths beside the reference belong to

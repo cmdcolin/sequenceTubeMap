@@ -105,6 +105,71 @@ describe('layoutTubeMap', () => {
     })
   })
 
+  describe('coarsened haplotype bands', () => {
+    const bandLabels = (
+      alts: InputTrack[],
+      options: { ignoreStrand?: boolean } = {},
+    ) => {
+      const layout = layoutTubeMap(nodes, [tracks[0]!, ...alts], [], {
+        mergeNodes: false,
+        coarsenedReadView: true,
+        ...options,
+      })!
+      return {
+        labels: [...layout.coarsenedEdgeMeta.values()]
+          .map(meta => meta.label)
+          .sort(),
+        coarsened: layout.coarsened,
+      }
+    }
+
+    it('counts a haplotype once on an edge it loops back over', () => {
+      const looping: InputTrack = {
+        id: 1,
+        name: 'loop',
+        sequence: ['1', '2', '4', '2', '4', '2', '4'],
+        sourceTrackID: 0,
+      }
+      const { labels, coarsened } = bandLabels([looping])
+      expect(labels).toContain('1 haplotype (100%): Node 2 → Node 4')
+      expect(coarsened).toEqual({ unit: 'haplotype', total: 1 })
+    })
+
+    it('counts a haplotype once on an edge it crosses both ways under ignoreStrand', () => {
+      const turnaround: InputTrack = {
+        id: 1,
+        name: 'turn',
+        sequence: ['1', '2', '-2', '-1'],
+        sourceTrackID: 0,
+      }
+      const other: InputTrack = {
+        id: 2,
+        name: 'other',
+        sequence: ['1', '3', '4'],
+        sourceTrackID: 0,
+      }
+      const { labels } = bandLabels([turnaround, other], {
+        ignoreStrand: true,
+      })
+      expect(labels.filter(l => l.endsWith('Node 1 → Node 2'))).toEqual([
+        '1 haplotype (50%): Node 1 → Node 2',
+      ])
+    })
+
+    it('never rounds a share to 0% or 100% that is neither', () => {
+      const { labels } = bandLabels([
+        { id: 1, sequence: ['1', '2', '4'], sourceTrackID: 0, freq: 199 },
+        { id: 2, sequence: ['1', '3', '4'], sourceTrackID: 0 },
+      ])
+      expect(labels).toEqual([
+        '1 haplotype (<1%): Node 1 → Node 3',
+        '1 haplotype (<1%): Node 3 → Node 4',
+        '199 haplotypes (>99%): Node 1 → Node 2',
+        '199 haplotypes (>99%): Node 2 → Node 4',
+      ])
+    })
+  })
+
   it('coarsens haplotypes by edge when there are no reads, keeping track 0 as the reference', () => {
     const fourWay: InputTrack[] = [
       { id: 0, name: 'ref', sequence: ['1', '2', '4'], sourceTrackID: 0 },

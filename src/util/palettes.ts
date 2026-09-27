@@ -1,4 +1,5 @@
-import { interpolateOranges, rgb } from 'd3'
+import type { HaplotypeShare } from '@gmod/tubemap-core'
+import { interpolateOranges, interpolatePurples, rgb } from 'd3'
 import type { ColorHex, ColorPaletteName } from '../Types.ts'
 
 export const greys: readonly ColorHex[] = [
@@ -67,25 +68,37 @@ export const lightColors: readonly ColorHex[] = [
   '#A8E7ED',
 ]
 
-// A coarsened haplotype band's share of the haplotypes, log-scaled from 1% so
-// a singleton in a hundred-haplotype cohort still shows. Oranges starts at 0.4
-// to keep that pale end off the white page and away from the reference lane.
-const SHARE_FLOOR = 0.01
-const SHARE_RAMP_START = 0.4
+// Where a coarsened haplotype band's share sits on its ramp: from one
+// haplotype to all of them, half log so rare bands separate and half linear so
+// common ones do too. Starting the ramp partway in keeps its pale end visible
+// on white.
+const SHARE_RAMP_START = 0.45
 
-export function haplotypeShareColor(share: number): ColorHex {
-  const t = Math.min(
-    1,
-    Math.max(0, 1 - Math.log10(share) / Math.log10(SHARE_FLOOR)),
-  )
+function sharePosition({ count, total }: HaplotypeShare): number {
+  if (total <= 1) return 1
+  const log = Math.log(count) / Math.log(total)
+  const linear = (count - 1) / (total - 1)
+  return Math.min(1, Math.max(0, (log + linear) / 2))
+}
+
+function shareColorAt(position: number, reverse: boolean): ColorHex {
+  const ramp = reverse ? interpolatePurples : interpolateOranges
   return rgb(
-    interpolateOranges(SHARE_RAMP_START + (1 - SHARE_RAMP_START) * t),
+    ramp(SHARE_RAMP_START + (1 - SHARE_RAMP_START) * position),
   ).formatHex() as ColorHex
 }
 
-export const haplotypeShare: readonly ColorHex[] = [
-  0.01, 0.03, 0.1, 0.3, 1,
-].map(haplotypeShareColor)
+// Forward bands in orange, reverse-strand bands in purple
+export function haplotypeShareColor(
+  share: HaplotypeShare,
+  reverse = false,
+): ColorHex {
+  return shareColorAt(sharePosition(share), reverse)
+}
+
+export function haplotypeShareRamp(reverse = false): ColorHex[] {
+  return [0, 0.25, 0.5, 0.75, 1].map(p => shareColorAt(p, reverse))
+}
 
 // "sequential" palettes are gradations along a single hue; "categorical"
 // palettes are sets of distinguishable colors with no implied ordering.
