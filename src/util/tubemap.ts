@@ -312,6 +312,13 @@ let bed: BedRecord[] | null = null
 // pan/zoom, hidden tracks and track order, from a new one.
 let lastCreateTracks: InputTrack[] | null = null
 
+// Makes the next create() treat its data as new, however it compares. For a
+// map leaving the page, so that the same data drawn again later starts over,
+// as the rest of the view around it does.
+export function forgetDataset(): void {
+  lastCreateTracks = null
+}
+
 // svgID must be an ID selector
 export function create(params: CreateParams): void {
   const sameDataset =

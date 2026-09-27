@@ -26,6 +26,10 @@ function TubeMap({
     return tubeMap.releaseDomBindings
   }, [nodes, tracks, reads, region, visOptions, nodeSequences])
 
+  // On unmount only, since a redraw of the same data keeps the hidden tracks,
+  // track order and viewport
+  useEffect(() => tubeMap.forgetDataset, [])
+
   return <svg id="svg" aria-label="Rendered sequence tube map visualization" />
 }
 
