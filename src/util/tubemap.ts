@@ -2003,12 +2003,12 @@ function trackSingleClick(this: SVGElement): void {
   config.showInfoCallback(track_attributes)
 }
 
-// Right-click on a track. For reads, fires the context-menu callback with the
-// read's name and the click coordinates so the React layer can render a menu.
+// Right-click on a read fires the context-menu callback with its name and the
+// click coordinates, so the React layer can render a menu. A coarsened band is
+// drawn as a read but names an edge.
 function trackRightClick(this: SVGElement, event: MouseEvent): void {
-  /* jshint validthis: true */
   const trackID = Number(d3.select(this).attr('trackID'))
-  const current_track = getTrackByID(trackID)
+  const current_track = isCoarsenedId(trackID) ? undefined : getTrackByID(trackID)
   if (current_track?.type === 'read') {
     event.preventDefault()
     config.readContextMenuCallback({
