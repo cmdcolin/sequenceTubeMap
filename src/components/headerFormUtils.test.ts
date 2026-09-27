@@ -1,12 +1,14 @@
 // @vitest-environment node
 
 import '../config-client.js'
+import { defaultTrackColors } from '../common.ts'
 import {
   determineRegionIndex,
   makeViewTarget,
   regionStringFromRegionIndex,
+  viewTargetsEqual,
 } from './headerFormUtils.ts'
-import type { Tracks } from '../Types.ts'
+import type { Track, Tracks, ViewTarget } from '../Types.ts'
 
 // test for determineRegionIndex and regionStringFromRegionIndex
 describe('determine regionIndex and corresponding region strings for various region inputs', () => {
@@ -138,5 +140,46 @@ describe('makeViewTarget — fresh values are honored', () => {
       removeSequences: false,
     })
     expect(vt.simplify).toBe(true)
+  })
+})
+
+describe('viewTargetsEqual', () => {
+  const graph: Track = { trackType: 'graph', trackFile: 'g.gbz.db' }
+  const view = (track: Track): ViewTarget => ({
+    region: 'x:0-100',
+    tracks: [track],
+  })
+
+  it('sees a palette picked for a track that had none', () => {
+    expect(
+      viewTargetsEqual(
+        view(graph),
+        view({
+          ...graph,
+          trackColorSettings: { mainPalette: 'reds', auxPalette: 'blues' },
+        }),
+      ),
+    ).toBe(false)
+  })
+
+  it("takes a track without palettes to have its type's defaults", () => {
+    expect(
+      viewTargetsEqual(
+        view(graph),
+        view({ ...graph, trackColorSettings: defaultTrackColors('graph') }),
+      ),
+    ).toBe(true)
+  })
+
+  it('sees a changed track type or haplotype index', () => {
+    expect(
+      viewTargetsEqual(view(graph), view({ ...graph, trackType: 'haplotype' })),
+    ).toBe(false)
+    expect(
+      viewTargetsEqual(
+        view(graph),
+        view({ ...graph, haplotypeIndexFile: 'g.haplotype-index.db' }),
+      ),
+    ).toBe(false)
   })
 })

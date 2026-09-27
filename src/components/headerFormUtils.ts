@@ -1,4 +1,8 @@
-import { convertRegionToRangeRegion, parseRegion } from '../common.ts'
+import {
+  convertRegionToRangeRegion,
+  defaultTrackColors,
+  parseRegion,
+} from '../common.ts'
 
 export const dataTypes = {
   BUILT_IN: 'built-in',
@@ -199,24 +203,25 @@ export function discoverDataSources(
   return out
 }
 
-// Checks if two track objects are equivalent for the purpose of viewTarget
-// equality (same file, same color settings).
-function tracksEqual(curr: Track | undefined, next: Track | undefined) {
-  if ((curr === undefined) !== (next === undefined)) {
-    return false
-  }
-  if (!curr || !next) {
-    return true
-  }
-  const cs = curr.trackColorSettings
-  const ns = next.trackColorSettings
-  if (cs && ns) {
-    if (cs.mainPalette !== ns.mainPalette || cs.auxPalette !== ns.auxPalette) {
-      return false
-    }
-  }
+function colorsOf(track: Track) {
+  return track.trackColorSettings ?? defaultTrackColors(track.trackType)
+}
+
+// Tracks that draw the same thing. A track without color settings takes its
+// type's default palettes, as the renderer does.
+export function tracksEqual(a: Track, b: Track) {
   return (
-    (!curr.trackFile && !next.trackFile) || curr.trackFile === next.trackFile
+    a.trackType === b.trackType &&
+    (a.trackFile ?? '') === (b.trackFile ?? '') &&
+    (a.haplotypeIndexFile ?? '') === (b.haplotypeIndexFile ?? '') &&
+    colorsOf(a).mainPalette === colorsOf(b).mainPalette &&
+    colorsOf(a).auxPalette === colorsOf(b).auxPalette
+  )
+}
+
+export function trackListsEqual(a: Tracks, b: Tracks) {
+  return (
+    a.length === b.length && a.every((track, i) => tracksEqual(track, b[i]!))
   )
 }
 
@@ -227,11 +232,8 @@ export function viewTargetsEqual(
 ) {
   if ((a === undefined) !== (b === undefined)) return false
   if (!a || !b) return true
-  if (a.tracks.length !== b.tracks.length) return false
-  for (let i = 0; i < a.tracks.length; i++) {
-    if (!tracksEqual(a.tracks[i], b.tracks[i])) return false
-  }
   return (
+    trackListsEqual(a.tracks, b.tracks) &&
     a.bedFile === b.bedFile &&
     a.region === b.region &&
     a.simplify === b.simplify &&

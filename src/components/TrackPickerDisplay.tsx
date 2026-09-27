@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Box from '@mui/material/Box'
 import { TrackList } from './TrackList.tsx'
 import { TrackAddButton } from './TrackAddButton.tsx'
+import { trackListsEqual } from './headerFormUtils.ts'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { AvailableTrack, FileType, Track, Tracks } from '../Types.ts'
@@ -42,24 +43,6 @@ function applyChanges(base: Tracks, changes: TrackChanges): Tracks {
 const allFilesSet = (tracks: Tracks) =>
   tracks.every(t => t.trackFile !== undefined)
 
-// Same track set, in the same order, as far as the picker is concerned.
-function sameTracks(a: Tracks, b: Tracks) {
-  return (
-    a.length === b.length &&
-    a.every((track, i) => {
-      const other = b[i]
-      return (
-        track.trackType === other?.trackType &&
-        track.trackFile === other.trackFile &&
-        track.trackColorSettings?.mainPalette ===
-          other.trackColorSettings?.mainPalette &&
-        track.trackColorSettings?.auxPalette ===
-          other.trackColorSettings?.auxPalette
-      )
-    })
-  )
-}
-
 export const TrackPickerDisplay = ({
   tracks,
   availableTracks,
@@ -78,7 +61,7 @@ export const TrackPickerDisplay = ({
   const stage = (extra: TrackChanges) => {
     const merged = { ...pending, ...extra }
     const next = applyChanges(tracks, merged)
-    if (allFilesSet(next) && !sameTracks(next, tracks)) {
+    if (allFilesSet(next) && !trackListsEqual(next, tracks)) {
       onChange(next)
       setPending({})
     } else {
