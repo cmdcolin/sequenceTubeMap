@@ -1420,7 +1420,7 @@ function generateNodeOrder(): void {
       tracksAndReads[i]!.indexSequence,
     )
     if (rightIndex === null) {
-      if (tracksAndReads[i]!.type === 'haplotype') {
+      if (i < tracks.length) {
         generateNodeOrderOfSingleTrack(tracksAndReads[i]!.indexSequence)
       } else {
         tracksAndReads.splice(i, 1)

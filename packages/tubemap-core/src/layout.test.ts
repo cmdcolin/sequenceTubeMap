@@ -153,6 +153,29 @@ describe('layoutTubeMap', () => {
     expect(layout.tracks.map(t => t.type)).toEqual(['haplotype', 'haplotype'])
   })
 
+  it('keeps every read when a track typed read shares no node with the others', () => {
+    const layout = layoutTubeMap(
+      [...nodes, { name: 'apart', seq: 'TTTT' }],
+      [
+        tracks[0]!,
+        { id: 1, type: 'read', sequence: ['apart'], sourceTrackID: 0 },
+      ],
+      [
+        {
+          id: 2,
+          name: 'r2',
+          type: 'read',
+          sequence: ['1', '2'],
+          sourceTrackID: 1,
+        },
+        { id: 3, name: 'r3', type: 'read', sequence: ['4'], sourceTrackID: 1 },
+      ],
+      { mergeNodes: false },
+    )!
+    expect(layout.reads.map(r => r.name)).toEqual(['r2', 'r3'])
+    expect(JSON.stringify(layout.shapes)).not.toContain('null')
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()
