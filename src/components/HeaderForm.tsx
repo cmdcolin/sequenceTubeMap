@@ -573,13 +573,14 @@ function HeaderForm({
   async function handleFileUpload(
     fileType: FileType,
     file: File,
+    batch?: string,
   ): Promise<string | undefined> {
     if (apiMode !== 'local' && file.size > config.MAXUPLOADSIZE) {
       throw new Error(
         `${file.name} is larger than the ${MAX_UPLOAD_SIZE_DESCRIPTION} upload limit.`,
       )
     }
-    const fileName = await APIInterface.putFile(fileType, file, null)
+    const fileName = await APIInterface.putFile(fileType, file, null, batch)
     if (fileType === 'graph') {
       void refetchFilenames()
     }

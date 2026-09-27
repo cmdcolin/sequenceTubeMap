@@ -148,9 +148,10 @@ export class LocalAPI implements APIInterface {
     fileType: FileType,
     file: File,
     cancelSignal: AbortSignal | null,
+    batch?: string,
   ) {
     const id = await this.withCancel(cancelSignal, cancelID =>
-      this.workerAPI.putFile(fileType, file, cancelID),
+      this.workerAPI.putFile(fileType, file, cancelID, batch),
     )
     // Uploading is the only thing that changes the worker's file list, so
     // this is where the "filenames changed" notification comes from.

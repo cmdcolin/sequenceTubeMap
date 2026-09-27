@@ -93,9 +93,10 @@ class WorkerAPI {
     fileType: FileType,
     file: File,
     cancelID: number | undefined,
+    batch?: string,
   ): Promise<string> {
     return await this.#withCancel(cancelID, signal =>
-      this.#api.putFile(fileType, file, signal),
+      this.#api.putFile(fileType, file, signal, batch),
     )
   }
 

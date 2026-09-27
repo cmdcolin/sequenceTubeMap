@@ -624,8 +624,8 @@ export class GBZBaseAPI implements APIInterface {
   // route does, and counts as absent.
   //
   // For uploaded tracks (numeric ids) we look the sibling up by original
-  // filename — putFile records the upload's `file.name`, so a `.sorted.gam`
-  // and its `.sorted.gam.gai` dropped together pair up automatically.
+  // filename — putFile records the upload's `file.name` and batch, so a
+  // `.sorted.gam` and its `.sorted.gam.gai` dropped together pair up.
   private async resolveSibling(
     trackFile: string,
     suffix: string,
@@ -730,10 +730,12 @@ export class GBZBaseAPI implements APIInterface {
     fileType: FileType,
     file: File,
     _cancelSignal: AbortSignal | null,
+    batch?: string,
   ): Promise<string> {
     const { id, isSibling } = this.registry.add({
       name: file.name,
       blob: file,
+      batch,
     })
     this.debugLog(`Store ${file.size} byte upload:`, file)
 

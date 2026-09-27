@@ -64,6 +64,54 @@ describe('UploadRegistry', () => {
     expect(await blobText(reg.sibling(gam.id, '.gai')!)).toBe('gai')
   })
 
+  // The upload dialog sends a click's files as one batch, in the order they
+  // were dropped, so an index can come before its file or after it.
+  describe('when files arrive in batches', () => {
+    const drop = (
+      reg: UploadRegistry,
+      batch: string,
+      name: string,
+      text: string,
+    ) => reg.add({ name, blob: blobOfText(text), batch }).id
+    const indexOf = async (reg: UploadRegistry, id: string) => {
+      const index = reg.sibling(id, '.gai')
+      return index ? await blobText(index) : null
+    }
+
+    it('pairs each copy with its own index, both dropped index first', async () => {
+      const reg = new UploadRegistry()
+      drop(reg, 'a', 'x.sorted.gam.gai', 'gai A')
+      const first = drop(reg, 'a', 'x.sorted.gam', 'gam A')
+      drop(reg, 'b', 'x.sorted.gam.gai', 'gai B')
+      const second = drop(reg, 'b', 'x.sorted.gam', 'gam B')
+
+      expect(await indexOf(reg, first)).toBe('gai A')
+      expect(await indexOf(reg, second)).toBe('gai B')
+    })
+
+    it('pairs each copy with its own index, dropped in either order', async () => {
+      const reg = new UploadRegistry()
+      const first = drop(reg, 'a', 'x.sorted.gam', 'gam A')
+      drop(reg, 'a', 'x.sorted.gam.gai', 'gai A')
+      drop(reg, 'b', 'x.sorted.gam.gai', 'gai B')
+      const second = drop(reg, 'b', 'x.sorted.gam', 'gam B')
+
+      expect(await indexOf(reg, first)).toBe('gai A')
+      expect(await indexOf(reg, second)).toBe('gai B')
+    })
+
+    it('leaves a file dropped again without its index unindexed', async () => {
+      const reg = new UploadRegistry()
+      drop(reg, 'a', 'x.sorted.gam.gai', 'gai A')
+      const first = drop(reg, 'a', 'x.sorted.gam', 'gam A')
+      const second = drop(reg, 'b', 'x.sorted.gam', 'gam B')
+
+      expect(await indexOf(reg, first)).toBe('gai A')
+      expect(await indexOf(reg, second)).toBeNull()
+    })
+  })
+
+  // Callers that send no batch, like `pnpm tubemap-cli`, pair by upload order.
   describe('when a file is dropped again', () => {
     const drop = (reg: UploadRegistry, name: string, text: string) =>
       reg.add({ name, blob: blobOfText(text) }).id

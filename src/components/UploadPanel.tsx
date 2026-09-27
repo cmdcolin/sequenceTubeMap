@@ -25,6 +25,7 @@ interface UploadPanelProps {
   handleFileUpload: (
     fileType: FileType,
     file: File,
+    batch?: string,
   ) => Promise<string | undefined>
   apiMode?: 'local' | 'server' | 'upstream'
   // The non-local API mode to switch to when the user toggles "Server upload".
@@ -34,6 +35,8 @@ interface UploadPanelProps {
   // Allows the parent to switch the global API mode so uploads use the right backend.
   onDestChange?: (mode: string) => void
 }
+
+let nextUploadBatch = 0
 
 function stageFile(file: File): StagedFile {
   return {
@@ -116,6 +119,9 @@ export const UploadPanel = ({
     }
     setUploading(true)
     setError(null)
+    // Names alone can't tell a regenerated file dropped again from the index
+    // dropped with it last time, so the files of one click share a batch.
+    const batch = String(nextUploadBatch++)
     try {
       const tracks: Track[] = []
       for (const { file, type, isIndex } of files) {
@@ -128,7 +134,7 @@ export const UploadPanel = ({
         if (!isLocal && isIndex) {
           continue
         }
-        const uploadedName = await handleFileUpload(type, file)
+        const uploadedName = await handleFileUpload(type, file, batch)
         if (uploadedName !== undefined && !isIndex) {
           tracks.push({
             trackFile: uploadedName,

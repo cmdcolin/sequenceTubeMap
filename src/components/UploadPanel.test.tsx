@@ -164,10 +164,12 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
 
   it('uploads .gam.gai alongside .gam in local mode (sibling lookup)', async () => {
     const uploaded: { type: FileType; name: string }[] = []
-    const handleFileUpload = vi.fn(async (type: FileType, file: File) => {
-      uploaded.push({ type, name: file.name })
-      return file.name
-    })
+    const handleFileUpload = vi.fn(
+      async (type: FileType, file: File, _batch?: string) => {
+        uploaded.push({ type, name: file.name })
+        return file.name
+      },
+    )
     const onUploaded = vi.fn()
 
     render(
@@ -202,6 +204,11 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
       'reads.sorted.gam',
       'reads.sorted.gam.gai',
     ])
+    // One click is one batch, which is what pairs the index with this copy of
+    // the file rather than another dropped under the same name.
+    const [first, second] = handleFileUpload.mock.calls.map(call => call[2])
+    expect(first).toBeDefined()
+    expect(second).toBe(first)
 
     // Only the .gam becomes a track; the .gai is registered as a sibling.
     const tracks = onUploaded.mock.calls[0]![0] as { trackFile: string }[]

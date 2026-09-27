@@ -36,10 +36,13 @@ export interface APIInterface {
     cancelSignal: AbortSignal,
   ): void
 
+  // Files uploaded together share a `batch`, which the in-browser backend
+  // uses to pair an index with the file it came with.
   putFile(
     fileType: FileType,
     file: File,
     cancelSignal: AbortSignal | null,
+    batch?: string,
   ): Promise<string>
 
   getBedRegions(

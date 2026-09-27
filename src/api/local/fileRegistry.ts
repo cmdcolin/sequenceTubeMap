@@ -15,7 +15,7 @@ export function isSiblingIndex(name: string): boolean {
 }
 
 // A trackFile string is an upload id when it's purely numeric (the registry
-// assigns ids via `files.length.toString()`). Anything else is treated as a
+// assigns ids via `uploads.length.toString()`). Anything else is treated as a
 // URL/path that goes through the URL fetch path in GBZBaseAPI.
 export function isUploadId(trackFile: string): boolean {
   return /^\d+$/.test(trackFile)
@@ -30,81 +30,94 @@ export interface AddResult {
   isSibling: boolean
 }
 
-export class UploadRegistry {
-  private files: Blob[] = []
-  // Parallel to `files`: original filename for each upload (or null when
-  // unknown, e.g. anonymous Blob).
-  private fileNames: (string | null)[] = []
+interface Upload {
+  blob: Blob
+  // Null when unknown, e.g. an anonymous Blob.
+  name: string | null
+  batch: string | undefined
+}
 
-  add(file: { name: string; blob: Blob }): AddResult {
-    const id = this.files.length.toString()
-    this.files.push(file.blob)
-    this.fileNames.push(file.name || null)
+export class UploadRegistry {
+  private uploads: Upload[] = []
+
+  add(file: {
+    name: string
+    blob: Blob
+    batch?: string | undefined
+  }): AddResult {
+    const id = this.uploads.length.toString()
+    this.uploads.push({
+      blob: file.blob,
+      name: file.name || null,
+      batch: file.batch,
+    })
     return { id, isSibling: isSiblingIndex(file.name) }
   }
 
   get(id: string): Blob | null {
-    const idx = parseInt(id, 10)
-    if (Number.isNaN(idx)) {
-      return null
-    }
-    return this.files[idx] ?? null
+    return this.uploads[parseInt(id, 10)]?.blob ?? null
   }
 
   // Original filename for an upload id, or null if the id is unknown / had no
   // name. Callers use this for UI labels and for extension-based dispatch
   // (e.g. is this .gbz.db?) since `id` is a registry index, not a path.
   getName(id: string): string | null {
-    const idx = parseInt(id, 10)
-    if (Number.isNaN(idx)) {
-      return null
-    }
-    return this.fileNames[idx] ?? null
+    return this.uploads[parseInt(id, 10)]?.name ?? null
   }
 
   // Look up an upload's sibling at `originalName + suffix`. A file dropped
-  // again repeats its name, and the latest index by name paired a regenerated
-  // `x.sorted.gam` dropped alone with the old `x.sorted.gam.gai`. A file and
-  // its index are dropped together, so an index goes with an upload of its
-  // file only when no other upload of either name lies between them, and
+  // again repeats its name, so the latest index by name can belong to an older
+  // copy of the file. An upload that came in a batch pairs only with an index
+  // from the same batch. Without one, as from `pnpm tubemap-cli`, which sends
+  // a file and then its index, an index goes with an upload of its file only
+  // when no other batch-less upload of either name lies between them, and
   // each upload takes the first such index after it before one before it.
   sibling(id: string, suffix: string): Blob | null {
-    const idx = parseInt(id, 10)
-    const name = this.fileNames[idx]
-    if (!name) {
+    const upload = this.uploads[parseInt(id, 10)]
+    if (!upload?.name) {
       return null
     }
+    const peers = this.uploads.filter(u => u.batch === upload.batch)
+    const at = peers.indexOf(upload)
+    const name = upload.name
     const siblingName = name + suffix
-    for (let i = idx + 1; i < this.fileNames.length; i++) {
-      if (this.fileNames[i] === name) {
+    for (let i = at + 1; i < peers.length; i++) {
+      if (peers[i]!.name === name) {
         break
       }
-      if (this.fileNames[i] === siblingName) {
-        return this.files[i] ?? null
+      if (peers[i]!.name === siblingName) {
+        return peers[i]!.blob
       }
     }
-    for (let i = idx - 1; i >= 0; i--) {
-      if (this.fileNames[i] === name) {
+    for (let i = at - 1; i >= 0; i--) {
+      if (peers[i]!.name === name) {
         return null
       }
-      if (this.fileNames[i] === siblingName) {
-        return this.claimedBefore(i, name, siblingName) ? null : this.files[i]!
+      if (peers[i]!.name === siblingName) {
+        return claimedBefore(peers, i, name, siblingName)
+          ? null
+          : peers[i]!.blob
       }
     }
     return null
   }
+}
 
-  // Whether the index at `idx` belongs to an earlier upload of its file,
-  // which takes the first index after it.
-  private claimedBefore(idx: number, name: string, siblingName: string) {
-    for (let i = idx - 1; i >= 0; i--) {
-      if (this.fileNames[i] === siblingName) {
-        return false
-      }
-      if (this.fileNames[i] === name) {
-        return true
-      }
+// Whether the index at `at` belongs to an earlier upload of its file, which
+// takes the first index after it.
+function claimedBefore(
+  uploads: Upload[],
+  at: number,
+  name: string,
+  siblingName: string,
+): boolean {
+  for (let i = at - 1; i >= 0; i--) {
+    if (uploads[i]!.name === siblingName) {
+      return false
     }
-    return false
+    if (uploads[i]!.name === name) {
+      return true
+    }
   }
+  return false
 }
