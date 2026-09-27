@@ -79,11 +79,15 @@ interface HeaderFormProps {
   // remounts the form when the backend changes, so switching backends
   // re-seeds it from that backend's view target.
   currentViewTarget: ViewTarget
-  // A view that arrived from outside the form -- the browser's Back or Forward
-  // button. App has already committed it; the form follows so its fields
-  // describe what is on screen. A new object each time is the signal to
-  // re-seed, so re-seeding happens once per navigation.
+  // A view that arrived from outside the form -- Back or Forward, the
+  // browser's or the form's own. App has already committed it; the form
+  // follows so its fields describe what is on screen. A new object each time
+  // is the signal to re-seed, so re-seeding happens once per navigation.
   seedViewTarget: ViewTarget | null
+  // Walk the browser's history, or undefined when there is no view of the
+  // app's to walk to.
+  goBack: (() => void) | undefined
+  goForward: (() => void) | undefined
   APIInterface: APIInterface
   onAPIMode: (mode: string) => void
   serverModeId: 'server' | 'upstream'
@@ -118,26 +122,14 @@ function presetRegion(region: string) {
   return region === '' ? undefined : region
 }
 
-// Views the user has committed, so Back/Forward can walk them. `index` is the
-// entry currently on screen; committing from anywhere but the end drops the
-// entries that were ahead, as a browser's history does.
-interface RegionHistory {
-  entries: ViewTarget[]
-  index: number
-}
-
-function initialRegionHistory(target: ViewTarget): RegionHistory {
-  return target.tracks.length > 0
-    ? { entries: [target], index: 0 }
-    : { entries: [], index: -1 }
-}
-
 function HeaderForm({
   showExample,
   legendTracks,
   setCurrentViewTarget,
   currentViewTarget,
   seedViewTarget,
+  goBack,
+  goForward,
   APIInterface,
   onAPIMode,
   serverModeId,
@@ -167,28 +159,19 @@ function HeaderForm({
   // changes (see render-time adjustment below) so the user sees what paths
   // are available without having to expand it.
   const [pathsPanelOpen, setPathsPanelOpen] = useState(true)
-  const [regionHistory, setRegionHistory] = useState(() =>
-    initialRegionHistory(currentViewTarget),
-  )
   // Focused by the "/" shortcut; a ref is how you hand focus to a DOM node.
   const regionInputRef = useRef<HTMLInputElement>(null)
 
-  // The browser's Back or Forward button moved the view. App has committed it
-  // already, so the form only points its own fields at it -- committing from
-  // here would be a state update in the middle of App's render. Adjusted
-  // during render rather than in an effect; see
+  // Back or Forward moved the view. App has committed it already, so the form
+  // only points its own fields at it -- committing from here would be a state
+  // update in the middle of App's render. Adjusted during render rather than
+  // in an effect; see
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
   const [lastSeed, setLastSeed] = useState(seedViewTarget)
   if (seedViewTarget !== lastSeed) {
     setLastSeed(seedViewTarget)
     if (seedViewTarget !== null) {
       seedFormFrom(seedViewTarget)
-      if (seedViewTarget.tracks.length > 0) {
-        setRegionHistory(h => ({
-          entries: [...h.entries.slice(0, h.index + 1), seedViewTarget],
-          index: h.index + 1,
-        }))
-      }
     }
   }
 
@@ -383,10 +366,6 @@ function HeaderForm({
     ) {
       setCurrentViewTarget(next)
       setRecentlyUploaded([])
-      setRegionHistory(h => ({
-        entries: [...h.entries.slice(0, h.index + 1), next],
-        index: h.index + 1,
-      }))
     }
   }
 
@@ -400,21 +379,6 @@ function HeaderForm({
     setSimplify(target.simplify ?? false)
     setRemoveSequences(target.removeSequences ?? false)
     setManualError(null)
-  }
-
-  // Re-seed the form from a view target that was already committed once, so
-  // Back/Forward restore the whole view and not just its region.
-  function applyViewTarget(target: ViewTarget) {
-    seedFormFrom(target)
-    setCurrentViewTarget(target)
-  }
-
-  function goInHistory(delta: -1 | 1) {
-    const target = regionHistory.entries[regionHistory.index + delta]
-    if (target) {
-      setRegionHistory({ ...regionHistory, index: regionHistory.index + delta })
-      applyViewTarget(target)
-    }
   }
 
   function handleGoButton() {
@@ -728,20 +692,18 @@ function HeaderForm({
                 testid="regionHistoryBack"
                 label="Back to the previous view"
                 icon={faArrowLeft}
-                disabled={regionHistory.index <= 0}
+                disabled={!goBack}
                 onClick={() => {
-                  goInHistory(-1)
+                  goBack?.()
                 }}
               />
               <IconOnlyButton
                 testid="regionHistoryForward"
                 label="Forward to the next view"
                 icon={faArrowRight}
-                disabled={
-                  regionHistory.index >= regionHistory.entries.length - 1
-                }
+                disabled={!goForward}
                 onClick={() => {
-                  goInHistory(1)
+                  goForward?.()
                 }}
               />
               {hasBedRegions && (

@@ -10,11 +10,7 @@ import {
   urlParamsToViewTarget,
   urlParamsToVisOptions,
 } from './urlViewTarget.ts'
-import {
-  EMPTY_VIEW_TARGET,
-  pushHistoryEntry,
-  useViewHistory,
-} from './useViewHistory.ts'
+import { EMPTY_VIEW_TARGET, useViewHistory } from './useViewHistory.ts'
 import BackendSelector from './components/BackendSelector.tsx'
 import Footer from './components/Footer.tsx'
 import { ViewMenu } from './components/ViewMenu.tsx'
@@ -241,26 +237,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     }
   }
 
-  const setCurrentViewTarget = (newTarget: ViewTarget) => {
-    const newViewTarget = normalizeViewTarget(newTarget)
-    if (
-      !viewTargetsEqual(viewTarget, newViewTarget) ||
-      dataOrigin !== dataOriginTypes.API
-    ) {
-      // Looking at a different view is a navigation, so Back returns to this
-      // one. The view being left behind is still in the address bar here; the
-      // sync effect writes the new one over the entry this creates.
-      pushHistoryEntry()
-      setViewTarget(newViewTarget)
-      setDataOrigin(dataOriginTypes.API)
-      setVisOptions(v => ({
-        ...v,
-        colorSchemes: getColorSchemesFromTracks(newViewTarget.tracks),
-      }))
-    }
-  }
-
-  useViewHistory({
+  const viewHistory = useViewHistory({
     viewTarget,
     visOptions,
     onRestore: (restored, restoredVisOptions) => {
@@ -279,6 +256,25 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
       setSeedViewTarget(target)
     },
   })
+
+  const setCurrentViewTarget = (newTarget: ViewTarget) => {
+    const newViewTarget = normalizeViewTarget(newTarget)
+    if (
+      !viewTargetsEqual(viewTarget, newViewTarget) ||
+      dataOrigin !== dataOriginTypes.API
+    ) {
+      // Looking at a different view is a navigation, so Back returns to this
+      // one. The view being left behind is still in the address bar here; the
+      // sync effect writes the new one over the entry this creates.
+      viewHistory.pushEntry()
+      setViewTarget(newViewTarget)
+      setDataOrigin(dataOriginTypes.API)
+      setVisOptions(v => ({
+        ...v,
+        colorSchemes: getColorSchemesFromTracks(newViewTarget.tracks),
+      }))
+    }
+  }
 
   const updateVisOptions = (next: VisOptions) => {
     setVisOptions(next)
@@ -329,6 +325,8 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         showExample={showExample}
         currentViewTarget={viewTarget}
         seedViewTarget={seedViewTarget}
+        goBack={viewHistory.back}
+        goForward={viewHistory.forward}
         APIInterface={apiInterface}
         onAPIMode={setAPIMode}
         serverModeId={isLocalMode ? 'upstream' : 'server'}

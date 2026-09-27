@@ -408,6 +408,35 @@ describe('the address bar', () => {
     })
   })
 
+  it("walks the browser's history with its own Back and Forward", async () => {
+    renderApp()
+    const back = () => screen.getByTestId('regionHistoryBack')
+    const forward = () => screen.getByTestId('regionHistoryForward')
+    expect(back()).toBeDisabled()
+
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=ref:1-100')
+    })
+    const entries = window.history.length
+    expect(forward()).toBeDisabled()
+
+    await userEvent.click(back())
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('17:1-100')
+    })
+    expect(window.location.search).toContain('region=17:1-100')
+    expect(back()).toBeDisabled()
+
+    await userEvent.click(forward())
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('ref:1-100')
+    })
+    expect(window.location.search).toContain('region=ref:1-100')
+    expect(window.history.length).toBe(entries)
+  })
+
   it('turns a View setting back off when Back returns to a view without it', async () => {
     localStorage.clear()
     renderApp()

@@ -40,6 +40,7 @@ interface RenderOptions {
   viewTarget?: ViewTarget
   loading?: boolean
   onEscape?: () => void
+  goBack?: () => void
 }
 
 function renderForm(options: RenderOptions = {}) {
@@ -63,6 +64,8 @@ function renderForm(options: RenderOptions = {}) {
         setCurrentViewTarget={setCurrentViewTarget}
         currentViewTarget={viewTarget}
         seedViewTarget={null}
+        goBack={options.goBack}
+        goForward={undefined}
         APIInterface={options.api ?? fakeAPI()}
         onAPIMode={() => {}}
         serverModeId="server"
@@ -210,21 +213,15 @@ it('clamps a shifted region at the start of the contig', async () => {
   expect(lastRegion(setCurrentViewTarget)).toEqual('x:0-100')
 })
 
-it('walks committed views with Back and Forward', async () => {
-  const { setCurrentViewTarget } = renderForm()
+it('hands Back and Forward to the app, and disables the one it has no use for', async () => {
+  const goBack = vi.fn()
+  const { setCurrentViewTarget } = renderForm({ goBack })
 
-  expect(screen.getByTestId('regionHistoryBack')).toBeDisabled()
   expect(screen.getByTestId('regionHistoryForward')).toBeDisabled()
-
-  await userEvent.click(screen.getByTestId('shiftRegionRight'))
-  expect(lastRegion(setCurrentViewTarget)).toEqual('x:150-250')
-
   await userEvent.click(screen.getByTestId('regionHistoryBack'))
-  expect(lastRegion(setCurrentViewTarget)).toEqual('x:100-200')
-  expect(screen.getByTestId('regionHistoryBack')).toBeDisabled()
 
-  await userEvent.click(screen.getByTestId('regionHistoryForward'))
-  expect(lastRegion(setCurrentViewTarget)).toEqual('x:150-250')
+  expect(goBack).toHaveBeenCalledTimes(1)
+  expect(setCurrentViewTarget).not.toHaveBeenCalled()
 })
 
 it('refuses to commit a malformed region', async () => {
