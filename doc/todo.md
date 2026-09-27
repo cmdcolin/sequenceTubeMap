@@ -14,8 +14,9 @@ The coarsened view now covers much of this: with no reads loaded it draws a
 haplotype window up to 1,000,000 visits (a 50 kb MHC window) in about a second,
 and the size notice offers a **Coarsen** button.
 
-Remote `.gam` tracks are still downloaded whole; range-reading them would need
-the `.gai` index consulted first.
+A region read of an indexed `.gam` fetches up to 64 kB past the start of each
+run's last BGZF block, since that block's size is in a header not yet read, and
+two runs that share a block fetch it twice.
 
 ## Coarsened haplotype view
 
