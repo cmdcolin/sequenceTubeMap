@@ -1,11 +1,10 @@
 # seqTubeMaps — MemPanG26 Edition
 
-A fork of [vgteam/sequenceTubeMap](https://github.com/vgteam/sequenceTubeMap)
-that draws pangenome graphs and reads over them as tube maps, in the browser.
-This edition adds in-browser reading of `.gbz.db` files, uploads, and a
-modernised React/TypeScript UI.
+Fork of [vgteam/sequenceTubeMap](https://github.com/vgteam/sequenceTubeMap):
+pangenome graphs and reads drawn as tube maps, in the browser. Adds in-browser
+`.gbz.db` reading, uploads, and a modernized React/TypeScript UI.
 
-Live demo — https://cmdcolin.github.io/sequenceTubeMap/
+Live demo: https://cmdcolin.github.io/sequenceTubeMap/
 
 MemPanG26 Hackathon Team 2 — [Colin Diesh](https://github.com/cmdcolin) &
 [Rafeed Rahman Turjya](https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en)
@@ -13,49 +12,39 @@ et al.
 
 [![HPRC v2.1 chr20 microsatellite](doc/images/hprc-v2.1-chr20-str.png)][demo-chr20]
 
-All 464 haplotypes of
-[HPRC release 2.1](https://doi.org/10.64898/2026.07.21.739710) through a CT
-microsatellite at `chr20:48,000,600-48,001,000`, on 240 distinct routes: 46
-allele lengths from 608 to 680 bp. Each rung of the staircase is a haplotype
-leaving the repeat one copy earlier than its neighbour. The browser reads the
-figure straight off HPRC's 10 GB hosted `.gbz.db` by range requests, with no
-server, and names each haplotype from the companion haplotype index beside it —
-the haplotype through any node is `HG01243#2#…`, not `unknown#57`.
-
-The same locus about 300 bp to the right, where the haplotypes are back in
-register:
+464 HPRC v2.1 haplotypes at a chr20 CT microsatellite — 46 allele lengths, 240
+distinct routes. Read straight from HPRC's 10 GB hosted `.gbz.db` by range
+request: no server, no download. Coarsened (Sankey) view bands the haplotypes by
+node-to-node edge instead of drawing all 464 as separate lines; haplotypes named
+from the companion index (`HG01243#2#…`, not `unknown#57`).
 
 [![HPRC v2.1 chr20 haplotypes in register](doc/images/hprc-v2.1-chr20-register.png)][demo-chr20]
 
-Both figures are crops of one drawing, which the app lays out end to end and
-lets you scroll.
+Same locus, ~170 bp right: haplotypes back in register. Both figures are crops
+of one drawing the app lays out end to end and lets you scroll.
 
 ## What a tube map shows
 
-A sequence graph encodes many related sequences — individuals of one species, or
-homologous sequences across species — in one structure, so their shared
-stretches and their differences are easy to find. It has two parts:
+A sequence graph encodes related sequences — individuals of one species, or
+homologs across species — as shared and diverging paths through nodes.
 
-- A **node** is a stretch of bases; its length sets its drawn width.
-- A **path** is one of the underlying sequences, walking through a series of
-  nodes.
+- **Node** — a stretch of bases; length sets its drawn width.
+- **Path** — one sequence, walking through nodes.
 
-Two paths over the same three nodes spell the same sequence:
+Two paths, same three nodes, same sequence:
 
 ![Two paths through three nodes](doc/images/example1.png)
 
-Where the sequences differ, the paths part around a bubble:
+Where sequences differ, paths part around a bubble:
 
 ![Two paths diverging in the middle](doc/images/example2.png)
 
-An inversion is one node traversed in both directions rather than two nodes:
+An inversion: one node traversed both directions, not two nodes:
 
 ![A node traversed in both directions](doc/images/example3.png)
 
-General graph tools such as Graphviz or d3's force layouts draw nodes joined by
-edges, with no notion of a path running through many nodes or of a node's
-orientation. The tube map lays out paths as lines on a transit map and draws
-them with d3.
+Graphviz and d3 force layouts draw nodes and edges with no notion of a path or
+of orientation. The tube map draws paths as lines on a transit map, with d3.
 
 ## Loading data
 
@@ -67,45 +56,41 @@ Use **File → Open…**, or pick a dataset from the **Examples** menu.
 | **In-browser**              | your browser            | none          | one-time `.gbz.db` conversion |
 | **Self-hosted server**      | your machine            | none          | Docker or a local checkout    |
 
-The servers take `.xg`, `.vg` and `.gbz` graphs and `.gam` reads directly. The
-in-browser mode needs a graph converted to `.gbz.db` first, and reads a hosted
-one by range requests, so a whole-pangenome graph browses without a download.
-[Loading your own data](doc/data.md) covers all three.
+Servers take `.xg`, `.vg` and `.gbz` graphs and `.gam` reads directly.
+In-browser mode needs a `.gbz.db`; it reads a hosted one by range request, so a
+whole-pangenome graph browses with no download. Details:
+[doc/data.md](doc/data.md).
 
 ## Reads over a graph
 
-GAM alignments across the snp1kg BRCA1 graph. Red marks reads whose every node
-visit is on the reverse strand; a read in mixed orientation is drawn forward, in
-blue:
+GAM alignments over the snp1kg BRCA1 graph. Red: every node visit is
+reverse-strand. Mixed-orientation reads draw forward, in blue:
 
 [![BRCA1 reads](doc/images/brca1-reads.png)][demo-reads]
 
-The link carries the View menu's compressed node widths as well as the region.
-The browser subsamples to 100 reads to stay responsive; the banner above the map
-raises that.
+Link carries compressed node widths plus region. Browser subsamples to 100 reads
+to stay responsive (banner above the map raises the cap).
 
-The coarsened (Sankey) view collapses per-read ribbons into one band per
-node-to-node edge, scaled by how many reads traverse it, so rendering is
-O(edges) rather than O(reads). Allele balance at each bubble becomes readable at
-a glance:
+Coarsened (Sankey) view: one band per node-to-node edge, scaled by read count —
+O(edges), not O(reads). Allele balance at a bubble reads at a glance. The same
+view works on a haplotype-only graph with no reads loaded, as in the chr20
+figures above: it bands the haplotypes by edge instead.
 
 [![BRCA1 reads, coarsened](doc/images/brca1-reads-coarsened.png)][demo-coarsened]
 
 ## Navigating and sharing
 
-Type `<contig>:<start>-<end>` (e.g. `Circ1:0-1320`) in the region box, or open
-**Paths in this graph** to browse the contigs a graph contains. `chr1:1000+500`
-and `node:42-55` also work. The URL carries the data, region and view options,
-so any tube map can be shared as a link — see
-[URL parameters](doc/urlparams.md).
+Region box takes `<contig>:<start>-<end>` (`Circ1:0-1320`), `chr1:1000+500`, or
+`node:42-55`. **Paths in this graph** browses a graph's contigs. The URL carries
+data, region and view options — any tube map is a shareable link
+([params](doc/urlparams.md)).
 
 [![The app with BRCA1 reads loaded](doc/images/1.png)][demo-brca1]
 
 ## Headless rendering
 
-`pnpm tubemap-cli` renders any source and region to SVG without a browser, which
-is how every figure here but the app screenshot was made —
-[headless SVG rendering](doc/headless-rendering.md).
+`pnpm tubemap-cli` renders any source and region to SVG, no browser — made every
+figure here but the app screenshot. [Details](doc/headless-rendering.md).
 
 ## Docs
 

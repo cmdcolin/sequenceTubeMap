@@ -73,6 +73,13 @@ Read orientation is normalised before the bands are aggregated, so both
 traversals of an edge have already collapsed into one band by the time the flag
 could merge them.
 
+`--coarsened` on a graph with no reads loaded coarsens the haplotypes instead:
+the reference keeps its own lane (so the ruler still works), and every other
+haplotype collapses into one band per node-to-node edge, the same way reads do.
+A graph with hundreds of haplotypes otherwise draws as one lane per haplotype —
+solid color soup at that count — so this is the flag to reach for there too; see
+[Hosted graphs](#hosted-graphs) below for a worked example.
+
 `--compressed` is the one to reach for whenever a figure comes out unreadably
 wide. Node width scales with sequence length, so any region spanning many bases
 lays out far wider than tall and the detail disappears; making width logarithmic
@@ -138,19 +145,24 @@ needs no local copy of its 10 GB database:
 
 ```bash
 pnpm tubemap-cli --source 'HPRC v2.1 whole genome (gbz-base, URL-hosted)' \
-                 --region 'GRCh38#chr20:48000600-48001000' --out str.svg
+                 --region 'GRCh38#chr20:48000600-48001000' --coarsened \
+                 --out str.svg
 ```
 
-That is 464 haplotypes on 240 distinct walks — 23835 by 1549 units, which is too
-wide for a page. The [README](../README.md)'s two chr20 figures are crops of it,
-one over the allele staircase and one where the haplotypes come back into
-register:
+That is 464 haplotypes on 240 distinct walks. Drawn at one lane per haplotype
+that comes out 23835 by 1549 units — too wide for a page, and at that many lanes
+solid color soup: 464 haplotypes read as noise, not signal. `--coarsened` (see
+[View options](#view-options) above) fixes both: with no reads loaded, it
+aggregates every haplotype but the reference into one band per node-to-node edge
+instead, so the figure comes out 14144 by 385. The [README](../README.md)'s two
+chr20 figures are crops of it, one over the allele staircase and one where the
+haplotypes come back into register:
 
 ```bash
 rsvg-convert -z 1 str.svg -o str.png
-magick str.png -crop 2499x1549+2452+0  +repage -background white -flatten \
+magick str.png -crop 3700x385+1200+0  +repage -background white -flatten \
   doc/images/hprc-v2.1-chr20-str.png
-magick str.png -crop 2499x1549+19617+0 +repage -background white -flatten \
+magick str.png -crop 1300x385+10750+0 +repage -background white -flatten \
   doc/images/hprc-v2.1-chr20-register.png
 ```
 
