@@ -1,12 +1,12 @@
 {
-  "bounds": {"minX":20,"maxX":2385.857142857143,"minY":10,"maxY":171.57696037475472},
+  "bounds": {"minX":20,"maxX":2359.857142857143,"minY":10,"maxY":171.57696037475472},
   "maxOrder": 2,
   "trackForRuler": "_gbwt_ref#0#17",
   "coarsened": {"unit":"read","total":132,"reverse":false},
   "nodes": [
-    {"name":"1","order":0,"x":20,"y":20,"pixelWidth":815,"contentHeight":131.57696037475472},
-    {"name":"11","order":1,"x":886.4285714285714,"y":20,"pixelWidth":8,"contentHeight":75},
-    {"name":"13","order":2,"x":945.8571428571429,"y":20,"pixelWidth":1420,"contentHeight":131.57696037475472}
+    {"name":"1","order":0,"x":20,"y":20,"pixelWidth":806,"contentHeight":131.57696037475472},
+    {"name":"11","order":1,"x":877.4285714285714,"y":20,"pixelWidth":0,"contentHeight":75},
+    {"name":"13","order":2,"x":928.8571428571429,"y":20,"pixelWidth":1411,"contentHeight":131.57696037475472}
   ],
   "tracks": [
     {"id":1000000002,"type":"read","width":56.57696037475472,"reverse":false},
@@ -15,16 +15,15 @@
     {"id":0,"type":"haplotype","width":15,"reverse":false}
   ],
   "rectangles": [
-    {"xStart":835,"yStart":95,"xEnd":839,"yEnd":150.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read"},
-    {"xStart":886.4285714285714,"yStart":115,"xEnd":894.4285714285714,"yEnd":170.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read"},
-    {"xStart":941.8571428571429,"yStart":95,"xEnd":945.8571428571429,"yEnd":150.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read"},
-    {"xStart":839,"yStart":35,"xEnd":882.4285714285714,"yEnd":94,"color":"#1f77b4","alpha":1,"id":1000000000,"type":"read"},
-    {"xStart":898.4285714285714,"yStart":35,"xEnd":941.8571428571429,"yEnd":94,"color":"#ff7f0e","alpha":1,"id":1000000001,"type":"read"},
-    {"xStart":0,"yStart":20,"xEnd":2385.857142857143,"yEnd":34,"color":"#1f77b4","alpha":1,"id":0,"type":"haplotype"}
+    {"xStart":826,"yStart":95,"xEnd":830,"yEnd":150.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read"},
+    {"xStart":924.8571428571429,"yStart":95,"xEnd":928.8571428571429,"yEnd":150.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read"},
+    {"xStart":830,"yStart":35,"xEnd":873.4285714285714,"yEnd":94,"color":"#1f77b4","alpha":1,"id":1000000000,"type":"read"},
+    {"xStart":881.4285714285714,"yStart":35,"xEnd":924.8571428571429,"yEnd":94,"color":"#ff7f0e","alpha":1,"id":1000000001,"type":"read"},
+    {"xStart":0,"yStart":20,"xEnd":2359.857142857143,"yEnd":34,"color":"#1f77b4","alpha":1,"id":0,"type":"haplotype"}
   ],
   "curves": [
-    {"xStart":894.4285714285714,"yStart":115,"xEnd":946.8571428571429,"yEnd":95,"width":56.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read","nodeStart":null,"nodeEnd":3,"orderStart":1,"orderEnd":2,"path":"M 894.4285714285714 115 C 920.6428571428571 115 920.6428571428571 95 946.8571428571429 95 V 151.57696037475472 C 920.6428571428571 151.57696037475472 920.6428571428571 171.57696037475472 894.4285714285714 171.57696037475472 Z"},
-    {"xStart":835,"yStart":95,"xEnd":887.4285714285714,"yEnd":115,"width":56.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read","nodeStart":1,"nodeEnd":null,"orderStart":0,"orderEnd":1,"path":"M 835 95 C 861.2142857142858 95 861.2142857142858 115 887.4285714285714 115 V 171.57696037475472 C 861.2142857142858 171.57696037475472 861.2142857142858 151.57696037475472 835 151.57696037475472 Z"}
+    {"xStart":877.4285714285714,"yStart":115,"xEnd":929.8571428571429,"yEnd":95,"width":56.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read","nodeStart":null,"nodeEnd":3,"orderStart":1,"orderEnd":2,"path":"M 877.4285714285714 115 C 903.6428571428571 115 903.6428571428571 95 929.8571428571429 95 V 151.57696037475472 C 903.6428571428571 151.57696037475472 903.6428571428571 171.57696037475472 877.4285714285714 171.57696037475472 Z"},
+    {"xStart":826,"yStart":95,"xEnd":878.4285714285714,"yEnd":115,"width":56.57696037475472,"color":"#2ca02c","alpha":1,"id":1000000002,"type":"read","nodeStart":1,"nodeEnd":null,"orderStart":0,"orderEnd":1,"path":"M 826 95 C 852.2142857142858 95 852.2142857142858 115 878.4285714285714 115 V 171.57696037475472 C 852.2142857142858 171.57696037475472 852.2142857142858 151.57696037475472 826 151.57696037475472 Z"}
   ],
   "corners": [],
   "verticalRectangles": [],

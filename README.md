@@ -101,10 +101,9 @@ source, to SVG, no browser — made every figure here but the app screenshot.
 
 ## Docs
 
-- [doc/data.md](doc/data.md) — the three ways to load a graph and its reads,
-  building a `.gbz.db`, naming haplotypes, region syntax
+- [doc/data.md](doc/data.md) — guide for loading your own data
 - [doc/server.md](doc/server.md) — running the server in Docker or from a
-  checkout, its data directory, pre-extracted chunks, tabix indexes
+  checkout
 - [doc/urlparams.md](doc/urlparams.md) — every parameter a link can carry
 - [doc/headless-rendering.md](doc/headless-rendering.md) — `pnpm tubemap-cli`
   and its options

@@ -3155,8 +3155,9 @@ function generateTurnaround(
   extra[order]! += 1
 }
 
+// The x extent of a node's bases: pixelWidth, plus about half a character
+// each side under nodeWidthOption 'normal'
 export function nodePixelCoordinatesInX(node: Node): [number, number] {
-  // Add and subtract 4 to account for stroke width - TODO: figure out what the 4 means
   const nodeLeftX = node.x - 4
   const nodeRightX = node.x + node.pixelWidth + 4
   return [nodeLeftX, nodeRightX]
@@ -3184,12 +3185,17 @@ function generateNodeWidth(): void {
       })
       break
     case 'normal': {
-      // The sequence is drawn in a monospace font, so one character's width,
-      // which the caller measures, sizes every node.
+      // The label draws a base per character from x - 4, in a monospace font
+      // whose character width the caller measures. pixelWidth runs from the
+      // first character to the last, so the outline, 9 px wider each side,
+      // holds the whole label, and nodePixelCoordinatesInX's half character
+      // each side puts base i under letter i.
       const charWidth = config.charWidth
       nodes.forEach(node => {
         node.width = node.sequenceLength
-        node.pixelWidth = Math.round(charWidth * node.sequenceLength)
+        node.pixelWidth = Math.round(
+          charWidth * Math.max(node.sequenceLength - 1, 0),
+        )
       })
       break
     }

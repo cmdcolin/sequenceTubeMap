@@ -1,17 +1,17 @@
 {
-  "bounds": {"minX":20,"maxX":74,"minY":10,"maxY":45},
+  "bounds": {"minX":20,"maxX":65,"minY":10,"maxY":45},
   "maxOrder": 0,
   "trackForRuler": "GRCh38.chr14",
   "coarsened": null,
   "nodes": [
-    {"name":"60080785","order":-1,"pixelWidth":17},
-    {"name":"60080786","order":0,"x":20,"y":20,"pixelWidth":34,"contentHeight":15}
+    {"name":"60080785","order":-1,"pixelWidth":8},
+    {"name":"60080786","order":0,"x":20,"y":20,"pixelWidth":25,"contentHeight":15}
   ],
   "tracks": [
     {"id":0,"type":"haplotype","width":15,"reverse":false}
   ],
   "rectangles": [
-    {"xStart":0,"yStart":20,"xEnd":74,"yEnd":34,"color":"#1f77b4","alpha":1,"id":0,"type":"haplotype"}
+    {"xStart":0,"yStart":20,"xEnd":65,"yEnd":34,"color":"#1f77b4","alpha":1,"id":0,"type":"haplotype"}
   ],
   "curves": [],
   "corners": [],

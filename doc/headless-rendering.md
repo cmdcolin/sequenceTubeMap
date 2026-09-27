@@ -104,11 +104,11 @@ solid color soup at that count — so this is the flag to reach for there too; s
 `--compressed` is the one to reach for whenever a figure comes out unreadably
 wide. Node width scales with sequence length, so any region spanning many bases
 lays out far wider than tall and the detail disappears; making width logarithmic
-pulls it back. snp1kg-BRCA1 at `17:1-1000` goes from 10122 units across to 1099
+pulls it back. snp1kg-BRCA1 at `17:1-1000` goes from 10046 units across to 1099
 at the same height, and it rescues a dense read pileup just as much as a graph
 with long nodes.
 
-Example 6 at natural node widths is 4376 units across
+Example 6 at natural node widths is 4221 units across
 ([SVG](tubemap-cli-samples/demo-example-6.svg)):
 
 ![Demo example 6](tubemap-cli-samples/demo-example-6.png)
@@ -172,20 +172,20 @@ pnpm tubemap-cli --source 'HPRC v2.1 whole genome (gbz-base, URL-hosted)' \
 ```
 
 That is 464 haplotypes on 240 distinct walks. Drawn at one lane per haplotype
-that comes out 23835 by 1549 units — too wide for a page, and at that many lanes
+that comes out 23036 by 1549 units — too wide for a page, and at that many lanes
 solid color soup: 464 haplotypes read as noise, not signal. `--coarsened` (see
 [View options](#view-options) above) fixes both: with no reads loaded, it
 aggregates every haplotype but the reference into one band per node-to-node edge
 instead, each shaded by its share of the haplotypes, so the figure comes out
-14100 by 374. The [README](../README.md)'s two chr20 figures are crops of it,
+13300 by 373. The [README](../README.md)'s two chr20 figures are crops of it,
 one over the allele staircase and one where the haplotypes come back into
 register:
 
 ```bash
 rsvg-convert -z 1 str.svg -o str.png
-magick str.png -crop 3700x385+1200+0  +repage -background white -flatten \
+magick str.png -crop 3515x385+1165+0 +repage -background white -flatten \
   doc/images/hprc-v2.1-chr20-str.png
-magick str.png -crop 1300x385+10708+0 +repage -background white -flatten \
+magick str.png -crop 1239x385+9988+0 +repage -background white -flatten \
   doc/images/hprc-v2.1-chr20-register.png
 ```
 

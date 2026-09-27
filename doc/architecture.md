@@ -173,6 +173,11 @@ Invariants to know before editing it:
   exits, and `TubeMap` calls it on unmount.
 - **`reverseMismatches` pivots on `sequenceLength`, not `node.width`.** They are
   only equal in `nodeWidthOption: 'normal'`.
+- **Under `'normal'`, `pixelWidth` is one character short of the label.** It
+  runs from the first letter to the last; the outline adds 9 px each side and
+  `nodePixelCoordinatesInX` about half a character, which puts base i under
+  letter i. Sized to the whole label, it drifts every mismatch right, by up to a
+  base at a node's end, and a 1 bp node's reads overshoot its outline.
 
 `src/util/tubemap.render.test.ts` is the real regression net: it renders all
 nine demo examples, asserts one node `<path>` per input node (with merging off),

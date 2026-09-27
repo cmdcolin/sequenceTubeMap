@@ -269,7 +269,7 @@ describe('When we wait for it to load', () => {
       svg.querySelectorAll('g.node path').length +
       svg.querySelectorAll('[trackID]').length +
       svg.querySelectorAll('[nodeY]').length
-    expect(shapes).toEqual(50)
+    expect(shapes).toEqual(44)
   })
 
   it.skipIf(!HAS_VG)(

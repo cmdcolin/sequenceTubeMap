@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { curvePaths, nodeOutlinePath } from './geometry.ts'
-import { layoutTubeMap } from './layout.ts'
+import { getXCoordinateOfBaseWithinNode, layoutTubeMap } from './layout.ts'
 
 import type { TubeMapLayout } from './layout.ts'
 import type { InputNode, InputTrack, TrackCurve } from './types.ts'
@@ -357,6 +357,39 @@ describe('layoutTubeMap', () => {
     layout.nodes.forEach(node => {
       expect(nodeOutlinePath(node)).not.toContain('NaN')
     })
+  })
+
+  it('puts each base under its letter, and a read ending on a 1 bp node inside it', () => {
+    const charWidth = 8.401
+    const long: InputNode = { name: '5', seq: 'ACGT'.repeat(25) }
+    const layout = layoutTubeMap(
+      [...nodes, long],
+      [{ ...tracks[0]!, sequence: ['1', '2', '4', '5'] }, tracks[1]!],
+      [
+        {
+          id: 2,
+          type: 'read',
+          sequence: ['1', '2'],
+          sourceTrackID: 1,
+          firstNodeOffset: 0,
+          finalNodeCoverLength: 1,
+        },
+      ],
+      { mergeNodes: false, charWidth },
+    )!
+    layout.nodes.forEach(node => {
+      // the label draws letter i from node.x - 4 + i * charWidth
+      for (let base = 0; base <= node.sequenceLength; base += 1) {
+        const x = getXCoordinateOfBaseWithinNode(node, base)!
+        expect(Math.abs(x - (node.x - 4 + base * charWidth))).toBeLessThan(1)
+      }
+    })
+    const [one, snp] = layout.nodes.filter(
+      n => n.name === '1' || n.name === '2',
+    )
+    const read = layout.shapes.rectangles.filter(r => r.type === 'read')
+    expect(Math.min(...read.map(r => r.xStart))).toBeGreaterThan(one!.x - 9)
+    expect(Math.max(...read.map(r => r.xEnd))).toBeLessThan(snp!.x + 9)
   })
 
   it('fans out only the curves that share both ends', () => {
