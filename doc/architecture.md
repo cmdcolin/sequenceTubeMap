@@ -136,9 +136,9 @@ The tube map is inherited from upstream and ported to TypeScript, in two parts:
   node order, orientation, lanes, read placement and node merging, from input
   nodes and tracks to drawable shapes in layout coordinates, plus the curve and
   node outline path geometry. It has no DOM or d3, so other apps — the JBrowse
-  graph genome plugin among them — draw its output their own way. Its passes
-  still share module state, but `layoutTubeMap` resets all of it on entry and
-  runs synchronously, so calls never see each other's.
+  graph genome plugin among them — draw its output their own way. Each
+  `layoutTubeMap` call passes its own `LayoutState` through the passes, so
+  calls share nothing.
 - **`src/util/tubemap.ts`** draws a layout with d3 and handles the interaction.
   It is _not_ a React component: it holds the latest layout and its UI state at
   module level, and `TubeMap.tsx` drives it through `create()` plus a set of

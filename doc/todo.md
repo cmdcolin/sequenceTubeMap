@@ -55,15 +55,6 @@ renders.
 
 Structural work not yet done:
 
-- **Module-level layout scratch.** `layout.ts` keeps its passes' working state
-  (`nodes`, `tracks`, `reads`, `nodeMap`, `nodeOrders`, `nodesPerOrder`,
-  `assignments`, `extraLeft`, `extraRight`, `maxOrder`, `shapes`,
-  `trackForRuler`, `coarsenedEdgeMeta`) at module level, reset on every
-  `layoutTubeMap` call. Threading it through as a parameter is mechanical but
-  touches nearly every function in the file, so it wants a dedicated pass with
-  the render and golden tests as the safety net. `tubemap.ts` holds the latest
-  layout and its UI state; `imageBounds` stays there because a resize recomputes
-  the zoom's extents from it long after a draw returned.
 - **`generateBasicPathsForReads` vs `generateLaneAssignment`** walk a path with
   the same 60-line case analysis (forward / backward / same-order, with and
   without turnaround segments); the lane version also emits `SegmentAssignment`s
@@ -117,11 +108,10 @@ on screen. New encodings (`color ← population`, `alpha ← share`) become entr
 rather than flags, and the URL could carry the spec instead of a growing flag
 list.
 
-What remains: split haplotypes and reads into layers with a stat each. This
-touches the layout's module-level scratch (see
-[the layout engine](#the-layout-engine)), so it belongs with that refactor. The
-colorer already reads each drawn track's computed variables (share, strand,
-mapping quality, name) off `ColorableTrack`, so a layer's stat only has to fill
-them in.
+What remains: split haplotypes and reads into layers with a stat each. The
+layout now passes a `LayoutState` rather than module-level scratch, so a layer
+can run its passes on its own state. The colorer already reads each drawn
+track's computed variables (share, strand, mapping quality, name) off
+`ColorableTrack`, so a layer's stat only has to fill them in.
 
 A general grammar engine is not the goal.
