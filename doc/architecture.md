@@ -30,9 +30,9 @@ ServerAPI ──HTTP──> src/server.mjs ──> vg chunk / vg paths / vg gams
 ```
 
 The express server slices graphs and reads with the real `vg` toolchain and
-returns vg-style JSON. It also holds uploads (deleted on a cron), serves mounted
-data directories, and pushes filename changes over a websocket. This is
-upstream's design, largely unchanged.
+returns vg-style JSON. It also holds uploads (deleted once unused for
+`fileExpirationTime`), serves mounted data directories, and pushes filename
+changes over a websocket. This is upstream's design, largely unchanged.
 
 ## In-browser path
 
