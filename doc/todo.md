@@ -77,3 +77,54 @@ Structural work not yet done:
   but the source keeps it verbatim (and says so) because changing it would alter
   rendered output; it needs a decision from someone who knows the intended
   semantics.
+
+## Encodings as a grammar of graphics
+
+The app already has the pieces of a grammar of graphics, but hard-wires how they
+combine. The coarsened view is a stat: it turns walks into per-edge bands with
+computed `count`, `share` and strand. `mergeNodes`, `ignoreStrand` and the
+mapping-quality cutoff are data transforms. The View menu's mapping-quality
+color and opacity, read groups and strand palettes are aesthetic mappings;
+palettes, the mapping-quality scale and the share ramp are scales; and
+`nodeWidthOption` is the x scale.
+
+The cost of leaving them hard-wired is the legend. `src/util/legend.ts` restates
+`generateTrackColor`'s precedence (groups over mapping quality over strand,
+bands apart) so the key matches the drawing, and every color change has to be
+made in both. If each mapping were a `{ field, scale }` and each scale could
+write its own legend row, the key would be the list of scales in use and could
+not disagree with the picture. A view would then read like:
+
+```ts
+{
+  x: 'sequence' | 'log' | 'fixed',
+  layers: [
+    { data: 'haplotypes', stat: { edge: { ignoreStrand } },
+      aes: { color: { field: 'share', scale: shareRamp }, width: 'crossings' } },
+    { data: 'reads', filter: { mapq: '>= 20' },
+      aes: { color: { field: 'strand', scale: strandPalettes },
+             alpha: { field: 'mapq', scale: mapqAlpha } } },
+  ],
+}
+```
+
+Layers make coarsening a per-layer choice rather than today's "the reads, or the
+haplotypes when no reads are loaded", so haplotypes could be banded with reads
+on screen. New encodings (`color ← population`, `alpha ← share`) become entries
+rather than flags, and the URL could carry the spec instead of a growing flag
+list.
+
+In order, each step useful alone:
+
+1. Give every drawn track a record of computed variables (count, crossings,
+   share, strand, mapping quality, group) for the colorer to read.
+   `Track.haplotypeShare` is the first of these.
+2. Replace the color and opacity flags with mappings onto scale objects that
+   produce their own legend rows, and delete the restated precedence in
+   `legend.ts`.
+3. Split haplotypes and reads into layers with a stat each. This touches the
+   layout's module-level scratch (see [the layout engine](#the-layout-engine)),
+   so it belongs with that refactor.
+
+A general grammar engine is not the goal; steps 1 and 2 capture most of the
+value.
