@@ -142,6 +142,17 @@ describe('layoutTubeMap', () => {
     expect(layout.reads.map(r => r.sequence)).toEqual([['a']])
   })
 
+  it('returns no reads when told not to show them', () => {
+    const layout = layoutTubeMap(
+      nodes,
+      tracks,
+      [{ id: 0, type: 'read', sequence: ['1', '3'], sourceTrackID: 1 }],
+      { showReads: false },
+    )!
+    expect(layout.reads).toEqual([])
+    expect(layout.tracks.map(t => t.type)).toEqual(['haplotype', 'haplotype'])
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()

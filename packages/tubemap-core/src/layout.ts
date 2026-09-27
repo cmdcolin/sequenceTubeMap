@@ -228,7 +228,9 @@ export function layoutTubeMap(
   const hadInputReads = inputReads.length > 0
   // Drop the reads we will never draw before cloning them — the deep copy of a
   // large GAM is the single most expensive step in a redraw.
-  reads = structuredClone(filterReads(inputReads)) as Track[]
+  reads = config.showReads
+    ? (structuredClone(filterReads(inputReads)) as Track[])
+    : []
 
   for (let i = tracks.length - 1; i >= 0; i -= 1) {
     const t = tracks[i]!
@@ -251,18 +253,18 @@ export function layoutTubeMap(
 
   nodeMap = generateNodeMap()
   generateTrackIndexSequences(tracks)
-  if (config.showReads && reads.length > 0) generateTrackIndexSequences(reads)
+  generateTrackIndexSequences(reads)
   generateNodeWidth()
 
   if (config.mergeNodesFlag) {
     generateNodeSuccessors()
     generateNodeOrder()
-    if (config.showReads && reads.length > 0) reverseReversedReads()
+    reverseReversedReads()
     mergeNodes()
     nodeMap = generateNodeMap()
     generateNodeWidth()
     generateTrackIndexSequences(tracks)
-    if (config.showReads && reads.length > 0) generateTrackIndexSequences(reads)
+    generateTrackIndexSequences(reads)
   }
 
   generateNodeSuccessors()
@@ -336,11 +338,8 @@ export function layoutTubeMap(
   // bezier. Node heights end up proportional to *edge* count (typically
   // tens) rather than *read* or *haplotype* count (potentially thousands).
   const drawCoarsenedReads =
-    config.showReads &&
-    config.coarsenedReadView &&
-    reads.length > 0 &&
-    !coarsenHaplotypes
-  if (config.showReads && reads.length > 0) {
+    config.coarsenedReadView && reads.length > 0 && !coarsenHaplotypes
+  if (reads.length > 0) {
     generateReadOnlyNodeAttributes()
     reverseReversedReads()
     generateTrackIndexSequences(reads)
@@ -1301,9 +1300,7 @@ function generateNodeSuccessors(): void {
   }
 
   tracks.forEach(addEdges)
-  if (config.showReads && reads.length > 0) {
-    reads.forEach(addEdges)
-  }
+  reads.forEach(addEdges)
 
   nodes.forEach((node, i) => {
     node.successors = Array.from(successorSets[i]!)
@@ -1401,8 +1398,7 @@ function generateNodeOrder(): void {
   let rightIndex: number | null
   let leftIndex: number
   let minOrder = 0
-  const tracksAndReads =
-    config.showReads && reads.length > 0 ? tracks.concat(reads) : tracks
+  const tracksAndReads = tracks.concat(reads)
   const reachability: ReachabilityScratch = {
     stamp: new Int32Array(nodes.length),
     generation: 0,
@@ -1662,12 +1658,7 @@ function generateNodeDegree(): void {
 // paths in the global `tracks` and the read paths, if applicable, in the
 // global `reads`
 function switchNodeOrientation(): void {
-  const pivotPath = tracks[0]!
-  let countPaths = tracks.slice(1, tracks.length)
-  if (config.showReads && reads.length > 0) {
-    countPaths = countPaths.concat(reads)
-  }
-  switchNodeOrientationForPaths(countPaths, pivotPath)
+  switchNodeOrientationForPaths([...tracks.slice(1), ...reads], tracks[0]!)
 }
 
 // If more of the given paths pass through a specific node in reverse direction than in
@@ -3259,8 +3250,7 @@ function mergeNodes(): void {
     return signed
   }
 
-  const tracksAndReads =
-    config.showReads && reads.length > 0 ? tracks.concat(reads) : tracks
+  const tracksAndReads = tracks.concat(reads)
 
   // A reverse visit on either side adds both orientations of the neighbor, so
   // no merge happens across an inversion.
@@ -3306,7 +3296,7 @@ function mergeNodes(): void {
   })
 
   // update reads which pass through merging nodes
-  if (config.showReads && reads.length > 0) {
+  if (reads.length > 0) {
     // sort nodes by order, then by y-coordinate
     const sortedNodes = nodes.slice()
     sortedNodes.sort(compareNodesByOrder)
