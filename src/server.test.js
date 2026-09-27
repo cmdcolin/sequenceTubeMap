@@ -4,10 +4,12 @@
 
 process.env.SERVER_PORT = '0'
 
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { once } from 'node:events'
 import fs from 'node:fs'
 import http from 'node:http'
+import os from 'node:os'
 import path from 'node:path'
 import { start } from './server.mjs'
 import { vg_available } from './vg.mjs'
@@ -271,6 +273,41 @@ describe.skipIf(!HAS_VG)('chunking a graph', () => {
     expect(status).toBe(200)
     expect(body.graph.node.length).toBeGreaterThan(0)
     expect(body.graph.path[0].name).toBe('ref')
+  })
+})
+
+describe('the server process', () => {
+  it('sweeps stale scratch directories and cleans up on SIGTERM', async () => {
+    // Its own working directory, so its cleanup can't touch this checkout's.
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tubemap-server-'))
+    try {
+      fs.mkdirSync(path.join(workDir, 'exampleData', 'internal'), {
+        recursive: true,
+      })
+      fs.mkdirSync(path.join(workDir, 'tmp', 'tmp-stale'), { recursive: true })
+      fs.mkdirSync(path.join(workDir, 'temp', 'download'), { recursive: true })
+
+      const server = spawn(
+        process.execPath,
+        ['--experimental-strip-types', path.resolve('src/server.mjs')],
+        { cwd: workDir, env: { ...process.env, SERVER_PORT: '0' } },
+      )
+      let output = ''
+      server.stdout.on('data', data => {
+        output += data
+      })
+      await vi.waitFor(() => {
+        expect(output).toContain('TubeMapServer listening')
+      }, 10000)
+      expect(fs.existsSync(path.join(workDir, 'tmp', 'tmp-stale'))).toBe(false)
+
+      const exited = once(server, 'exit')
+      server.kill('SIGTERM')
+      expect(await exited).toEqual([0, null])
+      expect(fs.existsSync(path.join(workDir, 'temp'))).toBe(false)
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true })
+    }
   })
 })
 

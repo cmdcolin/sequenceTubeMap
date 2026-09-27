@@ -2811,7 +2811,23 @@ export function start() {
   })
 }
 
+// Per-request scratch directories left behind by a server that stopped
+// mid-request.
+function removeStaleScratchDirectories() {
+  for (const entry of fs.readdirSync(SCRATCH_DATA_PATH)) {
+    if (entry.startsWith('tmp-')) {
+      fs.rmSync(path.join(SCRATCH_DATA_PATH, entry), {
+        recursive: true,
+        force: true,
+      })
+    }
+  }
+}
+
+// Tests start servers side by side in one checkout, so only a server run as
+// the main module sweeps the shared scratch directory.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  removeStaleScratchDirectories()
   void start()
 }
 
@@ -2824,6 +2840,10 @@ function shutDown(reason) {
 
 process.on('SIGINT', () => {
   shutDown('SIGINT')
+})
+// Docker stops a container with SIGTERM.
+process.on('SIGTERM', () => {
+  shutDown('SIGTERM')
 })
 // `pnpm start` runs the backend with an IPC channel to vite, which closes
 // however vite exits.
