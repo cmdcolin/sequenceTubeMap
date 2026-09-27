@@ -7,7 +7,15 @@ import './config-server.mjs'
 
 import { find_vg, vg_available } from './vg.mjs'
 
-import { mkdtemp, rm, cp, open, access } from 'node:fs/promises'
+import {
+  mkdtemp,
+  rm,
+  cp,
+  open,
+  access,
+  readdir,
+  readFile,
+} from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
@@ -26,6 +34,7 @@ const SCRIPTS = join(__dirname, '..', 'scripts')
 // installed, the same way the network tests in src/api/GBZBaseAPI.test.ts opt
 // in.
 const HAS_VG = vg_available()
+const HAS_JQ = child_process.spawnSync('jq', ['--version']).status === 0
 
 let workDir = ''
 
@@ -69,4 +78,31 @@ describe.skipIf(!HAS_VG)('data import scripts', () => {
     await access(join(workDir, 'x.vg.xg'))
     await access(join(workDir, 'x.vg.gbwt'))
   }, 30000)
+
+  it.skipIf(!HAS_JQ)(
+    'can run prepare_chunks.sh with a haplotype file',
+    async () => {
+      for (const filename of ['x.vg.xg', 'x.vg.gbwt']) {
+        await cp(join(EXAMPLE_DATA, filename), join(workDir, filename))
+      }
+
+      const { stdout } = await execFile(
+        join(SCRIPTS, 'prepare_chunks.sh'),
+        ['-x', 'x.vg.xg', '-h', 'x.vg.gbwt', '-r', 'x:1-100', '-o', 'chunk'],
+        { cwd: workDir },
+      )
+      expect(stdout).toBe('x\t1\t100\tRegion x:1-100\tchunk\n')
+      const chunkDir = join(workDir, 'chunk')
+      const annotations = (await readdir(chunkDir)).filter(name =>
+        name.endsWith('.annotate.txt'),
+      )
+      expect(annotations).toHaveLength(1)
+      const haplotypes = await readFile(
+        join(chunkDir, annotations[0] ?? ''),
+        'utf-8',
+      )
+      expect(haplotypes).toMatch(/^thread_0\t/m)
+    },
+    30000,
+  )
 })

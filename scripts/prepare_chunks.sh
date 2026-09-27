@@ -83,6 +83,10 @@ if [[ ! -z "${HAPLOTYPE_FILE}" ]] ; then
     HAPLOTYPE_FILE_PATH=$(realpath --relative-to $(dirname ${BASH_SOURCE[0]})/../ $HAPLOTYPE_FILE)
     echo >&2 "Haplotype file: ${HAPLOTYPE_FILE_PATH}"
     jq -n --arg trackFile "${HAPLOTYPE_FILE_PATH}" --arg trackType "haplotype" --argjson trackColorSettings "$HAPLOTYPE_PALETTE" '$ARGS.named' >> $OUTDIR/temp.json
+    # A GBZ graph carries its own haplotypes.
+    if [[ "${HAPLOTYPE_FILE}" != "${GRAPH_FILE}" ]] ; then
+        vg_chunk_params+=(--no-embedded-haplotypes -G "${HAPLOTYPE_FILE}")
+    fi
 fi
 
 # construct track JSON for each gam file
