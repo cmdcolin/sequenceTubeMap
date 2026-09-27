@@ -320,7 +320,7 @@ The same band rejoins near 109,702,400:
 
 ![End of the GSTM1 deletion](images/hprc-v2.1-gstm1-deletion-end.png)
 
-The whole window lays out 94,708 by 336 units even with compressed node widths.
+The whole window lays out 94,708 by 244 units even with compressed node widths.
 The crops come from one render, reframed by its viewBox since `rsvg-convert`
 cannot rasterize anything that wide:
 
