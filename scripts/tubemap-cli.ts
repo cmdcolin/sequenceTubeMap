@@ -13,7 +13,7 @@
 //   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
 //   pnpm tubemap-cli --url '<a link copied from the app>' --out link.svg
 
-import { existsSync, openAsBlob, writeFileSync } from 'node:fs'
+import { existsSync, openAsBlob, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -332,6 +332,10 @@ function localFilePath(file: string): string {
 // path: the registry pairs a track with its index by name, and two tracks can
 // share a basename.
 async function fileFromPath(localPath: string): Promise<File> {
+  // openAsBlob names no path when it fails, and opens a directory happily.
+  if (statSync(localPath, { throwIfNoEntry: false })?.isFile() !== true) {
+    throw new Error(`no such file: ${localPath}`)
+  }
   return new File([await openAsBlob(localPath)], localPath, {
     type: 'application/octet-stream',
   })
