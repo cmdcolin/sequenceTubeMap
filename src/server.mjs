@@ -630,6 +630,7 @@ async function runPipeline(req, stages) {
     console.log(`${stage.command} ${stage.args.join(' ')}`)
     return spawn(stage.command, stage.args, {
       stdio: [i === 0 ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+      signal: req.clientGone,
     })
   })
   children.forEach((child, i) => {
@@ -691,6 +692,15 @@ async function getChunkedData(req, res, next) {
   console.log('http POST getChunkedData received')
   console.log(`region = ${req.body.region}`)
   console.log(`tracks = ${JSON.stringify(req.body.tracks)}`)
+
+  // Aborting this kills the request's subprocesses.
+  const clientGone = new AbortController()
+  res.once('close', () => {
+    if (!res.writableFinished) {
+      clientGone.abort()
+    }
+  })
+  req.clientGone = clientGone.signal
 
   // This will have a conitg, start, end, or a contig, start, distance
   let parsedRegion
@@ -887,7 +897,9 @@ async function getChunkedData(req, res, next) {
       console.log(`python3 ${chunkixParams.join(' ')}`)
       console.time(`chunkix-${reqId}`)
 
-      const chunkixCall = spawn('python3', chunkixParams)
+      const chunkixCall = spawn('python3', chunkixParams, {
+        signal: req.clientGone,
+      })
       req.error = Buffer.alloc(0)
 
       chunkixCall.on('error', function (err) {
@@ -924,7 +936,9 @@ async function getChunkedData(req, res, next) {
         }
 
         // read json graph output
-        const catCall = spawn('cat', [`${req.chunkDir}/chunk.graph.json`])
+        const catCall = spawn('cat', [`${req.chunkDir}/chunk.graph.json`], {
+          signal: req.clientGone,
+        })
         let graphAsString = ''
 
         catCall.on('error', function (err) {
@@ -1106,15 +1120,21 @@ async function getChunkedData(req, res, next) {
       console.log(`vg ${vgChunkParams.join(' ')}`)
 
       console.time(`vg chunk-${reqId}`)
-      const vgChunkCall = spawn(find_vg(), vgChunkParams)
+      const vgChunkCall = spawn(find_vg(), vgChunkParams, {
+        signal: req.clientGone,
+      })
       // vg simplify for gam files
       let vgSimplifyCall = null
       if (req.simplify) {
-        vgSimplifyCall = spawn(find_vg(), ['simplify', '-'])
+        vgSimplifyCall = spawn(find_vg(), ['simplify', '-'], {
+          signal: req.clientGone,
+        })
         console.log('Spawning vg simplify call')
       }
 
-      const vgViewCall = spawn(find_vg(), ['view', '-j', '-'])
+      const vgViewCall = spawn(find_vg(), ['view', '-j', '-'], {
+        signal: req.clientGone,
+      })
       let graphAsString = ''
       req.error = Buffer.alloc(0)
 
@@ -1255,14 +1275,18 @@ async function getChunkedData(req, res, next) {
     let vgSimplifyCall = null
     const vgViewArguments = ['view', '-j']
     if (req.simplify) {
-      vgSimplifyCall = spawn(find_vg(), ['simplify', filename])
+      vgSimplifyCall = spawn(find_vg(), ['simplify', filename], {
+        signal: req.clientGone,
+      })
       vgViewArguments.push('-')
       console.log('Spawning vg simplify call')
     } else {
       vgViewArguments.push(filename)
     }
 
-    const vgViewCall = spawn(find_vg(), vgViewArguments)
+    const vgViewCall = spawn(find_vg(), vgViewArguments, {
+      signal: req.clientGone,
+    })
 
     let graphAsString = ''
     req.error = Buffer.alloc(0)

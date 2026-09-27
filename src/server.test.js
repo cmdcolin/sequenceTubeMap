@@ -4,6 +4,7 @@
 
 process.env.SERVER_PORT = '0'
 
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -270,6 +271,56 @@ describe.skipIf(!HAS_VG)('chunking a graph', () => {
     expect(status).toBe(200)
     expect(body.graph.node.length).toBeGreaterThan(0)
     expect(body.graph.path[0].name).toBe('ref')
+  })
+})
+
+describe.skipIf(!HAS_VG)('a client that goes away', () => {
+  // This worker's vg processes, which are the server's.
+  function vgChildren() {
+    try {
+      return execFileSync('pgrep', ['-P', String(process.pid), '-x', 'vg'])
+        .toString()
+        .trim()
+        .split('\n')
+    } catch {
+      return []
+    }
+  }
+
+  it('takes its vg processes with it', async () => {
+    const client = new AbortController()
+    const request = fetch(`${serverState.getApiUrl()}/getChunkedData`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        region: '17:1-81000',
+        tracks: [
+          {
+            trackFile: 'exampleData/internal/snp1kg-BRCA1.vg.xg',
+            trackType: 'graph',
+          },
+          {
+            trackFile: 'exampleData/internal/NA12878-BRCA1.sorted.gam',
+            trackType: 'read',
+          },
+        ],
+      }),
+      signal: client.signal,
+    }).catch(() => {})
+    const polling = { timeout: 5000, interval: 10 }
+    await vi.waitFor(() => {
+      expect(vgChildren()).not.toEqual([])
+    }, polling)
+
+    client.abort()
+    const abortedAt = Date.now()
+    // Left running, vg would take seconds more on this region and its reads.
+    await vi.waitFor(() => {
+      expect(vgChildren()).toEqual([])
+    }, polling)
+    expect(Date.now() - abortedAt).toBeLessThan(1000)
+    await request
+    await expectServerStillUp()
   })
 })
 
