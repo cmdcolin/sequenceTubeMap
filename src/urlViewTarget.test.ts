@@ -146,13 +146,16 @@ describe('urlViewTarget vis options', () => {
 // work while that name is still in the config. Resolving them here turns a
 // rename into a failing test rather than dead links.
 describe('doc demo links', () => {
-  const links = ['README.md'].flatMap(file =>
-    [
-      ...readFileSync(file, 'utf8').matchAll(
-        /^\[demo-[a-z0-9-]+\]:\s+(\S+)$/gm,
-      ),
-    ].map(match => match[1]!),
+  const linksByLabel = new Map(
+    ['README.md'].flatMap(file =>
+      [
+        ...readFileSync(file, 'utf8').matchAll(
+          /^\[(demo-[a-z0-9-]+)\]:\s+(\S+)$/gm,
+        ),
+      ].map(match => [match[1]!, match[2]!] as const),
+    ),
   )
+  const links = [...linksByLabel.values()]
 
   it('has links to check', () => {
     expect(links.length).toBeGreaterThan(0)
@@ -169,9 +172,7 @@ describe('doc demo links', () => {
   })
 
   it('carries the coarsened view on the coarsened figure link', () => {
-    const coarsened = links.find(link => link.includes('coarsenedReadView'))!
-
-    expect(urlParamsToVisOptions(coarsened)).toEqual({
+    expect(urlParamsToVisOptions(linksByLabel.get('demo-coarsened')!)).toEqual({
       compressedView: true,
       coarsenedReadView: true,
     })
