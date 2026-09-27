@@ -116,10 +116,12 @@ serializes it back, which is what makes every view linkable
 `App` turns the current `ViewTarget` into an SWR key and fetches through
 whichever `APIInterface` it holds. Fetchers return the _processed_ shape, so
 revisiting a view is a cache hit. Starting a fetch aborts the one before it,
-whose view is gone: `LocalAPI` forwards the abort to the worker, which stops
-that view's range requests and GAM reads instead of finishing them ahead of the
-view on screen. A whole-file download keeps going, since the next view usually
-wants the same file.
+whose view is gone, and `LocalAPI` forwards the abort to the worker so that
+view's work doesn't run ahead of the view on screen. The GAM reader cancels its
+range requests in flight. gbz-base doesn't hand the signal to its page reads, so
+a graph query stops at its next step, once the read under way lands. A
+whole-file download keeps going, since the next view usually wants the same
+file.
 
 ## The layout engine
 
