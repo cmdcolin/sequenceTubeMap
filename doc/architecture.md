@@ -25,9 +25,8 @@ page keeps one `LocalAPI`, so switching back to in-browser mode finds the same
 worker and the files uploaded to it.
 
 In development `config-client.js` rewrites `false` to `""` so `pnpm start`
-offers the local express backend through the Vite dev server's `/api` proxy;
-the `#local` hash opts out of that rewrite. Production gh-pages builds keep
-`false`.
+offers the local express backend through the Vite dev server's `/api` proxy; the
+`#local` hash opts out of that rewrite. Production gh-pages builds keep `false`.
 
 ## Server path
 
@@ -137,8 +136,8 @@ The tube map is inherited from upstream and ported to TypeScript, in two parts:
   nodes and tracks to drawable shapes in layout coordinates, plus the curve and
   node outline path geometry. It has no DOM or d3, so other apps — the JBrowse
   graph genome plugin among them — draw its output their own way. Each
-  `layoutTubeMap` call passes its own `LayoutState` through the passes, so
-  calls share nothing.
+  `layoutTubeMap` call passes its own `LayoutState` through the passes, so calls
+  share nothing.
 - **`src/util/tubemap.ts`** draws a layout with d3 and handles the interaction.
   It is _not_ a React component: it holds the latest layout and its UI state at
   module level, and `TubeMap.tsx` drives it through `create()` plus a set of

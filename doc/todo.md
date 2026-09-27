@@ -14,7 +14,6 @@ The coarsened view now covers much of this: with no reads loaded it draws a
 haplotype window up to 1,000,000 visits (a 50 kb MHC window) in about a second,
 and the size notice offers a **Coarsen** button.
 
-
 ## Coarsened haplotype view
 
 Open items from the coarsened-view sessions:

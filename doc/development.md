@@ -35,11 +35,11 @@ To work on the browser-only path without a backend at all:
 pnpm start:local
 ```
 
-That launches the Vite dev server alone and opens `/#local`. Both commands
-open on the in-browser backend. In development `config-client.js` normally
-rewrites `BACKEND_URL: false` to `''` so File → Open offers the express backend
-too; the `#local` hash skips that rewrite, leaving `config.json`'s `false` in
-place, so the app never asks for a backend that isn't running.
+That launches the Vite dev server alone and opens `/#local`. Both commands open
+on the in-browser backend. In development `config-client.js` normally rewrites
+`BACKEND_URL: false` to `''` so File → Open offers the express backend too; the
+`#local` hash skips that rewrite, leaving `config.json`'s `false` in place, so
+the app never asks for a backend that isn't running.
 
 ## Checks
 
