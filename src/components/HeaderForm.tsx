@@ -51,6 +51,7 @@ import {
   regionDescByCoords,
   regionStringFromRegionIndex,
   trackListWithImplied,
+  trackSourcesEqual,
   viewTargetsEqual,
 } from './headerFormUtils.ts'
 import type {
@@ -466,13 +467,16 @@ function HeaderForm({
     }
   }
 
-  // Tracks edited in Manage tracks are the user's own set rather than the named
-  // dataset's, which is what custom-files mode (with its BED picker and
-  // Simplify) is for. Everything else the form describes stays.
+  // A track set changed in Manage tracks is the user's own rather than the
+  // named dataset's, which is what custom-files mode (with its BED picker and
+  // Simplify) is for. Everything else the form describes stays. New colors
+  // alone leave it the same dataset.
   function handleInputChange(newTracks: Tracks) {
+    if (!trackSourcesEqual(tracks, newTracks)) {
+      setName(undefined)
+      setDataType(dataTypes.CUSTOM_FILES)
+    }
     setTracks(newTracks)
-    setName(undefined)
-    setDataType(dataTypes.CUSTOM_FILES)
   }
 
   async function jumpRegion(offset: -1 | 1) {

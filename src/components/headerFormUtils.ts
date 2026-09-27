@@ -212,13 +212,20 @@ function colorsOf(track: Track) {
   return track.trackColorSettings ?? defaultTrackColors(track.trackType)
 }
 
+// The same file read the same way, whatever colors it is drawn in.
+function sameTrackSource(a: Track, b: Track) {
+  return (
+    a.trackType === b.trackType &&
+    (a.trackFile ?? '') === (b.trackFile ?? '') &&
+    (a.haplotypeIndexFile ?? '') === (b.haplotypeIndexFile ?? '')
+  )
+}
+
 // Tracks that draw the same thing. A track without color settings takes its
 // type's default palettes, as the renderer does.
 export function tracksEqual(a: Track, b: Track) {
   return (
-    a.trackType === b.trackType &&
-    (a.trackFile ?? '') === (b.trackFile ?? '') &&
-    (a.haplotypeIndexFile ?? '') === (b.haplotypeIndexFile ?? '') &&
+    sameTrackSource(a, b) &&
     colorsOf(a).mainPalette === colorsOf(b).mainPalette &&
     colorsOf(a).auxPalette === colorsOf(b).auxPalette
   )
@@ -227,6 +234,13 @@ export function tracksEqual(a: Track, b: Track) {
 export function trackListsEqual(a: Tracks, b: Tracks) {
   return (
     a.length === b.length && a.every((track, i) => tracksEqual(track, b[i]!))
+  )
+}
+
+export function trackSourcesEqual(a: Tracks, b: Tracks) {
+  return (
+    a.length === b.length &&
+    a.every((track, i) => sameTrackSource(track, b[i]!))
   )
 }
 

@@ -320,22 +320,60 @@ it('shows a spinner on Go while the committed view loads', () => {
   expect(go).toHaveAttribute('title', 'Loading the current view…')
 })
 
-it('takes tracks edited in Manage tracks as custom files, keeping the region', async () => {
-  renderForm()
-  expect(
-    screen.queryByRole('button', { name: 'Simplify' }),
-  ).not.toBeInTheDocument()
-  await userEvent.click(screen.getByTestId('fileMenuButton'))
-  await userEvent.click(screen.getByTestId('manageTracks'))
+describe('Manage tracks', () => {
+  const openManageTracks = async () => {
+    await userEvent.click(screen.getByTestId('fileMenuButton'))
+    await userEvent.click(screen.getByTestId('manageTracks'))
+  }
 
-  await userEvent.click(screen.getByTestId('delete-button-component0'))
-  await userEvent.click(screen.getByTestId('TrackPickerCloseButton'))
-  await waitFor(() => {
-    expect(screen.queryByTestId('TrackPicker')).not.toBeInTheDocument()
+  const closeManageTracks = async () => {
+    await userEvent.click(screen.getByTestId('TrackPickerCloseButton'))
+    await waitFor(() => {
+      expect(screen.queryByTestId('TrackPicker')).not.toBeInTheDocument()
+    })
+  }
+
+  it('takes a changed track set as custom files, keeping the region', async () => {
+    renderForm()
+    expect(
+      screen.queryByRole('button', { name: 'Simplify' }),
+    ).not.toBeInTheDocument()
+    await openManageTracks()
+
+    await userEvent.click(screen.getByTestId('delete-button-component0'))
+    await closeManageTracks()
+
+    expect(screen.getByRole('button', { name: 'Simplify' })).toBeInTheDocument()
+    expect(regionInput().value).toEqual('x:100-200')
   })
 
-  expect(screen.getByRole('button', { name: 'Simplify' })).toBeInTheDocument()
-  expect(regionInput().value).toEqual('x:100-200')
+  it('keeps the dataset when only a track’s colors change', async () => {
+    const { setCurrentViewTarget } = renderForm()
+    await openManageTracks()
+
+    await userEvent.click(screen.getByTestId('settings-button-component0'))
+    await userEvent.click(screen.getAllByLabelText('reds')[0]!)
+    await userEvent.click(screen.getByTestId('PopupDialogCloseButton'))
+    await closeManageTracks()
+    await userEvent.click(screen.getByRole('button', { name: 'Go' }))
+
+    expect(
+      screen.queryByRole('button', { name: 'Simplify' }),
+    ).not.toBeInTheDocument()
+    expect(setCurrentViewTarget).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        name: 'test data',
+        dataType: 'built-in',
+        tracks: [
+          expect.objectContaining({
+            trackColorSettings: expect.objectContaining({
+              mainPalette: 'reds',
+            }),
+          }),
+        ],
+      }),
+    )
+  })
 })
 
 it('says inside Manage tracks when an upload is over the size limit', async () => {
