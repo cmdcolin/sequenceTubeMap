@@ -68,6 +68,11 @@ const CACTUS_GRAPH = {
   trackType: 'graph',
 }
 
+const CACTUS_READS = {
+  trackFile: 'exampleData/cactus-NA12879.sorted.gam',
+  trackType: 'read',
+}
+
 async function expectServerStillUp() {
   const { status } = await post('getBedRegions', {
     bedFile: 'exampleData/cactus.bed',
@@ -272,6 +277,49 @@ describe.skipIf(!HAS_VG)('pre-fetched chunks', () => {
     expect(readNames).toHaveLength(11)
     expect(new Set(readNames.slice(1, 10)).size).toBe(1)
     expect(new Set([readNames[0], readNames[1], readNames[10]]).size).toBe(3)
+  })
+
+  it('answers for read tracks when the chunk has no read files', async () => {
+    const bedFile = makeBedWithChunks(
+      [['ref:500-600', 'chunk-cactus-no-reads']],
+      { omit: ['tracks.json'] },
+    )
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:500-600',
+      bedFile,
+      tracks: [CACTUS_GRAPH, CACTUS_READS],
+    })
+    expect(status).toBe(200)
+    expect(body.gam).toEqual([])
+  })
+
+  it('answers once when a GAF fails to convert', async () => {
+    const bedFile = makeBedWithChunks(
+      [['ref:500-600', 'chunk-cactus-no-reads']],
+      { omit: ['tracks.json'] },
+    )
+    fs.writeFileSync(
+      path.join(path.dirname(bedFile), 'chunk-cactus-no-reads', 'chunk_0.gaf'),
+      'not a GAF\n',
+    )
+    const setHeader = vi.spyOn(http.ServerResponse.prototype, 'setHeader')
+    try {
+      const { status, body } = await post('getChunkedData', {
+        region: 'ref:500-600',
+        bedFile,
+        tracks: [CACTUS_GRAPH, CACTUS_READS],
+      })
+      expect(status).toBe(500)
+      expect(body.error).toMatch(/vg convert failed/)
+      // Give a second answer time to be attempted.
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      const headersAlreadySent = setHeader.mock.results.filter(
+        result => result.type === 'throw',
+      )
+      expect(headersAlreadySent).toEqual([])
+    } finally {
+      setHeader.mockRestore()
+    }
   })
 
   it('reports a chunk without regions.tsv as an error', async () => {

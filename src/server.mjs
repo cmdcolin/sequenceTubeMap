@@ -578,6 +578,68 @@ function pipeChildren(from, to) {
   })
 }
 
+// A runPipeline stage running vg. The client treats any stderr in req.error
+// as a failure, so stages whose warnings are harmless leave it out.
+function vgStage(args, { reportStderr = true } = {}) {
+  return { name: `vg ${args[0]}`, command: find_vg(), args, reportStderr }
+}
+
+function childExit(child) {
+  return new Promise(resolve => {
+    child.once('error', error => {
+      resolve({ error })
+    })
+    child.once('close', code => {
+      resolve({ code })
+    })
+  })
+}
+
+// Run `stages` as a shell pipeline, each one's stdout feeding the next one's
+// stdin, and resolve with the last one's stdout. When a stage fails, kill the
+// rest and reject naming the first to fail.
+async function runPipeline(req, stages) {
+  const children = stages.map((stage, i) => {
+    console.log(`${stage.command} ${stage.args.join(' ')}`)
+    return spawn(stage.command, stage.args, {
+      stdio: [i === 0 ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+    })
+  })
+  children.forEach((child, i) => {
+    if (i > 0) {
+      pipeChildren(children[i - 1], child)
+    }
+    child.stderr.on('data', data => {
+      console.log(`${stages[i].name} err data: ${data}`)
+      if (stages[i].reportStderr) {
+        req.error += data
+      }
+    })
+  })
+  const output = []
+  children.at(-1).stdout.on('data', data => {
+    output.push(data)
+  })
+
+  let failed = undefined
+  await Promise.all(
+    children.map(async (child, i) => {
+      const { error, code } = await childExit(child)
+      if (error !== undefined || code !== 0) {
+        console.log(`${stages[i].name} failed: ${error ?? `exit code ${code}`}`)
+        failed ??= stages[i]
+        for (const other of children) {
+          other.kill()
+        }
+      }
+    }),
+  )
+  if (failed !== undefined) {
+    throw new VgExecutionError(`${failed.name} failed`)
+  }
+  return Buffer.concat(output).toString()
+}
+
 // read a graph object and remove "sequence" fields in place
 function removeNodeSequencesInPlace(graph) {
   console.log('graph:', graph)
@@ -1544,119 +1606,40 @@ async function processAnnotationFile(req, res, next) {
     return
   }
   if (req.withGam === true) {
-    processGamFiles(req, res, next)
+    void processGamFiles(req, res, next)
   } else {
     void processRegionFile(req, res, next)
   }
 }
 
-function processGamFile(req, res, next, gamFile, gamFileNumber) {
-  let sentResponse = false
-  try {
-    if (!isAllowedPath(gamFile)) {
-      // This is probably under SCRATCH_DATA_PATH
-      throw new BadRequestError('Path to GAM/GAF file not allowed: ' + gamFile)
-    }
-
-    if (gamFile.endsWith('.json')) {
-      const catCall = spawn('cat', [gamFile])
-      catCall.stderr.on('data', data => {
-        console.log(`err data: ${data}`)
-      })
-
-      let gamJSON = ''
-      catCall.stdout.on('data', function (data) {
-        gamJSON += data.toString()
-      })
-
-      catCall.on('close', () => {
-        try {
-          collectGamResult(req, res, next, gamJSON, gamFileNumber, gamFile)
-        } catch (error) {
-          next(error)
-        }
-      })
-    } else {
-      const vgViewParams = ['view', '-j', '-a']
-      const vgConvertParams = ['convert']
-
-      if (gamFile.endsWith('.gaf')) {
-        // if input is GAF, vg convert will be piped into vg view
-        vgViewParams.push('-')
-        // vg convert needs the graph to convert GAF to GAM
-        const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
-        vgConvertParams.push('-F', gamFile, graphFile)
-      }
-      if (gamFile.endsWith('.gam')) {
-        // if input is GAM, no need to convert input to vg view is the file
-        vgViewParams.push(gamFile)
-      }
-
-      const vgViewChild = spawn(find_vg(), vgViewParams)
-
-      if (gamFile.endsWith('.gaf')) {
-        // if input was a GAF, run vg convert and pipe stdout to vg view
-        const vgConvertChild = spawn(find_vg(), vgConvertParams)
-
-        pipeChildren(vgConvertChild, vgViewChild)
-
-        vgConvertChild.stderr.on('data', data => {
-          console.log(`vg convert err data: ${data}`)
-          req.error += data
-        })
-
-        vgConvertChild.on('close', code => {
-          console.log(`vg convert exited with code ${code}`)
-          if (code !== 0) {
-            console.log(
-              'Error from ' + find_vg() + ' ' + vgConvertParams.join(' '),
-            )
-            // Execution failed
-            if (!sentResponse) {
-              sentResponse = true
-              return next(new VgExecutionError('vg convert failed'))
-            }
-          }
-        })
-      }
-
-      vgViewChild.stderr.on('data', data => {
-        console.log(`err data: ${data}`)
-      })
-
-      let gamJSON = ''
-      vgViewChild.stdout.on('data', function (data) {
-        gamJSON += data.toString()
-      })
-
-      vgViewChild.on('close', () => {
-        try {
-          collectGamResult(req, res, next, gamJSON, gamFileNumber, gamFile)
-        } catch (error) {
-          next(error)
-        }
-      })
-    }
-  } catch (error) {
-    return next(error)
+// The reads in one chunk file (a GAM, a GAF, or chunkix's annot.json), as
+// JSON objects.
+async function readGamFile(req, gamFile) {
+  if (!isAllowedPath(gamFile)) {
+    throw new BadRequestError('Path to GAM/GAF file not allowed: ' + gamFile)
   }
-}
 
-// Parse the newline-delimited JSON reads we collected for one GAM/GAF chunk,
-// store them in order, and move on once every chunk has reported. Throws on
-// unparseable output.
-function collectGamResult(req, res, next, gamJSON, gamFileNumber, gamFile) {
-  req.gamResults[gamFileNumber] = gamJSON
+  let gamJSON
+  if (gamFile.endsWith('.json')) {
+    gamJSON = await fs.promises.readFile(gamFile, 'utf-8')
+  } else if (gamFile.endsWith('.gaf')) {
+    const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
+    gamJSON = await runPipeline(req, [
+      vgStage(['convert', '-F', gamFile, graphFile]),
+      vgStage(['view', '-j', '-a', '-'], { reportStderr: false }),
+    ])
+  } else {
+    gamJSON = await runPipeline(req, [
+      vgStage(['view', '-j', '-a', gamFile], { reportStderr: false }),
+    ])
+  }
+  return gamJSON
     .split('\n')
     .filter(line => line !== '')
     .map(line => parseSubprocessJSON(line, gamFile))
-  req.gamRemaining -= 1
-  if (req.gamRemaining === 0) {
-    void processRegionFile(req, res, next)
-  }
 }
 
-function processGamFiles(req, res, next) {
+async function processGamFiles(req, res, next) {
   try {
     console.time(`processing gam files-${req.reqId}`)
     const graphFile = getFirstFileOfType(req.body.tracks, fileTypes.GRAPH)
@@ -1716,15 +1699,15 @@ function processGamFiles(req, res, next) {
       return gamNameToNumber(a) - gamNameToNumber(b)
     })
 
-    req.gamResults = []
-    req.gamRemaining = gamFiles.length
-    for (let i = 0; i < gamFiles.length; i++) {
-      processGamFile(req, res, next, gamFiles[i], i)
-    }
+    req.gamResults = await Promise.all(
+      gamFiles.map(gamFile => readGamFile(req, gamFile)),
+    )
     console.timeEnd(`processing gam files-${req.reqId}`)
   } catch (error) {
-    return next(error)
+    next(error)
+    return
   }
+  void processRegionFile(req, res, next)
 }
 
 // Read the "region" file, a BED inside the chunk that records the path and
