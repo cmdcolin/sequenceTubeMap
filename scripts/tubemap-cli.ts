@@ -13,7 +13,7 @@
 //   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
 //   pnpm tubemap-cli --url '<a link copied from the app>' --out link.svg
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, openAsBlob, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -294,9 +294,6 @@ function installBrowserGlobals(args: CliArgs): JSDOM {
   g.Element = window.Element
   g.Event = window.Event
   g.MouseEvent = window.MouseEvent
-  g.File = window.File
-  g.Blob = window.Blob
-  g.FileReader = window.FileReader
   g.XMLSerializer = window.XMLSerializer
   g.getComputedStyle = window.getComputedStyle.bind(window)
   g.requestAnimationFrame = window.requestAnimationFrame.bind(window)
@@ -331,8 +328,11 @@ function localFilePath(file: string): string {
   return path.resolve(REPO_ROOT, file)
 }
 
-function fileFromPath(localPath: string): File {
-  return new File([readFileSync(localPath)], path.basename(localPath), {
+// File-backed, so the API reads only the pages it asks for. Named by the full
+// path: the registry pairs a track with its index by name, and two tracks can
+// share a basename.
+async function fileFromPath(localPath: string): Promise<File> {
+  return new File([await openAsBlob(localPath)], localPath, {
     type: 'application/octet-stream',
   })
 }
@@ -340,9 +340,9 @@ function fileFromPath(localPath: string): File {
 // Hand each local track file (and any sibling index beside it) to the API's
 // upload registry and rewrite the track to point at the upload id.
 // resolveTrackFile prefers ids, so an uploaded file is never fetch()ed from the
-// network, and resolveSibling finds an index by `<track filename><suffix>` —
-// which is why siblings are uploaded under their real basename. A URL track is
-// left alone so the API reads it by range requests, as it does in the browser.
+// network, and resolveSibling finds an index by `<track filename><suffix>`. A
+// URL track is left alone so the API reads it by range requests, as it does in
+// the browser.
 async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
   const { SIBLING_INDEX_SUFFIXES } =
     await import('../src/api/local/fileRegistry.ts')
@@ -357,7 +357,7 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
         ? {
             haplotypeIndexFile: await api.putFile(
               track.trackType,
-              fileFromPath(localFilePath(track.haplotypeIndexFile)),
+              await fileFromPath(localFilePath(track.haplotypeIndexFile)),
               null,
             ),
           }
@@ -366,14 +366,14 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
       const localPath = localFilePath(track.trackFile)
       const id = await api.putFile(
         track.trackType,
-        fileFromPath(localPath),
+        await fileFromPath(localPath),
         null,
       )
       for (const suffix of SIBLING_INDEX_SUFFIXES) {
         if (existsSync(localPath + suffix)) {
           await api.putFile(
             track.trackType,
-            fileFromPath(localPath + suffix),
+            await fileFromPath(localPath + suffix),
             null,
           )
         }
