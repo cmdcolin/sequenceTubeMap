@@ -207,7 +207,7 @@ export function layoutTubeMap(
 
   // Boundary promotion: layout passes below populate the Node/Track fields
   // (width, order, x/y, path, indexSequence, etc.) before any reader runs.
-  const copies = deepCopy(inputNodes) as LayoutNode[]
+  const copies = structuredClone(inputNodes) as LayoutNode[]
   // Nodes are referenced in inputs by internal `name` attribute and not by
   // index. Internally in e.g. a path's indexSequence we need to reference
   // nodes by *signed* index, so index 0 can never be used: budge everything
@@ -218,7 +218,7 @@ export function layoutTubeMap(
   copies.forEach((node, i) => {
     nodes[i + 1] = node
   })
-  tracks = deepCopy(inputTracks) as Track[]
+  tracks = structuredClone(inputTracks) as Track[]
   // Whether any reads were loaded at all, distinct from `reads.length` below:
   // a mapping-quality cutoff or focus-name filter can filter every read out,
   // and that should not make the coarsened view fall back to bunching
@@ -226,7 +226,7 @@ export function layoutTubeMap(
   const hadInputReads = inputReads.length > 0
   // Drop the reads we will never draw before cloning them — the deep copy of a
   // large GAM is the single most expensive step in a redraw.
-  reads = deepCopy(filterReads(inputReads)) as Track[]
+  reads = structuredClone(filterReads(inputReads)) as Track[]
 
   for (let i = tracks.length - 1; i >= 0; i -= 1) {
     const t = tracks[i]!
@@ -394,20 +394,14 @@ function generateTrackAlpha(track: ColorableTrack): number {
   return config.trackAlpha(track)
 }
 
-// structuredClone preserves sparse-array holes; JSON round-trip would fill them with null.
-function deepCopy<T>(val: T): T {
-  return structuredClone(val)
-}
-
 // Return true if the given name names a reverse strand node, and false otherwise.
 export function isReverse(nodeName: string): boolean {
-  const s = String(nodeName)
-  return s.length >= 1 && s.startsWith('-')
+  return nodeName.startsWith('-')
 }
 
 // Get the forward version of a node name, which may be either forward or backward (negative)
 export function forward(nodeName: string): string {
-  return isReverse(nodeName) ? String(nodeName).substring(1) : nodeName
+  return isReverse(nodeName) ? nodeName.substring(1) : nodeName
 }
 
 // Get the reverse version of a node name, which may be either forward or backward (negative)
@@ -420,10 +414,10 @@ export function flip(nodeName: string): string {
   return isReverse(nodeName) ? forward(nodeName) : reverse(nodeName)
 }
 
-// Signed-index orientation test. Uses 1/n to distinguish -0 from +0 since
-// indexSequence entries can be negative-zero for reverse-strand visits of node 0.
+// Whether a signed node index visits its node forward. Index 0 is never a
+// node, so no visit is -0.
 export function isForwardIndex(n: number): boolean {
-  return (n || 1 / n) >= 0
+  return n > 0
 }
 
 // straighten track given by index by inverting inverted nodes
@@ -918,9 +912,9 @@ function compareReadOutgoingSegmentsByGoingTo(
   // Couldn't find a valid y value for at least one of the reads, sort by which node reads end on
   const initialNodeA = readA.path[pathIndexA]?.node
   const initialNodeB = readB.path[pathIndexB]?.node
-  let nodeA: Node | null | undefined =
+  let nodeA: LayoutNode | null | undefined =
     initialNodeA != null ? nodes[initialNodeA] : null
-  let nodeB: Node | null | undefined =
+  let nodeB: LayoutNode | null | undefined =
     initialNodeB != null ? nodes[initialNodeB] : null
   // Follow the reads' paths until we find the node they diverge at
   // Or, they go through all the same nodes and we do a tiebreaker at the end
@@ -1423,7 +1417,7 @@ function generateNodeOrder(): void {
   // fill() makes the array dense: `new Array(n)` alone is all holes, which
   // forEach skips, so neither the sentinel pass nor the copy-back below ran.
   nodeOrders = new Array<number | undefined>(nodes.length).fill(undefined)
-  // Node's order is optional, so widening to it lets us clear a previous run's
+  // Widened to Node, whose order is optional, to clear the previous run's orders
   nodes.forEach((node: Node) => {
     node.order = undefined
   })
@@ -2264,8 +2258,9 @@ function adjustVertically(
   let minAdjustmentCost = Number.MAX_SAFE_INTEGER
 
   potentialAdjustmentValues.forEach(moveBy => {
-    if (getVerticalAdjustmentCost(assignment, moveBy) < minAdjustmentCost) {
-      minAdjustmentCost = getVerticalAdjustmentCost(assignment, moveBy)
+    const cost = getVerticalAdjustmentCost(assignment, moveBy)
+    if (cost < minAdjustmentCost) {
+      minAdjustmentCost = cost
       verticalAdjustment = moveBy
     }
   })
@@ -2353,28 +2348,11 @@ function compareByIdealLane(
 }
 
 function compareNodesByOrder(
-  a: { order?: number; y?: number } | null | undefined,
-  b: { order?: number; y?: number } | null | undefined,
+  a: MaybeUnplacedNode,
+  b: MaybeUnplacedNode,
 ): number {
-  if (!a) {
-    if (!b) return 0
-    return -1
-  }
-  if (!b) return 1
-
-  if (a.order !== undefined) {
-    if (b.order !== undefined) {
-      if (a.order < b.order) return -1
-      else if (a.order > b.order) return 1
-      if (a.y !== undefined && b.y !== undefined) {
-        if (a.y < b.y) return -1
-        else if (a.y > b.y) return 1
-      }
-      return 0
-    }
-    return -1
-  }
-  if (b.order !== undefined) return 1
+  if (a.order !== b.order) return a.order - b.order
+  if (a.y !== undefined && b.y !== undefined) return a.y - b.y
   return 0
 }
 
@@ -3221,7 +3199,6 @@ function generateNodeWidth(): void {
       })
       break
     case 'fixed':
-      // when there's no reads in the node, it should be a little wider
       nodes.forEach(node => {
         node.width = 10
         node.pixelWidth = Math.round(node.width * 8.401)

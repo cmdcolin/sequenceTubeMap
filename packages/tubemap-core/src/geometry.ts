@@ -133,7 +133,7 @@ export function nodeOutlinePath(node: Node): string {
 
   // right straight
   if (node.contentHeight > 0) {
-    y += node.contentHeight - 0
+    y += node.contentHeight
     d += ` L ${x} ${y}`
   }
 
@@ -155,7 +155,7 @@ export function nodeOutlinePath(node: Node): string {
 
   // left straight
   if (node.contentHeight > 0) {
-    y -= node.contentHeight - 0
+    y -= node.contentHeight
     d += ` L ${x} ${y}`
   }
   return d
