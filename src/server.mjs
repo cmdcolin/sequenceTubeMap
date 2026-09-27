@@ -356,7 +356,10 @@ async function indexGamSorted(req, res) {
 
   const params = ['gamsort', '-i', sortedPath + '.gai', readsPath]
   console.log(`vg ${params.join(' ')}`)
-  const child = spawn(find_vg(), params, { stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(find_vg(), params, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    signal: requestSignal(res),
+  })
   req.error = ''
   child.stderr.on('data', data => {
     console.log(`vg gamsort err data: ${data}`)
@@ -566,6 +569,27 @@ function childExit(child) {
   })
 }
 
+// A signal that aborts once the client has gone away or the request has run
+// for config.requestTimeout seconds, to stop the subprocesses and fetches the
+// request started.
+function requestSignal(res) {
+  const clientGone = new AbortController()
+  const abortIfUnanswered = () => {
+    if (!res.writableFinished) {
+      clientGone.abort()
+    }
+  }
+  if (res.closed) {
+    abortIfUnanswered()
+  } else {
+    res.once('close', abortIfUnanswered)
+  }
+  return AbortSignal.any([
+    clientGone.signal,
+    AbortSignal.timeout(config.requestTimeout * 1000),
+  ])
+}
+
 // Run `stages` as a shell pipeline, each one's stdout feeding the next one's
 // stdin, and resolve with the last one's stdout. When a stage fails, kill the
 // rest and reject naming the first to fail.
@@ -574,7 +598,7 @@ async function runPipeline(req, stages) {
     console.log(`${stage.command} ${stage.args.join(' ')}`)
     return spawn(stage.command, stage.args, {
       stdio: [i === 0 ? 'ignore' : 'pipe', 'pipe', 'pipe'],
-      signal: req.clientGone,
+      signal: req.abortSignal,
     })
   })
   children.forEach((child, i) => {
@@ -607,6 +631,11 @@ async function runPipeline(req, stages) {
     }),
   )
   if (failed !== undefined) {
+    if (req.abortSignal.reason?.name === 'TimeoutError') {
+      throw new VgExecutionError(
+        `${failed.name} ran past the ${config.requestTimeout} second limit on a request`,
+      )
+    }
     throw new VgExecutionError(`${failed.name} failed`)
   }
   return Buffer.concat(output).toString()
@@ -634,14 +663,7 @@ async function getChunkedData(req, res) {
   console.log(`region = ${req.body.region}`)
   console.log(`tracks = ${JSON.stringify(req.body.tracks)}`)
 
-  // Aborting this kills the request's subprocesses.
-  const clientGone = new AbortController()
-  res.once('close', () => {
-    if (!res.writableFinished) {
-      clientGone.abort()
-    }
-  })
-  req.clientGone = clientGone.signal
+  req.abortSignal = requestSignal(res)
 
   // This will have a conitg, start, end, or a contig, start, distance
   let parsedRegion
@@ -1540,9 +1562,9 @@ api.get('/getFilenames', (req, res) => {
 
 // Spawn a vg process and collect stdout lines. Resolves when the process exits
 // successfully, rejects (VgExecutionError) on non-zero exit.
-function runProcessLines(cmd, args, onLine) {
+function runProcessLines(cmd, args, onLine, signal) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args)
+    const child = spawn(cmd, args, { signal })
     let stderr = ''
     child.stderr.on('data', d => {
       const s = d.toString()
@@ -1574,8 +1596,8 @@ function runProcessLines(cmd, args, onLine) {
   })
 }
 
-function runVgLines(args, onLine) {
-  return runProcessLines(find_vg(), args, onLine)
+function runVgLines(args, onLine, signal) {
+  return runProcessLines(find_vg(), args, onLine, signal)
 }
 
 api.post('/getPathInfo', async (req, res, next) => {
@@ -1594,13 +1616,19 @@ api.post('/getPathInfo', async (req, res, next) => {
     )
   }
 
+  const signal = requestSignal(res)
   try {
     if (graphFile.endsWith('.pos.bed.gz')) {
       // pgtabix mode: names only, lengths/cyclicity not available
       const names = []
-      await runProcessLines('tabix', ['-l', graphFile], line => {
-        names.push(line)
-      })
+      await runProcessLines(
+        'tabix',
+        ['-l', graphFile],
+        line => {
+          names.push(line)
+        },
+        signal,
+      )
       const pathInfo = names
         .filter(a => a !== '' && !a.startsWith('_'))
         .sort()
@@ -1612,21 +1640,29 @@ api.post('/getPathInfo', async (req, res, next) => {
     const lengthLines = []
     const cyclicNames = new Set()
     await Promise.all([
-      runVgLines(['paths', '-E', '-x', graphFile], line => {
-        lengthLines.push(line)
-      }),
+      runVgLines(
+        ['paths', '-E', '-x', graphFile],
+        line => {
+          lengthLines.push(line)
+        },
+        signal,
+      ),
       // vg paths -C outputs: name\tdirected-(a)cyclic\tundirected-(a)cyclic
-      runVgLines(['paths', '-C', '-x', graphFile], line => {
-        if (line && !line.startsWith('_')) {
-          const [name, directed, undirected] = line.split('\t')
-          if (
-            directed === 'directed-cyclic' ||
-            undirected === 'undirected-cyclic'
-          ) {
-            cyclicNames.add(name)
+      runVgLines(
+        ['paths', '-C', '-x', graphFile],
+        line => {
+          if (line && !line.startsWith('_')) {
+            const [name, directed, undirected] = line.split('\t')
+            if (
+              directed === 'directed-cyclic' ||
+              undirected === 'undirected-cyclic'
+            ) {
+              cyclicNames.add(name)
+            }
           }
-        }
-      }),
+        },
+        signal,
+      ),
     ])
     const pathInfo = lengthLines
       .filter(line => line !== '' && !line.startsWith('_'))

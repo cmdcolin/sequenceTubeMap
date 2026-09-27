@@ -53,6 +53,16 @@ after changing it.
 To use files from that directory, choose `custom (mounted files)` in the data
 dropdown, then click the gear icon to add tracks.
 
+## Request limits
+
+These `src/config.json` settings bound the work one request can make the server
+do:
+
+- `requestTimeout` (seconds, default 300): the server kills a request's `vg` and
+  chunkix processes after this long, or as soon as its client disconnects.
+- `fetchTimeout` (seconds, default 15): the longest a single download from a URL
+  may take.
+
 ## Built-in Examples entries
 
 The `DATA_SOURCES` array in `src/config.json` populates the **Examples** menu.

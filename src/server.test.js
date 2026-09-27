@@ -481,7 +481,7 @@ describe('the server process', () => {
   })
 })
 
-describe.skipIf(!HAS_VG)('a client that goes away', () => {
+describe.skipIf(!HAS_VG)('stopping a request', () => {
   // This worker's vg processes, which are the server's.
   function vgChildren() {
     try {
@@ -494,40 +494,57 @@ describe.skipIf(!HAS_VG)('a client that goes away', () => {
     }
   }
 
-  it('takes its vg processes with it', async () => {
+  // Left running, vg takes a couple of seconds on this region and its reads.
+  const SLOW_REQUEST = {
+    region: '17:1-81000',
+    tracks: [
+      {
+        trackFile: 'exampleData/internal/snp1kg-BRCA1.vg.xg',
+        trackType: 'graph',
+      },
+      {
+        trackFile: 'exampleData/internal/NA12878-BRCA1.sorted.gam',
+        trackType: 'read',
+      },
+    ],
+  }
+  const polling = { timeout: 5000, interval: 10 }
+
+  it('takes its vg processes with a client that goes away', async () => {
     const client = new AbortController()
     const request = fetch(`${serverState.getApiUrl()}/getChunkedData`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        region: '17:1-81000',
-        tracks: [
-          {
-            trackFile: 'exampleData/internal/snp1kg-BRCA1.vg.xg',
-            trackType: 'graph',
-          },
-          {
-            trackFile: 'exampleData/internal/NA12878-BRCA1.sorted.gam',
-            trackType: 'read',
-          },
-        ],
-      }),
+      body: JSON.stringify(SLOW_REQUEST),
       signal: client.signal,
     }).catch(() => {})
-    const polling = { timeout: 5000, interval: 10 }
     await vi.waitFor(() => {
       expect(vgChildren()).not.toEqual([])
     }, polling)
 
     client.abort()
     const abortedAt = Date.now()
-    // Left running, vg would take seconds more on this region and its reads.
     await vi.waitFor(() => {
       expect(vgChildren()).toEqual([])
     }, polling)
     expect(Date.now() - abortedAt).toBeLessThan(1000)
     await request
     await expectServerStillUp()
+  })
+
+  it('kills its vg processes at requestTimeout', async () => {
+    const requestTimeout = serverConfig.requestTimeout
+    serverConfig.requestTimeout = 0.2
+    try {
+      const { status, body } = await post('getChunkedData', SLOW_REQUEST)
+      expect(status).toBe(500)
+      expect(body.error).toMatch(/ran past the 0.2 second limit on a request/)
+    } finally {
+      serverConfig.requestTimeout = requestTimeout
+    }
+    await vi.waitFor(() => {
+      expect(vgChildren()).toEqual([])
+    }, polling)
   })
 })
 
