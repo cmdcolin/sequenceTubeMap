@@ -32,8 +32,8 @@ function debugLog(...args: unknown[]): void {
 }
 
 // Node and Track declare some fields that not every entry gets: layout places
-// only the nodes a track or read reaches, a normal read has no width until
-// assignReadsToNodes, and a graph fetched with removeSequences has no seq.
+// only the nodes a track or read reaches, and a normal read has no width until
+// assignReadsToNodes.
 type MaybeUnset<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 type MaybeUnplacedNode = MaybeUnset<LayoutNode, 'x' | 'y'>
 
@@ -207,7 +207,7 @@ export function layoutTubeMap(
 
   // Boundary promotion: layout passes below populate the Node/Track fields
   // (width, order, x/y, path, indexSequence, etc.) before any reader runs.
-  const copies = structuredClone(inputNodes) as LayoutNode[]
+  //
   // Nodes are referenced in inputs by internal `name` attribute and not by
   // index. Internally in e.g. a path's indexSequence we need to reference
   // nodes by *signed* index, so index 0 can never be used: budge everything
@@ -215,8 +215,10 @@ export function layoutTubeMap(
   // won't iterate over. Made after the copy, because not every structuredClone
   // keeps a hole.
   nodes = []
-  copies.forEach((node, i) => {
-    nodes[i + 1] = node
+  structuredClone(inputNodes).forEach((node, i) => {
+    node.seq ??= ''
+    node.sequenceLength ??= node.seq.length
+    nodes[i + 1] = node as LayoutNode
   })
   tracks = structuredClone(inputTracks) as Track[]
   // Whether any reads were loaded at all, distinct from `reads.length` below:
@@ -3171,12 +3173,6 @@ export function nodePixelCoordinatesInX(node: Node): [number, number] {
 
 // calculate node widths depending on sequence lengths and chosen calculation method
 function generateNodeWidth(): void {
-  // Promote the input's optional sequenceLength; Node declares it required, so
-  // widen to InputNode to make the still-possibly-undefined read explicit.
-  nodes.forEach((node: InputNode) => {
-    node.sequenceLength ??= node.seq.length
-  })
-
   switch (config.nodeWidthOption) {
     case 'compressed':
       nodes.forEach(node => {
@@ -3200,10 +3196,9 @@ function generateNodeWidth(): void {
       // The sequence is drawn in a monospace font, so one character's width,
       // which the caller measures, sizes every node.
       const charWidth = config.charWidth
-      nodes.forEach((node: MaybeUnset<LayoutNode, 'seq'>) => {
+      nodes.forEach(node => {
         node.width = node.sequenceLength
-        const len = node.seq?.length ?? 1
-        node.pixelWidth = Math.round(charWidth * len)
+        node.pixelWidth = Math.round(charWidth * node.sequenceLength)
       })
       break
     }

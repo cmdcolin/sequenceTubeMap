@@ -42,19 +42,11 @@ The layout keeps `nodes` typed `LayoutNode[]` rather than
 and `noUncheckedIndexedAccess` already types indexed reads as possibly
 undefined, so the wider type would only force guards that never fire. Fields
 that `Node` and `Track` declare but not every entry gets (an unplaced node's
-`x`/`y`, a normal read's `width` before `assignReadsToNodes`, `seq` under
-`removeSequences`) are read through a local `MaybeUnset<T, K>` view. Making them
-optional on the exported types would be more honest still, but touches
-`geometry.ts` and `tubemap.ts`.
-
-Found along the way:
-
-- **`mergeNodes` concatenates `seq`** with `+=`, so under `removeSequences` a
-  merged node's `seq` becomes `"undefinedundefined…"`; with
-  `nodeWidthOption: 'normal'` its `pixelWidth` would come from that string's
-  length. `App.tsx` locks the compressed view for `removeSequences` targets,
-  which keeps this latent. `straightenTrack` would likewise throw on
-  `node.seq.split` for an inverted node without a sequence.
+`x`/`y`, a normal read's `width` before `assignReadsToNodes`) are read through a
+local `MaybeUnset<T, K>` view. Making them optional on the exported types would
+be more honest still, but touches `geometry.ts` and `tubemap.ts`. `seq` is
+optional on `InputNode`, since a `removeSequences` graph has none, and
+`layoutTubeMap` fills it in as `''`.
 
 Structural work not yet done:
 

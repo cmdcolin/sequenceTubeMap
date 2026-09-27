@@ -159,9 +159,9 @@ Invariants to know before editing it:
 - **The pipeline promotes types as it goes.** `InputNode`/`InputTrack` are the
   loose shapes `layoutTubeMap` accepts; `Node`/`LayoutNode`/`Track` are the
   layout-complete shapes. The single boundary cast in `layoutTubeMap` is the
-  acknowledged one; question any new `as`. `Node.sequenceLength` and
-  `LayoutNode.order` are required because `generateNodeWidth` and
-  `generateNodeOrder` guarantee them, so don't reintroduce `?? 0` on those.
+  acknowledged one; question any new `as`. `Node.seq`, `Node.sequenceLength` and
+  `LayoutNode.order` are required because that promotion and `generateNodeOrder`
+  guarantee them, so don't reintroduce `?? 0` on those.
 - **`getXCoordinateOfBaseWithinNode` returns `null`** for a base past the node's
   end, and `drawMismatches` relies on that to skip stale positions. Callers that
   must produce a coordinate regardless use `clampedXCoordinateOfBaseWithinNode`,

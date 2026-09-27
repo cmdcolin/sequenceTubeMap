@@ -107,6 +107,35 @@ describe('layoutTubeMap', () => {
     expect(layout.tracks.map(t => t.sequence)).toContainEqual(['a', '2', '4'])
   })
 
+  it('lays out a graph fetched without sequences, switching and merging nodes', () => {
+    const bare: InputNode[] = [
+      { name: 'a', sequenceLength: 2 },
+      { name: 'b', sequenceLength: 2 },
+      { name: '1', sequenceLength: 4 },
+      { name: '2', sequenceLength: 1 },
+      { name: '3', sequenceLength: 1 },
+      { name: '4', sequenceLength: 5 },
+    ]
+    const walks: InputTrack[] = [
+      { id: 0, sequence: ['a', 'b', '1', '2', '4'], sourceTrackID: 0 },
+      { id: 1, sequence: ['a', 'b', '1', '-3', '4'], sourceTrackID: 0 },
+    ]
+    for (const nodeWidthOption of [
+      'normal',
+      'compressed',
+      'small',
+      'fixed',
+    ] as const) {
+      const layout = layoutTubeMap(bare, walks, [], { nodeWidthOption })!
+      const byName = new Map(layout.nodes.flatMap(n => [[n.name, n] as const]))
+      expect(byName.get('3')!.switched).toBe(true)
+      expect(byName.get('a')!.sequenceLength).toBe(8)
+      layout.nodes.forEach(node => {
+        expect(node.seq).toBe('')
+      })
+    }
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()

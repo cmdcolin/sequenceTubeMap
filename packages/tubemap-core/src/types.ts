@@ -118,19 +118,20 @@ export interface Track extends InputTrack {
 
 // Loose input shape passed to layoutTubeMap. Its passes (generateNodeWidth →
 // generateNodeOrder → generateLaneAssignment → generateNodeXCoords) accrete
-// more fields, producing the full `Node` below. sequenceLength is optional
-// because generateNodeWidth derives it from seq.length if missing.
+// more fields, producing the full `Node` below. A graph fetched with
+// removeSequences has no seq, and sequenceLength defaults to seq's length.
 export interface InputNode {
   name: string
-  seq: string
+  seq?: string
   sequenceLength?: number
 }
 
 // Layout-complete node — fields used by drawing code after the pipeline.
 // (Marked optional only for the genuinely conditional fields like switched/d.)
-// generateNodeWidth() derives sequenceLength from seq.length when the input
-// omitted it, so from that point on it is always a number.
+// layoutTubeMap fills in seq, as '' when the input had none, and
+// sequenceLength.
 export interface Node extends InputNode {
+  seq: string
   sequenceLength: number
   width: number
   pixelWidth: number

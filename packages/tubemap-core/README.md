@@ -23,6 +23,7 @@ const layout = layoutTubeMap(
 ```
 
 - Track 0 is the reference; `-name` is a reverse visit
+- A node without `seq` needs `sequenceLength`
 - `layout.shapes`: `rectangles`, `curves` (`curvePaths` adds SVG paths),
   `verticalRectangles` and `corners` (inversions)
 - `nodeOutlinePath(node)`: a node's box as SVG path data; `new Path2D(d)` on a
