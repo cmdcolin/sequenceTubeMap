@@ -1,68 +1,25 @@
 # seqTubeMaps — MemPanG26 Edition
 
+A fork of [vgteam/sequenceTubeMap](https://github.com/vgteam/sequenceTubeMap)
+that draws pangenome graphs and reads over them as tube maps, in the browser.
+This edition adds in-browser reading of `.gbz.db` files, uploads, and a
+modernised React/TypeScript UI.
+
+Live demo — https://cmdcolin.github.io/sequenceTubeMap/
+
 MemPanG26 Hackathon Team 2 — [Colin Diesh](https://github.com/cmdcolin) &
 [Rafeed Rahman Turjya](https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en)
 et al.
 
-Fork of https://github.com/vgteam/sequenceTubeMap — adds browser-based uploads,
-a modernised React/TypeScript UI, and the ability to send data to the vgteam's
-public server.
+[![HPRC v2.1 chr20 microsatellite](doc/images/hprc-v2.1-chr20-str.png)][demo-chr20]
 
-Live demo — https://cmdcolin.github.io/sequenceTubeMap/
+All 464 haplotypes of HPRC release 2.1 through a CT microsatellite on chr20, one
+rung of the staircase per repeat length. The browser reads them straight off
+HPRC's 10 GB hosted `.gbz.db` by range requests, with no server.
 
-[![](doc/images/1.png)][demo-brca1]
+## Loading data
 
-## What it looks like
-
-Every figure below links to the same data and region in the live demo — the view
-is a URL, so any tube map you get to can be shared as one
-([every parameter a link can carry](doc/urlparams.md)).
-
-**A pangenome, not a reference.** All 464 haplotypes of
-[HPRC release 2.1](https://doi.org/10.64898/2026.07.21.739710) through a CT
-microsatellite at `chr20:48,000,600-48,001,000`, on 240 distinct routes: 46
-allele lengths from 608 to 680 bp. Each rung of the staircase below is a
-haplotype leaving the repeat one copy earlier than its neighbour. Read straight
-off HPRC's 10 GB hosted `.gbz.db` by range requests, with no server, and named
-from the companion haplotype index beside it — the haplotype through any node is
-`HG01243#2#…`, not `unknown#57`.
-
-![HPRC v2.1 chr20 microsatellite](doc/images/hprc-v2.1-chr20-str.png)
-
-The same locus about 300 bp to the right, where the haplotypes are back in
-register:
-
-![HPRC v2.1 chr20 haplotypes in register](doc/images/hprc-v2.1-chr20-register.png)
-
-[Open chr20:48,000,600-48,001,000 in the live demo][demo-chr20] — both figures
-are crops of that one drawing, which the app lays out end to end and lets you
-scroll.
-
-**Reads over a graph.** GAM alignments across the snp1kg BRCA1 graph. Red marks
-reads whose every node visit is on the reverse strand; a read in mixed
-orientation is drawn forward, in blue:
-
-![BRCA1 reads](doc/images/brca1-reads.png)
-
-[Open BRCA1 17:1-1000 in the live demo][demo-reads] — the link carries the View
-menu's compressed node widths as well as the region. The browser subsamples to
-100 reads to stay responsive; the banner above the map raises that.
-
-**The same reads, coarsened.** The Sankey view collapses per-read ribbons into
-one band per node-to-node edge, scaled by how many reads traverse it, so
-rendering is O(edges) rather than O(reads). Allele balance at each bubble
-becomes readable at a glance:
-
-![BRCA1 reads, coarsened](doc/images/brca1-reads-coarsened.png)
-
-[Open the coarsened view in the live demo][demo-coarsened]
-
-Every figure here was produced headlessly with `pnpm tubemap-cli` — see
-[headless SVG rendering](doc/headless-rendering.md).
-
-## Quickstart
-
-Use **File → Open…** to load your own data. There are three ways in:
+Use **File → Open…**, or pick a dataset from the **Examples** menu.
 
 |                             | Where the work happens  | Size limit    | Setup needed                  |
 | --------------------------- | ----------------------- | ------------- | ----------------------------- |
@@ -70,65 +27,64 @@ Use **File → Open…** to load your own data. There are three ways in:
 | **In-browser**              | your browser            | none          | one-time `.gbz.db` conversion |
 | **Self-hosted server**      | your machine            | none          | Docker or a local checkout    |
 
-The server mode takes `.xg`, `.vg`, and `.gbz` graphs plus `.gam` reads
-directly. In-browser mode keeps files on your machine but needs graphs converted
-to `.gbz.db` first (`vg` + `gbz-base`); a hosted `.gbz.db` URL is read by HTTP
-range requests, so a whole-pangenome graph browses without a download — the HPRC
-release 2.1 example in the **Examples** menu is 10 GB and never downloaded.
+The servers take `.xg`, `.vg` and `.gbz` graphs and `.gam` reads directly. The
+in-browser mode needs a graph converted to `.gbz.db` first, and reads a hosted
+one by range requests, so a whole-pangenome graph browses without a download.
+[Loading your own data](doc/data.md) covers all three.
 
-→ [Full data loading guide](doc/data.md)
+## Reads over a graph
 
-## Navigation
+GAM alignments drawn along the graph they align to; red reads are on the reverse
+strand. A coarsened view collapses them into one band per edge, weighted by read
+count.
+
+[![BRCA1 reads](doc/images/brca1-reads.png)][demo-reads]
+
+## Navigating and sharing
 
 Type `<contig>:<start>-<end>` (e.g. `Circ1:0-1320`) in the region box, or open
 **Paths in this graph** to browse the contigs a graph contains. `chr1:1000+500`
-and `node:42-55` also work.
+and `node:42-55` also work. The URL carries the data, region and view options,
+so any tube map can be shared as a link — see
+[URL parameters](doc/urlparams.md).
 
-## Documentation
+## Headless rendering
 
-**Using it**
+`pnpm tubemap-cli` renders any source and region to SVG without a browser, which
+is how every figure here was made —
+[headless SVG rendering](doc/headless-rendering.md).
 
-- [Introduction to sequence tube maps](doc/intro.md)
-- [Loading your own data](doc/data.md)
-- [URL parameters](doc/urlparams.md)
-- [Headless SVG rendering](doc/headless-rendering.md)
+## Docs
 
-**Running a server**
-
-- [Server data preparation](doc/server-data.md)
-- [Tabix indexes](doc/tabix.md)
-- [Docker](docker/README.md)
-
-**Under the hood**
-
-- [Architecture](doc/architecture.md)
-- [In-browser gbz-base reader](doc/gbz-base.md)
-- [Differences from upstream vgteam/sequenceTubeMap](doc/differences-from-upstream.md)
-
-**Contributing**
-
-- [Development guide](doc/development.md)
-- [Architectural decision records](agent-docs/architectural-decision-records/)
+- [doc/intro.md](doc/intro.md) — what a sequence graph is and how a tube map
+  draws one
+- [doc/gallery.md](doc/gallery.md) — more figures, each linked into the live
+  demo
+- [doc/data.md](doc/data.md) — the three ways to load a graph and its reads
+- [doc/urlparams.md](doc/urlparams.md) — every parameter a link can carry
+- [doc/headless-rendering.md](doc/headless-rendering.md) — `pnpm tubemap-cli`
+  and its options
+- [doc/server-data.md](doc/server-data.md) — data paths, Examples entries and
+  pre-extracted subgraphs on a self-hosted server
+- [doc/tabix.md](doc/tabix.md) — whole-pangenome browsing from tabix indexes
+- [docker/README.md](docker/README.md) — running the server in Docker
+- [doc/architecture.md](doc/architecture.md) — how a region becomes a drawn tube
+  map
+- [doc/gbz-base.md](doc/gbz-base.md) — the in-browser `.gbz.db` reader
+- [doc/differences-from-upstream.md](doc/differences-from-upstream.md) — what
+  changed from vgteam/sequenceTubeMap
+- [doc/development.md](doc/development.md) — setup, dev server, tests, build
+- [agent-docs/architectural-decision-records/](agent-docs/architectural-decision-records/)
+  — why the code is shaped the way it is
 
 ## Thanks
 
-Big thanks to the MemPanG26 organizers and group!
-
-![MemPanG26 Edition](https://pangenome.github.io/MemPanG26/images/trippy-bridge.png)
-
-https://pangenome.github.io/MemPanG26/
-
-And the original sequenceTubeMap developers!
-
----
+Big thanks to the [MemPanG26](https://pangenome.github.io/MemPanG26/) organizers
+and group, and to the original sequenceTubeMap developers!
 
 _Claude Code AI was used during this work._
 
-[demo-brca1]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-100
 [demo-chr20]:
   https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20v2.1%20whole%20genome%20(gbz-base%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000
 [demo-reads]:
   https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView
-[demo-coarsened]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView,coarsenedReadView

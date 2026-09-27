@@ -144,15 +144,17 @@ describe('urlViewTarget vis options', () => {
   })
 })
 
-// The README's figures link into the live demo by data source name, so they
-// only work while that name is still in the config. Resolving them here is
-// what turns a rename into a failing test rather than four dead links.
-describe('README demo links', () => {
-  const links = [
-    ...readFileSync('README.md', 'utf8').matchAll(
-      /^\[demo-[a-z0-9-]+\]:\s+(\S+)$/gm,
-    ),
-  ].map(match => match[1]!)
+// The docs' figures link into the live demo by data source name, so they only
+// work while that name is still in the config. Resolving them here turns a
+// rename into a failing test rather than dead links.
+describe('doc demo links', () => {
+  const links = ['README.md', 'doc/gallery.md'].flatMap(file =>
+    [
+      ...readFileSync(file, 'utf8').matchAll(
+        /^\[demo-[a-z0-9-]+\]:\s+(\S+)$/gm,
+      ),
+    ].map(match => match[1]!),
+  )
 
   it('has links to check', () => {
     expect(links.length).toBeGreaterThan(0)
