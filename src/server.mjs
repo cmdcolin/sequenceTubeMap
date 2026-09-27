@@ -34,7 +34,9 @@ import {
 } from './common.ts'
 import { once } from 'events'
 import { finished } from 'stream/promises'
-import dns from 'dns/promises'
+import dns from 'dns'
+import http from 'http'
+import https from 'https'
 import net from 'net'
 import sanitize from 'sanitize-filename'
 import { createHash, randomUUID } from 'node:crypto'
@@ -2294,73 +2296,111 @@ function hashString(str) {
   return createHash('sha256').update(str).digest('hex')
 }
 
-// Return true for an IPv4 or IPv6 literal that a public server has no
-// business being asked to fetch from: loopback, link-local, unique-local,
-// carrier NAT, the RFC1918 ranges, and multicast.
-function isPrivateAddress(address) {
-  if (net.isIPv4(address)) {
-    const [a, b] = address.split('.').map(Number)
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      a >= 224 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168)
-    )
+// Address ranges a public server has no business fetching from: loopback,
+// link-local, unique-local, carrier NAT, the RFC1918 ranges and multicast.
+// BlockList matches IPv4-mapped IPv6 (::ffff:a.b.c.d) against the IPv4 rules
+// by itself; the NAT64 and IPv4-compatible forms need rules of their own.
+const PRIVATE_IPV4_SUBNETS = [
+  ['0.0.0.0', 8],
+  ['10.0.0.0', 8],
+  ['100.64.0.0', 10],
+  ['127.0.0.0', 8],
+  ['169.254.0.0', 16],
+  ['172.16.0.0', 12],
+  ['192.168.0.0', 16],
+  ['224.0.0.0', 3],
+]
+const PRIVATE_IPV6_SUBNETS = [
+  ['::', 96],
+  ['fe80::', 10],
+  ['fc00::', 7],
+  ['ff00::', 8],
+]
+const PRIVATE_ADDRESSES = new net.BlockList()
+for (const [prefix, bits] of PRIVATE_IPV4_SUBNETS) {
+  PRIVATE_ADDRESSES.addSubnet(prefix, bits, 'ipv4')
+  PRIVATE_ADDRESSES.addSubnet(`64:ff9b::${prefix}`, 96 + bits, 'ipv6')
+}
+for (const [prefix, bits] of PRIVATE_IPV6_SUBNETS) {
+  PRIVATE_ADDRESSES.addSubnet(prefix, bits, 'ipv6')
+}
+
+function addressType(address) {
+  return net.isIPv6(address) ? 'ipv6' : 'ipv4'
+}
+
+// The operator's exceptions: addresses or CIDR ranges in
+// config.allowedPrivateFetchAddresses.
+function allowedPrivateAddresses() {
+  const allowed = new net.BlockList()
+  for (const entry of config.allowedPrivateFetchAddresses ?? []) {
+    const [address, bits] = entry.split('/')
+    if (bits === undefined) {
+      allowed.addAddress(address, addressType(address))
+    } else {
+      allowed.addSubnet(address, Number(bits), addressType(address))
+    }
   }
-  const lower = address.toLowerCase()
-  if (lower.startsWith('::ffff:') && net.isIPv4(lower.slice(7))) {
-    // IPv4-mapped IPv6, so judge it as the IPv4 address it wraps.
-    return isPrivateAddress(lower.slice(7))
-  }
+  return allowed
+}
+
+function isForbiddenAddress(address) {
+  const type = addressType(address)
   return (
-    lower === '::' ||
-    lower === '::1' ||
-    lower.startsWith('fe80') ||
-    lower.startsWith('fc') ||
-    lower.startsWith('fd') ||
-    lower.startsWith('ff')
+    PRIVATE_ADDRESSES.check(address, type) &&
+    !allowedPrivateAddresses().check(address, type)
   )
 }
 
-// Throw unless the given URL is an http(s) URL whose host is a public
-// address. This keeps a user-supplied URL from making the server fetch from
-// its own loopback interface or from a private network it can see.
-async function assertPublicURL(url) {
+// dns.lookup that fails on a forbidden address. Sockets call it as they
+// connect, so the check applies to the address actually used, wherever a
+// redirect or a changed DNS answer points.
+function publicLookup(hostname, options, callback) {
+  dns.lookup(hostname, options, (err, address, family) => {
+    if (err) {
+      callback(err)
+      return
+    }
+    const entries = options.all ? address : [{ address }]
+    const forbidden = entries.find(entry => isForbiddenAddress(entry.address))
+    if (forbidden) {
+      callback(
+        new BadRequestError(
+          `Refusing to connect to ${hostname}: it resolves to the non-public address ${forbidden.address}`,
+        ),
+      )
+    } else {
+      callback(null, address, family)
+    }
+  })
+}
+
+const PUBLIC_AGENTS = {
+  'http:': new http.Agent({ lookup: publicLookup }),
+  'https:': new https.Agent({ lookup: publicLookup }),
+}
+
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
+const MAX_REDIRECTS = 5
+
+// GET one URL without following redirects. Sockets skip the lookup for an IP
+// literal, so check those here.
+async function getPublic(url, headers, signal) {
   const parsed = new URL(url)
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+  const agent = PUBLIC_AGENTS[parsed.protocol]
+  if (agent === undefined) {
     throw new BadRequestError('Only http and https URLs can be fetched: ' + url)
   }
-  // An IPv6 literal host arrives wrapped in brackets.
-  const host = parsed.hostname.startsWith('[')
-    ? parsed.hostname.slice(1, -1)
-    : parsed.hostname
-
-  let addresses
-  if (net.isIP(host)) {
-    addresses = [host]
-  } else {
-    try {
-      addresses = (await dns.lookup(host, { all: true })).map(
-        entry => entry.address,
-      )
-    } catch (e) {
-      throw new BadRequestError(
-        `Could not resolve host ${host} for ${url}: ${e.message}`,
-      )
-    }
+  const host = parsed.hostname.replace(/^\[(.*)\]$/, '$1')
+  if (net.isIP(host) && isForbiddenAddress(host)) {
+    throw new BadRequestError(
+      `Refusing to fetch ${url}: ${host} is not a public address`,
+    )
   }
-
-  for (const address of addresses) {
-    if (isPrivateAddress(address)) {
-      throw new BadRequestError(
-        `Refusing to fetch ${url}: ${host} resolves to the non-public address ${address}`,
-      )
-    }
-  }
+  const client = parsed.protocol === 'https:' ? https : http
+  return new Promise((resolve, reject) => {
+    client.get(parsed, { agent, headers, signal }, resolve).on('error', reject)
+  })
 }
 
 // Given a URL and a filename, download the given URL to that filename. Assumes required directories exist.
@@ -2382,17 +2422,15 @@ const downloadFile = async (fileURL, destination) => {
   }
 }
 
-// Start a size- and host-checked GET. Returns the response along with the
-// timer that will abort it, which the caller must clear once it is done with
-// the body. `existingLocation`, when it names a file already on disk, turns
-// the request into a conditional one so an unchanged file isn't re-downloaded.
+// Start a size- and host-checked GET, following redirects. Returns the
+// response along with the timer that will abort it, which the caller must
+// clear once it is done with the body. `existingLocation`, when it names a
+// file already on disk, makes the request conditional so an unchanged file
+// isn't re-downloaded.
 async function beginValidatedFetch(url, maxBytes, existingLocation) {
-  await assertPublicURL(url)
-
   const headers = {}
   if (existingLocation !== undefined && fs.existsSync(existingLocation)) {
-    // We don't want to fetch again if we have an up to date copy on disk.
-    headers['If-None-Match'] = ETagMap.has(url) ? ETagMap.get(url) : '-1'
+    headers['If-None-Match'] = ETagMap.get(url) ?? '-1'
   }
 
   const controller = new AbortController()
@@ -2402,33 +2440,45 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
 
   console.log('Fetching URL:', url)
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      credentials: 'omit',
-      cache: 'default',
-      signal: controller.signal,
-      headers,
-    })
+    let location = url
+    let response = await getPublic(location, headers, controller.signal)
+    for (
+      let redirects = 0;
+      REDIRECT_STATUSES.has(response.statusCode) &&
+      response.headers.location !== undefined;
+      redirects++
+    ) {
+      response.resume()
+      if (redirects === MAX_REDIRECTS) {
+        throw new BadRequestError(
+          `Fetch request for ${url} failed: more than ${MAX_REDIRECTS} redirects`,
+        )
+      }
+      location = new URL(response.headers.location, location).toString()
+      response = await getPublic(location, headers, controller.signal)
+    }
 
-    if (response.status === 304) {
-      // file exists on disk and file has not been updated since last fetch
+    if (response.statusCode === 304) {
       console.log('file not modified since last fetch')
+      response.resume()
       return { notModified: true, response, timer }
     }
 
-    const eTag = response.headers.get('ETag')
-    if (eTag !== null) {
+    const eTag = response.headers.etag
+    if (eTag !== undefined) {
       ETagMap.set(url, eTag)
     }
 
-    if (!response.ok) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      response.resume()
       throw new BadRequestError(
-        `Fetch request for ${url} failed: ` + response.status,
+        `Fetch request for ${url} failed: ` + response.statusCode,
       )
     }
 
-    const contentLength = response.headers.get('Content-Length')
-    if (contentLength !== null && Number(contentLength) > maxBytes) {
+    const contentLength = response.headers['content-length']
+    if (contentLength !== undefined && Number(contentLength) > maxBytes) {
+      response.destroy()
       throw new BadRequestError(
         `Fetch request for ${url} failed: Content-Length exceeds maximum file size of ${maxBytes} bytes`,
       )
@@ -2437,29 +2487,25 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
     return { notModified: false, response, timer }
   } catch (e) {
     clearTimeout(timer)
-    throw e
+    if (e instanceof TubeMapError) {
+      throw e
+    }
+    throw new BadRequestError(`Fetch request for ${url} failed: ${e.message}`)
   }
 }
 
-// Read a fetch response body, handing each chunk to `onChunk`, and abort once
-// more than maxBytes have arrived.
+// Read a response body, handing each chunk to `onChunk`, and abort once more
+// than maxBytes have arrived.
 async function readBodyUpTo(url, response, maxBytes, onChunk) {
-  const reader = response.body.getReader()
   let bytesRead = 0
-  let done = false
-  while (!done) {
-    const result = await reader.read()
-    done = result.done
-    if (!done) {
-      bytesRead += result.value.byteLength
-      if (bytesRead > maxBytes) {
-        await reader.cancel()
-        throw new BadRequestError(
-          `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`,
-        )
-      }
-      await onChunk(result.value)
+  for await (const chunk of response) {
+    bytesRead += chunk.byteLength
+    if (bytesRead > maxBytes) {
+      throw new BadRequestError(
+        `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`,
+      )
     }
+    await onChunk(chunk)
   }
 }
 

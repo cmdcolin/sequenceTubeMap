@@ -127,6 +127,15 @@ chr1	101	200	Region B	chunk-chr2-101-200
 It must live in `dataPath`, or be hosted on the web alongside its chunk
 directories and given as a URL.
 
+The server fetches a URL only from a public address: it checks every address it
+connects to, redirects included, so a URL can't reach the server's own loopback
+interface or the private network it runs on. To fetch from hosts on a private
+network, list their addresses or CIDR ranges in `src/config.json`:
+
+```json
+"allowedPrivateFetchAddresses": ["10.0.0.0/8", "192.168.1.20"],
+```
+
 ### Colouring specific nodes
 
 A `nodeColors.tsv` inside a chunk directory — one node name per line — makes
