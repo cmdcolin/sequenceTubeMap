@@ -1233,29 +1233,13 @@ function generateTrackIndexSequences(tracksOrReads: Track[]): void {
     track.indexSequence = track.sequence.map(nodeName => {
       let signed = signedIndexOf.get(nodeName)
       if (signed === undefined) {
-        signed = signedIndexOfVisit(nodeName)
+        const index = nodeMap.get(forward(nodeName))!
+        signed = isReverse(nodeName) ? -index : index
         signedIndexOf.set(nodeName, signed)
       }
       return signed
     })
   })
-}
-
-// The index to visit a node by, negative when the visit runs right to left as
-// displayed: a reverse visit XOR a switched node.
-function signedIndexOfVisit(rawNodeName: string): number {
-  let nodeName = rawNodeName
-  const fwdIdx = nodeMap.get(forward(nodeName))!
-  const switched = nodes[fwdIdx]?.switched ?? false
-  if (switched) {
-    nodeName = flip(nodeName)
-  }
-  const nodeIndex = nodeMap.get(forward(nodeName))!
-  if (nodeIndex === 0) {
-    // index 0 has no negative, so it can't carry a reverse visit
-    throw new Error('Node ' + forward(nodeName) + ' has prohibited index 0')
-  }
-  return isReverse(nodeName) !== switched ? -nodeIndex : nodeIndex
 }
 
 // Tracks enter and leave a node this far outside it horizontally. Note that
