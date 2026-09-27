@@ -6,3 +6,5 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@gmod/gbz-base'
   - '@rolldown/plugin-babel@0.2.4'
+packages:
+  - packages/*

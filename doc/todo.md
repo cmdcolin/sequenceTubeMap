@@ -15,9 +15,9 @@ the `.gai` index consulted first.
 
 ## The layout engine
 
-`src/util/tubemap.ts` is typecheck-clean with no `@ts-nocheck`, but
-`.oxlintrc.json` still ignores it. Un-ignored it reports 80 errors in three
-groups:
+`packages/tubemap-core/src/layout.ts` and `src/util/tubemap.ts` are
+typecheck-clean with no `@ts-nocheck`, but `.oxlintrc.json` still ignores both.
+Un-ignored, the layout reports most of the errors, in three groups:
 
 1. **`no-unnecessary-condition` (51).** Almost all are defensive `if (node)` /
    `if (node.y !== undefined)` guards against the sparse `nodes` array, typed
@@ -33,18 +33,15 @@ groups:
 
 Structural work not yet done:
 
-- **Module-level mutable state**, grouped under banner comments into the inputs
-  (`svgID`, `inputNodes`, `inputTracks`, `inputReads`, `inputRegion`, `bed`),
-  per-render layout scratch (`nodes`, `tracks`, `reads`, `nodeMap`,
-  `nodeOrders`, `nodesPerOrder`, `assignments`, `extraLeft`, `extraRight`,
-  `maxOrder`, `shapes`, `trackForRuler`), and UI state (`svg`, `zoom`,
-  `imageBounds`, `hoverTooltip`, `highlightedTrack`, `detailHidden`,
-  `cleanupParentBindings`, `coarsenedEdgeMeta`, the visibility snapshot).
-  Threading the layout scratch through as a `layout` parameter is mechanical but
+- **Module-level layout scratch.** `layout.ts` keeps its passes' working state
+  (`nodes`, `tracks`, `reads`, `nodeMap`, `nodeOrders`, `nodesPerOrder`,
+  `assignments`, `extraLeft`, `extraRight`, `maxOrder`, `shapes`,
+  `trackForRuler`, `coarsenedEdgeMeta`) at module level, reset on every
+  `layoutTubeMap` call. Threading it through as a parameter is mechanical but
   touches nearly every function in the file, so it wants a dedicated pass with
-  the render tests as the safety net. `imageBounds` cannot become a parameter
-  as-is: the exported `zoomBy()` reads it from the toolbar long after
-  `createTubeMap` returned.
+  the render tests as the safety net. `tubemap.ts` holds the latest layout and
+  its UI state; `imageBounds` stays there because the exported `zoomBy()` reads
+  it long after a draw returned.
 - **`generateBasicPathsForReads` vs `generateLaneAssignment`** walk a path with
   the same 60-line case analysis (forward / backward / same-order, with and
   without turnaround segments); the lane version also emits `SegmentAssignment`s

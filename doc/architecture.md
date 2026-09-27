@@ -115,19 +115,29 @@ shape, so revisiting a view is a cache hit and cancellation is implicit.
 
 ## The layout engine
 
-`src/util/tubemap.ts` is the layout and drawing engine, inherited from upstream
-and ported to TypeScript. It computes node order, assigns lanes, places reads,
-and draws with d3. It is _not_ a React component: it holds module-level state
-and `TubeMap.tsx` drives it through `create()` plus a set of `setX()` functions.
-That is the largest remaining piece of technical debt — it means only one tube
-map can exist per page; [todo.md](todo.md#the-layout-engine) has the clean-up
-still to do.
+The tube map is inherited from upstream and ported to TypeScript, in two parts:
+
+- **`packages/tubemap-core`**, published as `@gmod/tubemap-core`, is the layout:
+  node order, orientation, lanes, read placement and node merging, from input
+  nodes and tracks to drawable shapes in layout coordinates, plus the curve and
+  node outline path geometry. It has no DOM or d3, so other apps — the JBrowse
+  graph genome plugin among them — draw its output their own way. Its passes
+  still share module state, but `layoutTubeMap` resets all of it on entry and
+  runs synchronously, so calls never see each other's.
+- **`src/util/tubemap.ts`** draws a layout with d3 and handles the interaction.
+  It is _not_ a React component: it holds the latest layout and its UI state at
+  module level, and `TubeMap.tsx` drives it through `create()` plus a set of
+  `setX()` functions, which is why only one tube map can exist per page. It
+  keeps the colouring, which the layout asks for through its `trackColor` and
+  `trackAlpha` options.
+
+[todo.md](todo.md#the-layout-engine) has the clean-up still to do.
 
 Invariants to know before editing it:
 
-- **`inputNodes` / `nodes` are 1-indexed with a real array hole at index 0.**
-  The hole lets a _signed_ index encode orientation (`-i` = reverse visit of
-  node `i`), and index 0 has no sign, so it must never be used.
+- **The layout's `nodes` are 1-indexed with a real array hole at index 0.** The
+  hole lets a _signed_ index encode orientation (`-i` = reverse visit of node
+  `i`), and index 0 has no sign, so it must never be used.
   `forEach`/`map`/`filter` skip holes; `for...of` and `Array.from` do not. This
   distinction is load-bearing: `nodeOrders` used to be allocated with
   `new Array(n)` (all holes) and its `forEach` passes silently did nothing.
@@ -137,8 +147,8 @@ Invariants to know before editing it:
   `trackDoubleClick` call `createTubeMap()` directly because they change the
   input, not the config.
 - **The pipeline promotes types as it goes.** `InputNode`/`InputTrack` are the
-  loose shapes `create()` accepts; `Node`/`LayoutNode`/`Track` are the
-  layout-complete shapes. The single boundary cast in `createTubeMap` is the
+  loose shapes `layoutTubeMap` accepts; `Node`/`LayoutNode`/`Track` are the
+  layout-complete shapes. The single boundary cast in `layoutTubeMap` is the
   acknowledged one; question any new `as`. `Node.sequenceLength` and
   `LayoutNode.order` are required because `generateNodeWidth` and
   `generateNodeOrder` guarantee them, so don't reintroduce `?? 0` on those.

@@ -1,0 +1,30 @@
+{
+  "name": "@gmod/tubemap-core",
+  "version": "0.1.0",
+  "description": "The sequenceTubeMap layout: pangenome graph paths and reads as tube map shapes, with no DOM or d3",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cmdcolin/sequenceTubeMap.git",
+    "directory": "packages/tubemap-core"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "pnpm build"
+  }
+}

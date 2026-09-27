@@ -32,6 +32,6 @@
 
     "types": ["vitest/globals"]
   },
-  "include": ["src", "scripts", "vite.config.mjs"],
+  "include": ["src", "scripts", "packages", "vite.config.mjs"],
   "exclude": ["node_modules", "build", "dist"]
 }
