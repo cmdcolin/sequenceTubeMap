@@ -596,7 +596,9 @@ export function getRenderedColoring(): RenderedColoring {
   }
 }
 
-// The same, taken once per draw, for useSyncExternalStore
+// The same, taken once per draw, for useSyncExternalStore. A draw that leaves
+// the coloring unchanged notifies no one: TubeMapContainer re-renders on a
+// notification, and a re-render that hands TubeMap new props draws again.
 const coloringSubscribers = new Set<() => void>()
 let coloringSnapshot = getRenderedColoring()
 
@@ -612,8 +614,11 @@ export function subscribeRenderedColoring(cb: () => void): () => void {
 }
 
 function emitRenderedColoring(): void {
-  coloringSnapshot = getRenderedColoring()
-  for (const cb of coloringSubscribers) cb()
+  const coloring = getRenderedColoring()
+  if (JSON.stringify(coloring) !== JSON.stringify(coloringSnapshot)) {
+    coloringSnapshot = coloring
+    for (const cb of coloringSubscribers) cb()
+  }
 }
 
 // The sequence is drawn in `fonts`, which is monospace, so one character's

@@ -827,6 +827,32 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
   })
 })
 
+describe('tubemap.subscribeRenderedColoring', () => {
+  afterEach(() => {
+    tubeMap.setIgnoreStrandFlag(false)
+  })
+
+  it('notifies only when a draw changes the coloring', () => {
+    setupSvg()
+    const { nodes, tracks } = dataForExample('1')
+    render(nodes, tracks)
+    const snapshot = tubeMap.getRenderedColoringSnapshot()
+    const onChange = vi.fn()
+    const unsubscribe = tubeMap.subscribeRenderedColoring(onChange)
+    try {
+      render(nodes, tracks)
+      expect(onChange).not.toHaveBeenCalled()
+      expect(tubeMap.getRenderedColoringSnapshot()).toBe(snapshot)
+      tubeMap.setIgnoreStrandFlag(true)
+      render(nodes, tracks)
+      expect(onChange).toHaveBeenCalledTimes(1)
+      expect(tubeMap.getRenderedColoringSnapshot().ignoreStrand).toBe(true)
+    } finally {
+      unsubscribe()
+    }
+  })
+})
+
 describe('tubemap.getRenderedColoring', () => {
   afterEach(() => {
     tubeMap.setReadGroups(null)
