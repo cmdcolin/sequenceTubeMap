@@ -2589,9 +2589,6 @@ function generateSVGShapesFromPath(): void {
             width: track.width,
             color: trackColor,
             alpha: trackAlpha,
-            laneChange: Math.abs(
-              track.path[i]!.lane! - track.path[i - 1]!.lane!,
-            ),
             id: track.id,
             name: track.name,
             type: track.type,
@@ -2614,9 +2611,6 @@ function generateSVGShapesFromPath(): void {
             width: track.width,
             color: trackColor,
             alpha: trackAlpha,
-            laneChange: Math.abs(
-              track.path[i]!.lane! - track.path[i - 1]!.lane!,
-            ),
             id: track.id,
             name: track.name,
             type: track.type,

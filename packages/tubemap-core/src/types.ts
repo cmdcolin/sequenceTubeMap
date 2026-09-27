@@ -34,7 +34,6 @@ export interface TrackCurve {
   width: number
   color: string
   alpha?: number
-  laneChange: number
   id: number
   name?: string
   type?: TrackType
