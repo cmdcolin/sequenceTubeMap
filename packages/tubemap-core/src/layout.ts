@@ -857,19 +857,17 @@ function compareNoNodeReads(
       return prevNodeA.order - prevNodeB.order
     }
   }
-  // We want to sort in reverse order when the segment is along the reverse-going part of a cycle.
-  // This ensures a loop that starts on the outside, stays on the outside,
-  // and rolls up in order with other loops.
+  // Segments on the reverse-going part of a cycle go below the rest, in
+  // reverse order, so a loop that starts on the outside stays there and rolls
+  // up in order with the other loops.
   const aPrev = a.previousY ?? 0
   const bPrev = b.previousY ?? 0
-  if (
-    segmentA.betweenCycleReverseTraversal &&
-    segmentB.betweenCycleReverseTraversal
-  ) {
-    return bPrev - aPrev
-  } else {
-    return aPrev - bPrev
+  const aReverse = segmentA.betweenCycleReverseTraversal === true
+  const bReverse = segmentB.betweenCycleReverseTraversal === true
+  if (aReverse !== bReverse) {
+    return aReverse ? 1 : -1
   }
+  return aReverse ? bPrev - aPrev : aPrev - bPrev
 }
 
 // compare read segments by where they are going to
