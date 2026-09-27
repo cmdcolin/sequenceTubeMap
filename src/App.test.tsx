@@ -218,8 +218,12 @@ it('starts from the view options in the URL', async () => {
   expect(compressed.querySelector('input[type=checkbox]')).toBeChecked()
 })
 
-it('has nothing for Go to apply on a view read from the URL', async () => {
-  window.history.replaceState(null, '', '/?region=x:1-100&tracks=graph:x.vg')
+// The second asks to simplify a view with reads, which the form never does.
+it.each([
+  '/?region=x:1-100&tracks=graph:x.vg',
+  '/?region=x:1-100&tracks=graph:x.vg,read:x.gam&simplify=true',
+])('has nothing for Go to apply on a view read from %s', async url => {
+  window.history.replaceState(null, '', url)
   vi.resetModules()
   const { default: UrlApp } = await import('./App.tsx')
   render(

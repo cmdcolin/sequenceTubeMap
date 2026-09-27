@@ -14,7 +14,10 @@ import { EMPTY_VIEW_TARGET, useViewHistory } from './useViewHistory.ts'
 import BackendSelector from './components/BackendSelector.tsx'
 import Footer from './components/Footer.tsx'
 import { ViewMenu } from './components/ViewMenu.tsx'
-import { viewTargetsEqual } from './components/headerFormUtils.ts'
+import {
+  simplifyApplies,
+  viewTargetsEqual,
+} from './components/headerFormUtils.ts'
 import {
   exampleTracks,
   fetchTubeMapData,
@@ -94,10 +97,10 @@ function getColorSchemesFromTracks(tracks: Tracks): ColorScheme[] {
 }
 
 // Every view App holds passes through here. A link or config entry leaves out
-// a flag that is off, where the form writes false, so spell both flags out:
-// otherwise the same view compares unequal and hashes to a new SWR key. SWR
-// also hashes an explicitly-undefined field differently from a missing one,
-// so drop those.
+// a flag that is off, where the form writes false, so spell both flags out,
+// by the rules the form builds them with: otherwise the same view compares
+// unequal and hashes to a new SWR key. SWR also hashes an explicitly-undefined
+// field differently from a missing one, so drop those.
 function normalizeViewTarget(target: ViewTarget): ViewTarget {
   return {
     region: target.region,
@@ -105,7 +108,7 @@ function normalizeViewTarget(target: ViewTarget): ViewTarget {
     ...(target.bedFile !== undefined && { bedFile: target.bedFile }),
     ...(target.name !== undefined && { name: target.name }),
     ...(target.dataType !== undefined && { dataType: target.dataType }),
-    simplify: target.simplify ?? false,
+    simplify: simplifyApplies(target.tracks, target.simplify),
     removeSequences: target.removeSequences ?? false,
     ...(target.skipAutoLoad !== undefined && {
       skipAutoLoad: target.skipAutoLoad,

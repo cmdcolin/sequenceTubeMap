@@ -80,15 +80,20 @@ export interface ViewTargetInputs {
   removeSequences: boolean
 }
 
+// `vg simplify` cannot run over reads, so a view with a read track is never
+// simplified, whatever it asks for.
+export function simplifyApplies(tracks: Tracks, simplify: boolean | undefined) {
+  return (simplify ?? false) && !tracks.some(t => t.trackType === 'read')
+}
+
 export function makeViewTarget(inputs: ViewTargetInputs): ViewTarget {
-  const hasReads = inputs.tracks.some(t => t.trackType === 'read')
   return {
     tracks: inputs.tracks,
     bedFile: inputs.bedFile,
     name: inputs.name,
     region: inputs.region,
     dataType: inputs.dataType,
-    simplify: inputs.simplify && !hasReads,
+    simplify: simplifyApplies(inputs.tracks, inputs.simplify),
     removeSequences: inputs.removeSequences,
   }
 }
