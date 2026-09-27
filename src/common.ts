@@ -137,9 +137,11 @@ export function isEmpty(obj: object): boolean {
 // The in-browser backend (@gmod/gbz-base) only reads SQLite-backed gbz-base
 // databases. `gbz-base construct --output` will name one anything, so a bare
 // `.db` counts too — the reader reports a SchemaVersionError if the contents
-// turn out not to be one.
+// turn out not to be one. A URL is judged by its path, so a query string such
+// as a cache-buster or a signature doesn't hide the extension.
 export function isGbzDbFilename(name: string): boolean {
-  return /\.db$/i.test(name)
+  const path = URL.canParse(name) ? new URL(name).pathname : name
+  return /\.db$/i.test(path)
 }
 
 // Used to autoload a compatible source in local mode and to hide dropdown

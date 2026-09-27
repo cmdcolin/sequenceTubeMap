@@ -22,6 +22,9 @@ const HOSTED = new Map([
   ['/cactus.gbz.db', readFileSync('exampleData/cactus.gbz.db')],
   ['/reads.gam', readFileSync('exampleData/cactus-NA12879.sorted.gam')],
   ['/reads.gam.gai', readFileSync('exampleData/cactus-NA12879.sorted.gam.gai')],
+  // A single-page app's fallback route, answering a missing index with a page.
+  ['/spa.gam', readFileSync('exampleData/cactus-NA12879.sorted.gam')],
+  ['/spa.gam.gai', Buffer.from('<!doctype html><title>App</title>')],
 ])
 
 function hosted(path: string) {
@@ -47,7 +50,7 @@ describe('URL-hosted reads', () => {
 
   beforeAll(async () => {
     server = createServer((req, res) => {
-      const path = req.url ?? ''
+      const path = new URL(req.url ?? '', 'http://host').pathname
       const body = HOSTED.get(path)
       if (body === undefined) {
         res.writeHead(404)
@@ -149,5 +152,46 @@ describe('URL-hosted reads', () => {
     // The index is small and has no index of its own, so it is the one file
     // still fetched whole.
     expect(bytesFor('/reads.gam.gai')).toBe(hosted('/reads.gam.gai').length)
+  })
+
+  const readsView = (reads: string): ViewTarget => ({
+    dataType: 'mounted files',
+    tracks: [
+      { trackFile: `${origin}/cactus.gbz.db`, trackType: 'graph' },
+      { trackFile: `${origin}${reads}`, trackType: 'read' },
+    ],
+    region: 'ref:1-100',
+  })
+
+  // The index was looked for at `reads.gam?v=2.gai`, so a cache-busted URL
+  // lost its index and every view downloaded the whole file.
+  it('finds the index beside a URL with a query string', async () => {
+    const view = await new GBZBaseAPI().getChunkedData(
+      readsView('/reads.gam?v=2'),
+      null,
+    )
+    expect((view.gam?.[0] ?? []).length).toBeGreaterThan(0)
+    expect(served['/reads.gam']!.wholeRequests).toBe(0)
+    expect(bytesFor('/reads.gam.gai')).toBe(hosted('/reads.gam.gai').length)
+  })
+
+  // `.db` was matched against the whole URL, which left the paths panel empty.
+  it('lists the paths of a graph URL with a query string', async () => {
+    const { pathInfo } = await new GBZBaseAPI().getPathInfo(
+      `${origin}/cactus.gbz.db?v=2`,
+      null,
+    )
+    expect(pathInfo.map(p => p.name)).toContain('ref')
+  })
+
+  // The page used to be taken for the index, and ungzipping it failed the
+  // whole view.
+  it('reads the file whole when the index turns out to be a page', async () => {
+    const view = await new GBZBaseAPI().getChunkedData(
+      readsView('/spa.gam'),
+      null,
+    )
+    expect((view.gam?.[0] ?? []).length).toBeGreaterThan(0)
+    expect(served['/spa.gam']!.wholeRequests).toBe(1)
   })
 })

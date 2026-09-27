@@ -180,6 +180,23 @@ async function pathNodeRanges(
 
 const READ_COUNT_MAX_BYTES = 32 * 1024 * 1024
 
+// The URL of the file beside `url` whose name adds `suffix`. The suffix goes
+// on the path, so a query string such as a cache-buster stays at the end
+// instead of swallowing it.
+function siblingUrl(url: string, suffix: string): string {
+  if (!URL.canParse(url)) {
+    return url + suffix
+  }
+  const sibling = new URL(url)
+  sibling.pathname += suffix
+  return sibling.href
+}
+
+async function isGzip(blob: Blob): Promise<boolean> {
+  const [first, second] = new Uint8Array(await blob.slice(0, 2).arrayBuffer())
+  return first === 0x1f && second === 0x8b
+}
+
 // `vg chunk -r first:last -c 20`, which the server runs for `node:first-last`.
 const NODE_RANGE_CONTEXT_STEPS = 20
 
@@ -499,7 +516,7 @@ export class GBZBaseAPI implements APIInterface {
   private isGbzDb(graphFile: string): boolean {
     const checkName = isUploadId(graphFile)
       ? this.registry.getName(graphFile)
-      : graphFile
+      : this.resolveUrl(graphFile)
     return checkName === null ? false : isGbzDbFilename(checkName)
   }
 
@@ -591,7 +608,10 @@ export class GBZBaseAPI implements APIInterface {
 
   // Try to resolve a sibling file at `trackFile + suffix` (e.g. ".gai").
   //
-  // For URL-based tracks, this is a plain fetch of the sibling URL.
+  // For URL-based tracks, this is a plain fetch of the sibling URL. Every
+  // sibling index (.gai, .tbi, .csi) is gzip, so a body that isn't is a host
+  // answering a missing file with a page, as a single-page app's fallback
+  // route does, and counts as absent.
   //
   // For uploaded tracks (numeric ids) we look the sibling up by original
   // filename — putFile records the upload's `file.name`, so a `.sorted.gam`
@@ -604,12 +624,17 @@ export class GBZBaseAPI implements APIInterface {
     if (isUploadId(trackFile)) {
       return this.registry.sibling(trackFile, suffix)
     }
-    const sibling = trackFile + suffix
+    const sibling = siblingUrl(this.resolveUrl(trackFile), suffix)
     if (this.missingSiblings.has(sibling)) {
       return null
     }
     try {
-      return await this.resolveTrackFile(sibling, cancelSignal)
+      const blob = await this.resolveTrackFile(sibling, cancelSignal)
+      if (!(await isGzip(blob))) {
+        this.missingSiblings.add(sibling)
+        return null
+      }
+      return blob
     } catch (e) {
       // No index beside the track is normal and means "scan the whole file".
       // S3 answers 403 rather than 404 for a missing key in a bucket that
