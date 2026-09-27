@@ -75,10 +75,12 @@ export function strandScale(
   }
 }
 
+// One color, the main palette's first, so its key is a single swatch
 export function referenceScale(scheme: Scheme): ColorScale {
+  const color = paletteColors(scheme.mainPalette)[0]!
   return {
-    color: () => paletteColors(scheme.mainPalette)[0]!,
-    rows: noun => [{ label: capitalize(noun), palette: scheme.mainPalette }],
+    color: () => color,
+    rows: noun => [{ label: capitalize(noun), palette: color }],
   }
 }
 

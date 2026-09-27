@@ -26,16 +26,16 @@ const GRAPH_AND_READS: Tracks = [
 
 describe('legendSections', () => {
   it('names the palette each row is actually drawn in', () => {
-    // Everything but a read takes mainPalette[0] for the first track and
-    // auxPalette for the rest, so a graph carrying its own non-reference paths
-    // needs both rows named.
+    // Everything but a read takes mainPalette's first color for the first
+    // track and auxPalette for the rest, so a graph carrying its own
+    // non-reference paths needs both rows.
     expect(
       rowsFor([
         { trackType: 'graph', trackFile: 'x.gbz.db' },
         { trackType: 'read', trackFile: 'x.gam' },
       ]),
     ).toEqual([
-      ['Reference path=greys', 'Other paths=ygreys'],
+      ['Reference path=#d9d9d9', 'Other paths=ygreys'],
       ['Forward reads=blues', 'Reverse reads=reds'],
     ])
   })
@@ -46,7 +46,7 @@ describe('legendSections', () => {
         { trackType: 'graph', trackFile: 'x.gbz.db' },
         { trackType: 'haplotype', trackFile: 'x.gbwt' },
       ]),
-    ).toEqual([['Reference path=greys'], ['Haplotypes=reds']])
+    ).toEqual([['Reference path=#d9d9d9'], ['Haplotypes=reds']])
   })
 
   it('collapses the strand rows under ignoreStrand', () => {
@@ -112,7 +112,7 @@ describe('legendSections', () => {
         readGroups: [{ name: 'Carriers', color: 'blues' }],
       }),
     ).toEqual([
-      ['Reference path=greys', 'Other paths=ygreys'],
+      ['Reference path=#d9d9d9', 'Other paths=ygreys'],
       ['Forward read bands=blues', 'Reverse read bands=reds'],
     ])
   })
@@ -121,14 +121,14 @@ describe('legendSections', () => {
     const graph: Tracks = [{ trackType: 'graph', trackFile: 'x.gbz.db' }]
     const coarsened = { unit: 'haplotype', total: 94, reverse: false } as const
     expect(rowsFor(graph, { coarsened })).toEqual([
-      ['Reference path=greys', 'Bands, 1 to all 94 other haplotypes=ramp'],
+      ['Reference path=#d9d9d9', 'Bands, 1 to all 94 other haplotypes=ramp'],
     ])
     expect(
       rowsFor([...graph, { trackType: 'haplotype', trackFile: 'x.gbwt' }], {
         coarsened: { ...coarsened, reverse: true },
       }),
     ).toEqual([
-      ['Reference path=greys'],
+      ['Reference path=#d9d9d9'],
       [
         'Forward bands, 1 to all 94 other haplotypes=ramp',
         'Reverse bands, 1 to all 94 other haplotypes=ramp',
@@ -143,7 +143,7 @@ describe('legendSections', () => {
         colorSchemes: [{ mainPalette: 'blues' }, { mainPalette: 'reds' }],
       }).map(s => s.rows.map(describeRow)),
     ).toEqual([
-      ['Reference path=blues', 'Other paths=greys'],
+      ['Reference path=#6baed6', 'Other paths=greys'],
       ['Forward reads=reds', 'Reverse reads=greys'],
     ])
   })
