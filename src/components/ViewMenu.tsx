@@ -5,10 +5,11 @@ import ListSubheader from '@mui/material/ListSubheader'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
 import Typography from '@mui/material/Typography'
-import type { VisOptionFlag, VisOptions } from '../Types.ts'
+import type { ViewTarget, VisOptionFlag, VisOptions } from '../Types.ts'
 import { AppBarMenu } from './AppBarMenu.tsx'
 import { CheckboxMenuItem } from './CheckboxMenuItem.tsx'
 import { HelpIcon } from './HelpIcon.tsx'
+import { OpenInBandageJsMenuItem } from './OpenInBandageJsMenuItem.tsx'
 import PopupDialog from './PopupDialog.tsx'
 import TrackVisibilityPanel from './TrackVisibilityPanel.tsx'
 
@@ -21,6 +22,8 @@ interface ViewMenuProps {
   toggleVisOptionFlag: (flag: VisOptionFlag) => void
   handleMappingQualityCutoffChange: (value: number) => void
   compressedViewLocked?: boolean
+  bandageJsViewTarget: ViewTarget | undefined
+  trackFileBaseURI: string | undefined
 }
 
 export function ViewMenu({
@@ -30,6 +33,8 @@ export function ViewMenu({
   toggleVisOptionFlag,
   handleMappingQualityCutoffChange,
   compressedViewLocked,
+  bandageJsViewTarget,
+  trackFileBaseURI,
 }: ViewMenuProps) {
   const [visibilityDialogOpen, setVisibilityDialogOpen] = useState(false)
   const readsDisabled = !visOptions.showReads
@@ -182,6 +187,12 @@ export function ViewMenu({
             >
               Track visibility…
             </MenuItem>
+            <Divider />
+            <OpenInBandageJsMenuItem
+              viewTarget={bandageJsViewTarget}
+              trackFileBaseURI={trackFileBaseURI}
+              close={close}
+            />
           </>
         )}
       </AppBarMenu>

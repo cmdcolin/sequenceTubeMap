@@ -348,6 +348,12 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
             toggleVisOptionFlag={toggleVisOptionFlag}
             handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
             compressedViewLocked={viewTarget.removeSequences}
+            bandageJsViewTarget={
+              dataOrigin === dataOriginTypes.API ? viewTarget : undefined
+            }
+            trackFileBaseURI={
+              apiInterface.mode === 'local' ? document.baseURI : undefined
+            }
           />
         }
       />

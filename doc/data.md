@@ -302,6 +302,9 @@ frozen tab. Narrowing the region is the fix. The cap resets with each new
 region, and `pnpm tubemap-cli` ignores it — a figure that takes a minute
 headlessly is nobody's frozen tab.
 
+To see the shape of a window too wide to draw, **View → Open in BandageJS**
+shows it as a force-directed graph, which costs nodes rather than node visits.
+
 Reads are capped separately and subsampled rather than refused, since dropping
 reads still leaves a true picture of the graph; the banner above the map says
 how many of them are drawn.

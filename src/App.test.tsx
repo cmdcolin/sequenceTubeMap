@@ -181,6 +181,44 @@ it('starts from the view options in the URL', async () => {
   expect(compressed.querySelector('input[type=checkbox]')).toBeChecked()
 })
 
+it('links a hosted graph to BandageJS from the View menu', async () => {
+  window.history.replaceState(
+    null,
+    '',
+    '/?name=HPRC%20v2.1%20whole%20genome%20(gbz-base%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000',
+  )
+  vi.resetModules()
+  const { default: UrlApp } = await import('./App.tsx')
+  render(
+    <SWRConfig value={{ provider: () => new Map() }}>
+      <UrlApp api={fakeAPI()} />
+    </SWRConfig>,
+  )
+
+  await userEvent.click(screen.getByTestId('viewMenuButton'))
+  const href = screen
+    .getByTestId('openInBandageJsMenuItem')
+    .getAttribute('href')
+
+  expect(Object.fromEntries(new URL(href!).searchParams)).toMatchObject({
+    gbz: expect.stringMatching(/hprc-v2\.1-mc-grch38\.gbz\.db$/),
+    index: expect.stringMatching(/haplotype-index\.anchored\.db$/),
+    loc: 'chr20:48000600-48001000',
+    ref: 'GRCh38',
+  })
+})
+
+it('disables Open in BandageJS for a graph only the server can read', async () => {
+  renderApp()
+
+  await userEvent.click(screen.getByTestId('viewMenuButton'))
+
+  expect(screen.getByTestId('openInBandageJsMenuItem')).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  )
+})
+
 it('puts the View menu settings in the address bar, and only the changed ones', async () => {
   window.history.replaceState(null, '', '/')
   renderApp()
