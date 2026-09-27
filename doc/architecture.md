@@ -55,7 +55,10 @@ page reads and GAM decoding stay off the main thread. Everything real happens in
 - **Reads** come from `src/api/gam/`, a from-scratch GAM reader: BGZF
   decompression, libvgio type-tagged message framing, a protobuf `Alignment`
   decoder, and a `.gam.gai` index parser that narrows a region query to the
-  virtual-offset runs that can overlap the node range.
+  virtual-offset runs that can overlap the node range. Like vg, the reader takes
+  those runs in file order and stops at the first group that lies wholly past
+  the range; on the bundled BRCA1 reads that skips about two thirds of what a
+  narrow query used to fetch.
 
 Uploaded files never leave the browser; `fileRegistry.ts` hands out numeric ids
 that stand in for `trackFile` paths. Any other `trackFile` string resolves

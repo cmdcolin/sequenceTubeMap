@@ -198,16 +198,61 @@ describe('readGamRegion', () => {
     expect(names(indexed)).toEqual(names(filtered))
   })
 
-  // Several runs in flight at once, so a query spanning them costs about one
-  // round trip rather than one per run.
+  // Nodes 511-531 of cactus-NA12879 need five of their seven runs, which
+  // overlap rather than costing a round trip each.
   it('fetches several runs concurrently', async () => {
+    const source = countingSource('exampleData/cactus-NA12879.sorted.gam')
+    const gai = loadAsBlob('exampleData/cactus-NA12879.sorted.gam.gai')
+    await readGamRegion(source, gai, 511n, 531n)
+    expect(source.reads).toBeGreaterThan(1)
+    expect(source.maxInFlight).toBeGreaterThan(1)
+  })
+
+  // The index names five runs for nodes 1-24 of BRCA1, from every bin that
+  // overlaps them, but the first run already reaches a group lying wholly
+  // past node 24, and gamsort's order means nothing after it can match.
+  it('fetches no run past the group where the query ends', async () => {
     const source = countingSource(
       'exampleData/internal/NA12878-BRCA1.sorted.gam',
     )
     const gai = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam.gai')
-    await readGamRegion(source, gai, 1n, 24n)
-    expect(source.reads).toBeGreaterThan(1)
-    expect(source.maxInFlight).toBeGreaterThan(1)
+    expect(runsForNodeRange(await loadGamIndex(gai), 1n, 24n)).toHaveLength(5)
+
+    expect((await readGamRegion(source, gai, 1n, 24n)).length).toBeGreaterThan(
+      0,
+    )
+    expect(source.reads).toBe(1)
+  })
+
+  // Stopping early is only right because of how gamsort orders groups, so
+  // hold the answer to a whole-file scan across each sorted GAM's id range.
+  it.each([
+    'exampleData/internal/NA12878-BRCA1.sorted.gam',
+    'exampleData/cactus-NA12879.sorted.gam',
+  ])('matches a whole-file scan in windows across %s', async path => {
+    const gam = loadAsBlob(path)
+    const gai = loadAsBlob(`${path}.gai`)
+    const all = await readGam(gam)
+    const names = (xs: { name?: string }[]) => xs.map(x => x.name ?? '')
+    const lastWindow = Math.max(
+      ...[...(await loadGamIndex(gai)).windows.keys()].map(Number),
+    )
+    const step = BigInt(Math.ceil(((lastWindow + 1) * 256) / 30))
+    for (
+      let first = 1n;
+      first <= BigInt(lastWindow + 1) * 256n;
+      first += step
+    ) {
+      const last = first + 20n
+      const inRange = (r: VgRead) =>
+        r.path?.mapping.some(m => {
+          const id = BigInt(m.position?.node_id ?? 0)
+          return id >= first && id <= last
+        }) ?? false
+      expect(
+        names(await readGamRegion(new BlobFile(gam), gai, first, last)),
+      ).toEqual(names(all.filter(inRange)))
+    }
   })
 
   // The reason the index exists: a narrow query has to touch a small part of

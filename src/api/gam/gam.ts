@@ -21,6 +21,7 @@ import { Inflate } from 'pako-esm2'
 import type { GenericFilehandle } from 'generic-filehandle2'
 import { decodeAlignment } from './alignment.ts'
 import { iterateMessages } from './messageStream.ts'
+import type { TaggedMessage } from './messageStream.ts'
 import { loadGamIndex, runsForNodeRange } from './gamIndex.ts'
 import type { IndexRun } from './gamIndex.ts'
 import {
@@ -177,11 +178,19 @@ export async function readGamRegion(
 // start, so every run is read exactly once and nothing is decoded twice.
 //
 // `visits` is the exact set of node ids the caller wants, when it knows it.
-// The index can only prefilter by id range, which over-selects whenever the
-// wanted ids aren't contiguous, so the caller used to filter the result a
-// second time; every id in the set is inside [minNode, maxNode] by
-// construction, so testing the set here is the same answer for one walk of
-// each alignment instead of two.
+// The index can only narrow by id range, which over-selects whenever the
+// wanted ids aren't contiguous; every id in the set lies inside
+// [minNode, maxNode], so testing the set alone is enough.
+//
+// The runs of every overlapping bin include ones far past the region, since a
+// coarse bin holds groups from all over its id range. `vg gamsort` orders
+// groups by their smallest node id, so the first group whose smallest id is
+// past `maxNode` means nothing after it can match, and vg's own reader stops
+// there (`StreamIndex::find`). So does this one, which is why runs are read in
+// file order. Fetches still overlap, in a window that doubles with each run
+// that doesn't reach that group: a query that ends in its first run fetches
+// nothing past it, and one spanning many runs pays a round trip per doubling
+// rather than one per run.
 export async function readAlignmentsForRuns(
   source: GenericFilehandle,
   runs: IndexRun[],
@@ -190,64 +199,80 @@ export async function readAlignmentsForRuns(
   { visits, signal }: RegionReadOptions = {},
 ): Promise<VgRead[]> {
   const { size } = await source.stat()
-  const perRun = new Array<VgRead[]>(runs.length)
-  let nextRun = 0
-  const worker = async () => {
-    let i = nextRun++
-    while (i < runs.length) {
+  const done = new AbortController()
+  const fetchSignal = signal
+    ? AbortSignal.any([signal, done.signal])
+    : done.signal
+  const fetched: Promise<TaggedMessage[]>[] = []
+  const wanted = (id: bigint) =>
+    visits ? visits.has(id) : id >= minNode && id <= maxNode
+  // Reads stay in file order, which for a sorted GAM is roughly node
+  // position. TubeMapContainer's subsampleReads relies on that to take a
+  // spatially even sample.
+  const out: VgRead[] = []
+  let window = 1
+  try {
+    for (let i = 0; i < runs.length; i++) {
       signal?.throwIfAborted()
-      perRun[i] = await alignmentsInRun(
-        source,
-        size,
-        runs[i]!,
-        minNode,
-        maxNode,
-        visits,
-        signal,
-      )
-      i = nextRun++
+      while (fetched.length < Math.min(runs.length, i + window)) {
+        const messages = messagesInRun(
+          source,
+          size,
+          runs[fetched.length]!,
+          fetchSignal,
+        )
+        messages.catch(() => {
+          /* a run fetched ahead and then not needed */
+        })
+        fetched.push(messages)
+      }
+      if (collectRun(await fetched[i]!, maxNode, wanted, out)) {
+        break
+      }
+      window = Math.min(window * 2, RUN_FETCH_CONCURRENCY)
     }
+  } finally {
+    done.abort()
   }
-  await Promise.all(
-    Array.from({ length: Math.min(RUN_FETCH_CONCURRENCY, runs.length) }, () =>
-      worker(),
-    ),
-  )
-  // Concatenating in run order keeps the reads in the order the file has
-  // them, which for a sorted GAM is roughly node position. TubeMapContainer's
-  // subsampleReads relies on that to take a spatially even sample.
-  return perRun.flat()
+  return out
 }
 
-// Runs are fetched a few at a time so a query spanning several of them pays
-// roughly one round trip's latency instead of one per run, which is the
-// difference between fast and sluggish over HTTP. Capped rather than
-// unbounded so a query over a large file doesn't hold every run's
-// decompressed bytes at once.
+// At most this many runs are fetched at once, so a query over a large file
+// doesn't hold every run's decompressed bytes together.
 const RUN_FETCH_CONCURRENCY = 6
 
-async function alignmentsInRun(
-  source: GenericFilehandle,
-  fileSize: number,
-  run: IndexRun,
-  minNode: bigint,
+// Append the run's wanted alignments to `out`, and report whether it reached
+// a group whose smallest node id is past `maxNode`. Only the node ids are
+// read off an alignment that isn't wanted.
+function collectRun(
+  messages: TaggedMessage[],
   maxNode: bigint,
-  visits: ReadonlySet<bigint> | undefined,
-  signal: AbortSignal | null | undefined,
-): Promise<VgRead[]> {
-  const out: VgRead[] = []
-  for (const msg of await messagesInRun(source, fileSize, run, signal)) {
+  wanted: (id: bigint) => boolean,
+  out: VgRead[],
+): boolean {
+  let group: number | undefined
+  let groupMin: bigint | undefined
+  for (const msg of messages) {
+    if (msg.groupStart !== group) {
+      if (groupMin !== undefined && groupMin > maxNode) {
+        return true
+      }
+      group = msg.groupStart
+      groupMin = undefined
+    }
     if (isAlignmentTag(msg.tag)) {
-      const aln = decodeAlignment(msg.bytes)
-      const wanted = alignmentNodeIds(aln).some(id =>
-        visits ? visits.has(id) : id >= minNode && id <= maxNode,
-      )
-      if (wanted) {
-        out.push(aln)
+      const ids = extractNodeIds(msg.bytes)
+      for (const id of ids) {
+        if (groupMin === undefined || id < groupMin) {
+          groupMin = id
+        }
+      }
+      if (ids.some(wanted)) {
+        out.push(decodeAlignment(msg.bytes))
       }
     }
   }
-  return out
+  return groupMin !== undefined && groupMin > maxNode
 }
 
 // A BGZF block's size is BSIZE + 1 with BSIZE a uint16, so no block is larger
@@ -258,8 +283,8 @@ async function messagesInRun(
   source: GenericFilehandle,
   fileSize: number,
   run: IndexRun,
-  signal: AbortSignal | null | undefined,
-) {
+  signal: AbortSignal,
+): Promise<TaggedMessage[]> {
   const startBlock = blockOfVO(run.start)
   if (run.pastEnd <= run.start || startBlock >= fileSize) {
     return []
@@ -273,7 +298,7 @@ async function messagesInRun(
   const compressed = await source.read(
     Math.min(fileSize, endBlock + MAX_BGZF_BLOCK) - startBlock,
     startBlock,
-    { signal: signal ?? undefined },
+    { signal },
   )
   const { data, lastBlockStart } = await inflateBlocks(
     compressed,

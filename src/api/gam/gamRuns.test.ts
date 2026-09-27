@@ -153,6 +153,24 @@ describe('readAlignmentsForRuns', () => {
     expect(names(reads)).toEqual(['read-b'])
   })
 
+  // A group of unmapped reads touches no node, so it says nothing about where
+  // the query ends; vg's reader skips it when deciding to stop, and so must
+  // this one.
+  it('reads on past a group that touches no node', async () => {
+    const unmapped = taggedGroup([
+      lenField(3, new TextEncoder().encode('unmapped')),
+    ])
+    const mapped = taggedGroup([alignment('read-a', 5, 39)])
+    const payload = concat([unmapped, mapped])
+    const reads = await readAlignmentsForRuns(
+      sourceOf(concat([bgzfBlock(payload), BGZF_EOF])),
+      [{ start: 0n, pastEnd: BigInt(payload.length) }],
+      1n,
+      10n,
+    )
+    expect(names(reads)).toEqual(['read-a'])
+  })
+
   // A negative int32 is ten bytes on the wire; the 32-bit varint reader threw
   // on it, which rejected the whole file rather than one field.
   it('decodes negative alignment scores', async () => {
