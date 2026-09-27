@@ -36,6 +36,11 @@ const renderApp = (api: APIInterface = fakeAPI()) =>
 const getRegionInput = () =>
   screen.getByRole<HTMLInputElement>('combobox', { name: /Region/i })
 
+const pickDataSource = async (name: string) => {
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+  await userEvent.click(screen.getByRole('menuitem', { name }))
+}
+
 it('renders without crashing', () => {
   renderApp()
   expect(screen.getByAltText('seqTubeMaps')).toBeInTheDocument()
@@ -455,6 +460,32 @@ describe('the address bar', () => {
     })
     expect(window.location.search).toContain('region=ref:1-100')
     expect(window.history.length).toBe(entries)
+  })
+
+  it('switches back to the backend a view was read through', async () => {
+    renderApp()
+    await pickDataSource('cactus')
+    await pickDataSource('vg "small" example')
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('x:1-100')
+    })
+    await userEvent.click(screen.getByText('Backend configuration'))
+    await userEvent.click(screen.getByLabelText('Extract tube map data'))
+    await userEvent.click(
+      screen.getByRole('option', { name: /vgteam server/i }),
+    )
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('17:1-100')
+    })
+
+    await userEvent.click(screen.getByTestId('regionHistoryBack'))
+
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('ref:1-100')
+    })
+    expect(screen.getByLabelText('Extract tube map data')).toHaveTextContent(
+      'Self-hosted server',
+    )
   })
 
   it('turns a View setting back off when Back returns to a view without it', async () => {

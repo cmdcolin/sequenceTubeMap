@@ -245,8 +245,12 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   const viewHistory = useViewHistory({
     viewTarget,
     visOptions,
-    onRestore: (restored, restoredVisOptions) => {
+    apiMode: apiInterface.mode,
+    onRestore: (restored, restoredVisOptions, restoredMode) => {
       const target = normalizeViewTarget(restored)
+      if (restoredMode !== undefined && restoredMode !== apiInterface.mode) {
+        setApiInterface(apiModes[restoredMode].create())
+      }
       setViewTarget(target)
       setDataOrigin(dataOriginTypes.API)
       // An entry that holds a view names every setting that differs from the

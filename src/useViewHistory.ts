@@ -10,11 +10,14 @@ import {
   urlParamsToVisOptions,
   viewTargetToUrlParams,
 } from './urlViewTarget.ts'
+import type { APIInterface } from './api/APIInterface.ts'
 import type { StoredVisOptions } from './util/visOptions.ts'
 import type { ViewTarget, VisOptions } from './Types.ts'
 
 // No view: nothing to fetch, nothing to draw, and nothing to put in a link.
 export const EMPTY_VIEW_TARGET: ViewTarget = { tracks: [], region: '' }
+
+type APIMode = APIInterface['mode']
 
 // Where the entry on screen sits among the entries this app added: `index` of
 // them lie behind it and `last - index` ahead. The entry the app loaded into
@@ -33,6 +36,15 @@ function positionFrom(state: unknown): HistoryPosition {
   return { index, last: Math.max(index, last) }
 }
 
+// The backend an entry's files were read through. The URL cannot say it, and
+// the backend on screen may not be able to open them.
+function modeFrom(state: unknown): APIMode | undefined {
+  const mode = isRecord(state) ? state.mode : undefined
+  return mode === 'local' || mode === 'server' || mode === 'upstream'
+    ? mode
+    : undefined
+}
+
 // Rewrite the entry on screen to describe the view on screen. Adding an entry
 // is the job of whoever navigates (see `pushEntry`), which happens before the
 // render this runs after.
@@ -44,7 +56,7 @@ function positionFrom(state: unknown): HistoryPosition {
 function writeViewToUrl(
   target: ViewTarget,
   visOptions: StoredVisOptions,
-  position: HistoryPosition,
+  state: HistoryPosition & { mode: APIMode },
 ) {
   const url = new URL(window.location.href)
   const view =
@@ -56,7 +68,7 @@ function writeViewToUrl(
   // It stays invisible here (the query wins) but is all an embedder that keeps
   // only the fragment would see.
   url.hash = fragmentWithoutView(url.hash)
-  window.history.replaceState(position, '', url.toString())
+  window.history.replaceState(state, '', url.toString())
 }
 
 interface ViewHistoryOptions {
@@ -65,11 +77,17 @@ interface ViewHistoryOptions {
   // than at the call site keeps the object identity that decides when this
   // rewrites the address bar.
   visOptions: VisOptions
+  apiMode: APIMode
   // Back or Forward moved to another entry. The view it describes is parsed
   // out of the params the same way the initial one is, along with the View
   // menu settings it names: every one that differs from the defaults, since
-  // the address bar is rewritten whenever a setting changes.
-  onRestore: (target: ViewTarget, visOptions: Partial<StoredVisOptions>) => void
+  // the address bar is rewritten whenever a setting changes. `apiMode` is the
+  // backend the entry was read through, when it recorded one.
+  onRestore: (
+    target: ViewTarget,
+    visOptions: Partial<StoredVisOptions>,
+    apiMode: APIMode | undefined,
+  ) => void
 }
 
 // Keep the address bar describing the view on screen, and follow it back when
@@ -79,6 +97,7 @@ interface ViewHistoryOptions {
 export function useViewHistory({
   viewTarget,
   visOptions,
+  apiMode,
   onRestore,
 }: ViewHistoryOptions) {
   const [position, setPosition] = useState(() =>
@@ -90,8 +109,8 @@ export function useViewHistory({
   // in the commit path.
   useEffect(() => {
     const { colorSchemes, ...stored } = visOptions
-    writeViewToUrl(viewTarget, stored, position)
-  }, [viewTarget, visOptions, position])
+    writeViewToUrl(viewTarget, stored, { ...position, mode: apiMode })
+  }, [viewTarget, visOptions, position, apiMode])
 
   useEffect(() => {
     const restore = (event: PopStateEvent) => {
@@ -101,6 +120,7 @@ export function useViewHistory({
         urlParamsToViewTarget(window.location, config.DATA_SOURCES) ??
           EMPTY_VIEW_TARGET,
         urlParamsToVisOptions(window.location),
+        modeFrom(event.state),
       )
     }
     window.addEventListener('popstate', restore)
