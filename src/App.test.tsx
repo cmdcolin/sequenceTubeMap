@@ -469,6 +469,28 @@ describe('the address bar', () => {
     expect(window.history.length).toBe(entries)
   })
 
+  it('drops the views ahead when another is picked after Back', async () => {
+    renderApp()
+    await pickDataSource('cactus')
+    await pickDataSource('vg "small" example')
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('x:1-100')
+    })
+    await userEvent.click(screen.getByTestId('regionHistoryBack'))
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('ref:1-100')
+    })
+    expect(screen.getByTestId('regionHistoryForward')).toBeEnabled()
+
+    await pickDataSource('snp1kg-BRCA1')
+
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('17:1-100')
+    })
+    expect(screen.getByTestId('regionHistoryForward')).toBeDisabled()
+    expect(window.history.state).toMatchObject({ index: 2, last: 2 })
+  })
+
   it('switches back to the backend a view was read through', async () => {
     renderApp()
     await pickDataSource('cactus')
