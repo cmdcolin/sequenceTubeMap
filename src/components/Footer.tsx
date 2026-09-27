@@ -1,11 +1,13 @@
 import { Icon } from './Icon.tsx'
 import { faGithub } from './icons.ts'
 
-import SafeLink from './SafeLink.tsx'
-
 export const Footer = () => (
   <footer style={{ marginTop: '1.5em' }}>
-    <SafeLink href="https://pangenome.github.io/MemPanG26/" target="_blank">
+    <a
+      href="https://pangenome.github.io/MemPanG26/"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
       <img
         src="https://pangenome.github.io/MemPanG26/images/trippy-bridge.png"
         alt="Memphis bridge — MemPanG26"
@@ -17,7 +19,7 @@ export const Footer = () => (
           objectPosition: 'center',
         }}
       />
-    </SafeLink>
+    </a>
     <div
       style={{
         background: '#f8f9fa',
@@ -28,12 +30,13 @@ export const Footer = () => (
     >
       <div>
         <strong>
-          <SafeLink
-            target="_blank"
+          <a
             href="https://github.com/cmdcolin/sequenceTubeMap"
+            target="_blank"
+            rel="noopener noreferrer"
           >
             <Icon icon={faGithub} /> seqTubeMaps
-          </SafeLink>
+          </a>
         </strong>{' '}
         is a fork of the excellent sequenceTubeMap / IVG by the vgteam created
         for hackathon purposes (could be upstreamed potentially).
