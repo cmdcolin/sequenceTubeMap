@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tubeMap from './tubemap.ts'
+import { haplotypeShareColor } from './palettes.ts'
 import type { InfoAttribute, InputNode, InputTrack } from './tubemap.ts'
 import { computeExampleData } from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
@@ -415,9 +416,9 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
   it('bands the alt haplotypes by edge, leaving the reference out of the count and dropping the alts by name', () => {
     const names = trackNames(tracks)
     expect(names.filter(name => name.includes('→')).sort()).toEqual([
-      '1 haplotype: Node 2 → Node 4',
-      '2 haplotypes: Node 2 → Node 3',
-      '3 haplotypes: Node 1 → Node 2',
+      '1 haplotype (33%): Node 2 → Node 4',
+      '2 haplotypes (67%): Node 2 → Node 3',
+      '3 haplotypes (100%): Node 1 → Node 2',
     ])
     expect(names).toContain('ref')
     expect(names).not.toContain('alt1')
@@ -438,10 +439,23 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
         .filter(name => name.includes('→'))
         .sort(),
     ).toEqual([
-      '4 haplotypes: Node 2 → Node 3',
-      '5 haplotypes: Node 2 → Node 4',
-      '9 haplotypes: Node 1 → Node 2',
+      '4 haplotypes (44%): Node 2 → Node 3',
+      '5 haplotypes (56%): Node 2 → Node 4',
+      '9 haplotypes (100%): Node 1 → Node 2',
     ])
+  })
+
+  it('shades each band by its share, so both sides of an allele match', () => {
+    setupSvg()
+    tubeMap.setMergeNodesFlag(false)
+    tubeMap.setCoarsenedReadViewFlag(true)
+    const svg = render(nodes, tracks)
+    const fillOf = (name: string) =>
+      svg.querySelector(`[trackName^="${name}"]`)?.getAttribute('color')
+    expect(fillOf('3 haplotypes')).toBe(haplotypeShareColor(1))
+    expect(fillOf('2 haplotypes')).toBe(haplotypeShareColor(2 / 3))
+    expect(fillOf('1 haplotype')).toBe(haplotypeShareColor(1 / 3))
+    expect(tubeMap.getRenderedColoring().coarsened).toBe('haplotype')
   })
 
   // A mapping-quality cutoff (or a focus-name filter) can filter every read

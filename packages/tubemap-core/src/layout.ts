@@ -34,6 +34,7 @@ export interface ColorableTrack {
   name?: string
   mapping_quality?: number
   is_reverse?: boolean
+  haplotypeShare?: number
 }
 
 export interface LayoutOptions {
@@ -2783,9 +2784,9 @@ function generateSVGShapesFromPath(): void {
 
 // Sankey-mode synthesis: one synthetic "read" per (srcSigned → dstSigned) edge,
 // fed through the normal placeReads/generateSVGShapesFromPath pipeline so the
-// band gets the same lane assignment, loop topology, bezier shape, AND color
-// scheme as a real read — colors come from generateTrackColor's natural
-// `id % palette.length` rotation, no custom palette needed.
+// band gets the same lane assignment, loop topology and bezier shape as a real
+// read. A read band takes its source's palette; a haplotype band carries its
+// share of the haplotypes for the colorer to shade by.
 //
 // Synthetic-track ids live above this base so they don't collide with real
 // track ids and so click/hover handlers can show count info instead of the
@@ -2822,6 +2823,7 @@ function buildCoarsenedSyntheticBands(
     sourceTrackID: number
   }
   const edges = new Map<string, EdgeAgg>()
+  let sourceCount = 0
   // When ignoring strand, (+A→+B) and (-B→-A) refer to the same underlying
   // graph connection — collapse both into one canonical key. We pick the
   // lexicographically smaller of the two orientations so a stable canonical
@@ -2829,10 +2831,11 @@ function buildCoarsenedSyntheticBands(
   // visual band direction.
   const ignoreStrand = config.ignoreStrand
   for (const item of source) {
-    const seq = item.indexSequence
-    if (!seq || seq.length < 2) continue
     // a deduplicated walk stands for `freq` identical haplotypes
     const weight = Math.max(item.freq ?? 1, 1)
+    sourceCount += weight
+    const seq = item.indexSequence
+    if (!seq || seq.length < 2) continue
     for (let i = 0; i < seq.length - 1; i += 1) {
       const sSigned = seq[i]!
       const dSigned = seq[i + 1]!
@@ -2887,7 +2890,9 @@ function buildCoarsenedSyntheticBands(
   let i = 0
   for (const edge of edges.values()) {
     const id = COARSENED_ID_BASE + i
-    const label = `${edge.count.toLocaleString()} ${unit}${edge.count === 1 ? '' : 's'}: Node ${edge.sName} → Node ${edge.dName}`
+    const share = unit === 'haplotype' ? edge.count / sourceCount : undefined
+    const shareText = share === undefined ? '' : ` (${formatShare(share)})`
+    const label = `${edge.count.toLocaleString()} ${unit}${edge.count === 1 ? '' : 's'}${shareText}: Node ${edge.sName} → Node ${edge.dName}`
     coarsenedEdgeMeta.set(id, { count: edge.count, label })
     // Place each synthetic band so it touches *only* its endpoint nodes' edges:
     //   • firstNodeOffset = src.sequenceLength → curve exits at src's right
@@ -2932,6 +2937,7 @@ function buildCoarsenedSyntheticBands(
       sample_name: null,
       read_group: null,
       score: edge.count,
+      haplotypeShare: share,
     })
     i += 1
   }
@@ -2954,6 +2960,10 @@ function buildCoarsenedSyntheticBands(
     )
   }
   return synthetic
+}
+
+function formatShare(share: number): string {
+  return share < 0.01 ? '<1%' : `${Math.round(share * 100)}%`
 }
 
 function createFeatureRectangle(

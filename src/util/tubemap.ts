@@ -7,7 +7,7 @@ import '../config-client.js'
 import _externalConfig from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
 import { mappingQualityAlpha, mappingQualityColor } from './mappingQuality.ts'
-import { greys, PALETTES } from './palettes.ts'
+import { greys, haplotypeShareColor, PALETTES } from './palettes.ts'
 import { formatTrackDisplayName } from './trackName.ts'
 import {
   clampedXCoordinateOfBaseWithinNode,
@@ -1039,6 +1039,9 @@ function colorSchemeFor(track: ColorableTrack): ColorScheme {
 // of the track it came from: a read group or a mapping quality belongs to one
 // read, not to a band.
 function generateTrackColor(track: ColorableTrack, highlight = 'plain'): string {
+  if (track.haplotypeShare !== undefined) {
+    return haplotypeShareColor(track.haplotypeShare)
+  }
   const scheme = colorSchemeFor(track)
   if (isCoarsenedId(track.id)) {
     return strandColor(track, scheme)

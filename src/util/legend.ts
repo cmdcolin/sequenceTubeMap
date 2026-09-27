@@ -5,6 +5,7 @@
 
 import type { CoarsenedUnit } from '@gmod/tubemap-core'
 import type { FileType, Tracks } from '../Types.ts'
+import { haplotypeShare } from './palettes.ts'
 import {
   MAX_MAPPING_QUALITY,
   mappingQualityAlpha,
@@ -154,7 +155,7 @@ function readRows(
 // drawn entirely in its aux palette, and a graph track carrying the
 // non-reference paths itself needs both rows. Naming `mainPalette` for those
 // would name a color nothing on screen is drawn in. Coarsened haplotypes are
-// bands, colored by strand like read bands.
+// bands, shaded by their share of the haplotypes.
 function pathRows(
   type: FileType,
   scheme: LegendScheme,
@@ -164,7 +165,7 @@ function pathRows(
   const aux = scheme.auxPalette
   const bands =
     input.coarsened === 'haplotype'
-      ? strandRows('haplotype bands', scheme, input.ignoreStrand ?? false)
+      ? [{ label: 'Share of haplotypes, 1–100%', ramp: haplotypeShare }]
       : undefined
   if (type === 'graph') {
     // With a haplotype track loaded, the paths beside the reference belong to

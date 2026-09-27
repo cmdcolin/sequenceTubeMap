@@ -117,27 +117,22 @@ describe('legendSections', () => {
     ])
   })
 
-  it('keys coarsened haplotypes as bands beside the reference', () => {
+  it('keys coarsened haplotypes by share, beside the reference', () => {
+    const share = 'Share of haplotypes, 1–100%=ramp'
     expect(
       rowsFor([{ trackType: 'graph', trackFile: 'x.gbz.db' }], {
         coarsened: 'haplotype',
       }),
-    ).toEqual([
-      [
-        'Reference path=greys',
-        'Forward haplotype bands=greys',
-        'Reverse haplotype bands=ygreys',
-      ],
-    ])
+    ).toEqual([['Reference path=greys', share]])
     expect(
       rowsFor(
         [
           { trackType: 'graph', trackFile: 'x.gbz.db' },
           { trackType: 'haplotype', trackFile: 'x.gbwt' },
         ],
-        { coarsened: 'haplotype', ignoreStrand: true },
+        { coarsened: 'haplotype' },
       ),
-    ).toEqual([['Reference path=greys'], ['Haplotype bands=blues']])
+    ).toEqual([['Reference path=greys'], [share]])
   })
 
   it('says nothing rather than guessing when a track has no scheme', () => {

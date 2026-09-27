@@ -1,3 +1,4 @@
+import { interpolateOranges, rgb } from 'd3'
 import type { ColorHex, ColorPaletteName } from '../Types.ts'
 
 export const greys: readonly ColorHex[] = [
@@ -65,6 +66,26 @@ export const lightColors: readonly ColorHex[] = [
   '#E6E6AC',
   '#A8E7ED',
 ]
+
+// A coarsened haplotype band's share of the haplotypes, log-scaled from 1% so
+// a singleton in a hundred-haplotype cohort still shows. Oranges starts at 0.4
+// to keep that pale end off the white page and away from the reference lane.
+const SHARE_FLOOR = 0.01
+const SHARE_RAMP_START = 0.4
+
+export function haplotypeShareColor(share: number): ColorHex {
+  const t = Math.min(
+    1,
+    Math.max(0, 1 - Math.log10(share) / Math.log10(SHARE_FLOOR)),
+  )
+  return rgb(
+    interpolateOranges(SHARE_RAMP_START + (1 - SHARE_RAMP_START) * t),
+  ).formatHex() as ColorHex
+}
+
+export const haplotypeShare: readonly ColorHex[] = [
+  0.01, 0.03, 0.1, 0.3, 1,
+].map(haplotypeShareColor)
 
 // "sequential" palettes are gradations along a single hue; "categorical"
 // palettes are sets of distinguishable colors with no implied ordering.

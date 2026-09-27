@@ -100,6 +100,8 @@ export interface InputTrack {
   read_group?: string | null
   cigar_string?: string
   score?: number
+  // a coarsened haplotype band's fraction of the banded haplotypes
+  haplotypeShare?: number
 }
 
 // Layout-complete track shape, as layoutTubeMap returns it.
