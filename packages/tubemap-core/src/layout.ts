@@ -1707,76 +1707,63 @@ function switchNodeOrientation(): void {
 }
 
 // If more of the given paths pass through a specific node in reverse direction than in
-// regular direction, switch its orientation. Processes all paths' nodes in
-// place, so if you want e.g. a first track with nodes fixed in that
-// orientation, pass it as pivotPath.
+// regular direction, switch its orientation. Nodes the pivot path visits
+// forward keep theirs. Processes all paths' nodes in place, reading each
+// visit's node from its indexSequence, which must match its sequence.
 // References and modifies the global nodes variable.
-function switchNodeOrientationForPaths(
-  paths: Track[],
-  pivotPath: Track | null,
-): void {
-  const toSwitch = new Map<string, number>()
-  const pivotNames = pivotPath ? new Set(pivotPath.sequence) : null
+function switchNodeOrientationForPaths(paths: Track[], pivotPath: Track): void {
+  const scores = new Int32Array(nodes.length)
+  const onPivot = new Uint8Array(nodes.length)
+  for (const nodeName of pivotPath.sequence) {
+    const index = isReverse(nodeName) ? undefined : nodeMap.get(nodeName)
+    if (index !== undefined) onPivot[index] = 1
+  }
 
   for (const path of paths) {
-    const sequence = path.sequence
-    for (let j = 0; j < sequence.length; j += 1) {
-      const nodeName = forward(sequence[j]!)
-      const currentNode = nodeByName(nodeName)
-      if (pivotNames && !pivotNames.has(nodeName)) {
-        // do not change orientation for nodes which are part of the pivot path
-        const prevOrder = j > 0 ? nodeByName(sequence[j - 1]!).order : undefined
-        const nextOrder =
-          j < sequence.length - 1
-            ? nodeByName(sequence[j + 1]!).order
-            : undefined
-        if (
-          (prevOrder === undefined || prevOrder < currentNode.order) &&
-          (nextOrder === undefined || currentNode.order < nextOrder)
-        ) {
-          // Node is visited in increasing order along the path. Reverse
-          // visits count towards switching, forward visits against it.
-          addToSwitchScore(toSwitch, nodeName, isReverse(sequence[j]!) ? 1 : -1)
-        }
-        if (
-          (prevOrder === undefined || prevOrder > currentNode.order) &&
-          (nextOrder === undefined || currentNode.order > nextOrder)
-        ) {
-          // Node is visited in *decreasing* order along the path, so is already
-          // backward: the votes are the other way round.
-          addToSwitchScore(toSwitch, nodeName, isReverse(sequence[j]!) ? -1 : 1)
-        }
+    const { sequence, indexSequence } = path
+    const last = indexSequence.length - 1
+    for (let j = 0; j <= last; j += 1) {
+      const index = Math.abs(indexSequence[j]!)
+      if (onPivot[index] === 1) continue
+      const order = nodes[index]!.order
+      const prevOrder =
+        j > 0 ? nodes[Math.abs(indexSequence[j - 1]!)]!.order : undefined
+      const nextOrder =
+        j < last ? nodes[Math.abs(indexSequence[j + 1]!)]!.order : undefined
+      // A reverse visit votes for switching when the path runs left to right
+      // through the node, and against when it runs right to left.
+      const vote = isReverse(sequence[j]!) ? 1 : -1
+      if (
+        (prevOrder === undefined || prevOrder < order) &&
+        (nextOrder === undefined || order < nextOrder)
+      ) {
+        scores[index]! += vote
+      }
+      if (
+        (prevOrder === undefined || prevOrder > order) &&
+        (nextOrder === undefined || order > nextOrder)
+      ) {
+        scores[index]! -= vote
       }
     }
   }
 
   for (const path of paths) {
-    path.sequence.forEach((node, nodeIndex) => {
-      const score = toSwitch.get(forward(node))
-      if (score !== undefined && score > 0) {
-        // This node is backward more so flip it around
-        path.sequence[nodeIndex] = flip(node)
-        path.indexSequence[nodeIndex] = -path.indexSequence[nodeIndex]!
+    const { sequence, indexSequence } = path
+    for (let j = 0; j < indexSequence.length; j += 1) {
+      if (scores[Math.abs(indexSequence[j]!)]! > 0) {
+        sequence[j] = flip(sequence[j]!)
+        indexSequence[j] = -indexSequence[j]!
       }
-    })
+    }
   }
 
-  // invert the sequence within the nodes and mark them as "switched"
-  toSwitch.forEach((value, key) => {
-    if (value > 0) {
-      const node = nodeByName(key)
+  nodes.forEach((node, index) => {
+    if (scores[index]! > 0) {
       node.seq = getReverseComplement(node.seq)
       node.switched = true
     }
   })
-}
-
-function addToSwitchScore(
-  scores: Map<string, number>,
-  nodeName: string,
-  delta: number,
-): void {
-  scores.set(nodeName, (scores.get(nodeName) ?? 0) + delta)
 }
 
 // calculates the concrete values for the nodes' x-coordinates
