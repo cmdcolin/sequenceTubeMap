@@ -1224,38 +1224,37 @@ function getReverseComplement(s: string): string {
   return result
 }
 
-// for each track: generate sequence of node indices from seq. of node names
+// for each track: generate sequence of node indices from seq. of node names.
+// Tracks revisit the same names, so each name resolves once per call.
 function generateTrackIndexSequences(tracksOrReads: Track[]): void {
+  const signedIndexOf = new Map<string, number>()
   tracksOrReads.forEach(track => {
-    track.indexSequence = []
-    track.sequence.forEach(rawNodeName => {
-      let nodeName = rawNodeName
-      // if node was switched, reverse it here
-      // Q? Is flipping the index enough? It looks like yes. Or should we also flip the node name in 'sequence'?
-      const fwdIdx = nodeMap.get(forward(nodeName))!
-      const switched = nodes[fwdIdx]?.switched ?? false
-      if (switched) {
-        nodeName = flip(nodeName)
+    track.indexSequence = track.sequence.map(nodeName => {
+      let signed = signedIndexOf.get(nodeName)
+      if (signed === undefined) {
+        signed = signedIndexOfVisit(nodeName)
+        signedIndexOf.set(nodeName, signed)
       }
-      // Get the index to visit the node. If the node is switched, this means
-      // visiting it reverse. Otherwise, this means visiting it forward.
-      const nodeIndex = nodeMap.get(forward(nodeName))!
-      if (nodeIndex === 0) {
-        // If a node index is ever 0, we can't visit it in reverse, so we don't allow that to happen.
-        throw new Error('Node ' + forward(nodeName) + ' has prohibited index 0')
-      }
-      if (isReverse(nodeName) !== switched) {
-        // If we visit the node in reverse XOR the node is switched, go through
-        // it right to left as displayed.
-        track.indexSequence.push(-nodeIndex)
-      } else {
-        // If either the node isn't switched and we go through it forward, or
-        // the node is switched *and* we go through it backward, go through it
-        // left to right as displayed.
-        track.indexSequence.push(nodeIndex)
-      }
+      return signed
     })
   })
+}
+
+// The index to visit a node by, negative when the visit runs right to left as
+// displayed: a reverse visit XOR a switched node.
+function signedIndexOfVisit(rawNodeName: string): number {
+  let nodeName = rawNodeName
+  const fwdIdx = nodeMap.get(forward(nodeName))!
+  const switched = nodes[fwdIdx]?.switched ?? false
+  if (switched) {
+    nodeName = flip(nodeName)
+  }
+  const nodeIndex = nodeMap.get(forward(nodeName))!
+  if (nodeIndex === 0) {
+    // index 0 has no negative, so it can't carry a reverse visit
+    throw new Error('Node ' + forward(nodeName) + ' has prohibited index 0')
+  }
+  return isReverse(nodeName) !== switched ? -nodeIndex : nodeIndex
 }
 
 // Tracks enter and leave a node this far outside it horizontally. Note that
