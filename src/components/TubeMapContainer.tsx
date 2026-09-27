@@ -562,6 +562,12 @@ function TubeMapContainer({
     renderLimit < COARSENED_GRAPH_RENDER_LIMIT &&
     readCount === 0 &&
     nodeVisits <= COARSENED_GRAPH_RENDER_LIMIT
+  // A cap set below the smallest preset still drops reads, so it still needs
+  // the banner that says so.
+  const readBannerThreshold = Math.min(
+    READ_LIMIT_PRESETS[0],
+    readRenderLimit ?? Infinity,
+  )
 
   return (
     <div id="tubeMapContainer" style={{ position: 'relative' }}>
@@ -656,7 +662,7 @@ function TubeMapContainer({
         />
       ) : null}
       {reads !== undefined &&
-      reads.length > READ_LIMIT_PRESETS[0] &&
+      reads.length > readBannerThreshold &&
       !visOptions.coarsenedReadView &&
       !graphTooLarge ? (
         <ReadRenderLimitBanner

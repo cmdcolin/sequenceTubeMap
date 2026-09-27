@@ -189,6 +189,11 @@ describe('TubeMapContainer', () => {
     expect(screen.queryByText(/of 10 reads/)).not.toBeInTheDocument()
   })
 
+  it('shows the banner when a cap below the presets drops reads', () => {
+    renderContainer({ data: makeData(50), readRenderLimit: 20 })
+    expect(screen.getByText(/Showing 20 of 50 reads/)).toBeInTheDocument()
+  })
+
   // A whole-pangenome graph makes a wide region one keystroke away, and a
   // window whose walks visit half a million nodes is a frozen tab rather than
   // a slow one — so it is counted and refused before anything is drawn.
