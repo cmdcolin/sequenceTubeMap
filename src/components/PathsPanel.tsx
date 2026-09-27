@@ -63,8 +63,6 @@ function PathsPanel({
   // The path a confirmation is being asked about, if any.
   const [slowPath, setSlowPath] = useState<SlowPath | null>(null)
 
-  if (!pathInfo.length) return null
-
   function handleLoad(name: string, start: number, length: number) {
     if (length < SLOW_PATH_THRESHOLD) {
       onLoadPath(regionFor(name, start, length))
