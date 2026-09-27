@@ -1,9 +1,5 @@
 import { fetchAndParse } from '../fetchAndParse.ts'
-import type {
-  APIInterface,
-  ChunkedDataResponse,
-  FilenameSubscription,
-} from './APIInterface.ts'
+import type { APIInterface, ChunkedDataResponse } from './APIInterface.ts'
 import type {
   FileType,
   FilenamesResponse,
@@ -85,12 +81,21 @@ export class ServerAPI implements APIInterface {
   subscribeToFilenameChanges(
     handler: () => void,
     cancelSignal: AbortSignal,
-  ): FilenameSubscription {
-    let current: WebSocket | null = null
+  ): void {
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+    cancelSignal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(reconnectTimer)
+      },
+      { once: true },
+    )
 
     const connect = () => {
+      if (cancelSignal.aborted) {
+        return
+      }
       const ws = new WebSocket(this.apiUrl.replace(/^http/, 'ws'))
-      current = ws
       // A socket reports failure as onerror followed by onclose, and both
       // want the same response, so only the first one through gets to act.
       let handled = false
@@ -112,9 +117,7 @@ export class ServerAPI implements APIInterface {
         if (!handled) {
           detach()
           ws.close()
-          if (!cancelSignal.aborted) {
-            setTimeout(connect, RECONNECT_DELAY_MS)
-          }
+          reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS)
         }
       }
 
@@ -136,10 +139,6 @@ export class ServerAPI implements APIInterface {
     }
 
     connect()
-
-    return () => {
-      current?.close()
-    }
   }
 
   putFile(

@@ -37,11 +37,7 @@ import {
 import { UploadRegistry, isUploadId } from './local/fileRegistry.ts'
 import { errorMessage, isAbortError, toError } from '../util/error.ts'
 
-import type {
-  APIInterface,
-  ChunkedDataResponse,
-  FilenameSubscription,
-} from './APIInterface.ts'
+import type { APIInterface, ChunkedDataResponse } from './APIInterface.ts'
 import type {
   AvailableTrack,
   FileType,
@@ -595,10 +591,8 @@ export class GBZBaseAPI implements APIInterface {
   subscribeToFilenameChanges(
     _handler: () => void,
     _cancelSignal: AbortSignal,
-  ): FilenameSubscription {
-    return () => {
-      /* nothing subscribed */
-    }
+  ): void {
+    /* nothing to subscribe to */
   }
 
   async putFile(

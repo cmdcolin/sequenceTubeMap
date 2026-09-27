@@ -18,10 +18,6 @@ export interface ChunkedDataResponse {
   coloredNodes?: string[]
 }
 
-// Returned by subscribeToFilenameChanges. Callers may either call it to stop
-// listening or abort the signal they passed in, whichever fits.
-export type FilenameSubscription = () => void
-
 // Contract implemented by LocalAPI and ServerAPI. All methods take an optional
 // AbortSignal that cancels the underlying request.
 export interface APIInterface {
@@ -34,10 +30,12 @@ export interface APIInterface {
 
   getFilenames(cancelSignal: AbortSignal | null): Promise<FilenamesResponse>
 
+  // Calls `handler` whenever the file list changes, until `cancelSignal`
+  // aborts.
   subscribeToFilenameChanges(
     handler: () => void,
     cancelSignal: AbortSignal,
-  ): FilenameSubscription
+  ): void
 
   putFile(
     fileType: FileType,

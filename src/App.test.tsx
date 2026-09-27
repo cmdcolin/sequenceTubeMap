@@ -13,7 +13,7 @@ function fakeAPI(overrides: Partial<APIInterface> = {}): APIInterface {
     mode: 'server',
     getChunkedData: async () => ({}),
     getFilenames: async () => ({ files: [], bedFiles: [] }),
-    subscribeToFilenameChanges: () => () => {},
+    subscribeToFilenameChanges: () => {},
     putFile: async () => 'uploaded',
     getBedRegions: async () => ({}),
     getPathNames: async () => ({ pathNames: [] }),

@@ -88,18 +88,6 @@ describe('filename change notifications', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
-  it('stops firing after the returned unsubscribe is called', async () => {
-    const api = new LocalAPI()
-    const handler = vi.fn()
-    const unsubscribe = api.subscribeToFilenameChanges(
-      handler,
-      new AbortController().signal,
-    )
-    unsubscribe()
-    await api.putFile('graph', gbzFile(), null)
-    expect(handler).not.toHaveBeenCalled()
-  })
-
   it('stops firing after the signal is aborted', async () => {
     const api = new LocalAPI()
     const handler = vi.fn()

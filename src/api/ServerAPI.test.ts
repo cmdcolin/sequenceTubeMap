@@ -124,14 +124,22 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
     expect(handler).not.toHaveBeenCalled()
   })
 
-  it('closes the socket when the returned unsubscribe is called', () => {
+  // The reconnect timer used to outlive the abort and open a socket nothing
+  // would ever close.
+  it('opens no socket when the signal aborts during the reconnect delay', () => {
     const api = new ServerAPI('http://example.test/api/v0')
-    const unsubscribe = api.subscribeToFilenameChanges(
-      () => {},
-      new AbortController().signal,
-    )
-    unsubscribe()
-    expect(latestSocket().closed).toBe(true)
+    const controller = new AbortController()
+    api.subscribeToFilenameChanges(() => {}, controller.signal)
+    latestSocket().onerror?.()
+    controller.abort()
+    vi.advanceTimersByTime(5000)
+    expect(FakeWebSocket.opened).toHaveLength(1)
+  })
+
+  it('opens no socket for a signal that already aborted', () => {
+    const api = new ServerAPI('http://example.test/api/v0')
+    api.subscribeToFilenameChanges(() => {}, AbortSignal.abort())
+    expect(FakeWebSocket.opened).toHaveLength(0)
   })
 })
 

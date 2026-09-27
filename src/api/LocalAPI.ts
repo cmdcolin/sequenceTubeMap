@@ -1,5 +1,5 @@
 import * as Comlink from 'comlink'
-import type { APIInterface, FilenameSubscription } from './APIInterface.ts'
+import type { APIInterface } from './APIInterface.ts'
 import { applyProgress } from './downloadProgress.ts'
 import type { ProgressUpdate } from './downloadProgress.ts'
 import { makeWorker } from './local/WorkerFactory.js'
@@ -93,19 +93,10 @@ export class LocalAPI implements APIInterface {
   subscribeToFilenameChanges(
     handler: () => void,
     cancelSignal: AbortSignal,
-  ): FilenameSubscription {
-    const onChange = () => {
-      if (!cancelSignal.aborted) {
-        handler()
-      }
-    }
-    const unsubscribe = () => {
-      this.nameChangeEvents.removeEventListener('change', onChange)
-      cancelSignal.removeEventListener('abort', unsubscribe)
-    }
-    this.nameChangeEvents.addEventListener('change', onChange)
-    cancelSignal.addEventListener('abort', unsubscribe)
-    return unsubscribe
+  ): void {
+    this.nameChangeEvents.addEventListener('change', handler, {
+      signal: cancelSignal,
+    })
   }
 
   async putFile(
