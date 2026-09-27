@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
@@ -24,7 +24,6 @@ export const PopupDialog = ({
   width = '760px',
   testID = 'PopupDialog',
 }: PopupDialogProps) => {
-  const titleId = useId()
   return (
     <Dialog
       open={open}
@@ -34,7 +33,6 @@ export const PopupDialog = ({
       onClick={e => {
         e.stopPropagation()
       }}
-      aria-labelledby={title === undefined ? undefined : titleId}
       data-testid={testID}
       maxWidth={width === null ? false : undefined}
       slotProps={{
@@ -57,9 +55,7 @@ export const PopupDialog = ({
         <Icon icon={faX} />
       </IconButton>
       {title === undefined ? null : (
-        <DialogTitle id={titleId} sx={{ pr: 6 }}>
-          {title}
-        </DialogTitle>
+        <DialogTitle sx={{ pr: 6 }}>{title}</DialogTitle>
       )}
       <DialogContent>{children}</DialogContent>
     </Dialog>
