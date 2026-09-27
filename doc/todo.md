@@ -33,8 +33,8 @@ Open items from the coarsened-view sessions:
 
 ## The layout engine
 
-`packages/tubemap-core/src/layout.ts` now passes lint. `src/util/tubemap.ts` is
-typecheck-clean with no `@ts-nocheck`, but `.oxlintrc.json` still ignores it.
+`packages/tubemap-core/src/layout.ts` and `src/util/tubemap.ts` pass lint.
+`.oxfmtrc.json` still leaves `tubemap.ts` unformatted.
 
 The layout keeps `nodes` typed `LayoutNode[]` rather than
 `(LayoutNode | undefined)[]`: forEach, map and sort skip the hole at index 0,

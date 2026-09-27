@@ -3,8 +3,7 @@
 // clean-up plan.
 import * as d3 from 'd3'
 import '../config-client.js'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import _externalConfig from '../config-global.mjs'
+import '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
 import {
   alphaScaleFor,
@@ -59,7 +58,14 @@ function applyAttrs<T extends d3.BaseType, U, V extends d3.BaseType, W>(
   for (const [k, v] of Object.entries(attrs)) sel.attr(k, v)
 }
 
-const DEBUG = false
+const DEBUG = false as boolean
+
+function debugLog(...args: unknown[]): void {
+  if (DEBUG) {
+    // oxlint-disable-next-line no-console
+    console.log(...args)
+  }
+}
 
 export type {
   BedRecord,
@@ -518,7 +524,7 @@ export function getReadNamesThroughNodes(
   const seen = new Set<string>()
   if (inputReads.length > 0 && nodeNames.length > 0) {
     inputReads.forEach(read => {
-      if (read.name && read.sequence) {
+      if (read.name) {
         const visited = new Set(read.sequence.map(s => forward(s)))
         const match =
           mode === 'all'
@@ -707,8 +713,8 @@ function createTubeMap(preserveViewport = true): void {
   drawTrackRectangles(shapes.rectangles, 'read', trackGroup)
   drawTrackCurves('read', trackGroup)
 
-  // draw only those nodes which have coords assigned to them
-  const dNodes = removeUnusedNodes(nodes)
+  // Only the nodes a visible track passes through have coordinates
+  const dNodes = nodes.filter((node: { x?: number }) => node.x !== undefined)
   drawReversalsByColor(
     shapes.corners,
     shapes.verticalRectangles,
@@ -725,27 +731,12 @@ function createTubeMap(preserveViewport = true): void {
   if (config.nodeWidthOption === 'normal') drawMismatches() // TODO: call this before drawLabels and fix d3 data/append/enter stuff
   // Drawn last so the labels paint above ruler/mismatches/reads
   if (config.showNodeLabels) drawNodeLabels(dNodes)
-  if (DEBUG) {
-    console.log(`number of tracks: ${tracks.length}`)
-    console.log(`number of nodes: ${nodes.length}`)
-  }
+  debugLog(`${tracks.length} tracks, ${nodes.length} nodes`)
   // Apply the initial zoom transform now that all content (including node
   // labels) is in the DOM. The zoom handler's synchronous "end" flush will
   // counter-scale every label group on this first paint.
   applyInitialTransform()
 }
-
-// remove nodes with no tracks moving through them to avoid d3.js errors
-function removeUnusedNodes(allNodes: LayoutNode[]): LayoutNode[] {
-  const dNodes: LayoutNode[] = []
-  for (const n of allNodes) {
-    if (n?.x !== undefined) {
-      dNodes.push(n)
-    }
-  }
-  return dNodes
-}
-
 
 // Minimum zoom is a scaling factor that determines how far the graph can be zoomed out. This function determines
 // how small the graph needs to appear to fully fit onto the screen.
@@ -833,11 +824,9 @@ function alignSVG(preserveViewport: boolean): () => void {
         const display = shouldHide ? 'none' : ''
         svg.select<SVGGElement>('g.mismatches-layer').style('display', display)
         svg.select<SVGGElement>('g.sequence-labels-layer').style('display', display)
-        if (DEBUG) {
-          console.log(
-            `detail layers ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
-          )
-        }
+        debugLog(
+          `detail layers ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
+        )
       }
       pendingTransform = null
     }
@@ -850,9 +839,7 @@ function alignSVG(preserveViewport: boolean): () => void {
   let gestureMoved = false
   function zoomed(event: d3.D3ZoomEvent<Element, unknown>): void {
     const { x, y, k } = event.transform
-    if (DEBUG) {
-      console.log(`[zoom] zoomed k=${k.toFixed(3)} tx=${x.toFixed(1)} ty=${y.toFixed(1)}`)
-    }
+    debugLog(`[zoom] zoomed k=${k.toFixed(3)} tx=${x.toFixed(1)} ty=${y.toFixed(1)}`)
     pendingTransform = String(event.transform)
     pendingK = k
     if (!gestureMoved) {
@@ -863,9 +850,7 @@ function alignSVG(preserveViewport: boolean): () => void {
       // (it's the zoom target), so the gesture itself keeps working.
       svg.style('pointer-events', 'none')
     }
-    if (rafHandle === null) {
-      rafHandle = requestAnimationFrame(flushTransform)
-    }
+    rafHandle ??= requestAnimationFrame(flushTransform)
   }
 
   zoom = d3.zoom()
@@ -891,13 +876,11 @@ function alignSVG(preserveViewport: boolean): () => void {
     root.attr('width', parentElement.clientWidth)
 
     const minScaleFactor = minZoom()
-    if (DEBUG) {
-      console.log('[zoom] configureZoomBounds:', {
-        viewport: { w: parentElement.clientWidth, h: parentElement.clientHeight },
-        content: { x: [imageBounds.minX, imageBounds.maxX], y: [imageBounds.minY, imageBounds.maxY] },
-        minScaleFactor,
-      })
-    }
+    debugLog('[zoom] configureZoomBounds:', {
+      viewport: { w: parentElement.clientWidth, h: parentElement.clientHeight },
+      content: { x: [imageBounds.minX, imageBounds.maxX], y: [imageBounds.minY, imageBounds.maxY] },
+      minScaleFactor,
+    })
 
     // We need to set an extent here because auto-determination of the region
     // to zoom breaks on the React testing jsdom.
@@ -933,18 +916,17 @@ function alignSVG(preserveViewport: boolean): () => void {
     e.preventDefault()
   }
   parentElement.addEventListener('wheel', wheelHandler)
-  const resizeObserver = window.ResizeObserver
-    ? new window.ResizeObserver(() => {
-        configureZoomBounds()
-      })
-    : null
-  if (resizeObserver) {
-    // ResizeObserver is in all current major browsers, but not in React's testing environment.
-    resizeObserver.observe(parentElement)
-  }
+  // jsdom, under the tests and the CLI, has no ResizeObserver
+  const resizeObserver =
+    typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => {
+          configureZoomBounds()
+        })
+      : null
+  resizeObserver?.observe(parentElement)
   cleanupParentBindings = () => {
     parentElement.removeEventListener('wheel', wheelHandler)
-    if (resizeObserver) resizeObserver.disconnect()
+    resizeObserver?.disconnect()
   }
 
   // On the first draw, fit vertically and centre horizontally. On subsequent
@@ -1093,7 +1075,6 @@ function getNodeByName(nodeName: string): LayoutNode | undefined {
 }
 
 function nodeSingleClick(this: SVGElement): void {
-  /* jshint validthis: true */
   // Get the node name
   const nodeName = d3.select(this).attr('id')
   const currentNode = getNodeByName(nodeName)
@@ -1622,7 +1603,7 @@ function drawRulerMarkingRegion(ticks_region: [number, number][]): void {
 
   const lineY = imageBounds.minY - NODE_MARGIN - 6
 
-  if (ticks_region?.length === 2) {
+  if (ticks_region.length === 2) {
     svg
       .append('line')
       .attr('x1', ticks_region[0]![1])
@@ -1916,7 +1897,6 @@ function clearTrackHighlight(): void {
 
 // Highlight track on mouseover and show the hover tooltip.
 function trackMouseOver(this: SVGElement, event: MouseEvent): void {
-  /* jshint validthis: true */
   const trackID = d3.select(this).attr('trackID')
   // TODO: We want to also .raise() here, but it makes Firefox 124.0.2 on Mac
   // lose the mouseout and immediately trigger another mouseover, if the mouse
@@ -1960,14 +1940,13 @@ function nodeMouseOut(this: SVGElement): void {
 
 // Move clicked track to first position
 function trackDoubleClick(this: SVGElement): void {
-  /* jshint validthis: true */
   const trackID = d3.select(this).attr('trackID')
   const index = getInputTrackIndexByID(trackID)
   if (index === undefined) {
     // Must be a read. Skip it.
     return
   }
-  if (DEBUG) console.log(`moving index: ${index}`)
+  debugLog(`moving index: ${index}`)
   moveTrackToFirstPosition(index)
   createTubeMap()
 }
@@ -1980,7 +1959,6 @@ function getPathInfo(sequence: readonly string[]): string {
 }
 
 function trackSingleClick(this: SVGElement): void {
-  /* jshint validthis: true */
   // Get the track ID as a number
   const trackID = Number(d3.select(this).attr('trackID'))
   if (isCoarsenedId(trackID)) {
@@ -2033,7 +2011,6 @@ function trackRightClick(this: SVGElement, event: MouseEvent): void {
 // Right-click on a node. Fires the node context-menu callback with the list of
 // read names (from the unfiltered input) that pass through the node.
 function nodeRightClick(this: SVGElement, event: MouseEvent): void {
-  /* jshint validthis: true */
   const nodeName = d3.select(this).attr('id')
   event.preventDefault()
   config.nodeContextMenuCallback({
@@ -2088,17 +2065,14 @@ export function vgExtractTracks(
   vg.path.forEach((path, index) => {
     const sequence: string[] = []
     let isCompletelyReverse = true
-    path.mapping.forEach(pos => {
+    for (const pos of path.mapping) {
       if (pos.position!.is_reverse === true) {
-        // Visit this node in reverse
         sequence.push(reverse(`${pos.position!.node_id}`))
       } else {
-        // Visit this node forward
         sequence.push(`${pos.position!.node_id}`)
-        // Remember that we visit at least one node in its local forward orientation
         isCompletelyReverse = false
       }
-    })
+    }
     if (isCompletelyReverse) {
       // Give the sequence in a reverse order for layout
       sequence.reverse()
@@ -2139,9 +2113,7 @@ type CigarOp = 'M' | 'I' | 'D'
 type CigarToken = number | CigarOp
 
 export function cigar_string(readPath: VgPath): string {
-  if (DEBUG) {
-    console.log('readPath mapping:', readPath.mapping)
-  }
+  debugLog('readPath mapping:', readPath.mapping)
   let cigar: CigarToken[] = []
   for (const mapping of readPath.mapping) {
     for (const edit of mapping.edit) {
@@ -2173,10 +2145,9 @@ export function cigar_string(readPath: VgPath): string {
       }
     }
   }
-  if (DEBUG) {
-    console.log('cigar string:', cigar.join(''))
-  }
-  return cigar.join('')
+  const cigarString = cigar.join('')
+  debugLog('cigar string:', cigarString)
+  return cigarString
 }
 
 function append_cigar_operation(
@@ -2227,10 +2198,7 @@ export function vgExtractReads(
   idOffset: number,
   sourceTrackID: number,
 ): ExtractedVgRead[] {
-  if (DEBUG) {
-    console.log('Reads:')
-    console.log(myReads)
-  }
+  debugLog('Reads:', myReads)
   const extracted: ExtractedVgRead[] = []
 
   const nodeNames = new Set<string>()
@@ -2292,8 +2260,8 @@ export function vgExtractReads(
                 })
               } else if (element.sequence !== undefined) {
                 // substitution
-                if (element.sequence.length > 1 && DEBUG) {
-                  console.log(
+                if (element.sequence.length > 1) {
+                  debugLog(
                     `found substitution at read ${i}, node ${j} = ${position.node_id}, seq = ${element.sequence}`,
                   )
                 }
@@ -2312,9 +2280,7 @@ export function vgExtractReads(
         }
       })
       if (sequence.length === 0) {
-        if (DEBUG) {
-          console.log(`read ${i} is empty`)
-        }
+        debugLog(`read ${i} is empty`)
       } else {
         const firstMapping = read.path.mapping[firstIndex]
         const lastMapping = read.path.mapping[lastIndex]
