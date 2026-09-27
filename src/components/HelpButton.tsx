@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { ImgHTMLAttributes } from 'react'
 import IconButton from '@mui/material/IconButton'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faCircleQuestion } from './icons.ts'
 import Markdown from 'markdown-to-jsx'
 import useSWR from 'swr'
 import PopupDialog from './PopupDialog.tsx'
@@ -60,7 +60,7 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
         title="Help — region format, controls, and feature reference"
         onClick={() => { setOpen(!open); }}
       >
-        <FontAwesomeIcon icon={faCircleQuestion} />
+        <Icon icon={faCircleQuestion} />
       </IconButton>
       <PopupDialog open={open} close={() => { setOpen(false); }}>
         <div style={{ maxHeight: '80vh', overflowY: 'auto', overflowX: 'hidden' }}>

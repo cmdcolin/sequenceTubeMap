@@ -2,12 +2,8 @@ import { CopyLink } from './CopyLink.tsx'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faSearchPlus,
-  faSearchMinus,
-  faCamera,
-} from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faCamera, faSearchMinus, faSearchPlus } from './icons.ts'
 import * as tubeMap from '../util/tubemap.ts'
 import { downloadSvgById } from '../util/downloadSvg.ts'
 import { legendSections } from '../util/legend.ts'
@@ -73,7 +69,7 @@ function DataPositionFormRow({
         title="Zoom in"
         onClick={() => { tubeMap.zoomBy(ZOOM_FACTOR); }}
       >
-        <FontAwesomeIcon icon={faSearchPlus} />
+        <Icon icon={faSearchPlus} />
       </Button>
       <Button
         size="small"
@@ -83,13 +79,13 @@ function DataPositionFormRow({
         title="Zoom out"
         onClick={() => { tubeMap.zoomBy(1.0 / ZOOM_FACTOR); }}
       >
-        <FontAwesomeIcon icon={faSearchMinus} />
+        <Icon icon={faSearchMinus} />
       </Button>
       <Button
         size="small"
         variant="contained"
         id="downloadButton"
-        startIcon={<FontAwesomeIcon icon={faCamera} />}
+        startIcon={<Icon icon={faCamera} />}
         onClick={() => {
           downloadSvgById(
             'svg',

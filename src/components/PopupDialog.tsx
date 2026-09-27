@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import Dialog from '@mui/material/Dialog'
 import DialogContent from '@mui/material/DialogContent'
 import IconButton from '@mui/material/IconButton'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faX } from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faX } from './icons.ts'
 
 interface PopupDialogProps {
   open: boolean
@@ -41,7 +41,7 @@ export const PopupDialog = ({
         size="small"
         sx={{ position: 'absolute', top: 8, right: 8 }}
       >
-        <FontAwesomeIcon icon={faX} />
+        <Icon icon={faX} />
       </IconButton>
       <DialogContent>{children}</DialogContent>
     </Dialog>

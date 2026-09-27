@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCircleInfo } from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faCircleInfo } from './icons.ts'
 import IconButton from '@mui/material/IconButton'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
@@ -20,7 +20,7 @@ export function HelpIcon({ label, helpText }: { label: string; helpText: string 
         sx={{ ml: 0.5, color: 'action.active' }}
         onClick={(e) => { e.stopPropagation(); setOpen(true); }}
       >
-        <FontAwesomeIcon icon={faCircleInfo} size="xs" />
+        <Icon icon={faCircleInfo} size="xs" />
       </IconButton>
       <Dialog open={open} onClose={() => { setOpen(false); }} maxWidth="xs" fullWidth onClick={(e) => { e.stopPropagation(); }}>
         <DialogTitle>{label}</DialogTitle>

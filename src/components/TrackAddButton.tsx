@@ -1,6 +1,6 @@
 import Button from '@mui/material/Button'
-import { faPlus } from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { Icon } from './Icon.tsx'
+import { faPlus } from './icons.ts'
 
 interface TrackAddButtonProps {
   onChange: () => void
@@ -21,7 +21,7 @@ export const TrackAddButton = ({
       data-testid={testID}
       sx={{ ml: 3, mt: 1 }}
     >
-      <FontAwesomeIcon icon={faPlus} />
+      <Icon icon={faPlus} />
     </Button>
   )
 }

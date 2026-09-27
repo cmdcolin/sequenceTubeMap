@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import Button from '@mui/material/Button'
-import { faX } from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { Icon } from './Icon.tsx'
+import { faX } from './icons.ts'
 
 type TrackDeleteButtonProps = ComponentProps<typeof Button> & {
   testID?: string
@@ -23,7 +23,7 @@ export function TrackDeleteButton({
       data-testid={testID}
       {...rest}
     >
-      <FontAwesomeIcon icon={faX} />
+      <Icon icon={faX} />
     </Button>
   )
 }

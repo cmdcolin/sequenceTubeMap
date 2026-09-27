@@ -8,8 +8,8 @@ import Box from '@mui/material/Box'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faCircleQuestion } from './icons.ts'
 import '../config-client.js'
 import '../config-global.mjs'
 import { isEmpty } from '../common.ts'
@@ -123,7 +123,7 @@ export const RegionInput = ({
           title="Region format help"
           onClick={() => { setHelpOpen(true); }}
         >
-          <FontAwesomeIcon icon={faCircleQuestion} />
+          <Icon icon={faCircleQuestion} />
         </IconButton>
       </Box>
       <Dialog open={helpOpen} onClose={() => { setHelpOpen(false); }} maxWidth="sm" fullWidth>

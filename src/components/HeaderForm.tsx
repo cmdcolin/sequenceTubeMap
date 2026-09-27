@@ -6,8 +6,7 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
+import { Icon, type IconDefinition } from './Icon.tsx'
 import {
   faAngleLeft,
   faAngleRight,
@@ -15,7 +14,7 @@ import {
   faArrowRight,
   faCompress,
   faExpand,
-} from '@fortawesome/free-solid-svg-icons'
+} from './icons.ts'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
 import type { APIInterface } from '../api/APIInterface.ts'
@@ -158,7 +157,7 @@ function RegionControlButton({
       disabled={disabled}
       onClick={() => { onClick(); }}
     >
-      <FontAwesomeIcon icon={icon} />
+      <Icon icon={icon} />
     </Button>
   )
 }

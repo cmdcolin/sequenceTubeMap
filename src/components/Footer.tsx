@@ -1,5 +1,5 @@
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGithub } from '@fortawesome/free-brands-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faGithub } from './icons.ts'
 
 import SafeLink from './SafeLink.tsx'
 
@@ -32,7 +32,7 @@ export const Footer = () => (
             target="_blank"
             href="https://github.com/cmdcolin/sequenceTubeMap"
           >
-            <FontAwesomeIcon icon={faGithub} /> seqTubeMaps
+            <Icon icon={faGithub} /> seqTubeMaps
           </SafeLink>
         </strong>{' '}
         is a fork of the excellent sequenceTubeMap / IVG by the vgteam created

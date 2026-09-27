@@ -3,8 +3,8 @@ import Button from '@mui/material/Button'
 import Switch from '@mui/material/Switch'
 import Box from '@mui/material/Box'
 import FormControlLabel from '@mui/material/FormControlLabel'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGear } from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faGear } from './icons.ts'
 import PopupDialog from './PopupDialog.tsx'
 
 interface SimplifyButtonProps {
@@ -31,7 +31,7 @@ export const SimplifyButton = ({
       <Button
         size="small"
         variant={simplify || removeSequences ? 'contained' : 'outlined'}
-        startIcon={<FontAwesomeIcon icon={faGear} />}
+        startIcon={<Icon icon={faGear} />}
         onClick={() => { setOpen(o => !o); }}
       >
         Simplify

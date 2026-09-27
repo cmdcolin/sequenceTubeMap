@@ -2,8 +2,8 @@ import { useState } from 'react'
 import PopupDialog from './PopupDialog.tsx'
 import TrackSettings from './TrackSettings.tsx'
 import Button from '@mui/material/Button'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGear } from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faGear } from './icons.ts'
 import {
   DEFAULT_AVAILABLE_COLORS,
   type ColorPaletteName,
@@ -40,7 +40,7 @@ export const TrackSettingsButton = ({
         aria-label="Track color settings"
         onClick={() => { setOpen(!open); }}
       >
-        <FontAwesomeIcon icon={faGear} data-testid={testID} />
+        <Icon icon={faGear} data-testid={testID} />
       </Button>
       <PopupDialog open={open} close={close}>
         <TrackSettings

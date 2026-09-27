@@ -17,8 +17,8 @@ import TableCell from '@mui/material/TableCell'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Typography from '@mui/material/Typography'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faChevronRight, faChevronDown } from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faChevronDown, faChevronRight } from './icons.ts'
 import type { PathInfo } from '../Types.ts'
 import { DEFAULT_READ_RENDER_LIMIT } from './TubeMapContainer.tsx'
 import HelpDialog from './HelpDialog.tsx'
@@ -90,7 +90,7 @@ function PathsPanel({ pathInfo, readCounts, onLoadPath, onCopyToRegion, isOpen, 
             }}
           >
             <Box component="span">
-              <FontAwesomeIcon
+              <Icon
                 icon={isOpen ? faChevronDown : faChevronRight}
                 style={{ width: 12, marginRight: 8 }}
               />

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Button from '@mui/material/Button'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faLink } from '@fortawesome/free-solid-svg-icons'
+import { Icon } from './Icon.tsx'
+import { faLink } from './icons.ts'
 import PopupDialog from './PopupDialog.tsx'
 import type { ViewTarget } from '../Types.ts'
 
@@ -37,7 +37,7 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
         size="small"
         variant="contained"
         id="copyLinkButton"
-        startIcon={<FontAwesomeIcon icon={faLink} />}
+        startIcon={<Icon icon={faLink} />}
         onClick={() => { void handleCopyLink(); }}
       >
         {copiedTarget === currentViewTarget
