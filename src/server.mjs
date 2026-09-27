@@ -114,6 +114,9 @@ const fileTypes = {
 
 const lockMap = new Map()
 
+// Requests that read or add files in the upload and download directories
+// share a READ_LOCK on them; the expired-file sweep takes the WRITE_LOCK to
+// delete from them.
 const lockTypes = {
   READ_LOCK: 'read_lock',
   WRITE_LOCK: 'write_lock',
@@ -530,16 +533,26 @@ async function parseGFATranslation(filePath) {
   return nameMap
 }
 
-api.post('/getChunkedData', async (req, res, next) => {
-  // put readlock on necessary directories while processing chunked data
-  return lockDirectories(
-    [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH],
-    lockTypes.READ_LOCK,
-    async function () {
-      return getChunkedData(req, res, next)
-    },
-  )
-})
+// Wrap a route handler to hold a READ_LOCK on the download and upload
+// directories until its response is over, not just until the handler
+// returns: getChunkedData returns once vg is running, and vg still has files
+// to read.
+function withDataDirectoriesLocked(handler) {
+  return (req, res, next) =>
+    lockDirectories(
+      [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH],
+      lockTypes.READ_LOCK,
+      async () => {
+        const responseOver = new Promise(resolve => {
+          res.once('close', resolve)
+        })
+        await handler(req, res, next)
+        await responseOver
+      },
+    )
+}
+
+api.post('/getChunkedData', withDataDirectoriesLocked(getChunkedData))
 
 /*
 graph = {
@@ -2509,34 +2522,35 @@ async function getChunkTracks(bedFile, chunk) {
 
 // Expects a request with a bed file and a chunk name
 // Returns tracks retrieved from getChunkTracks
-api.post('/getChunkTracks', async (req, res) => {
-  console.log('received request for chunk tracks')
-  if (!req.body.bedFile || !req.body.chunk) {
-    throw new BadRequestError(
-      `Invalid request format: bedFile ${req.body.bedFile}, chunk ${req.body.chunk}`,
-    )
-  }
-  assertBedFileReadable(req.body.bedFile)
+api.post(
+  '/getChunkTracks',
+  withDataDirectoriesLocked(async (req, res) => {
+    console.log('received request for chunk tracks')
+    if (!req.body.bedFile || !req.body.chunk) {
+      throw new BadRequestError(
+        `Invalid request format: bedFile ${req.body.bedFile}, chunk ${req.body.chunk}`,
+      )
+    }
+    assertBedFileReadable(req.body.bedFile)
+    const tracks = await getChunkTracks(req.body.bedFile, req.body.chunk)
+    res.json({ tracks: tracks })
+  }),
+)
 
-  // tracks are falsy if fetch is unsuccessful
-
-  // TODO: This operation needs to hold a reader lock on the upload/download directories.
-  // waiting for lock changes to be merged
-  const tracks = await getChunkTracks(req.body.bedFile, req.body.chunk)
-  res.json({ tracks: tracks })
-})
-
-api.post('/getBedRegions', async (req, res) => {
-  console.log('received request for bedRegions')
-  if (req.body.bedFile) {
-    res.json({
-      bedRegions: await getBedRegions(req.body.bedFile),
-      error: null,
-    })
-  } else {
-    throw new BadRequestError('No BED file specified')
-  }
-})
+api.post(
+  '/getBedRegions',
+  withDataDirectoriesLocked(async (req, res) => {
+    console.log('received request for bedRegions')
+    if (req.body.bedFile) {
+      res.json({
+        bedRegions: await getBedRegions(req.body.bedFile),
+        error: null,
+      })
+    } else {
+      throw new BadRequestError('No BED file specified')
+    }
+  }),
+)
 
 // Throw unless the given BED file is a URL, or a local path we are willing to
 // read on a user's behalf.
