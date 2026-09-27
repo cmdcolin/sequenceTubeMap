@@ -2,6 +2,7 @@
 // inspect the resulting SVG DOM. Complements tubemap.test.ts, which covers
 // pure functions (cigar_string, coverage, axisIntervals).
 
+import * as d3 from 'd3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tubeMap from './tubemap.ts'
 import { haplotypeShareColor } from './palettes.ts'
@@ -244,6 +245,58 @@ describe('tubemap.zoomBy', () => {
     expect(Math.abs(box.x + box.width / 2 - 900)).toBeLessThan(20)
     expect(box.y).toBeGreaterThan(0)
     expect(box.y).toBeLessThan(40)
+  })
+})
+
+describe('tubemap.create — a redraw of the same data', () => {
+  // Within float noise: re-applying the zoom's extents recomputes the numbers
+  const drawingTransform = (svg: SVGSVGElement) =>
+    (svg.querySelector(':scope > g')?.getAttribute('transform') ?? '')
+      .match(/-?[\d.]+(?:e[-+]?\d+)?/g)
+      ?.map(n => Number(n).toFixed(6))
+
+  for (const [example, width, height] of [
+    ['1', 1800, 1200],
+    ['2', 600, 150],
+    ['6', 1800, 1200],
+    ['6', 1800, 300],
+    ['7', 1800, 1200],
+    ['8', 1800, 200],
+  ] as const) {
+    it(`leaves example ${example}'s first view at ${width}x${height} where it was`, () => {
+      setupSvg(width, height)
+      const { nodes, tracks, reads } = dataForExample(example)
+      const svg = render(nodes, tracks, reads)
+      const first = drawingTransform(svg)
+      expect(first).toHaveLength(3)
+      render(nodes, tracks, reads)
+      expect(drawingTransform(svg)).toEqual(first)
+    })
+  }
+
+  it('brings the kept viewport back onto a layout that shrank under it', () => {
+    setupSvg(1800, 1200)
+    const { nodes, tracks } = dataForExample('6')
+    const svg = render(nodes, tracks)
+    // Zoomed in on the right end of the normal-width layout
+    d3.zoom<SVGSVGElement, unknown>()
+      .extent([
+        [0, 0],
+        [1800, 1200],
+      ])
+      .transform(
+        d3.select(svg),
+        d3.zoomIdentity.translate(900 - 8 * 4000, 600 - 8 * 100).scale(8),
+      )
+    tubeMap.setNodeWidthOption('compressed')
+    try {
+      render(nodes, tracks)
+    } finally {
+      tubeMap.setNodeWidthOption('normal')
+    }
+    const box = measureSvgContent(svg).box!
+    expect(box.x).toBeLessThan(0)
+    expect(box.x + box.width).toBeGreaterThanOrEqual(1800)
   })
 })
 

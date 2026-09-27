@@ -953,28 +953,31 @@ function alignSVG(preserveViewport: boolean): () => void {
   // canvas. We deliberately *don't* fit horizontally — horizontal panning is
   // the natural way to explore a tube map, so we'd rather render at natural
   // scale and let the user pan than shrink everything to unreadable widths.
+  //
+  // The fit puts the content where the zoom's translate extent would, the top
+  // of the ruler's rail at the top of the viewport, so neither the first redraw
+  // nor the first wheel event nudges it.
   const totalHeight = imageBounds.maxY - imageBounds.minY + RAIL_SPACE
   const initialScale = Math.min(
     1,
     totalHeight > 0 ? parentElement.clientHeight / totalHeight : 1,
   )
-  const containerWidth = parentElement.clientWidth
   const scaledWidth = (imageBounds.maxX - imageBounds.minX) * initialScale
-  const leftMargin =
-    scaledWidth + 10 < containerWidth
-      ? (containerWidth - scaledWidth - 10) / 2
-      : 0
+  const leftMargin = Math.max(0, (parentElement.clientWidth - scaledWidth) / 2)
   const initialTransform =
     preserveViewport && previousTransform !== undefined
       ? previousTransform
       : d3.zoomIdentity
           .translate(
             leftMargin - imageBounds.minX * initialScale,
-            RAIL_SPACE - imageBounds.minY * initialScale,
+            (RAIL_SPACE - imageBounds.minY) * initialScale,
           )
           .scale(initialScale)
   return () => {
     zoom.transform(root, initialTransform)
+    // zoom.transform skips the extents, which a kept viewport falls outside
+    // when the layout shrinks under it
+    zoom.scaleBy(root, 1)
   }
 }
 
