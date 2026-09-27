@@ -164,13 +164,13 @@ describe('when a file is uploaded', () => {
   })
 })
 
-// micb-kir3dl1.gbz.db is a 46-sample HPRC slice carrying the HaplotypeSamples
-// and HaplotypeLengths side tables written by gbz-haplotype-index, so every
-// haplotype through the window resolves to its PanSN name instead of the
+// micb-kir3dl1.gbz.db is a 46-sample HPRC slice whose companion index names
+// every haplotype through the window by its PanSN name instead of the
 // `unknown#N` label upstream gbz-base emits.
-describe('a database with haplotype side tables', () => {
+describe('an HPRC slice with a companion haplotype index', () => {
   const api = new GBZBaseAPI()
   let id: string
+  let index: string
 
   beforeAll(async () => {
     id = await api.putFile(
@@ -178,12 +178,22 @@ describe('a database with haplotype side tables', () => {
       fixtureFile('exampleData/micb-kir3dl1.gbz.db', 'micb-kir3dl1.gbz.db'),
       null,
     )
+    index = await api.putFile(
+      'graph',
+      fixtureFile(
+        'exampleData/micb-kir3dl1.haplotype-index.db',
+        'micb-kir3dl1.haplotype-index.db',
+      ),
+      null,
+    )
   })
 
   it('returns nodes, edges and resolved haplotype paths through convertSchema', async () => {
     const viewTarget: ViewTarget = {
       dataType: 'mounted files',
-      tracks: [{ trackFile: id, trackType: 'graph' }],
+      tracks: [
+        { trackFile: id, trackType: 'graph', haplotypeIndexFile: index },
+      ],
       region: 'GRCh38#chr6:31500000-31501000',
     }
     const view = await api.getChunkedData(viewTarget, null)
@@ -214,8 +224,8 @@ describe('a database with haplotype side tables', () => {
     }
   })
 
-  it('lists the indexed reference paths with fragment offsets and side-table lengths', async () => {
-    const { pathInfo } = await api.getPathInfo(id, null)
+  it('lists the indexed reference paths with fragment offsets and index lengths', async () => {
+    const { pathInfo } = await api.getPathInfo(id, null, index)
     expect(pathInfo).toContainEqual({
       name: 'GRCh38#chr6',
       start: 31498140,
@@ -231,8 +241,8 @@ describe('a database with haplotype side tables', () => {
   })
 })
 
-// hprc-chrM.gbz.db has no side tables of its own; its haplotype names live in
-// the separate exampleData/hprc-chrM.haplotype-index.db, which a graph track
+// hprc-chrM.gbz.db's haplotype names live in the companion
+// exampleData/hprc-chrM.haplotype-index.db, which a graph track
 // names as `haplotypeIndexFile`. Same mechanism as the hosted HPRC v2.1
 // example, small enough to run offline.
 describe('a graph with a companion haplotype index', () => {

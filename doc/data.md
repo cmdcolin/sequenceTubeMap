@@ -98,45 +98,46 @@ version 5 would need a matching reader release first.
 
 ### Naming haplotypes (optional)
 
-Upstream gbz-base cannot say which haplotype a subgraph path belongs to, so by
-default haplotypes are reported as `unknown#N#contig`. The package ships a small
-Rust tool that adds side tables (`HaplotypeSamples`, `HaplotypeLengths`,
-`HaplotypeAnchors`) to an existing database; with them, every haplotype through
-a window is reported under its real `sample#haplotype#contig` name, and the
-paths panel shows exact lengths. What the tables hold, and the `--output` form
-that writes them as a companion file beside a database you did not build, is in
-the [gbz-base README](https://github.com/GMOD/gbz-base-js#readme).
+Upstream gbz-base names only the query path, so by default the other haplotypes
+are reported as `unknown#N#contig`. The Rust tool `gbz-haplotype-index` writes a
+companion haplotype index (tables `HaplotypeSamples`, `HaplotypeLengths`,
+`HaplotypeAnchors`) beside the database; with it, every haplotype through a
+window is reported under its real `sample#haplotype#contig` name, and the paths
+panel shows exact lengths. The tool never touches the database, which stays
+exactly what `gbz-base construct` wrote. What the tables hold is in the
+[gbz-base docs](https://github.com/GMOD/gbz-base-js/blob/main/docs/haplotype-index.md).
 
 ```bash
-cd node_modules/@gmod/gbz-base/tools/haplotype-index && cargo build --release
-./target/release/gbz-haplotype-index --interval 4096 graph.gbz graph.gbz.db
+cargo install gbz-haplotype-index
+gbz-haplotype-index graph.gbz graph.gbz.db graph.haplotype-index.db
 # or, without the .gbz at hand:
-./target/release/gbz-haplotype-index --from-db graph.gbz.db
+gbz-haplotype-index --from-db graph.gbz.db graph.haplotype-index.db
 ```
+
+Naming `graph.gbz.db` between the GBZ and the index checks that the two match.
+The tool refuses to replace an existing index without `--overwrite`.
 
 Build cost scales with total path length, not graph size: the full HPRC v2.1
 graph (5.5 GB GBZ, 53,150 paths, 1,305 Gbp walked) takes about 13 minutes on 24
-cores and yields a 7.9 GB companion database. The bundled examples take seconds.
+cores and yields a 7.9 GB companion. The bundled examples take seconds.
 
 `--interval` (default 4096 bp) is the size/latency knob: it sets how far apart
 the samples along each path are, so halving it roughly doubles the table and
 halves the `lf()` walk needed to name a path that missed every sample. Small
 graphs like the bundled examples are fine at the default; the published HPRC
-v2.1 tables were built at 16384. `--anchor-spacing` (default 131072 bp) does the
+v2.1 index was built at 16384. `--anchor-spacing` (default 131072 bp) does the
 same for `HaplotypeAnchors`.
 
-Upstream `gbz-base query` keeps working on the augmented database. The bundled
-`exampleData/micb-kir3dl1.gbz.db` (an HPRC slice from the package's test data)
-carries the side tables inside it, so its haplotypes read as real
-`sample#haplotype#contig` names. `exampleData/hprc-chrM.gbz.db` does not: its
-tables are the separate `exampleData/hprc-chrM.haplotype-index.db`, which is the
-companion form below, 53 kB beside a 110 kB database.
+gbz-base 3.0 reads the index only from a companion. A database built by an older
+`gbz-haplotype-index` with the tables inside it now reports `unknown#N` like any
+other; `--from-db` builds its companion without the GBZ. The bundled
+`exampleData/hprc-chrM.gbz.db` (110 kB) and `exampleData/micb-kir3dl1.gbz.db`
+(an HPRC slice from the package's test data) each have a `.haplotype-index.db`
+beside them, which `scripts/rebuild-bundled-dbs.sh` regenerates.
 
 #### Pointing a track at a companion index
 
-A database somebody else hosts cannot be augmented in place, which is what
-`--output` is for: the side tables go in a file of their own, and the graph
-track names it beside the database.
+The graph track names the companion beside the database:
 
 ```json
 {
@@ -152,9 +153,9 @@ link — and the browser reads it by range request like the database itself. Onl
 that backend uses it: a vg server ignores it, since the graph it chunks carries
 the path names already.
 
-The published HPRC release 2.1 graph is the case this exists for. HPRC hosts the
-10 GB database, JBrowse hosts the 7.9 GB companion, and the bundled "HPRC v2.1
-whole genome" example reads both:
+The published HPRC release 2.1 graph shows why the index is a file of its own.
+HPRC hosts the 10 GB database, JBrowse hosts the 7.9 GB companion, and the
+bundled "HPRC v2.1 whole genome" example reads both:
 
 ```json
 {
@@ -219,7 +220,7 @@ in `src/config.json`:
 | cactus (gbz-base)                              | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
 | backward (gbz-base)                            | bundled, `fwd` and `rev` paths       | `_gbwt_ref` paths, no haplotypes                                               |
 | HPRC chrM (gbz-base, companion index)          | bundled, PanSN sample names          | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
-| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes) | bundled, an HPRC slice               | real, side tables inside the database                                          |
+| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes) | bundled, an HPRC slice               | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
 | HPRC v2.1 whole genome (gbz-base, URL-hosted)  | hosted, 10 GB, read by range request | real, from the [companion index](#pointing-a-track-at-a-companion-index)       |
 
 Everything else in the menu — `snp1kg-BRCA1`, `vg "small" example`, `cactus`,

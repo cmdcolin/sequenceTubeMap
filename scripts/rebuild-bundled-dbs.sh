@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Rebuild every `*.gbz.db` under exampleData/ from its `*.gbz` with upstream
 # gbz-base (`gbz-base construct`, or `gbz2db` on releases up to 0.5.1), then
-# add the haplotype side tables when gbz-haplotype-index is on PATH. See
-# doc/data.md.
+# write the companion haplotype indexes when gbz-haplotype-index is on PATH
+# (`cargo install gbz-haplotype-index`). See doc/data.md.
 
 set -euo pipefail
 
@@ -25,23 +25,20 @@ if (( ${#gbz_files[@]} == 0 )); then
   exit 0
 fi
 
-# hprc-chrM is the offline demo of the companion form: its side tables go in a
-# file of their own, which is the only form available for a database somebody
-# else hosts, and the track names it as `haplotypeIndexFile`. Every other
-# example keeps its side tables inside the database.
-companion=exampleData/hprc-chrM.gbz
-
 for gbz in "${gbz_files[@]}"; do
   db="${gbz}.db"
   echo "== ${gbz} -> ${db}"
   construct "$gbz" "$db"
-  if command -v gbz-haplotype-index >/dev/null; then
-    if [[ "$gbz" == "$companion" ]]; then
-      gbz-haplotype-index --output "${gbz%.gbz}.haplotype-index.db" "$gbz" "$db"
-    else
-      gbz-haplotype-index "$gbz" "$db"
-    fi
-  fi
 done
+
+# Only these examples carry haplotypes worth naming; each track names its
+# companion as `haplotypeIndexFile`. micb-kir3dl1 has no .gbz here, so its
+# companion comes from the database.
+if command -v gbz-haplotype-index >/dev/null; then
+  gbz-haplotype-index --overwrite exampleData/hprc-chrM.gbz \
+    exampleData/hprc-chrM.gbz.db exampleData/hprc-chrM.haplotype-index.db
+  gbz-haplotype-index --overwrite --from-db exampleData/micb-kir3dl1.gbz.db \
+    exampleData/micb-kir3dl1.haplotype-index.db
+fi
 
 echo "Done. Re-run any built-in dataset that uses these files to confirm."

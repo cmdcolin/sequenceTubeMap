@@ -28,7 +28,7 @@ fork replaces that:
   BGZF, libvgio type-tagged message framing, a hand-rolled protobuf `Alignment`
   decoder, and a parser for vg's `.gam.gai` binary-tree index, so a region query
   reads only the virtual-offset runs that can overlap the node range.
-- **Real haplotype names.** With optional side tables written by
+- **Real haplotype names.** With an optional companion index written by
   `gbz-haplotype-index`, paths report as `sample#haplotype#contig` instead of
   `unknown#N`, and the paths panel shows exact lengths.
 

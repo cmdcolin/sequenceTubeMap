@@ -19,9 +19,8 @@ export interface BaseTrack {
   // because URL/path-based trackFiles are already readable. The Legend and
   // other UI surfaces prefer this when present and fall back to trackFile.
   trackDisplayName?: string
-  // Companion haplotype index for a `.gbz.db` graph, when the database itself
-  // was built without the side tables. Names the haplotypes a subgraph walks
-  // and answers path lengths from a table instead of a walk. See
+  // Companion haplotype index for a `.gbz.db` graph. Names the haplotypes a
+  // subgraph walks and answers path lengths from a table instead of a walk. See
   // doc/data.md; only the in-browser gbz-base backend reads it.
   haplotypeIndexFile?: string
 }

@@ -8,7 +8,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@gmod/bgzf-filehandle": "^6.7.0",
-    "@gmod/gbz-base": "^2.8.0",
+    "@gmod/gbz-base": "^3.0.0",
     "@gmod/tubemap-core": "workspace:*",
     "@mui/material": "^9.4.0",
     "comlink": "^4.4.2",
