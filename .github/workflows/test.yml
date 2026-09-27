@@ -32,6 +32,8 @@ jobs:
         run: pnpm typecheck
       - name: Lint
         run: pnpm lint
+      - name: Check formatting
+        run: pnpm check-format
       - name: Check doc path citations
         run: pnpm check-docs
       - name: Install vg v1.74.1

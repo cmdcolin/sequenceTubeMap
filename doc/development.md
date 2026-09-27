@@ -43,13 +43,14 @@ talks to the express backend; the `#local` hash skips that rewrite, leaving
 
 ## Checks
 
-The same four things CI runs, all runnable alone:
+The same five things CI runs, all runnable alone:
 
 ```
-pnpm test        # vitest, single run
-pnpm typecheck   # tsc --noEmit
-pnpm lint        # oxlint, with type-aware rules
-pnpm check-docs  # markdown citations of src/... paths still resolve
+pnpm test          # vitest, single run
+pnpm typecheck     # tsc --noEmit
+pnpm lint          # oxlint, with type-aware rules
+pnpm check-format  # oxfmt, reporting without rewriting
+pnpm check-docs    # markdown citations of src/... paths still resolve
 ```
 
 `pnpm lint --fix` applies the autofixable subset. `pnpm lint:fast` skips the
@@ -96,9 +97,11 @@ oxfmt over `.mjs`, `.js`, `.ts`, `.tsx`, `.css` and `.md`, configured in
 semicolons, trailing commas, no parens on single-argument arrows. The settings
 came across from `.prettierrc.json` via `oxfmt --migrate=prettier`.
 
-Most of the tree has never been through a formatter, so `pnpm format` rewrites
-far more than whatever you were editing. `pnpm check-format` lists what differs
-without touching anything. Neither runs in CI.
+The tree is formatter-clean and CI fails on drift, so run `pnpm format` before
+committing. `.git-blame-ignore-revs` lists the commit that first formatted
+everything; GitHub's blame view skips it, and
+`git config blame.ignoreRevsFile .git-blame-ignore-revs` makes local blame skip
+it too.
 
 ## Figures in the docs
 
