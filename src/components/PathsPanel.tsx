@@ -106,7 +106,7 @@ function PathsPanel({
               Paths in this graph
             </Box>
             <Typography variant="caption" color="text.secondary">
-              {pathInfo.length} paths{' '}
+              {pathInfo.length} path{pathInfo.length === 1 ? '' : 's'}{' '}
               {isOpen ? '(click to collapse)' : '(click to expand)'}
             </Typography>
           </Button>

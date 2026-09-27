@@ -123,3 +123,8 @@ it('marks the paths whose size or coverage will bite', () => {
   expect(within(rowFor('short')).getByText('heavy')).toBeInTheDocument()
   expect(within(rowFor('huge')).queryByText('heavy')).not.toBeInTheDocument()
 })
+
+it('counts one path in the singular', () => {
+  renderPanel({ paths: [{ name: 'only', length: 10, cyclic: false }] })
+  expect(screen.getByText(/^1 path \(/)).toBeInTheDocument()
+})
