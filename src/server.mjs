@@ -34,7 +34,7 @@ import {
 } from './common.ts'
 import { once } from 'events'
 import { pipeline } from 'stream'
-import { finished } from 'stream/promises'
+import { finished, pipeline as pipelineAsync } from 'stream/promises'
 import dns from 'dns'
 import http from 'http'
 import https from 'https'
@@ -303,7 +303,7 @@ api.use((req, res, next) => {
 api.post(
   '/trackFileSubmission',
   upload.single('trackFile'),
-  async (req, res, next) => {
+  async (req, res) => {
     console.log('/trackFileSubmission')
     console.log(req.file)
     // We don't get a lock because we're putting new files in and so we don't
@@ -326,7 +326,7 @@ api.post(
         await fs.promises.rm(req.file.path, { force: true })
         throw new BadRequestError(rejection)
       }
-      indexGamSorted(req, res, next)
+      await indexGamSorted(req, res)
     } else {
       res.json({ path: path.relative('.', req.file.path) })
     }
@@ -349,66 +349,29 @@ export function readUploadRejection(readsPath) {
   return null
 }
 
-function indexGamSorted(req, res, next) {
+async function indexGamSorted(req, res) {
   // Uploads are stored as <uuid>.gam.
   const readsPath = req.file.path
   const sortedPath = readsPath.replace(/\.gam$/, '.sorted.gam')
-  const indexPath = sortedPath + '.gai'
 
-  const vgGamsortParams = ['gamsort', '-i', indexPath, readsPath]
-  const vgGamsortChild = spawn(find_vg(), vgGamsortParams)
-
-  req.error = Buffer.alloc(0)
-
-  const sortedReadsFile = fs.createWriteStream(sortedPath, {
-    encoding: 'binary',
-  })
-
-  let sentResponse = false
-
-  vgGamsortChild.on('error', function (err) {
-    console.log(
-      'Error executing ' +
-        find_vg() +
-        ' ' +
-        vgGamsortParams.join(' ') +
-        ': ' +
-        err,
-    )
-    if (!sentResponse) {
-      sentResponse = true
-      next(new VgExecutionError('vg gamsort failed'))
-    }
-  })
-
-  vgGamsortChild.stderr.on('data', data => {
-    console.log(`err data: ${data}`)
+  const params = ['gamsort', '-i', sortedPath + '.gai', readsPath]
+  console.log(`vg ${params.join(' ')}`)
+  const child = spawn(find_vg(), params, { stdio: ['ignore', 'pipe', 'pipe'] })
+  req.error = ''
+  child.stderr.on('data', data => {
+    console.log(`vg gamsort err data: ${data}`)
     req.error += data
   })
 
-  vgGamsortChild.stdout.on('data', function (data) {
-    sortedReadsFile.write(data)
-  })
-
-  vgGamsortChild.on('close', code => {
-    console.log(`vg gamsort exited with code ${code}`)
-    sortedReadsFile.end()
-
-    if (!sentResponse) {
-      sentResponse = true
-      if (code === 0) {
-        finished(sortedReadsFile)
-          .then(() => {
-            res.json({ path: path.relative('.', sortedPath) })
-          })
-          .catch(err => {
-            next(err)
-          })
-      } else {
-        next(new VgExecutionError('vg gamsort failed'))
-      }
-    }
-  })
+  const [{ error, code }] = await Promise.all([
+    childExit(child),
+    pipelineAsync(child.stdout, fs.createWriteStream(sortedPath)),
+  ])
+  if (error !== undefined || code !== 0) {
+    console.log(`vg gamsort failed: ${error ?? `exit code ${code}`}`)
+    throw new VgExecutionError('vg gamsort failed')
+  }
+  res.json({ path: path.relative('.', sortedPath) })
 }
 
 // Checks if a file has one of the extensions provided
