@@ -374,6 +374,9 @@ const uploadCustomFiles = async () => {
       name: /upload & use/i,
     }),
   )
+  await waitFor(() => {
+    expect(screen.queryByTestId('UploadPanel')).not.toBeInTheDocument()
+  })
 }
 
 describe('the address bar', () => {
@@ -545,6 +548,27 @@ describe('the Open dialog', () => {
     })
 
     expect(window.location.search).toContain('region=17:1-100')
+    expect(screen.queryByText(/Nothing loaded/)).not.toBeInTheDocument()
+  })
+
+  it('takes Back from the first view of loaded files to the view before them', async () => {
+    renderApp()
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=17:1-100')
+    })
+    await uploadCustomFiles()
+    expect(await screen.findByText(/Nothing loaded/)).toBeInTheDocument()
+    await userEvent.type(getRegionInput(), 'x:1-10{Escape}')
+    await userEvent.click(screen.getByRole('button', { name: 'Go' }))
+    await waitFor(() => {
+      expect(window.location.search).toContain('region=x:1-10')
+    })
+
+    await userEvent.click(screen.getByTestId('regionHistoryBack'))
+
+    await waitFor(() => {
+      expect(getRegionInput().value).toEqual('17:1-100')
+    })
     expect(screen.queryByText(/Nothing loaded/)).not.toBeInTheDocument()
   })
 })

@@ -274,8 +274,12 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     ) {
       // Looking at a different view is a navigation, so Back returns to this
       // one. The view being left behind is still in the address bar here; the
-      // sync effect writes the new one over the entry this creates.
-      viewHistory.pushEntry()
+      // sync effect writes the new one over the entry this creates. No view
+      // (what an upload leaves until a region is picked) is no place for Back
+      // to stop, so the next view takes over its entry.
+      if (viewTarget.tracks.length > 0) {
+        viewHistory.pushEntry()
+      }
       setViewTarget(newViewTarget)
       setDataOrigin(dataOriginTypes.API)
       setVisOptions(v => ({
