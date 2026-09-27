@@ -209,6 +209,40 @@ describe('fetching URLs', () => {
     expect(body.bedRegions.desc).toEqual(['first ten'])
   })
 
+  it.skipIf(process.getuid?.() === 0)(
+    'reports a download it cannot write as an error',
+    async () => {
+      serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
+      const remote = await serveRoutes({
+        '/chunk/chunk_contents.txt': sendBody('tracks.json\n'),
+        '/chunk/tracks.json': (req, res) => {
+          res.writeHead(200).write('[')
+          setTimeout(() => res.end(']'), 200)
+        },
+      })
+      const bedFile = `${remote.url}/regions.bed`
+      const chunkDir = path.join(
+        serverConfig.tempDirPath,
+        createHash('sha256')
+          .update(bedFile + 'chunk')
+          .digest('hex'),
+      )
+      fs.mkdirSync(serverConfig.tempDirPath, { recursive: true })
+      fs.mkdirSync(chunkDir, { mode: 0o555 })
+      try {
+        const { status, body } = await post('getChunkTracks', {
+          bedFile,
+          chunk: 'chunk',
+        })
+        expect(status).toBe(500)
+        expect(body.error).toMatch(/EACCES/)
+        await expectServerStillUp()
+      } finally {
+        fs.rmSync(chunkDir, { recursive: true, force: true })
+      }
+    },
+  )
+
   it.each([404, 302])(
     'drops the connection of a %i response it has no use for',
     async statusCode => {

@@ -32,9 +32,8 @@ import {
   isValidURL,
   readsExist,
 } from './common.ts'
-import { once } from 'events'
-import { pipeline } from 'stream'
-import { finished, pipeline as pipelineAsync } from 'stream/promises'
+import { pipeline, Transform } from 'stream'
+import { pipeline as pipelineAsync } from 'stream/promises'
 import dns from 'dns'
 import http from 'http'
 import https from 'https'
@@ -1848,19 +1847,24 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
   }
 }
 
-// Read a response body, handing each chunk to `onChunk`, and abort once more
-// than maxBytes have arrived.
-async function readBodyUpTo(url, response, maxBytes, onChunk) {
+// A stream stage that passes a response body through until more than
+// maxBytes have arrived.
+function byteLimit(url, maxBytes) {
   let bytesRead = 0
-  for await (const chunk of response) {
-    bytesRead += chunk.byteLength
-    if (bytesRead > maxBytes) {
-      throw new BadRequestError(
-        `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`,
-      )
-    }
-    await onChunk(chunk)
-  }
+  return new Transform({
+    transform(chunk, encoding, callback) {
+      bytesRead += chunk.length
+      if (bytesRead > maxBytes) {
+        callback(
+          new BadRequestError(
+            `Fetch request for ${url} failed: received content exceeds maximum file size of ${maxBytes} bytes`,
+          ),
+        )
+      } else {
+        callback(null, chunk)
+      }
+    },
+  })
 }
 
 // Download a URL straight to a file, without ever holding the whole body in
@@ -1880,18 +1884,14 @@ async function fetchToFile(url, maxBytes, destination) {
     // Concurrent requests may be downloading the same file, or running vg on
     // the copy already there, so only a complete file replaces it.
     const partial = `${destination}.${randomUUID()}.part`
-    const fileStream = fs.createWriteStream(partial)
     try {
-      await readBodyUpTo(url, response, maxBytes, async chunk => {
-        if (!fileStream.write(chunk)) {
-          await once(fileStream, 'drain')
-        }
-      })
-      fileStream.end()
-      await finished(fileStream)
+      await pipelineAsync(
+        response,
+        byteLimit(url, maxBytes),
+        fs.createWriteStream(partial),
+      )
       await fs.promises.rename(partial, destination)
     } catch (e) {
-      fileStream.destroy()
       await fs.promises.rm(partial, { force: true })
       throw e
     }
@@ -1909,8 +1909,10 @@ async function fetchText(url, maxBytes) {
   const { response, timer } = await beginValidatedFetch(url, maxBytes)
   try {
     const chunks = []
-    await readBodyUpTo(url, response, maxBytes, chunk => {
-      chunks.push(chunk)
+    await pipelineAsync(response, byteLimit(url, maxBytes), async source => {
+      for await (const chunk of source) {
+        chunks.push(chunk)
+      }
     })
     return Buffer.concat(chunks).toString('utf-8')
   } finally {
