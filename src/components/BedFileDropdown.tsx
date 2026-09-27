@@ -12,7 +12,6 @@ function getFilename(fullPath: string | null | undefined) {
 interface BedFileDropdownProps {
   id: string
   inputId: string
-  className?: string
   value?: string | null
   onChange: (value: string) => void
   options: string[]
@@ -21,7 +20,6 @@ interface BedFileDropdownProps {
 export function BedFileDropdown({
   id,
   inputId,
-  className,
   value,
   onChange,
   options,
@@ -29,7 +27,6 @@ export function BedFileDropdown({
   return (
     <Autocomplete<string, false, true>
       id={id}
-      className={className}
       size="small"
       disableClearable
       value={value ?? 'none'}
