@@ -91,6 +91,25 @@ it('loads a data source picked from the datasets menu', async () => {
   expect(lastRegion(setCurrentViewTarget)).toEqual('ref:1-100')
 })
 
+it("loads a picked data source with its own flags, not the last view's", async () => {
+  const { setCurrentViewTarget } = renderForm({
+    viewTarget: {
+      region: 'x:100-200',
+      tracks: TRACKS,
+      dataType: 'mounted files',
+      simplify: true,
+      removeSequences: true,
+    },
+  })
+
+  await userEvent.click(screen.getByTestId('examplesMenuButton'))
+  await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+
+  expect(setCurrentViewTarget).toHaveBeenLastCalledWith(
+    expect.objectContaining({ simplify: false, removeSequences: false }),
+  )
+})
+
 // Which backend an example needs is not in its name, so the menu says it by
 // grouping: `.gbz.db` examples the browser reads itself first, the ones a vg
 // server has to chunk after.

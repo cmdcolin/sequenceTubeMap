@@ -565,11 +565,7 @@ function HeaderForm({
     } else {
       const ds = allDataSources.find(d => d.name === value)
       if (ds) {
-        setTracks(ds.tracks)
-        setBedFile(ds.bedFile)
-        setChosenRegion(presetRegion(ds.region))
-        setDataType(dataTypes.BUILT_IN)
-        setName(ds.name)
+        seedFormFrom({ ...ds, dataType: dataTypes.BUILT_IN })
         // Auto-commit so the tube map clears and loads the new source immediately.
         // Skipped when skipAutoLoad is set (for data sources with large default
         // regions) or when the region still has to come from the BED file.
@@ -585,8 +581,8 @@ function HeaderForm({
               name: ds.name,
               region: ds.region,
               dataType: dataTypes.BUILT_IN,
-              simplify,
-              removeSequences,
+              simplify: ds.simplify ?? false,
+              removeSequences: ds.removeSequences ?? false,
             }),
           )
         }
