@@ -48,12 +48,12 @@ export type LegendRow =
 // `drawn` is what this scale colored, and trains the rows: a value nothing
 // drawn takes gets no row.
 export interface ColorScale {
-  color(track: DrawnTrack): string
+  map(track: DrawnTrack): string
   rows(noun: string, drawn: readonly DrawnTrack[]): LegendRow[]
 }
 
 export interface AlphaScale {
-  alpha(track: DrawnTrack): number
+  map(track: DrawnTrack): number
   rows(): LegendRow[]
 }
 
@@ -103,7 +103,7 @@ const strandLabel = (strand: string | undefined, noun: string) =>
 export function strandScale(scheme: Scheme, ignoreStrand: boolean): ColorScale {
   const aux = scheme.auxPalette ?? FALLBACK_PALETTE
   return {
-    color: track =>
+    map: track =>
       staggered(
         track.reverse && !ignoreStrand ? aux : scheme.mainPalette,
         track.id,
@@ -121,7 +121,7 @@ export function strandScale(scheme: Scheme, ignoreStrand: boolean): ColorScale {
 export function referenceScale(scheme: Scheme): ColorScale {
   const color = paletteColors(scheme.mainPalette)[0]!
   return {
-    color: () => color,
+    map: () => color,
     rows: (noun, drawn) =>
       drawn.map(track => ({
         label:
@@ -142,7 +142,7 @@ export function pathScale(scheme: Scheme): ColorScale {
   const color = (track: DrawnTrack) =>
     colors[(track.id - 1 + colors.length) % colors.length]!
   return {
-    color,
+    map: color,
     rows: (noun, drawn) =>
       drawn.length <= colors.length
         ? [...drawn]
@@ -155,7 +155,7 @@ export function pathScale(scheme: Scheme): ColorScale {
 // A coarsened haplotype band, shaded by its share of the banded haplotypes
 export function shareScale(ignoreStrand: boolean): ColorScale {
   return {
-    color: track =>
+    map: track =>
       haplotypeShareColor(track.share!, track.reverse && !ignoreStrand),
     rows: (noun, drawn) => {
       const total = drawn[0]?.share?.total
@@ -180,7 +180,7 @@ export function readGroupScale(
   otherColor: string,
 ): ColorScale {
   return {
-    color: track =>
+    map: track =>
       staggered(
         track.group === undefined ? otherColor : groups[track.group]!.color,
         track.id,
@@ -205,7 +205,7 @@ function mappingQualityRamp(color: (quality: number) => string): string[] {
 }
 
 export const mappingQualityColorScale: ColorScale = {
-  color: track => mappingQualityColor(track.mappingQuality),
+  map: track => mappingQualityColor(track.mappingQuality),
   rows: () => [
     {
       label: `Mapping quality ${MAPPING_QUALITY_RANGE}`,
@@ -224,7 +224,7 @@ function fadedBlack(quality: number): string {
 }
 
 export const mappingQualityAlphaScale: AlphaScale = {
-  alpha: track => mappingQualityAlpha(track.mappingQuality),
+  map: track => mappingQualityAlpha(track.mappingQuality),
   rows: () => [
     {
       label: `Opacity, mapping quality ${MAPPING_QUALITY_RANGE}`,

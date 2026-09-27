@@ -1,6 +1,7 @@
-// Which scale colors which mark, in one place. The renderer asks it for each
-// drawn track's color and opacity, and the legend asks it for the rows keying
-// each loaded file, so the key can't disagree with the picture.
+// The aesthetic mapping: which scale each mark's color and opacity come from,
+// laid out as one table. The renderer reads a drawn track's channels off it,
+// and the legend reads the rows keying each loaded file off the same entries,
+// so the key can't disagree with the picture.
 import { isCoarsenedId } from '@gmod/tubemap-core'
 import type { ColorableTrack } from '@gmod/tubemap-core'
 import {
@@ -21,6 +22,7 @@ import {
 
 export type { DrawnTrack, Mark } from './scales.ts'
 
+// The View menu's choices among the scales
 export interface Coloring {
   // Named read groups override every other read coloring while any exists
   readGroups?: readonly ReadGroupColor[]
@@ -92,52 +94,38 @@ export function drawnTrack(
   }
 }
 
-// A band stands for many reads or haplotypes, so a read group or a mapping
-// quality, which belong to one read, don't color it: a haplotype band takes
-// its share of the haplotypes, a read band its strand. A read takes its group,
-// else its mapping quality, else its strand. Undefined where the scale needs
-// a scheme and there is none.
-export function colorScaleFor(
-  mark: Mark,
-  scheme: Scheme,
-  coloring: Coloring,
-): ColorScale
-export function colorScaleFor(
-  mark: Mark,
-  scheme: Scheme | undefined,
-  coloring: Coloring,
-): ColorScale | undefined
-export function colorScaleFor(
-  mark: Mark,
-  scheme: Scheme | undefined,
-  coloring: Coloring,
-): ColorScale | undefined {
-  const ignoreStrand = coloring.ignoreStrand ?? false
-  const readGroups = coloring.readGroups ?? []
-  switch (mark) {
-    case 'haplotypeBand':
-      return shareScale(ignoreStrand)
-    case 'readBand':
-      return scheme && strandScale(scheme, ignoreStrand)
-    case 'read':
-      return readGroups.length > 0
-        ? readGroupScale(readGroups, coloring.otherReadsColor ?? 'greys')
-        : coloring.colorReadsByMappingQuality
-          ? mappingQualityColorScale
-          : scheme && strandScale(scheme, ignoreStrand)
-    case 'reference':
-      return scheme && referenceScale(scheme)
-    case 'path':
-      return scheme && pathScale(scheme)
-  }
+// The channels one mark is drawn through: opacity only where something sets it
+export interface Aesthetics {
+  color: ColorScale
+  alpha?: AlphaScale
 }
 
-// Opacity is a channel of its own, under whichever scale colors a read
-export function alphaScaleFor(
-  mark: Mark,
-  coloring: Coloring,
-): AlphaScale | undefined {
-  return mark === 'read' && coloring.alphaReadsByMappingQuality
-    ? mappingQualityAlphaScale
-    : undefined
+export type Encoding = Record<Mark, Aesthetics>
+
+// What each mark is drawn with, under one file's scheme and the view's
+// choices. A band stands for many reads or haplotypes, so a read group or a
+// mapping quality, which belong to one read, don't color it: a haplotype band
+// takes its share of the haplotypes, a read band its strand. A read takes its
+// group, else its mapping quality, else its strand.
+export function encodingFor(scheme: Scheme, coloring: Coloring): Encoding {
+  const ignoreStrand = coloring.ignoreStrand ?? false
+  const readGroups = coloring.readGroups ?? []
+  const strand = strandScale(scheme, ignoreStrand)
+  return {
+    reference: { color: referenceScale(scheme) },
+    path: { color: pathScale(scheme) },
+    read: {
+      color:
+        readGroups.length > 0
+          ? readGroupScale(readGroups, coloring.otherReadsColor ?? 'greys')
+          : coloring.colorReadsByMappingQuality
+            ? mappingQualityColorScale
+            : strand,
+      ...(coloring.alphaReadsByMappingQuality
+        ? { alpha: mappingQualityAlphaScale }
+        : {}),
+    },
+    readBand: { color: strand },
+    haplotypeBand: { color: shareScale(ignoreStrand) },
+  }
 }

@@ -3,10 +3,10 @@
 import type { ColorableTrack } from '@gmod/tubemap-core'
 import { describe, expect, it } from 'vitest'
 import {
-  colorScaleFor,
   type Coloring,
   type DrawnTrack,
   drawnTrack,
+  encodingFor,
   markOf,
 } from './encoding.ts'
 import { paletteColors } from './palettes.ts'
@@ -21,13 +21,13 @@ const NO_GROUPS: never[] = []
 
 // Every color a scale draws is in a palette one of its rows names
 function keyed(coloring: Coloring, drawn: DrawnTrack[]) {
-  const scale = colorScaleFor('read', SCHEME, coloring)
+  const scale = encodingFor(SCHEME, coloring).read.color
   const named = new Set(
     scale
       .rows('reads', drawn)
       .flatMap(row => ('palette' in row ? paletteColors(row.palette) : [])),
   )
-  return drawn.every(t => named.has(scale.color(t)))
+  return drawn.every(t => named.has(scale.map(t)))
 }
 
 describe('encoding', () => {
@@ -40,14 +40,14 @@ describe('encoding', () => {
   // Double-clicking a track makes it the reference, which leaves track 0
   // among the other paths
   it('colors every other path, track 0 included', () => {
-    const scale = colorScaleFor('path', SCHEME, {})
+    const scale = encodingFor(SCHEME, {}).path.color
     const reds = paletteColors('reds')
-    expect(
-      scale.color({ mark: 'path', source: 0, id: 0, reverse: false }),
-    ).toBe(reds.at(-1))
-    expect(
-      scale.color({ mark: 'path', source: 0, id: 1, reverse: false }),
-    ).toBe(reds[0])
+    expect(scale.map({ mark: 'path', source: 0, id: 0, reverse: false })).toBe(
+      reds.at(-1),
+    )
+    expect(scale.map({ mark: 'path', source: 0, id: 1, reverse: false })).toBe(
+      reds[0],
+    )
   })
 
   it('keys every color it draws a read in', () => {
@@ -100,18 +100,48 @@ describe('encoding', () => {
     })
   })
 
+  // A read takes its group, else its mapping quality, else its strand; a
+  // band only its strand or share
+  it('picks a read scale by the view, and leaves groups and quality off bands', () => {
+    const datum = drawnTrack(
+      read(1, { name: 'r1', mapping_quality: 0 }),
+      0,
+      groups,
+    )
+    const byStrand = encodingFor(SCHEME, {})
+    const byQuality = encodingFor(SCHEME, { colorReadsByMappingQuality: true })
+    const byGroup = encodingFor(SCHEME, {
+      readGroups: groups,
+      colorReadsByMappingQuality: true,
+    })
+    expect(byStrand.read.color.map(datum)).toBe(paletteColors('blues')[1])
+    expect(byQuality.read.color.map(datum)).not.toBe(
+      byStrand.read.color.map(datum),
+    )
+    expect(byGroup.read.color.map(datum)).toBe(paletteColors('plainColors')[1])
+    expect(byGroup.readBand.color.map({ ...datum, mark: 'readBand' })).toBe(
+      byStrand.readBand.color.map({ ...datum, mark: 'readBand' }),
+    )
+  })
+
+  it('sets opacity only when the view asks for it, and only on reads', () => {
+    const faded = encodingFor(SCHEME, { alphaReadsByMappingQuality: true })
+    expect(faded.read.alpha).toBeDefined()
+    expect(faded.readBand.alpha).toBeUndefined()
+    expect(encodingFor(SCHEME, {}).read.alpha).toBeUndefined()
+  })
+
   it('draws the reference from the main palette and the rest from the aux', () => {
     const blues = paletteColors('blues')
     const reds = paletteColors('reds')
+    const { reference, path } = encodingFor(SCHEME, {})
     expect(
-      colorScaleFor('reference', SCHEME, {}).color(
+      reference.color.map(
         drawnTrack({ id: 0, sourceTrackID: 0 }, 0, NO_GROUPS),
       ),
     ).toBe(blues[0])
     expect(
-      colorScaleFor('path', SCHEME, {}).color(
-        drawnTrack({ id: 1, sourceTrackID: 0 }, 0, NO_GROUPS),
-      ),
+      path.color.map(drawnTrack({ id: 1, sourceTrackID: 0 }, 0, NO_GROUPS)),
     ).toBe(reds[0])
   })
 })

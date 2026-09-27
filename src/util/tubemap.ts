@@ -6,11 +6,10 @@ import '../config-client.js'
 import '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
 import {
-  alphaScaleFor,
   type Coloring,
-  colorScaleFor,
   type DrawnTrack,
   drawnTrack,
+  encodingFor,
 } from './encoding.ts'
 import type { Scheme } from './scales.ts'
 import { formatTrackDisplayName } from './trackName.ts'
@@ -1024,12 +1023,15 @@ function datumOf(track: ColorableTrack): DrawnTrack {
 
 function generateTrackColor(track: ColorableTrack): string {
   const datum = datumOf(track)
-  return colorScaleFor(datum.mark, colorSchemeFor(track), config).color(datum)
+  return encodingFor(colorSchemeFor(track), config)[datum.mark].color.map(datum)
 }
 
 function generateTrackAlpha(track: ColorableTrack): number {
   const datum = datumOf(track)
-  return alphaScaleFor(datum.mark, config)?.alpha(datum) ?? 1
+  return (
+    encodingFor(colorSchemeFor(track), config)[datum.mark].alpha?.map(datum) ??
+    1
+  )
 }
 
 // to avoid problems with wrong overlapping of tracks, draw them in order of their color

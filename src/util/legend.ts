@@ -9,10 +9,9 @@
 
 import type { FileType, Tracks } from '../Types.ts'
 import {
-  alphaScaleFor,
   type Coloring,
-  colorScaleFor,
   type DrawnTrack,
+  encodingFor,
   type Mark,
 } from './encoding.ts'
 import type { LegendRow, Scheme } from './scales.ts'
@@ -85,21 +84,27 @@ function nounFor(type: FileType, mark: Mark): string {
   }
 }
 
+// The renderer reports a scheme for every file it drew from, so a file
+// without one drew nothing
 function rowsFor(
   type: FileType,
   scheme: LegendScheme | undefined,
   drawn: readonly DrawnTrack[],
   coloring: Coloring,
 ): LegendRow[] {
+  if (scheme === undefined) {
+    return []
+  }
+  const encoding = encodingFor(scheme, coloring)
   return MARKS.flatMap(mark => {
     const ofMark = drawn.filter(track => track.mark === mark)
     if (ofMark.length === 0) {
       return []
     }
-    const noun = nounFor(type, mark)
+    const { color, alpha } = encoding[mark]
     return [
-      ...(colorScaleFor(mark, scheme, coloring)?.rows(noun, ofMark) ?? []),
-      ...(alphaScaleFor(mark, coloring)?.rows() ?? []),
+      ...color.rows(nounFor(type, mark), ofMark),
+      ...(alpha?.rows() ?? []),
     ]
   })
 }
