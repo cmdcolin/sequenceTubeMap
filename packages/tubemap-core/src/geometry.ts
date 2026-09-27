@@ -25,17 +25,35 @@ function compareCurvesByXYStartValue(a: TrackCurve, b: TrackCurve): number {
   return 0
 }
 
+// Where a curve leaves and enters: a node, or a gap at an order slot
+function curveEnds(curve: TrackCurve): [number, number, number, number] {
+  return [
+    curve.nodeStart ?? -1,
+    curve.nodeEnd ?? -1,
+    curve.nodeStart === null ? curve.orderStart : -1,
+    curve.nodeEnd === null ? curve.orderEnd : -1,
+  ]
+}
+
+function compareTuples(a: readonly number[], b: readonly number[]): number {
+  for (let i = 0; i < a.length; i += 1) {
+    const d = a[i]! - b[i]!
+    if (d !== 0) return d
+  }
+  return 0
+}
+
 // The curves of one track type in draw order, each with its `path` set. Curves
-// between the same pair of nodes form a group whose control points fan out, so
-// a bundle of tracks changing lanes together stays parallel rather than
-// crossing at one x.
+// between the same pair of nodes, or gaps, form a group whose control points
+// fan out, so a bundle of tracks changing lanes together stays parallel rather
+// than crossing at one x.
 export function curvePaths(
   curves: readonly TrackCurve[],
   type: TrackType | undefined,
 ): TrackCurve[] {
   const groupedCurves = groupBy(
     curves.filter(curve => curve.type === type),
-    curve => `${curve.nodeStart},${curve.nodeEnd}`,
+    curve => curveEnds(curve).join(','),
   )
 
   groupedCurves.forEach(curveGroup => {
@@ -78,36 +96,9 @@ export function curvePaths(
   })
 
   // One flat list ordered by group, then by the within-group sort
-  const groupKeys = Array.from(groupedCurves.keys())
-  groupKeys.sort(function (a, b) {
-    const aParts = a.split(',').map(Number)
-    const bParts = b.split(',').map(Number)
-    const a0 = aParts[0] ?? 0
-    const a1 = aParts[1] ?? 0
-    const b0 = bParts[0] ?? 0
-    const b1 = bParts[1] ?? 0
-    if (a0 < b0) {
-      return -1
-    } else if (a0 > b0) {
-      return 1
-    } else {
-      if (a1 < b1) {
-        return -1
-      } else if (a1 > b1) {
-        return 1
-      } else {
-        return 0
-      }
-    }
-  })
-  const flattenedGroups: TrackCurve[] = []
-  for (const key of groupKeys) {
-    const group = groupedCurves.get(key)
-    if (group !== undefined) {
-      flattenedGroups.push(...group)
-    }
-  }
-  return flattenedGroups
+  return [...groupedCurves.values()]
+    .sort((a, b) => compareTuples(curveEnds(a[0]!), curveEnds(b[0]!)))
+    .flat()
 }
 
 // A node's outline: a rounded box 9 units outside the node's x extent and its

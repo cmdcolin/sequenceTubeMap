@@ -4,7 +4,7 @@ import { curvePaths, nodeOutlinePath } from './geometry.ts'
 import { layoutTubeMap } from './layout.ts'
 
 import type { TubeMapLayout } from './layout.ts'
-import type { InputNode, InputTrack } from './types.ts'
+import type { InputNode, InputTrack, TrackCurve } from './types.ts'
 
 // A SNP bubble: the reference walks 1 2 4, the alternate 1 3 4.
 const nodes: InputNode[] = [
@@ -357,6 +357,29 @@ describe('layoutTubeMap', () => {
     layout.nodes.forEach(node => {
       expect(nodeOutlinePath(node)).not.toContain('NaN')
     })
+  })
+
+  it('fans out only the curves that share both ends', () => {
+    // six tracks leaving a gap for another gap, each in its own order slot
+    const gapToGap = (order: number): TrackCurve => ({
+      xStart: order * 100,
+      yStart: 0,
+      xEnd: order * 100 + 40,
+      yEnd: 20,
+      width: 4,
+      color: 'black',
+      id: order,
+      type: 'haplotype',
+      nodeStart: null,
+      nodeEnd: null,
+      orderStart: order,
+      orderEnd: order + 1,
+    })
+    const curves = curvePaths([5, 4, 3, 2, 1, 0].map(gapToGap), 'haplotype')
+    expect(curves.map(c => c.orderStart)).toEqual([0, 1, 2, 3, 4, 5])
+    for (const { xStart, path } of curves) {
+      expect(path).toContain(`C ${xStart + 20} 0 ${xStart + 20} 20`)
+    }
   })
 
   describe('coarsened haplotype bands', () => {

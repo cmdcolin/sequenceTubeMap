@@ -37,8 +37,12 @@ export interface TrackCurve {
   id: number
   name?: string
   type?: TrackType
-  nodeStart: number | null | undefined
-  nodeEnd: number | null | undefined
+  // the nodes the curve leaves and enters, null at a gap in a track's path
+  nodeStart: number | null
+  nodeEnd: number | null
+  // the order slots it leaves and enters
+  orderStart: number
+  orderEnd: number
   path?: string
 }
 

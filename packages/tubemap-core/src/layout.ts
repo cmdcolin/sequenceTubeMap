@@ -2588,8 +2588,10 @@ function generateSVGShapesFromPath(): void {
             id: track.id,
             name: track.name,
             type: track.type,
-            nodeStart: track.path[i - 1]?.node,
-            nodeEnd: track.path[i]?.node,
+            nodeStart: track.path[i - 1]!.node,
+            nodeEnd: track.path[i]!.node,
+            orderStart: track.path[i - 1]!.order,
+            orderEnd: track.path[i]!.order,
           })
           xStart = xEnd
           yStart = yEnd
@@ -2610,8 +2612,10 @@ function generateSVGShapesFromPath(): void {
             id: track.id,
             name: track.name,
             type: track.type,
-            nodeStart: track.path[i - 1]?.node,
-            nodeEnd: track.path[i]?.node,
+            nodeStart: track.path[i - 1]!.node,
+            nodeEnd: track.path[i]!.node,
+            orderStart: track.path[i - 1]!.order,
+            orderEnd: track.path[i]!.order,
           })
           xStart = xEnd
           yStart = yEnd
