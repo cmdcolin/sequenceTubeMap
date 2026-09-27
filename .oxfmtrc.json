@@ -14,6 +14,7 @@
     "pnpm-lock.yaml",
     "exampleData",
     "src/util/tubemap.js",
-    "src/util/tubemap.ts"
+    "src/util/tubemap.ts",
+    "src/util/layout-golden"
   ]
 }

@@ -170,6 +170,17 @@ that the reference path lays out strictly left to right, and that no rendered
 attribute ever contains `NaN`. Add to it rather than trusting the unit tests
 alone — most of the historical bugs in this file were geometry, not types.
 
+Those checks say what a render must never do; two golden tests pin what it does.
+`scripts/tubemap-cli.test.ts` compares the CLI's SVGs byte for byte with
+`doc/tubemap-cli-samples/`, at default settings.
+`src/util/layout.golden.test.ts` pins every shape and node position
+`layoutTubeMap` returns for the demo examples and a BRCA1 window with
+reverse-strand reads, under each option that takes a different layout path, in
+`src/util/layout-golden/`. A refactor that is meant to change nothing leaves
+both unchanged; an intended change rewrites the layout files with
+`pnpm vitest run -u src/util/layout.golden.test.ts`, and the diff names the
+shapes that moved.
+
 ## Traps
 
 - `''` is a valid `BACKEND_URL` (same origin), so test for `=== false`, never

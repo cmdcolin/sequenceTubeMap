@@ -78,15 +78,15 @@ Structural work not yet done:
   `trackForRuler`, `coarsenedEdgeMeta`) at module level, reset on every
   `layoutTubeMap` call. Threading it through as a parameter is mechanical but
   touches nearly every function in the file, so it wants a dedicated pass with
-  the render tests as the safety net. `tubemap.ts` holds the latest layout and
-  its UI state; `imageBounds` stays there because the exported `zoomBy()` reads
-  it long after a draw returned.
+  the render and golden tests as the safety net. `tubemap.ts` holds the latest
+  layout and its UI state; `imageBounds` stays there because the exported
+  `zoomBy()` reads it long after a draw returned.
 - **`generateBasicPathsForReads` vs `generateLaneAssignment`** walk a path with
   the same 60-line case analysis (forward / backward / same-order, with and
   without turnaround segments); the lane version also emits `SegmentAssignment`s
   and `lane: null`. Factoring the walk out is the highest-value remaining dedup
-  and the riskiest change in the file — only attempt it with the render tests
-  green before and after.
+  and the riskiest change in the file — only attempt it with the render and
+  golden tests green before and after.
 - **`Segment.y` / `Segment.lane` are optional** but always set by the time the
   drawing code reads them, which leaves a scattering of `!` and `?? 0`. A
   `PlacedSegment` type (or splitting placement out of `Segment`) would remove
