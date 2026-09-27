@@ -96,8 +96,10 @@ Each entry is `mainPalette/auxPalette`, drawn from `greys` `ygreys` `blues`
 
 The full track array as JSON, for the views the short form cannot express: a
 track resolved from a BED rather than a path, an uploaded track with a display
-name, a graph naming a companion haplotype index, or a per-track mapping-quality
-color flag. Copy link falls back to this by itself when it has to.
+name, or a graph naming a companion haplotype index. Copy link falls back to
+this by itself when it has to. Mapping-quality coloring is a `vis` setting for
+every read track at once; the per-track `colorReadsByMappingQuality` and
+`alphaReadsByMappingQuality` that older links carry here are ignored.
 
 ```
 tracksJson=[{"trackType":"graph","trackColorSettings":{"mainPalette":"blues","auxPalette":"reds"}}]

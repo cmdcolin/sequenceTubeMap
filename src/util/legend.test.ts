@@ -1,19 +1,28 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest'
-import { legendSections } from './legend.ts'
+import { legendSections, type LegendRow } from './legend.ts'
+import { mappingQualityColor } from './mappingQuality.ts'
 import type { Tracks } from '../Types.ts'
 
 const GREYS = { mainPalette: 'greys', auxPalette: 'ygreys' }
 const READS = { mainPalette: 'blues', auxPalette: 'reds' }
+
+const describeRow = (row: LegendRow) =>
+  `${row.label}=${'ramp' in row ? 'ramp' : row.palette}`
 
 function rowsFor(tracks: Tracks, extra = {}) {
   return legendSections({
     tracks,
     colorSchemes: [GREYS, READS],
     ...extra,
-  }).map(s => s.rows.map(r => `${r.label}=${r.palette}`))
+  }).map(s => s.rows.map(describeRow))
 }
+
+const GRAPH_AND_READS: Tracks = [
+  { trackType: 'graph', trackFile: 'x.gbz.db' },
+  { trackType: 'read', trackFile: 'x.gam' },
+]
 
 describe('legendSections', () => {
   it('names the palette each row is actually drawn in', () => {
@@ -57,6 +66,78 @@ describe('legendSections', () => {
         otherReadsColor: 'greys',
       }),
     ).toEqual([['Carriers=blues', 'Other reads=greys']])
+  })
+
+  it('keys mapping-quality color with the ramp the reads are drawn from', () => {
+    const [, reads] = legendSections({
+      tracks: GRAPH_AND_READS,
+      colorSchemes: [GREYS, READS],
+      colorReadsByMappingQuality: true,
+    })
+    expect(reads?.rows).toEqual([
+      {
+        label: 'Mapping quality 0–60',
+        ramp: [0, 15, 30, 45, 60].map(q => mappingQualityColor(q)),
+      },
+    ])
+  })
+
+  it('lets read groups win over mapping-quality color, as the drawing does', () => {
+    expect(
+      rowsFor(GRAPH_AND_READS, {
+        colorReadsByMappingQuality: true,
+        readGroups: [{ name: 'Carriers', color: 'blues' }],
+      })[1],
+    ).toEqual(['Carriers=blues', 'Other reads=greys'])
+  })
+
+  it('adds an opacity row under whatever colors the reads', () => {
+    expect(
+      rowsFor(GRAPH_AND_READS, { alphaReadsByMappingQuality: true })[1],
+    ).toEqual([
+      'Forward reads=blues',
+      'Reverse reads=reds',
+      'Opacity, mapping quality 0–60=ramp',
+    ])
+  })
+
+  // A band stands for many reads, so groups and mapping quality, which belong
+  // to one read, don't color it.
+  it('keys coarsened reads by strand alone', () => {
+    expect(
+      rowsFor(GRAPH_AND_READS, {
+        coarsened: 'read',
+        colorReadsByMappingQuality: true,
+        alphaReadsByMappingQuality: true,
+        readGroups: [{ name: 'Carriers', color: 'blues' }],
+      }),
+    ).toEqual([
+      ['Reference path=greys', 'Other paths=ygreys'],
+      ['Forward read bands=blues', 'Reverse read bands=reds'],
+    ])
+  })
+
+  it('keys coarsened haplotypes as bands beside the reference', () => {
+    expect(
+      rowsFor([{ trackType: 'graph', trackFile: 'x.gbz.db' }], {
+        coarsened: 'haplotype',
+      }),
+    ).toEqual([
+      [
+        'Reference path=greys',
+        'Forward haplotype bands=greys',
+        'Reverse haplotype bands=ygreys',
+      ],
+    ])
+    expect(
+      rowsFor(
+        [
+          { trackType: 'graph', trackFile: 'x.gbz.db' },
+          { trackType: 'haplotype', trackFile: 'x.gbwt' },
+        ],
+        { coarsened: 'haplotype', ignoreStrand: true },
+      ),
+    ).toEqual([['Reference path=greys'], ['Haplotype bands=blues']])
   })
 
   it('says nothing rather than guessing when a track has no scheme', () => {

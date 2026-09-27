@@ -2,6 +2,7 @@
   "bounds": {"minX":20,"maxX":250.42857142857144,"minY":10,"maxY":143},
   "maxOrder": 2,
   "trackForRuler": "GRCh38.chr14",
+  "coarsened": null,
   "nodes": [
     {"name":"60080785","order":1,"x":114.71428571428572,"y":60,"pixelWidth":17,"contentHeight":35},
     {"name":"60080783","order":2,"x":213.42857142857144,"y":20,"pixelWidth":17,"contentHeight":50},

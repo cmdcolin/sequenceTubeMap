@@ -1,10 +1,9 @@
 import { Fragment } from 'react'
 import { PALETTES } from '../util/palettes.ts'
 import type { PaletteInfo } from '../util/palettes.ts'
-import { legendSections } from '../util/legend.ts'
+import { legendSections, type LegendColoring } from '../util/legend.ts'
 import { truncateMiddle } from '../util/text.ts'
-import type { ColorScheme, Palette, Tracks } from '../Types.ts'
-import type { ReadGroup } from './ReadGroupsPanel.tsx'
+import type { Tracks } from '../Types.ts'
 
 function gradientBackground(colors: readonly string[]): string {
   return `linear-gradient(to right, ${colors.join(', ')})`
@@ -30,19 +29,34 @@ function resolvePalette(p: string): ResolvedPalette {
   return { kind: 'hex', color: '#cccccc' }
 }
 
+function RampSwatch({
+  colors,
+  title,
+}: {
+  colors: readonly string[]
+  title: string
+}) {
+  return (
+    <div
+      title={title}
+      style={{
+        width: 80,
+        height: 14,
+        borderRadius: 2,
+        border: '1px solid #ccc',
+        background: gradientBackground(colors),
+      }}
+    />
+  )
+}
+
 function PaletteSwatch({ palette }: { palette: string }) {
   const resolved = resolvePalette(palette)
   if (resolved.kind === 'sequential') {
     return (
-      <div
+      <RampSwatch
+        colors={resolved.info.colors}
         title={`${palette} (sequential)`}
-        style={{
-          width: 80,
-          height: 14,
-          borderRadius: 2,
-          border: '1px solid #ccc',
-          background: gradientBackground(resolved.info.colors),
-        }}
       />
     )
   } else if (resolved.kind === 'categorical') {
@@ -82,33 +96,21 @@ function PaletteSwatch({ palette }: { palette: string }) {
 
 interface LegendProps {
   tracks: Tracks
-  colorSchemes: ColorScheme[]
-  readGroups?: ReadGroup[]
-  otherReadsColor?: Palette
-  ignoreStrand?: boolean
+  coloring: LegendColoring
   title?: string
   onClose?: () => void
 }
 
 function Legend({
   tracks,
-  colorSchemes,
-  readGroups,
-  otherReadsColor,
-  ignoreStrand = false,
+  coloring,
   title = 'Color legend',
   onClose,
 }: LegendProps) {
   if (tracks.length === 0) {
     return null
   }
-  const sections = legendSections({
-    tracks,
-    colorSchemes,
-    readGroups,
-    otherReadsColor,
-    ignoreStrand,
-  })
+  const sections = legendSections({ tracks, ...coloring })
   return (
     <div
       style={{
@@ -179,7 +181,11 @@ function Legend({
                 {section.rows.map((row, j) => (
                   <Fragment key={`${j}-${row.label}`}>
                     <span>{row.label}</span>
-                    <PaletteSwatch palette={row.palette} />
+                    {'ramp' in row ? (
+                      <RampSwatch colors={row.ramp} title={row.label} />
+                    ) : (
+                      <PaletteSwatch palette={row.palette} />
+                    )}
                   </Fragment>
                 ))}
               </div>

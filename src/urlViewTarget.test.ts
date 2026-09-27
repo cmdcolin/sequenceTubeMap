@@ -27,8 +27,6 @@ describe('urlViewTarget round trip', () => {
           trackColorSettings: {
             mainPalette: 'greys',
             auxPalette: '#ff0000',
-            colorReadsByMappingQuality: false,
-            alphaReadsByMappingQuality: true,
           },
         },
         {
@@ -336,8 +334,6 @@ describe('tracks short form', () => {
         trackColorSettings: {
           mainPalette: 'blues',
           auxPalette: '#ff0000',
-          colorReadsByMappingQuality: false,
-          alphaReadsByMappingQuality: false,
         },
       },
     ]
@@ -373,24 +369,32 @@ describe('tracksJson escape hatch', () => {
     ).toEqual(tracks)
   })
 
-  it('falls back for the per-track mapping-quality color flags', () => {
+  // Mapping-quality coloring is a View menu setting, so the per-track flags
+  // older links carry never reached the drawing; they parse, and drop out.
+  it('reads an older per-track mapping-quality flag as the palettes alone', () => {
+    const tracksJson = JSON.stringify([
+      {
+        trackType: 'read',
+        trackFile: 'b.gam',
+        trackColorSettings: {
+          mainPalette: 'blues',
+          auxPalette: 'reds',
+          colorReadsByMappingQuality: true,
+          alphaReadsByMappingQuality: false,
+        },
+      },
+    ])
     expect(
-      viewTargetToUrlParams({
-        region: 'x:1-100',
-        tracks: [
-          {
-            trackType: 'read',
-            trackFile: 'b.gam',
-            trackColorSettings: {
-              mainPalette: 'blues',
-              auxPalette: 'reds',
-              colorReadsByMappingQuality: true,
-              alphaReadsByMappingQuality: false,
-            },
-          },
-        ],
-      }),
-    ).toContain('tracksJson=')
+      urlParamsToViewTarget(
+        `http://localhost/?region=x:1-100&tracksJson=${encodeURIComponent(tracksJson)}`,
+      )?.tracks,
+    ).toEqual([
+      {
+        trackType: 'read',
+        trackFile: 'b.gam',
+        trackColorSettings: { mainPalette: 'blues', auxPalette: 'reds' },
+      },
+    ])
   })
 
   // A hosted database whose haplotype names live in a companion index is only

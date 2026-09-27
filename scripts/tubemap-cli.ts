@@ -704,8 +704,7 @@ async function main(): Promise<void> {
     legend: args.legend
       ? legendSections({
           tracks: viewTarget?.tracks ?? exampleTracks(data.reads.length > 0),
-          colorSchemes,
-          ignoreStrand: visOptions.ignoreStrand,
+          ...tubeMap.getRenderedColoring(),
         })
       : undefined,
   })

@@ -29,7 +29,7 @@ interface CapturedMenus {
 // them like the SVG would.
 const mocks = vi.hoisted(() => {
   const menus: CapturedMenus = {}
-  return { menus }
+  return { menus, coloring: { colorSchemes: [] } }
 })
 
 vi.mock('./TubeMap.tsx', () => ({
@@ -47,6 +47,8 @@ vi.mock('../util/tubemap.ts', () => ({
     mocks.menus.node = cb
   },
   getReadNamesThroughNodes: () => ['read1', 'read2'],
+  subscribeRenderedColoring: () => () => {},
+  getRenderedColoringSnapshot: () => mocks.coloring,
 }))
 
 const VIS_OPTIONS: VisOptions = {

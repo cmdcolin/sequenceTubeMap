@@ -3,7 +3,13 @@
 // that leaves without its key is one nobody else can read, and a key that
 // disagrees with the panel on screen is worse than none.
 
+import type { CoarsenedUnit } from '@gmod/tubemap-core'
 import type { FileType, Tracks } from '../Types.ts'
+import {
+  MAX_MAPPING_QUALITY,
+  mappingQualityAlpha,
+  mappingQualityColor,
+} from './mappingQuality.ts'
 
 // Palettes are named or hex strings. Deliberately looser than Types'
 // ColorScheme, since tubemap.ts keeps its own shape and a legend describing a
@@ -13,10 +19,10 @@ export interface LegendScheme {
   auxPalette?: string
 }
 
-export interface LegendRow {
-  label: string
-  palette: string
-}
+export type LegendRow =
+  | { label: string; palette: string }
+  // A continuous scale, low to high
+  | { label: string; ramp: readonly string[] }
 
 export interface LegendSection {
   // The track this describes: its file, or the display name an upload carried.
@@ -39,7 +45,14 @@ export interface LegendInput {
   readGroups?: LegendReadGroup[]
   otherReadsColor?: string
   ignoreStrand?: boolean
+  colorReadsByMappingQuality?: boolean
+  alphaReadsByMappingQuality?: boolean
+  // What the layout drew as bands, which keep only their strand coloring
+  coarsened?: CoarsenedUnit | undefined
 }
+
+// Everything but the track list, which is what the renderer reports
+export type LegendColoring = Omit<LegendInput, 'tracks'>
 
 function trackLabel(
   file: string | undefined,
@@ -57,58 +70,125 @@ function trackLabel(
   return file.split('/').pop() ?? file
 }
 
-// Which palette actually colors what, per track type.
-//
-// Only a read track uses `mainPalette` for its bulk: everything else takes
-// `mainPalette[0]` for the first track — the reference path — and colors every
-// other path from `auxPalette` (see generateTrackColor). So a haplotype track,
-// which is never the first, is drawn entirely in its aux palette, and a graph
-// track carrying the non-reference paths itself needs both rows. Naming
-// `mainPalette` for those would name a color nothing on screen is drawn in.
-function schemeRows(
-  type: FileType,
+const MAPPING_QUALITY_RANGE = `0–${MAX_MAPPING_QUALITY}`
+
+function mappingQualityRamp(color: (quality: number) => string): string[] {
+  return [0, 0.25, 0.5, 0.75, 1].map(f => color(f * MAX_MAPPING_QUALITY))
+}
+
+// Black at each opacity, flattened onto the panel's white, so the key needs no
+// transparency of its own
+function fadedBlack(quality: number): string {
+  const level = Math.round(255 * (1 - mappingQualityAlpha(quality)))
+    .toString(16)
+    .padStart(2, '0')
+  return `#${level}${level}${level}`
+}
+
+// "reads" gives Forward reads / Reverse reads, or Reads under ignoreStrand
+function strandRows(
+  noun: string,
   scheme: LegendScheme,
-  hasHaplotype: boolean,
   ignoreStrand: boolean,
 ): LegendRow[] {
   const aux = scheme.auxPalette
-  if (type === 'read') {
-    // ignoreStrand collapses the aux/reverse palette; show one Reads row.
-    return ignoreStrand || aux === undefined
-      ? [{ label: 'Reads', palette: scheme.mainPalette }]
-      : [
-          { label: 'Forward reads', palette: scheme.mainPalette },
-          { label: 'Reverse reads', palette: aux },
+  return ignoreStrand || aux === undefined
+    ? [
+        {
+          label: noun.charAt(0).toUpperCase() + noun.slice(1),
+          palette: scheme.mainPalette,
+        },
+      ]
+    : [
+        { label: `Forward ${noun}`, palette: scheme.mainPalette },
+        { label: `Reverse ${noun}`, palette: aux },
+      ]
+}
+
+// Read groups win over mapping quality, which wins over strand, as in
+// tubemap.ts's generateTrackColor. Opacity is a channel of its own and applies
+// under any of them.
+function readRows(
+  scheme: LegendScheme | undefined,
+  input: LegendInput,
+): LegendRow[] {
+  const ignoreStrand = input.ignoreStrand ?? false
+  if (input.coarsened === 'read') {
+    return scheme === undefined
+      ? []
+      : strandRows('read bands', scheme, ignoreStrand)
+  }
+  const readGroups = input.readGroups ?? []
+  const colors: LegendRow[] =
+    readGroups.length > 0
+      ? [
+          ...readGroups.map(g => ({ label: g.name, palette: g.color })),
+          { label: 'Other reads', palette: input.otherReadsColor ?? 'greys' },
         ]
-  } else if (type === 'graph') {
+      : input.colorReadsByMappingQuality
+        ? [
+            {
+              label: `Mapping quality ${MAPPING_QUALITY_RANGE}`,
+              ramp: mappingQualityRamp(mappingQualityColor),
+            },
+          ]
+        : scheme === undefined
+          ? []
+          : strandRows('reads', scheme, ignoreStrand)
+  return input.alphaReadsByMappingQuality
+    ? [
+        ...colors,
+        {
+          label: `Opacity, mapping quality ${MAPPING_QUALITY_RANGE}`,
+          ramp: mappingQualityRamp(fadedBlack),
+        },
+      ]
+    : colors
+}
+
+// Which palette actually colors what, for everything but reads.
+//
+// Everything but a read takes `mainPalette[0]` for the first track — the
+// reference path — and colors every other path from `auxPalette` (see
+// generateTrackColor). So a haplotype track, which is never the first, is
+// drawn entirely in its aux palette, and a graph track carrying the
+// non-reference paths itself needs both rows. Naming `mainPalette` for those
+// would name a color nothing on screen is drawn in. Coarsened haplotypes are
+// bands, colored by strand like read bands.
+function pathRows(
+  type: FileType,
+  scheme: LegendScheme,
+  hasHaplotype: boolean,
+  input: LegendInput,
+): LegendRow[] {
+  const aux = scheme.auxPalette
+  const bands =
+    input.coarsened === 'haplotype'
+      ? strandRows('haplotype bands', scheme, input.ignoreStrand ?? false)
+      : undefined
+  if (type === 'graph') {
     // With a haplotype track loaded, the paths beside the reference belong to
     // that track and are colored from its scheme instead of this one.
     return [
       { label: 'Reference path', palette: scheme.mainPalette },
-      ...(hasHaplotype || aux === undefined
+      ...(hasHaplotype
         ? []
-        : [{ label: 'Other paths', palette: aux }]),
+        : (bands ??
+          (aux === undefined ? [] : [{ label: 'Other paths', palette: aux }]))),
     ]
   } else if (type === 'haplotype') {
-    return [{ label: 'Haplotypes', palette: aux ?? scheme.mainPalette }]
+    return (
+      bands ?? [{ label: 'Haplotypes', palette: aux ?? scheme.mainPalette }]
+    )
   } else {
     return [{ label: type, palette: scheme.mainPalette }]
   }
 }
 
-export function legendSections({
-  tracks,
-  colorSchemes,
-  readGroups = [],
-  otherReadsColor = 'greys',
-  ignoreStrand = false,
-}: LegendInput): LegendSection[] {
-  const hasHaplotype = tracks.some(t => t.trackType === 'haplotype')
-  return tracks.map((track, i) => {
-    const scheme = colorSchemes[i]
-    // Once any group exists every read is colored through the group system, so
-    // the strand rows would name colors nothing on screen is drawn in.
-    const grouped = track.trackType === 'read' && readGroups.length > 0
+export function legendSections(input: LegendInput): LegendSection[] {
+  const hasHaplotype = input.tracks.some(t => t.trackType === 'haplotype')
+  return input.tracks.map((track, i) => {
+    const scheme = input.colorSchemes[i]
     return {
       label: trackLabel(
         track.trackFile,
@@ -116,14 +196,12 @@ export function legendSections({
         track.trackDisplayName,
       ),
       kind: track.trackType,
-      rows: grouped
-        ? [
-            ...readGroups.map(g => ({ label: g.name, palette: g.color })),
-            { label: 'Other reads', palette: otherReadsColor },
-          ]
-        : scheme === undefined
-          ? []
-          : schemeRows(track.trackType, scheme, hasHaplotype, ignoreStrand),
+      rows:
+        track.trackType === 'read'
+          ? readRows(scheme, input)
+          : scheme === undefined
+            ? []
+            : pathRows(track.trackType, scheme, hasHaplotype, input),
     }
   })
 }

@@ -108,14 +108,9 @@ export type Palette = ColorPaletteName | ColorHex
 export interface ColorScheme {
   mainPalette: Palette
   auxPalette: Palette
-  colorReadsByMappingQuality: boolean
-  alphaReadsByMappingQuality: boolean
 }
 
-// Keys of ColorScheme whose values are Palette (not boolean).
-export type PaletteField = {
-  [K in keyof ColorScheme]: ColorScheme[K] extends Palette ? K : never
-}[keyof ColorScheme]
+export type PaletteField = keyof ColorScheme
 
 // Stores the assigned color schemes of all tracks. Index `i` corresponds to
 // the track at key `i` in [[Tracks]].

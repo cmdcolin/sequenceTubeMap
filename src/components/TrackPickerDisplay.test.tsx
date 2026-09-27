@@ -156,8 +156,6 @@ describe('TrackPickerDisplay', () => {
       trackColorSettings: {
         mainPalette: 'blues',
         auxPalette: 'reds',
-        colorReadsByMappingQuality: false,
-        alphaReadsByMappingQuality: false,
       },
     }
 

@@ -2,6 +2,7 @@
   "bounds": {"minX":20,"maxX":259.8571428571429,"minY":10,"maxY":388},
   "maxOrder": 2,
   "trackForRuler": "_gbwt_ref#0#17",
+  "coarsened": null,
   "nodes": [
     {"name":"1","order":0,"x":20,"y":20,"pixelWidth":55,"contentHeight":309},
     {"name":"11","order":1,"x":126.42857142857143,"y":20,"pixelWidth":0,"contentHeight":127},

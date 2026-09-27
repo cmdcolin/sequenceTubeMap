@@ -96,6 +96,7 @@ function describeLayout(layout: TubeMapLayout | undefined) {
     bounds: layout.bounds,
     maxOrder: layout.maxOrder,
     trackForRuler: layout.trackForRuler ?? null,
+    coarsened: layout.coarsened ?? null,
     nodes,
     tracks: layout.tracks.map(t => ({
       id: t.id,

@@ -2,6 +2,7 @@
   "bounds": {"minX":20,"maxX":3153.7142857142853,"minY":-15,"maxY":165},
   "maxOrder": 21,
   "trackForRuler": "Track A",
+  "coarsened": null,
   "nodes": [
     {"name":"A","order":0,"x":20,"y":20,"pixelWidth":84,"contentHeight":45},
     {"name":"B","order":1,"x":144,"y":20,"pixelWidth":84,"contentHeight":75},

@@ -189,12 +189,7 @@ function parseColorScheme(value: unknown): ColorScheme | undefined {
     const mainPalette = asPalette(value.mainPalette)
     const auxPalette = asPalette(value.auxPalette)
     if (mainPalette !== undefined && auxPalette !== undefined) {
-      return {
-        mainPalette,
-        auxPalette,
-        colorReadsByMappingQuality: value.colorReadsByMappingQuality === true,
-        alphaReadsByMappingQuality: value.alphaReadsByMappingQuality === true,
-      }
+      return { mainPalette, auxPalette }
     }
   }
   return undefined
@@ -365,20 +360,15 @@ export function urlParamsToVisOptions(
 
 // The short `tracks=`/`colors=` form cannot say everything a Track can: a
 // track resolved from a BED has no path to list, an uploaded one carries a
-// display name, a graph can name a companion haplotype index, and a color
-// scheme can carry the per-track mapping-quality flags. Those views fall back
-// to `tracksJson=`, which is the whole array.
+// display name, and a graph can name a companion haplotype index. Those views
+// fall back to `tracksJson=`, which is the whole array.
 function isShortFormTrack(track: Track) {
-  const colors = track.trackColorSettings
   return (
     track.trackFile !== undefined &&
     track.trackFile !== '' &&
     !track.trackFile.includes(',') &&
     track.trackDisplayName === undefined &&
-    track.haplotypeIndexFile === undefined &&
-    (colors === undefined ||
-      (!colors.colorReadsByMappingQuality &&
-        !colors.alphaReadsByMappingQuality))
+    track.haplotypeIndexFile === undefined
   )
 }
 

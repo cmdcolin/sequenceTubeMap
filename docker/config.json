@@ -100,8 +100,7 @@
           "trackType": "graph",
           "trackColorSettings": {
             "mainPalette": "#000000",
-            "auxPalette": "greys",
-            "colorReadsByMappingQuality": false
+            "auxPalette": "greys"
           }
         },
         {
@@ -135,29 +134,21 @@
   "maxFileSizeBytes": 1000000000,
   "defaultGraphColorPalette": {
     "mainPalette": "#000000",
-    "auxPalette": "greys",
-    "colorReadsByMappingQuality": false,
-    "alphaReadsByMappingQuality": false
+    "auxPalette": "greys"
   },
   "defaultHaplotypeColorPalette": {
     "mainPalette": "plainColors",
-    "auxPalette": "lightColors",
-    "colorReadsByMappingQuality": false,
-    "alphaReadsByMappingQuality": false
+    "auxPalette": "lightColors"
   },
   "defaultReadColorPalette": {
     "mainPalette": "blues",
-    "auxPalette": "reds",
-    "colorReadsByMappingQuality": false,
-    "alphaReadsByMappingQuality": false
+    "auxPalette": "reds"
   },
   "defaultTrackProps": {
     "trackType": "graph",
     "trackColorSettings": {
       "mainPalette": "#000000",
-      "auxPalette": "greys",
-      "colorReadsByMappingQuality": false,
-      "alphaReadsByMappingQuality": false
+      "auxPalette": "greys"
     }
   },
   "fileTypeToExtensions": {

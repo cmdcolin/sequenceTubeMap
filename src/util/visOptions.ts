@@ -70,15 +70,11 @@ export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
 const MUTED_GRAPH: ColorScheme = {
   mainPalette: 'greys',
   auxPalette: 'greys',
-  colorReadsByMappingQuality: false,
-  alphaReadsByMappingQuality: false,
 }
 
 const CATEGORICAL_GRAPH: ColorScheme = {
   mainPalette: 'plainColors',
   auxPalette: 'lightColors',
-  colorReadsByMappingQuality: false,
-  alphaReadsByMappingQuality: false,
 }
 
 // Forward reads from the main palette, reverse ones from the aux: the pair the
@@ -86,8 +82,6 @@ const CATEGORICAL_GRAPH: ColorScheme = {
 const EXAMPLE_READS: ColorScheme = {
   mainPalette: 'blues',
   auxPalette: 'reds',
-  colorReadsByMappingQuality: false,
-  alphaReadsByMappingQuality: false,
 }
 
 const EXAMPLE_GRAPH_SCHEMES: Record<string, ColorScheme> = {
@@ -125,6 +119,12 @@ export function applyVisOptions(
   tubeMap.setSoftClipsFlag(visOptions.showSoftClips)
   tubeMap.setCoarsenedReadViewFlag(visOptions.coarsenedReadView)
   tubeMap.setIgnoreStrandFlag(visOptions.ignoreStrand)
+  tubeMap.setColorReadsByMappingQualityFlag(
+    visOptions.colorReadsByMappingQuality,
+  )
+  tubeMap.setAlphaReadsByMappingQualityFlag(
+    visOptions.alphaReadsByMappingQuality,
+  )
   tubeMap.setColoredNodes(visOptions.coloredNodes)
   tubeMap.setShowNodeLabels(visOptions.showNodeLabels)
 
@@ -132,8 +132,6 @@ export function applyVisOptions(
     tubeMap.setColorSet(idx, {
       mainPalette: scheme.mainPalette,
       auxPalette: scheme.auxPalette,
-      colorReadsByMappingQuality: visOptions.colorReadsByMappingQuality,
-      alphaReadsByMappingQuality: visOptions.alphaReadsByMappingQuality,
     })
   })
   tubeMap.setMappingQualityCutoff(visOptions.mappingQualityCutoff)

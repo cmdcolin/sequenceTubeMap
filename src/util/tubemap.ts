@@ -6,6 +6,7 @@ import '../config-client.js'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import _externalConfig from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
+import { mappingQualityAlpha, mappingQualityColor } from './mappingQuality.ts'
 import { greys, PALETTES } from './palettes.ts'
 import { formatTrackDisplayName } from './trackName.ts'
 import {
@@ -25,6 +26,7 @@ import {
 import type {
   BedRecord,
   CoarsenedEdgeMeta,
+  CoarsenedUnit,
   ColorableTrack,
   ImageBounds,
   InputNode,
@@ -85,8 +87,6 @@ export type InputRegion = (number | null)[]
 export interface ColorScheme {
   mainPalette: string
   auxPalette?: string
-  colorReadsByMappingQuality?: boolean
-  alphaReadsByMappingQuality?: boolean
 }
 
 export interface ReadGroup {
@@ -122,6 +122,8 @@ interface TubeMapConfig {
   showSoftClips: boolean
   coarsenedReadView: boolean
   ignoreStrand: boolean
+  colorReadsByMappingQuality: boolean
+  alphaReadsByMappingQuality: boolean
   colorSchemes: Record<number, ColorScheme>
   coloredNodes: string[]
   exonColors: string
@@ -247,6 +249,8 @@ const config: TubeMapConfig = {
   showSoftClips: true,
   coarsenedReadView: false,
   ignoreStrand: false,
+  colorReadsByMappingQuality: false,
+  alphaReadsByMappingQuality: false,
   colorSchemes: {},
   // colors corresponds with tracks(input files), [haplotype, read1, read2, ...]
   exonColors: 'lightColors',
@@ -282,6 +286,7 @@ let trackForRuler: string | undefined
 // The coarsened bands' read counts and labels, for the hover and click
 // handlers
 let coarsenedEdgeMeta = new Map<number, CoarsenedEdgeMeta>()
+let coarsened: CoarsenedUnit | undefined
 
 // alignSVG attaches a wheel listener and ResizeObserver to the parent each
 // time it runs; create() runs on every TubeMap prop change, so without
@@ -444,6 +449,14 @@ export function setIgnoreStrandFlag(value: boolean): void {
   config.ignoreStrand = value
 }
 
+export function setColorReadsByMappingQualityFlag(value: boolean): void {
+  config.colorReadsByMappingQuality = value
+}
+
+export function setAlphaReadsByMappingQualityFlag(value: boolean): void {
+  config.alphaReadsByMappingQuality = value
+}
+
 export function setColorSet(fileID: number | string, newColor: ColorScheme): void {
   config.colorSchemes[Number(fileID)] = newColor
 }
@@ -560,6 +573,11 @@ export interface RenderedColoring {
   readGroups: { name: string; color: string }[]
   otherReadsColor: string
   ignoreStrand: boolean
+  colorReadsByMappingQuality: boolean
+  alphaReadsByMappingQuality: boolean
+  // What the latest layout drew as bands, which take none of the per-read
+  // coloring
+  coarsened: CoarsenedUnit | undefined
 }
 
 // What the current drawing is colored with. A legend has to describe the
@@ -578,7 +596,30 @@ export function getRenderedColoring(): RenderedColoring {
     })),
     otherReadsColor: config.otherReadsColor,
     ignoreStrand: config.ignoreStrand,
+    colorReadsByMappingQuality: config.colorReadsByMappingQuality,
+    alphaReadsByMappingQuality: config.alphaReadsByMappingQuality,
+    coarsened,
   }
+}
+
+// The same, taken once per draw, for useSyncExternalStore
+const coloringSubscribers = new Set<() => void>()
+let coloringSnapshot = getRenderedColoring()
+
+export function getRenderedColoringSnapshot(): RenderedColoring {
+  return coloringSnapshot
+}
+
+export function subscribeRenderedColoring(cb: () => void): () => void {
+  coloringSubscribers.add(cb)
+  return () => {
+    coloringSubscribers.delete(cb)
+  }
+}
+
+function emitRenderedColoring(): void {
+  coloringSnapshot = getRenderedColoring()
+  for (const cb of coloringSubscribers) cb()
 }
 
 // The sequence is drawn in `fonts`, which is monospace, so one character's
@@ -634,11 +675,22 @@ function createTubeMap(preserveViewport = true): void {
     shapes = emptyTrackShapes()
     imageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
     trackForRuler = undefined
+    coarsened = undefined
+    emitRenderedColoring()
     return
   }
-  ;({ nodes, tracks, reads, nodeMap, shapes, trackForRuler, coarsenedEdgeMeta } =
-    layout)
+  ;({
+    nodes,
+    tracks,
+    reads,
+    nodeMap,
+    shapes,
+    trackForRuler,
+    coarsenedEdgeMeta,
+    coarsened,
+  } = layout)
   imageBounds = layout.bounds
+  emitRenderedColoring()
   const applyInitialTransform = alignSVG(preserveViewport)
   defineSVGPatterns()
 
@@ -983,12 +1035,14 @@ function colorSchemeFor(track: ColorableTrack): ColorScheme {
   )
 }
 
-const MAX_MAPPING_QUALITY = 60
-
+// A band stands for many reads or haplotypes, so it takes the strand coloring
+// of the track it came from: a read group or a mapping quality belongs to one
+// read, not to a band.
 function generateTrackColor(track: ColorableTrack, highlight = 'plain'): string {
   const scheme = colorSchemeFor(track)
-  let trackColor: string
-
+  if (isCoarsenedId(track.id)) {
+    return strandColor(track, scheme)
+  }
   if (track.type === 'read') {
     // Custom group coloring: last group wins on overlap. A group's color
     // can be a single hex (#rrggbb) or a palette name; getColorSet handles
@@ -1007,55 +1061,43 @@ function generateTrackColor(track: ColorableTrack, highlight = 'plain'): string 
       const otherColors = getColorSet(config.otherReadsColor)
       return otherColors[track.id % otherColors.length]!
     }
-    if (scheme.colorReadsByMappingQuality) {
-      trackColor = d3.interpolateRdYlGn(mappingQualityFraction(track))
-    } else {
-      const reverseStrand = track.is_reverse === true && !config.ignoreStrand
-      // get the color currently stored for this read source file, and stagger color using modulo
-      const colorSet = getColorSet(
-        reverseStrand ? scheme.auxPalette : scheme.mainPalette,
-      )
-      trackColor = colorSet[track.id % colorSet.length]!
-    }
-  } else {
-    if (!config.showExonsFlag || highlight !== 'plain') {
-      // Don't repeat the color of the first track (reference) to highlight is better.
-      // TODO: Allow using color 0 for other schemes not the same as the one for the reference path.
-      // TODO: Stop reads from taking this color?
-      const auxColorSet = getColorSet(scheme.auxPalette)
-      const primaryColorSet = getColorSet(scheme.mainPalette)
-      // The reference is whatever track currently sits in the first input
-      // position, which trackDoubleClick / moveTrackToFirstPosition can change.
-      if (track.id === inputTracks[0]?.id) {
-        trackColor = primaryColorSet[0]!
-      } else {
-        trackColor = auxColorSet[(track.id - 1) % auxColorSet.length]!
-      }
-    } else {
-      const colorSet = getColorSet(config.exonColors)
-      trackColor = colorSet[track.id % colorSet.length]!
-    }
+    return config.colorReadsByMappingQuality
+      ? mappingQualityColor(track.mapping_quality)
+      : strandColor(track, scheme)
   }
-  return trackColor
+  if (!config.showExonsFlag || highlight !== 'plain') {
+    // Don't repeat the color of the first track (reference) to highlight is better.
+    // TODO: Allow using color 0 for other schemes not the same as the one for the reference path.
+    // TODO: Stop reads from taking this color?
+    const auxColorSet = getColorSet(scheme.auxPalette)
+    const primaryColorSet = getColorSet(scheme.mainPalette)
+    // The reference is whatever track currently sits in the first input
+    // position, which trackDoubleClick / moveTrackToFirstPosition can change.
+    if (track.id === inputTracks[0]?.id) {
+      return primaryColorSet[0]!
+    }
+    return auxColorSet[(track.id - 1) % auxColorSet.length]!
+  }
+  const colorSet = getColorSet(config.exonColors)
+  return colorSet[track.id % colorSet.length]!
 }
 
-function mappingQualityFraction(track: ColorableTrack): number {
-  return (
-    Math.min(MAX_MAPPING_QUALITY, track.mapping_quality ?? 0) /
-    MAX_MAPPING_QUALITY
+// Forward from the main palette, reverse from the aux, staggered by id
+function strandColor(track: ColorableTrack, scheme: ColorScheme): string {
+  const reverseStrand = track.is_reverse === true && !config.ignoreStrand
+  const colorSet = getColorSet(
+    reverseStrand ? scheme.auxPalette : scheme.mainPalette,
   )
+  return colorSet[track.id % colorSet.length]!
 }
 
 function generateTrackAlpha(track: ColorableTrack): number {
-  if (
-    track.type === 'read' &&
-    colorSchemeFor(track).alphaReadsByMappingQuality
-  ) {
-    return 0.1 + 0.9 * mappingQualityFraction(track)
-  }
-  return 1
+  return track.type === 'read' &&
+    !isCoarsenedId(track.id) &&
+    config.alphaReadsByMappingQuality
+    ? mappingQualityAlpha(track.mapping_quality)
+    : 1
 }
-
 
 // to avoid problems with wrong overlapping of tracks, draw them in order of their color
 function drawReversalsByColor(

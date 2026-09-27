@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useSyncExternalStore } from 'react'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -314,6 +314,11 @@ function TubeMapContainer({
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [groupCounter, setGroupCounter] = useState(0)
   const [otherReadsColor, setOtherReadsColor] = useState<Palette>('greys')
+  // The legend describes the drawing, so it reads what the last draw used
+  const renderedColoring = useSyncExternalStore(
+    tubeMap.subscribeRenderedColoring,
+    tubeMap.getRenderedColoringSnapshot,
+  )
   // Render-time cap on reads. Deep-coverage regions can produce 5k+ reads,
   // which inflate the tube-map layout to ~150k SVG elements and freeze the
   // browser. `null` means render all.
@@ -785,10 +790,7 @@ function TubeMapContainer({
         >
           <Legend
             tracks={legendTracks}
-            colorSchemes={visOptions.colorSchemes}
-            readGroups={readGroups}
-            otherReadsColor={otherReadsColor}
-            ignoreStrand={visOptions.ignoreStrand}
+            coloring={renderedColoring}
             onClose={onLegendClose}
           />
         </div>

@@ -211,12 +211,7 @@ function tracksEqual(curr: Track | undefined, next: Track | undefined) {
   const cs = curr.trackColorSettings
   const ns = next.trackColorSettings
   if (cs && ns) {
-    if (
-      cs.mainPalette !== ns.mainPalette ||
-      cs.auxPalette !== ns.auxPalette ||
-      cs.colorReadsByMappingQuality !== ns.colorReadsByMappingQuality ||
-      cs.alphaReadsByMappingQuality !== ns.alphaReadsByMappingQuality
-    ) {
+    if (cs.mainPalette !== ns.mainPalette || cs.auxPalette !== ns.auxPalette) {
       return false
     }
   }

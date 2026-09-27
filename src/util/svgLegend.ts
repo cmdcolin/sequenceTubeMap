@@ -2,7 +2,7 @@
 // Legend.tsx draws the same sections for the screen; this one has to survive
 // being a file, so it carries no CSS and measures its own text.
 
-import type { LegendSection } from './legend.ts'
+import type { LegendRow, LegendSection } from './legend.ts'
 import { PALETTES } from './palettes.ts'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -25,12 +25,16 @@ function textWidth(text: string, size = FONT_SIZE): number {
   return text.length * size * CHAR_WIDTH
 }
 
-// A palette's colors, or the single color a hex names. Unknown names would
-// otherwise draw an empty swatch, so they fall back the way getColorSet does.
-function swatchColors(palette: string): readonly string[] {
-  return palette.startsWith('#')
-    ? [palette]
-    : (PALETTES.find(p => p.name === palette)?.colors ??
+// A row's colors: its ramp, its palette's, or the single color a hex names.
+// Unknown names would otherwise draw an empty swatch, so they fall back the way
+// getColorSet does.
+function swatchColors(row: LegendRow): readonly string[] {
+  if ('ramp' in row) {
+    return row.ramp
+  }
+  return row.palette.startsWith('#')
+    ? [row.palette]
+    : (PALETTES.find(p => p.name === row.palette)?.colors ??
         PALETTES.find(p => p.name === 'greys')!.colors)
 }
 
@@ -70,12 +74,12 @@ function label(
 // a cropped figure would have to carry.
 function swatch(
   doc: Document,
-  palette: string,
+  row: LegendRow,
   x: number,
   y: number,
 ): SVGElement {
   const group = element(doc, 'g', {})
-  const colors = swatchColors(palette)
+  const colors = swatchColors(row)
   const width = SWATCH_WIDTH / colors.length
   colors.forEach((color, i) => {
     group.appendChild(
@@ -160,7 +164,7 @@ export function legendGroup(
       y += LINE
       group.appendChild(label(doc, row.label, PAD + INDENT, y, 'normal'))
       group.appendChild(
-        swatch(doc, row.palette, width - PAD - SWATCH_WIDTH, y - FONT_SIZE + 2),
+        swatch(doc, row, width - PAD - SWATCH_WIDTH, y - FONT_SIZE + 2),
       )
     }
   }

@@ -59,6 +59,8 @@ export interface LayoutOptions {
 
 // A coarsened band's count of contributing reads and its label, keyed by the
 // band's synthetic track id
+export type CoarsenedUnit = 'read' | 'haplotype'
+
 export interface CoarsenedEdgeMeta {
   count: number
   label: string
@@ -79,6 +81,8 @@ export interface TubeMapLayout {
   // the name of the track that carries a coordinate for the ruler
   trackForRuler: string | undefined
   coarsenedEdgeMeta: Map<number, CoarsenedEdgeMeta>
+  // what the coarsened view drew as bands, if it drew any
+  coarsened: CoarsenedUnit | undefined
 }
 
 interface LayoutConfig {
@@ -254,6 +258,7 @@ export function layoutTubeMap(
   // calculateTrackWidth/generateLaneAssignment ever see them, and rejoin the
   // layout below through the same reads-style overlay used for coarsened
   // reads.
+  let coarsened: CoarsenedUnit | undefined
   const coarsenHaplotypes =
     config.showReads && config.coarsenedReadView && !hadInputReads
   if (coarsenHaplotypes) {
@@ -278,6 +283,7 @@ export function layoutTubeMap(
       if (bands.length > 0) {
         tracks = [ref]
         reads = bands
+        coarsened = 'haplotype'
       }
     }
   }
@@ -307,6 +313,7 @@ export function layoutTubeMap(
     generateTrackIndexSequences(reads)
     if (drawCoarsenedReads) {
       reads = buildCoarsenedSyntheticBands(reads, 'read')
+      coarsened = 'read'
       reverseReversedReads()
       generateTrackIndexSequences(reads)
     }
@@ -344,6 +351,7 @@ export function layoutTubeMap(
     maxOrder,
     trackForRuler,
     coarsenedEdgeMeta,
+    coarsened,
   }
 }
 
@@ -2799,7 +2807,7 @@ export const isCoarsenedId = (id: number) => id >= COARSENED_ID_BASE
 // layout follows.
 function buildCoarsenedSyntheticBands(
   source: Track[],
-  unit: 'read' | 'haplotype',
+  unit: CoarsenedUnit,
 ): Track[] {
   coarsenedEdgeMeta = new Map()
 

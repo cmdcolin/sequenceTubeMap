@@ -28,8 +28,6 @@ describe('TrackList', () => {
       trackColorSettings: {
         mainPalette: 'blues',
         auxPalette: 'reds',
-        colorReadsByMappingQuality: false,
-        alphaReadsByMappingQuality: false,
       },
     },
     {
@@ -38,8 +36,6 @@ describe('TrackList', () => {
       trackColorSettings: {
         mainPalette: 'blues',
         auxPalette: 'reds',
-        colorReadsByMappingQuality: false,
-        alphaReadsByMappingQuality: false,
       },
     },
     {
@@ -48,8 +44,6 @@ describe('TrackList', () => {
       trackColorSettings: {
         mainPalette: 'blues',
         auxPalette: 'reds',
-        colorReadsByMappingQuality: false,
-        alphaReadsByMappingQuality: false,
       },
     },
   ]

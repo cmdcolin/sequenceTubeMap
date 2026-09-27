@@ -14,8 +14,6 @@ describe('TrackSettings', () => {
   const trackColorSettings: ColorScheme = {
     mainPalette: 'blues',
     auxPalette: 'reds',
-    colorReadsByMappingQuality: false,
-    alphaReadsByMappingQuality: false,
   }
 
   it('should render without errors', () => {

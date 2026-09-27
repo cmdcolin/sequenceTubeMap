@@ -38,8 +38,6 @@ const DEFAULT_PRESET_COLORS = [
 const DEFAULT_COLOR_SETTINGS: Partial<ColorScheme> = {
   mainPalette: 'blues',
   auxPalette: 'reds',
-  colorReadsByMappingQuality: false,
-  alphaReadsByMappingQuality: false,
 }
 
 // Per file type, the row headings for the (main, aux) palette slots.
