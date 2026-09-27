@@ -1,6 +1,9 @@
 import { createRoot } from 'react-dom/client'
+import CssBaseline from '@mui/material/CssBaseline'
+import { ThemeProvider } from '@mui/material/styles'
 import App from './App.tsx'
 import RootErrorBoundary from './components/RootErrorBoundary.tsx'
+import { theme } from './theme.ts'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {
@@ -8,7 +11,10 @@ if (!rootElement) {
 }
 
 createRoot(rootElement).render(
-  <RootErrorBoundary>
-    <App />
-  </RootErrorBoundary>,
+  <ThemeProvider theme={theme}>
+    <CssBaseline />
+    <RootErrorBoundary>
+      <App />
+    </RootErrorBoundary>
+  </ThemeProvider>,
 )

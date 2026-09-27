@@ -21,7 +21,6 @@ export function CheckboxMenuItem({
 }) {
   return (
     <MenuItem
-      dense
       data-testid={testid}
       disabled={disabled}
       onClick={() => {
@@ -30,8 +29,8 @@ export function CheckboxMenuItem({
     >
       <ListItemIcon>
         <Checkbox
-          edge="start"
           size="small"
+          sx={{ p: 0 }}
           checked={checked}
           disabled={disabled}
           tabIndex={-1}

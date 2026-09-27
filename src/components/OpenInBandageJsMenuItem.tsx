@@ -18,7 +18,6 @@ export function OpenInBandageJsMenuItem({
       : bandageJsUrl(viewTarget, trackFileBaseURI)
   return (
     <MenuItem
-      dense
       component="a"
       href={url}
       target="_blank"

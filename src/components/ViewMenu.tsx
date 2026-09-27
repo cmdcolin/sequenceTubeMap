@@ -45,7 +45,7 @@ export function ViewMenu({
   const perReadDisabled = readsDisabled || visOptions.coarsenedReadView
   return (
     <>
-      <AppBarMenu label="View" testid="viewMenuButton" dense>
+      <AppBarMenu label="View" testid="viewMenuButton">
         {close => (
           <>
             <CheckboxMenuItem
@@ -183,7 +183,6 @@ export function ViewMenu({
             </Box>
             <Divider />
             <MenuItem
-              dense
               data-testid="trackVisibilityMenuItem"
               onClick={() => {
                 setVisibilityDialogOpen(true)
