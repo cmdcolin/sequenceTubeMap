@@ -5,6 +5,10 @@ static SVG — useful for scripting, headless servers, or pasting a tube map int
 a paper without a browser screenshot.
 
 ```bash
+# your own files: a .gbz.db, a region, and any number of .gam read files
+pnpm tubemap-cli --graph my.gbz.db --reads my.gam --region chr1:1-500 \
+                 --out mine.svg
+
 # whatever a link from the app describes
 pnpm tubemap-cli --url 'https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000' \
                  --out brca1.svg
@@ -23,6 +27,21 @@ stripping the types rather than bundling first. Strip-only mode erases types but
 does not rewrite syntax, so `tsconfig.json` sets `erasableSyntaxOnly` — enums,
 namespaces and constructor parameter properties would break this entry point
 even though the Vite build accepts them.
+
+## Your own files
+
+`--graph` takes a `.gbz.db`, local or a URL, and `--region` says where in it to
+look. `--reads` adds a GAM read track and can be repeated; a
+[`.gai` index](data.md#indexing-reads-for-region-queries) beside the GAM is
+picked up, so only the blocks the region touches are read. `--haplotype-index`
+names the graph's
+[companion index](data.md#pointing-a-track-at-a-companion-index), which is where
+haplotypes get their real names. Local paths resolve against the working
+directory.
+
+Those are the only formats the renderer reads, so a `.vg`, `.xg` or `.gbz` graph
+needs [converting to `.gbz.db`](data.md#converting-a-graph-to-gbzdb) first, and
+a GAF converting to GAM.
 
 ## Rendering a link
 

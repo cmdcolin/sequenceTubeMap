@@ -2,13 +2,15 @@
 // globals, then drives the same data pipeline and d3 renderer the web app
 // uses, and emits the resulting SVG.
 //
-// Three ways to say what to draw:
+// Four ways to say what to draw:
+//   - --graph <file>      render your own .gbz.db, with --reads and --region
 //   - --url <link>        render the view a shared app link describes
 //   - --source <name>     render a built-in source from src/config.json
 //                         (e.g. "snp1kg-BRCA1 (gbz-base)")
 //   - --example N         render one of the bundled demo datasets (1..9)
 //
 // Examples:
+//   pnpm tubemap-cli --graph my.gbz.db --reads my.gam --region chr1:1-500
 //   pnpm tubemap-cli --example 1 --out out.svg
 //   pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
 //   pnpm tubemap-cli --url '<a link copied from the app>' --out link.svg
@@ -96,9 +98,18 @@ function flagHelp(): string {
   }).join('')
 }
 
-const USAGE = `tubemap-cli [--url <link> | --source <config name> | --example 1..9]
-             [--region X:S-E] [--out file.svg] [--width N] [--height N]
+const USAGE = `tubemap-cli --graph <file.gbz.db> --region X:S-E
+             [--haplotype-index <file>] [--reads <file.gam>]...
+tubemap-cli [--url <link> | --source <config name> | --example 1..9]
+             [--region X:S-E]
+
+Either form also takes
+             [--out file.svg] [--width N] [--height N]
              [--viewport] [--read-limit N] [--legend]
+
+--graph draws your own files. Each is a local path, relative to the working
+directory, or an http(s) URL read by range requests. --haplotype-index names
+the graph's companion haplotype index, and --reads can be given more than once.
 
 --url takes a link the app itself produced (its Copy link button, or the
 address bar), and draws what that link describes. --region and the view options
@@ -125,10 +136,18 @@ logarithmic pulls it back. snp1kg-BRCA1 at 17:1-1000 goes from 10122 units
 across to 1099, at the same height.
 `
 
-type RenderTarget = { example: string } | { source: string } | { url: string }
+const TARGET_KINDS = ['graph', 'url', 'source', 'example'] as const
+
+interface RenderTarget {
+  kind: (typeof TARGET_KINDS)[number]
+  value: string
+}
 
 interface CliArgs {
   target: RenderTarget
+  // The --graph target's companion index and read files.
+  haplotypeIndex: string | undefined
+  reads: string[]
   // Region to draw, overriding whatever the target names.
   region: string | undefined
   out: string
@@ -174,7 +193,7 @@ function flagArgOptions(): Record<
 }
 
 function flagOverrides(
-  values: Record<string, string | boolean | undefined>,
+  values: Record<string, unknown>,
 ): Partial<StoredVisOptions> {
   const overrides: Partial<StoredVisOptions> = {}
   for (const option of VIS_OPTION_FLAGS) {
@@ -185,37 +204,29 @@ function flagOverrides(
   return overrides
 }
 
-// Exactly one of the three ways to say what to draw.
-function parseTarget(values: {
-  example?: string
-  source?: string
-  url?: string
-}): RenderTarget {
-  const named = [
-    ...(values.example === undefined ? [] : ['--example']),
-    ...(values.source === undefined ? [] : ['--source']),
-    ...(values.url === undefined ? [] : ['--url']),
-  ]
+function parseTarget(
+  values: Partial<Record<RenderTarget['kind'], string>>,
+): RenderTarget {
+  const named = TARGET_KINDS.filter(kind => values[kind] !== undefined)
+  const choices = '--graph, --url, --source or --example'
   if (named.length > 1) {
     throw new Error(
-      `pass one of --example, --source or --url, not ${named.join(' and ')}`,
+      `pass one of ${choices}, not ${named.map(kind => `--${kind}`).join(' and ')}`,
     )
   }
-  if (values.example !== undefined) {
-    return { example: values.example }
+  const [kind] = named
+  if (kind === undefined) {
+    throw new Error(`pass one of ${choices}\n${USAGE}`)
   }
-  if (values.source !== undefined) {
-    return { source: values.source }
-  }
-  if (values.url !== undefined) {
-    return { url: values.url }
-  }
-  throw new Error(`pass one of --example, --source or --url\n${USAGE}`)
+  return { kind, value: values[kind]! }
 }
 
 function parseCli(): CliArgs {
   const { values } = parseArgs({
     options: {
+      graph: { type: 'string' },
+      'haplotype-index': { type: 'string' },
+      reads: { type: 'string', multiple: true },
       example: { type: 'string' },
       source: { type: 'string' },
       url: { type: 'string' },
@@ -236,11 +247,20 @@ function parseCli(): CliArgs {
     process.exit(0)
   }
   const target = parseTarget(values)
-  if ('example' in target && values.region !== undefined) {
+  if (target.kind === 'example' && values.region !== undefined) {
     throw new Error('--region has nothing to override on an --example render')
+  }
+  if (target.kind !== 'graph') {
+    for (const flag of ['reads', 'haplotype-index'] as const) {
+      if (values[flag] !== undefined) {
+        throw new Error(`--${flag} goes with --graph`)
+      }
+    }
   }
   return {
     target,
+    haplotypeIndex: values['haplotype-index'],
+    reads: values.reads ?? [],
     region: values.region,
     out: values.out ?? 'tubemap.svg',
     width: parsePositive('width', values.width ?? '1800'),
@@ -324,6 +344,8 @@ const REPO_ROOT = path.resolve(
   '..',
 )
 
+const isUrl = (file: string) => /^https?:\/\//.test(file)
+
 function localFilePath(file: string): string {
   return path.resolve(REPO_ROOT, file)
 }
@@ -350,14 +372,13 @@ async function fileFromPath(localPath: string): Promise<File> {
 async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
   const { SIBLING_INDEX_SUFFIXES } =
     await import('../src/api/local/fileRegistry.ts')
-  const isLocal = (file: string) => !/^https?:\/\//.test(file)
   const staged: Tracks = []
   for (const track of tracks) {
     // A companion haplotype index is staged the same way, since the API reads
     // it exactly like the database. The browser resolves a config-relative
     // path against the page; there is no page here.
     const companion =
-      track.haplotypeIndexFile && isLocal(track.haplotypeIndexFile)
+      track.haplotypeIndexFile && !isUrl(track.haplotypeIndexFile)
         ? {
             haplotypeIndexFile: await api.putFile(
               track.trackType,
@@ -366,7 +387,7 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
             ),
           }
         : {}
-    if (track.trackFile && isLocal(track.trackFile)) {
+    if (track.trackFile && !isUrl(track.trackFile)) {
       const localPath = localFilePath(track.trackFile)
       const id = await api.putFile(
         track.trackType,
@@ -470,6 +491,49 @@ async function viewTargetForUrl(
   return prepareViewTarget(api, target, regionOverride, 'the link')
 }
 
+// Files named on the command line resolve against the working directory, as
+// any CLI's do, rather than the repo root config.json paths resolve against.
+async function viewTargetForGraph(
+  api: GBZBaseAPI,
+  graph: string,
+  args: CliArgs,
+): Promise<ViewTarget> {
+  if (args.region === undefined) {
+    throw new Error('--graph needs --region')
+  }
+  // The in-browser backend reads no other alignment format, and a GAF fails
+  // deep in the GAM decoder as a gzip header error.
+  const notGam = args.reads.find(
+    file => !(isUrl(file) ? new URL(file).pathname : file).endsWith('.gam'),
+  )
+  if (notGam !== undefined) {
+    throw new Error(`--reads takes .gam files, not ${notGam}`)
+  }
+  const cliFile = (file: string) => (isUrl(file) ? file : path.resolve(file))
+  return prepareViewTarget(
+    api,
+    {
+      name: path.basename(graph),
+      region: args.region,
+      tracks: [
+        {
+          trackType: 'graph',
+          trackFile: cliFile(graph),
+          ...(args.haplotypeIndex !== undefined && {
+            haplotypeIndexFile: cliFile(args.haplotypeIndex),
+          }),
+        },
+        ...args.reads.map(file => ({
+          trackType: 'read' as const,
+          trackFile: cliFile(file),
+        })),
+      ],
+    },
+    undefined,
+    `"${graph}"`,
+  )
+}
+
 // A pasted link is usually whole, but a bare query string is a reasonable
 // thing to hand a CLI, and the app's parser wants something absolute.
 function absoluteUrl(link: string): string {
@@ -484,7 +548,9 @@ async function urlVisOptions(
   target: RenderTarget,
 ): Promise<Partial<StoredVisOptions>> {
   const { urlParamsToVisOptions } = await import('../src/urlViewTarget.ts')
-  return 'url' in target ? urlParamsToVisOptions(absoluteUrl(target.url)) : {}
+  return target.kind === 'url'
+    ? urlParamsToVisOptions(absoluteUrl(target.value))
+    : {}
 }
 
 interface Render {
@@ -506,8 +572,9 @@ async function resolveRender(api: GBZBaseAPI, args: CliArgs): Promise<Render> {
     ...args.visOptions,
   }
 
-  if ('example' in args.target) {
-    const origin = await exampleOrigin(args.target.example)
+  const { kind, value } = args.target
+  if (kind === 'example') {
+    const origin = await exampleOrigin(value)
     return {
       key: ['tubeMap.example', origin],
       viewTarget: undefined,
@@ -517,9 +584,11 @@ async function resolveRender(api: GBZBaseAPI, args: CliArgs): Promise<Render> {
   }
 
   const viewTarget =
-    'source' in args.target
-      ? await viewTargetForSource(api, args.target.source, args.region)
-      : await viewTargetForUrl(api, args.target.url, args.region)
+    kind === 'graph'
+      ? await viewTargetForGraph(api, value, args)
+      : kind === 'source'
+        ? await viewTargetForSource(api, value, args.region)
+        : await viewTargetForUrl(api, value, args.region)
   console.error(
     `querying ${viewTarget.name ?? 'the link'} @ ${viewTarget.region} ...`,
   )
