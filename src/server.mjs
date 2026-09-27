@@ -2097,41 +2097,6 @@ function runVgLines(args, onLine) {
   return runProcessLines(find_vg(), args, onLine)
 }
 
-api.post('/getPathNames', async (req, res, next) => {
-  console.log('received request for pathNames')
-  const graphFile = req.body.graphFile
-
-  if (!isAllowedPath(graphFile)) {
-    throw new BadRequestError(
-      'Path to Graph file not allowed: ' + req.body.graphFile,
-    )
-  }
-  if (!endsWithExtensions(graphFile, GRAPH_EXTENSIONS)) {
-    throw new BadRequestError(
-      'Path to Graph file does not end in valid extension: ' +
-        req.body.graphFile,
-    )
-  }
-
-  const lines = []
-  try {
-    if (graphFile.endsWith('.pos.bed.gz')) {
-      await runProcessLines('tabix', ['-l', graphFile], line => {
-        lines.push(line)
-      })
-    } else {
-      await runVgLines(['paths', '-L', '-x', graphFile], line => {
-        lines.push(line)
-      })
-    }
-    const pathNames = lines.filter(a => a !== '' && !a.startsWith('_')).sort()
-    console.log(`Found ${pathNames.length} paths`)
-    res.json({ pathNames })
-  } catch (err) {
-    next(err)
-  }
-})
-
 api.post('/getPathInfo', async (req, res, next) => {
   console.log('received request for pathInfo')
   const graphFile = req.body.graphFile
