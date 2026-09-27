@@ -31,6 +31,12 @@ function debugLog(...args: unknown[]): void {
   }
 }
 
+// Node and Track declare some fields that not every entry gets: layout places
+// only the nodes a track or read reaches, a normal read has no width until
+// assignReadsToNodes, and a graph fetched with removeSequences has no seq.
+type MaybeUnset<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
+type MaybeUnplacedNode = MaybeUnset<LayoutNode, 'x' | 'y'>
+
 export type NodeWidthOption = 'normal' | 'compressed' | 'small' | 'fixed'
 
 // What a track looks like to its colouring: the layout asks for a colour per
@@ -151,6 +157,9 @@ function configFrom(options: LayoutOptions): LayoutConfig {
 let config: LayoutConfig = configFrom({})
 let bed: BedRecord[] | null = null
 
+// Sparse like TubeMapLayout.nodes, but forEach, map and sort skip the hole and
+// noUncheckedIndexedAccess already types indexed reads as possibly undefined,
+// so only for...of would ever see it.
 let nodes: LayoutNode[] = []
 // Each track has a `path`, which is an array of Segment objects describing pieces of the path that need to be drawn, in order along the path.
 let tracks: Track[] = []
@@ -346,11 +355,9 @@ export function layoutTubeMap(
     tracks = tracks.concat(reads)
   } else {
     nodes.forEach(node => {
-      if (node) {
-        node.incomingReads = []
-        node.outgoingReads = []
-        node.internalReads = []
-      }
+      node.incomingReads = []
+      node.outgoingReads = []
+      node.internalReads = []
     })
   }
 
@@ -455,7 +462,7 @@ function straightenTrack(index: number): void {
 
   // invert the sequence within the nodes
   nodes.forEach(node => {
-    if (node && nodesToInvert.has(node.name)) {
+    if (nodesToInvert.has(node.name)) {
       node.seq = node.seq.split('').reverse().join('')
     }
   })
@@ -469,7 +476,7 @@ function generateReadOnlyNodeAttributes(): void {
   }
 
   const orderY = new Map<number, number>()
-  nodes.forEach(node => {
+  nodes.forEach((node: MaybeUnplacedNode) => {
     if (node.y !== undefined) {
       setMapToMax(orderY, node.order, node.y + node.contentHeight)
     }
@@ -484,7 +491,7 @@ function generateReadOnlyNodeAttributes(): void {
     }
   })
 
-  nodes.forEach((node, i) => {
+  nodes.forEach((node: MaybeUnplacedNode, i) => {
     if (node.order >= 0 && node.y === undefined) {
       node.y = (orderY.get(node.order) ?? 0) + 25
       node.contentHeight = 0
@@ -507,16 +514,12 @@ export const READ_WIDTH = 7
 // add info about reads to nodes (incoming, outgoing and internal reads)
 function assignReadsToNodes(): void {
   nodes.forEach(node => {
-    if (node) {
-      node.incomingReads = []
-      node.outgoingReads = []
-      node.internalReads = []
-    }
+    node.incomingReads = []
+    node.outgoingReads = []
+    node.internalReads = []
   })
-  reads.forEach((read, idx) => {
-    // Honor a pre-set width (e.g. coarsened Sankey bands pre-size themselves
-    // by traversing-read count) — only fall back to the default for normal
-    // reads which leave width unset.
+  reads.forEach((read: MaybeUnset<Track, 'width'>, idx) => {
+    // coarsened bands arrive sized by their crossing count
     if (read.width === undefined || read.width === 0) {
       read.width = READ_WIDTH
     }
@@ -569,8 +572,6 @@ function placeReads(): void {
   // Space out read tracks if multiple exist
   const topMargin = allSources.length > 1 ? READ_WIDTH : 0
   sortedNodes.forEach(node => {
-    if (!node) return
-    // For each node
     for (const source of allSources) {
       // Go through all source tracks in order
 
@@ -622,8 +623,6 @@ function placeReads(): void {
           // A segment can be between a cycle if it there are nodes on both sides
           nextVisitToNode &&
           previousVisitToNode &&
-          nextVisitToNode.isForward !== undefined &&
-          previousVisitToNode.isForward !== undefined &&
           // A segment is between a cycle if the next node it visits is behind the previous node it visited
           (previousVisitToNode.order > nextVisitToNode.order ||
             // A segment can also be between a cycle if it's visiting the same node it just visited in the same direction
@@ -960,13 +959,6 @@ function compareReadOutgoingSegmentsByGoingTo(
 // Compare tracks based on ordering at their first convergence
 function compareTrackByInitialOrdering(trackA: Track, trackB: Track): number {
   // Find the first node where the two tracks converge, sort by layer.
-  // Tracks with no path sort first, and two of them tie.
-  if (trackA.path === undefined || trackB.path === undefined) {
-    return (
-      (trackA.path === undefined ? 0 : 1) - (trackB.path === undefined ? 0 : 1)
-    )
-  }
-
   const pathA = trackA.path
   const pathB = trackB.path
 
@@ -1020,7 +1012,7 @@ function calculateBottomY(): number[] {
     bottomY.push(0)
   }
 
-  nodes.forEach(node => {
+  nodes.forEach((node: MaybeUnplacedNode) => {
     if (node.y !== undefined) {
       bottomY[node.order] = Math.max(
         bottomY[node.order]!,
@@ -1211,7 +1203,7 @@ export function reverseMismatches(
       mm.pos = sequenceLength - mm.pos
     } else if (mm.type === 'deletion') {
       mm.pos = sequenceLength - mm.pos - (mm.length ?? 0)
-    } else if (mm.type === 'substitution') {
+    } else {
       mm.pos = sequenceLength - mm.pos - (mm.seq?.length ?? 0)
     }
     if (mm.seq !== undefined) {
@@ -1277,8 +1269,7 @@ function getImageDimensions(): void {
   // alignSVG() detect the empty content rather than computing a negative scale.
   const bounds: ImageBounds = { minX: 99, maxX: -99, minY: 99, maxY: -99 }
 
-  nodes.forEach(node => {
-    if (!node) return
+  nodes.forEach((node: MaybeUnplacedNode) => {
     if (node.x !== undefined) {
       bounds.minX = Math.min(bounds.minX, node.x)
       bounds.maxX = Math.max(
@@ -1318,9 +1309,7 @@ function nodeByName(nodeName: string): LayoutNode {
 function generateNodeMap(): Map<string, number> {
   nodeMap = new Map()
   nodes.forEach((node, index) => {
-    if (node) {
-      nodeMap.set(node.name, index)
-    }
+    nodeMap.set(node.name, index)
   })
   return nodeMap
 }
@@ -1345,10 +1334,8 @@ function generateNodeSuccessors(): void {
   }
 
   nodes.forEach((node, i) => {
-    if (node) {
-      node.successors = Array.from(successorSets[i]!)
-      node.predecessors = Array.from(predecessorSets[i]!)
-    }
+    node.successors = Array.from(successorSets[i]!)
+    node.predecessors = Array.from(predecessorSets[i]!)
   })
 }
 
@@ -1439,7 +1426,7 @@ export function fillUnassignedOrders(
 function generateNodeOrder(): void {
   let modifiedSequence: number[]
   let currentOrder: number
-  let rightIndex: number
+  let rightIndex: number | null
   let leftIndex: number
   let minOrder = 0
   const tracksAndReads =
@@ -1452,13 +1439,9 @@ function generateNodeOrder(): void {
   // fill() makes the array dense: `new Array(n)` alone is all holes, which
   // forEach skips, so neither the sentinel pass nor the copy-back below ran.
   nodeOrders = new Array<number | undefined>(nodes.length).fill(undefined)
-  // Clear stale orders from previous runs so downstream `order === undefined`
-  // guards still identify unassigned nodes. LayoutNode.order is non-optional
-  // (set by this very pass), so we widen via the Node base type to allow the reset.
-  ;(nodes as Node[]).forEach(node => {
-    if (node) {
-      node.order = undefined
-    }
+  // Node's order is optional, so widening to it lets us clear a previous run's
+  nodes.forEach((node: Node) => {
+    node.order = undefined
   })
 
   generateNodeOrderOfSingleTrack(tracks[0]!.indexSequence)
@@ -1467,7 +1450,7 @@ function generateNodeOrder(): void {
     debugLog(`generating order for track ${i + 1}`)
     rightIndex = generateNodeOrderTrackBeginning(
       tracksAndReads[i]!.indexSequence,
-    )!
+    )
     if (rightIndex === null) {
       if (tracksAndReads[i]!.type === 'haplotype') {
         generateNodeOrderOfSingleTrack(tracksAndReads[i]!.indexSequence)
@@ -1699,7 +1682,7 @@ function generateNodeDegree(): void {
   })
 
   nodes.forEach(node => {
-    if (node.tracks !== undefined) node.degree = node.tracks.length
+    node.degree = node.tracks.length
   })
 }
 
@@ -2483,7 +2466,7 @@ function calculateTrackWidth(): void {
   const NARROW_WIDTH = 4
   const WIDE_WIDTH = config.trackWidth
 
-  tracks.forEach(track => {
+  for (const track of tracks) {
     if (track.freq !== undefined) {
       // custom track width
       track.width = Math.round((Math.log(track.freq) + 1) * NARROW_WIDTH)
@@ -2497,7 +2480,7 @@ function calculateTrackWidth(): void {
     if (track.width !== NARROW_WIDTH) {
       allAreFour = false
     }
-  })
+  }
 
   if (allAreFour) {
     tracks.forEach(track => {
@@ -2576,7 +2559,7 @@ function generateSVGShapesFromPath(): void {
   // generate x coords where each order starts and ends
   const orderStartX: number[] = []
   const orderEndX: number[] = []
-  nodes.forEach(node => {
+  nodes.forEach((node: MaybeUnplacedNode) => {
     if (node.x !== undefined) {
       orderStartX[node.order] = node.x
       if (orderEndX[node.order] === undefined) {
@@ -2854,7 +2837,7 @@ function buildCoarsenedSyntheticBands(
     const weight = Math.max(item.freq ?? 1, 1)
     total += weight
     const seq = item.indexSequence
-    if (!seq || seq.length < 2) continue
+    if (seq.length < 2) continue
     for (let i = 0; i < seq.length - 1; i += 1) {
       const sSigned = seq[i]!
       const dSigned = seq[i + 1]!
@@ -2975,14 +2958,12 @@ function buildCoarsenedSyntheticBands(
   if (DEBUG) {
     let tallestName = '?'
     let tallestH = 0
-    for (const n of nodes) {
-      if (!n) continue
-      const h = n.contentHeight
-      if (h > tallestH) {
-        tallestH = h
+    nodes.forEach(n => {
+      if (n.contentHeight > tallestH) {
+        tallestH = n.contentHeight
         tallestName = n.name
       }
-    }
+    })
     debugLog(
       `[coarsened] ${unit}s_in=${source.length} edges_out=${synthetic.length} ` +
         `tallestNodeBeforePlace=${tallestName}(${tallestH.toFixed(1)})`,
@@ -3292,7 +3273,7 @@ function generateNodeWidth(): void {
       // The sequence is drawn in a monospace font, so one character's width,
       // which the caller measures, sizes every node.
       const charWidth = config.charWidth
-      nodes.forEach(node => {
+      nodes.forEach((node: MaybeUnset<LayoutNode, 'seq'>) => {
         node.width = node.sequenceLength
         const len = node.seq?.length ?? 1
         node.pixelWidth = Math.round(charWidth * len)

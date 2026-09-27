@@ -147,7 +147,6 @@
     "node_modules",
     "vite.config.mjs",
     "src/util/tubemap.js",
-    "src/util/tubemap.ts",
-    "packages/tubemap-core/src/layout.ts"
+    "src/util/tubemap.ts"
   ]
 }
