@@ -2,7 +2,7 @@
 import { readFileSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import fs from 'fs-extra'
+import fs from 'fs'
 import { defineConfig, transformWithOxc } from 'vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
@@ -24,8 +24,10 @@ function copyExampleData() {
     apply: 'build',
     async closeBundle() {
       const from = path.resolve(__dirname, 'exampleData')
-      if (await fs.pathExists(from)) {
-        await fs.copy(from, path.resolve(__dirname, 'build', 'exampleData'))
+      if (fs.existsSync(from)) {
+        await fs.promises.cp(from, path.resolve(__dirname, 'build', 'exampleData'), {
+          recursive: true,
+        })
       }
     },
   }

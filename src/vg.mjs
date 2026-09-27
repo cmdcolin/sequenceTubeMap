@@ -1,8 +1,8 @@
 import { config } from './config-global.mjs'
 import { InternalServerError } from './errors.mjs'
 
-import fs from 'fs-extra'
-import which from 'which'
+import fs from 'fs'
+import path from 'path'
 
 /// Return the command string to execute to run vg.
 /// Checks config.vgPath.
@@ -17,14 +17,13 @@ export function find_vg() {
     if (prefix === '') {
       // Empty string has special meaning of "use PATH".
       console.log('Check for vg on PATH')
-      try {
-        find_vg.found_vg = which.sync('vg')
-        console.log('Found vg at:', find_vg.found_vg)
-        return find_vg.found_vg
-      } catch (e) {
-        // vg is not on PATH
+      const onPath = findOnPath('vg')
+      if (onPath === undefined) {
         continue
       }
+      find_vg.found_vg = onPath
+      console.log('Found vg at:', find_vg.found_vg)
+      return find_vg.found_vg
     }
     if (prefix.length > 0 && prefix[prefix.length - 1] !== '/') {
       // Add trailing slash
@@ -66,4 +65,19 @@ export function vg_available() {
   } catch (e) {
     return false
   }
+}
+
+function findOnPath(name) {
+  for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
+    const candidate = path.join(dir, name)
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK)
+      if (fs.statSync(candidate).isFile()) {
+        return candidate
+      }
+    } catch {
+      // not in this directory
+    }
+  }
+  return undefined
 }

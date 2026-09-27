@@ -7,7 +7,7 @@ process.env.SERVER_PORT = '0'
 // not-really-standard implementations of JS modules in play. So we import the
 // server's start function and put it in an object pretendign to be a module.
 import { start } from './server.mjs'
-import fs from 'fs-extra'
+import fs from 'fs'
 import { join } from 'node:path'
 import { vg_available } from './vg.mjs'
 const server = { start }
@@ -77,7 +77,7 @@ async function tearDown() {
   // found it.
   for (const name of listUploads()) {
     if (!uploadsBefore.has(name)) {
-      fs.removeSync(join(UPLOADS_DIR, name))
+      fs.rmSync(join(UPLOADS_DIR, name), { recursive: true, force: true })
     }
   }
 }
@@ -430,7 +430,7 @@ it.skipIf(!HAS_VG)(
     // upload machinery.
     // See for example <https://github.com/vitest-dev/vitest/issues/2078> for
     // background on the many flavors of Blob.
-    const fileData = await fs.readFileSync('exampleData/cactus.vg')
+    const fileData = fs.readFileSync('exampleData/cactus.vg')
     // Since a Node Buffer is an ArrayBuffer, we can use it to make a jsdom File.
     // We need to put the data block in an enclosing array, or else the block
     // will be iterated and each byte will be stringified and *those* bytes will

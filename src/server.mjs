@@ -18,9 +18,8 @@ import assert from 'assert'
 import { spawn } from 'child_process'
 import express from 'express'
 import multer from 'multer'
-import fs from 'fs-extra'
+import fs from 'fs'
 import path from 'path'
-import pathIsInside from 'path-is-inside'
 import rl from 'readline'
 import compression from 'compression'
 import { server as WebSocketServer } from 'websocket'
@@ -39,7 +38,6 @@ import dns from 'dns/promises'
 import net from 'net'
 import sanitize from 'sanitize-filename'
 import { createHash, randomUUID } from 'node:crypto'
-import cron from 'node-cron'
 import { RWLock } from 'readers-writer-lock'
 
 /// Return the python script chunkix.py
@@ -251,10 +249,9 @@ async function lockDirectories(directoryPaths, lockType, func) {
   })
 }
 
-// runs every hour
 // deletes any files in the download directory past the set fileExpirationTime set in config
-const expiredFileCleanupTask = cron.schedule('0 * * * *', async () => {
-  console.log('cron scheduled check')
+const expiredFileCleanupTask = setInterval(async () => {
+  console.log('scheduled expired file check')
   // attempt to acquire a write lock for each on the directory before attempting to delete files
   for (const dir of [DOWNLOAD_DATA_PATH, UPLOAD_DATA_PATH]) {
     try {
@@ -265,7 +262,7 @@ const expiredFileCleanupTask = cron.schedule('0 * * * *', async () => {
       console.error('Error checking for expired files in ' + dir + ':', e)
     }
   }
-})
+}, 60 * 60 * 1000)
 
 const app = express()
 
@@ -309,7 +306,7 @@ api.post(
     }
     if (!Object.hasOwn(config.fileTypeToExtensions, req.body.fileType)) {
       // multer has already written the file, so don't leave it behind.
-      await fs.remove(req.file.path)
+      await fs.promises.rm(req.file.path, { force: true })
       throw new BadRequestError(`Unknown file type: ${req.body.fileType}`)
     }
 
@@ -318,7 +315,7 @@ api.post(
       // been written to disk by multer, so clear it before rejecting.
       const rejection = readUploadRejection(req.file.path)
       if (rejection !== null) {
-        await fs.remove(req.file.path)
+        await fs.promises.rm(req.file.path, { force: true })
         throw new BadRequestError(rejection)
       }
       indexGamSorted(req, res, next)
@@ -404,7 +401,7 @@ function indexGamSorted(req, res, next) {
         finished(sortedReadsFile)
           .then(async () => {
             if (writePath !== sortedPath) {
-              await fs.move(writePath, sortedPath, { overwrite: true })
+              await fs.promises.rename(writePath, sortedPath)
             }
             res.json({ path: path.relative('.', sortedPath) })
           })
@@ -480,7 +477,7 @@ function getGams(tracks) {
 // T lines: T\tsegmentName\tsegmentId  (original GFA name → pre-chop ID)
 // K lines: K\toldId\tforwardOffset\treverseOffset\tnewId  (chopped node mapping)
 async function parseGFATranslation(filePath) {
-  const content = await fs.readFile(filePath, 'utf-8')
+  const content = await fs.promises.readFile(filePath, 'utf-8')
   const originalIdToName = {}
   const kLines = []
   const choppedIds = new Set()
@@ -1902,7 +1899,7 @@ function cleanUpChunkIfOwned(req, _res) {
     // Clean up the temp directory for the request recursively. Nothing waits
     // on this, so a failure has to be logged rather than thrown into an
     // unhandled rejection.
-    fs.remove(req.chunkDir).catch(err => {
+    fs.promises.rm(req.chunkDir, { recursive: true, force: true }).catch(err => {
       console.error('Could not remove chunk directory ' + req.chunkDir, err)
     })
   }
@@ -1958,9 +1955,12 @@ function isAllowedPath(inputPath) {
   for (const allowed of ALLOWED_DATA_DIRECTORIES) {
     // Go through all the allowed directories
 
-    // See if it's in there. Note that .. is not processed by pathIsInside, and
-    // it doesn't do any relative/absolute conversion.
-    if (pathIsInside(resolvedPath, allowed)) {
+    const relative = path.relative(allowed, resolvedPath)
+    if (
+      relative !== '..' &&
+      !relative.startsWith('..' + path.sep) &&
+      !path.isAbsolute(relative)
+    ) {
       // This path is inside this allowed directory
       return true
     }
@@ -2485,7 +2485,7 @@ async function fetchToFile(url, maxBytes, destination) {
     } catch (e) {
       fileStream.destroy()
       // Don't leave a truncated file where a good one is expected.
-      await fs.remove(destination)
+      await fs.promises.rm(destination, { force: true })
       throw e
     }
     return true
@@ -2756,7 +2756,7 @@ export function start() {
       // Shut down the server
       close: async () => {
         console.log('[shutdown] stopping expired file cleanup task')
-        await expiredFileCleanupTask.destroy()
+        clearInterval(expiredFileCleanupTask)
 
         console.log('[shutdown] removing temp dir')
         fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
@@ -2880,7 +2880,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 process.on('SIGINT', function () {
   console.log('\nshutting down from SIGINT')
-  void expiredFileCleanupTask.stop()
+  clearInterval(expiredFileCleanupTask)
   // remove the temporary directory
   fs.rmSync(DOWNLOAD_DATA_PATH, { recursive: true, force: true })
 
