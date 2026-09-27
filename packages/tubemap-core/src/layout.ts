@@ -3284,80 +3284,103 @@ function generateNodeWidth(): void {
   }
 }
 
+// A node's distinct neighbors on one side, kept only as far as mergeNodes
+// needs them: none, exactly one, or several. A neighbor is a signed node index,
+// or TRACK_END where a haplotype starts or stops.
+interface Neighbors {
+  first: Int32Array
+  count: Uint8Array
+}
+
+const TRACK_END = 0
+
+function noNeighbors(nodeCount: number): Neighbors {
+  return { first: new Int32Array(nodeCount), count: new Uint8Array(nodeCount) }
+}
+
+function addNeighbor(
+  neighbors: Neighbors,
+  index: number,
+  neighbor: number,
+): void {
+  const count = neighbors.count[index]!
+  if (count === 0) {
+    neighbors.first[index] = neighbor
+    neighbors.count[index] = 1
+  } else if (count === 1 && neighbors.first[index] !== neighbor) {
+    neighbors.count[index] = 2
+  }
+}
+
+// The index of a node's one neighbor on this side, or 0 when it has none,
+// several, or a track end.
+function soleNeighbor(neighbors: Neighbors, index: number): number {
+  return neighbors.count[index] === 1 ? Math.abs(neighbors.first[index]!) : 0
+}
+
 // remove redundant nodes
 // two nodes A and B can be merged if all tracks leaving A go directly into B
 // and all tracks entering B come directly from A
 // (plus no inversions involved)
 function mergeNodes(): void {
-  let nodeName: string
-  let nodeName2: string
-  // One set per node index, including the hole at 0 (Array.from materializes
-  // holes, unlike forEach/map).
-  const predSets: Set<string>[] = Array.from(nodes, () => new Set())
-  const succSets: Set<string>[] = Array.from(nodes, () => new Set())
+  const pred = noNeighbors(nodes.length)
+  const succ = noNeighbors(nodes.length)
+  const signedIndexOf = new Map<string, number>()
+  const visit = (nodeName: string): number => {
+    let signed = signedIndexOf.get(nodeName)
+    if (signed === undefined) {
+      const index = nodeMap.get(forward(nodeName))!
+      signed = isReverse(nodeName) ? -index : index
+      signedIndexOf.set(nodeName, signed)
+    }
+    return signed
+  }
 
-  let tracksAndReads
-  if (config.showReads && reads.length > 0)
-    tracksAndReads = tracks.concat(reads)
-  else tracksAndReads = tracks
+  const tracksAndReads =
+    config.showReads && reads.length > 0 ? tracks.concat(reads) : tracks
 
+  // A reverse visit on either side adds both orientations of the neighbor, so
+  // no merge happens across an inversion.
   tracksAndReads.forEach(track => {
-    for (let i = 0; i < track.sequence.length; i += 1) {
-      if (!isReverse(track.sequence[i]!)) {
-        // forward Node
+    const { sequence } = track
+    const isHaplotype = track.type === 'haplotype'
+    const last = sequence.length - 1
+    let previous = TRACK_END
+    let current = last >= 0 ? visit(sequence[0]!) : TRACK_END
+    for (let i = 0; i <= last; i += 1) {
+      const next = i < last ? visit(sequence[i + 1]!) : TRACK_END
+      if (current > 0) {
         if (i > 0) {
-          nodeName = track.sequence[i - 1]!
-          predSets[nodeMap.get(track.sequence[i]!)!]!.add(nodeName)
-          if (isReverse(nodeName)) {
-            // add 2 predecessors, to make sure there is no node merging in this case
-            predSets[nodeMap.get(track.sequence[i]!)!]!.add(forward(nodeName))
-          }
-        } else if (track.type === 'haplotype') {
-          predSets[nodeMap.get(track.sequence[i]!)!]!.add('None')
+          addNeighbor(pred, current, previous)
+          if (previous < 0) addNeighbor(pred, current, -previous)
+        } else if (isHaplotype) {
+          addNeighbor(pred, current, TRACK_END)
         }
-        if (i < track.sequence.length - 1) {
-          nodeName = track.sequence[i + 1]!
-          succSets[nodeMap.get(track.sequence[i]!)!]!.add(nodeName)
-          if (isReverse(nodeName)) {
-            // add 2 successors, to make sure there is no node merging in this case
-            succSets[nodeMap.get(track.sequence[i]!)!]!.add(forward(nodeName))
-          }
-        } else if (track.type === 'haplotype') {
-          succSets[nodeMap.get(track.sequence[i]!)!]!.add('None')
+        if (i < last) {
+          addNeighbor(succ, current, next)
+          if (next < 0) addNeighbor(succ, current, -next)
+        } else if (isHaplotype) {
+          addNeighbor(succ, current, TRACK_END)
         }
       } else {
-        // reverse Node
-        nodeName = forward(track.sequence[i]!)
+        const index = -current
         if (i > 0) {
-          nodeName2 = track.sequence[i - 1]!
-          if (isReverse(nodeName2)) {
-            succSets[nodeMap.get(nodeName)!]!.add(forward(nodeName2))
-          } else {
-            // add 2 successors, to make sure there is no node merging in this case
-            succSets[nodeMap.get(nodeName)!]!.add(nodeName2)
-            succSets[nodeMap.get(nodeName)!]!.add(reverse(nodeName2))
-          }
-        } else if (track.type === 'haplotype') {
-          succSets[nodeMap.get(nodeName)!]!.add('None')
+          addNeighbor(succ, index, -previous)
+          if (previous > 0) addNeighbor(succ, index, previous)
+        } else if (isHaplotype) {
+          addNeighbor(succ, index, TRACK_END)
         }
-        if (i < track.sequence.length - 1) {
-          nodeName2 = track.sequence[i + 1]!
-          if (isReverse(nodeName2)) {
-            predSets[nodeMap.get(nodeName)!]!.add(forward(nodeName2))
-          } else {
-            predSets[nodeMap.get(nodeName)!]!.add(nodeName2)
-            predSets[nodeMap.get(nodeName)!]!.add(reverse(nodeName2))
-          }
-        } else if (track.type === 'haplotype') {
-          predSets[nodeMap.get(nodeName)!]!.add('None')
+        if (i < last) {
+          addNeighbor(pred, index, -next)
+          if (next > 0) addNeighbor(pred, index, next)
+        } else if (isHaplotype) {
+          addNeighbor(pred, index, TRACK_END)
         }
       }
+      previous = current
+      current = next
     }
   })
-
-  // convert sets to arrays
-  const pred: string[][] = predSets.map(s => Array.from(s))
-  const succ: string[][] = succSets.map(s => Array.from(s))
 
   // update reads which pass through merging nodes
   if (config.showReads && reads.length > 0) {
@@ -3387,12 +3410,17 @@ function mergeNodes(): void {
       return origin
     }
     sortedNodes.forEach(node => {
-      const predecessor = mergeableWithPred(nodeMap.get(node.name)!, pred, succ)
-      if (predecessor) {
+      const predecessorIndex = mergeableWithPred(
+        nodeMap.get(node.name)!,
+        pred,
+        succ,
+      )
+      if (predecessorIndex !== 0) {
+        const predecessor = nodes[predecessorIndex]!.name
         // Nodes are visited in order, so the predecessor of a merge cascade is
         // always recorded before the node that follows it.
         const offset =
-          offsetOf(predecessor) + nodeByName(predecessor).sequenceLength
+          offsetOf(predecessor) + nodes[predecessorIndex]!.sequenceLength
         mergeOffset.set(node.name, offset)
         mergeOffset.set(reverse(node.name), offset)
         mergeOrigin.set(node.name, originOf(predecessor))
@@ -3414,19 +3442,19 @@ function mergeNodes(): void {
         offsetOf(read.sequence[read.sequence.length - 1]!)
       for (let i = read.sequence.length - 1; i >= 0; i -= 1) {
         const nodeName = forward(read.sequence[i]!)
-        const predecessor = mergeableWithPred(
+        const predecessorIndex = mergeableWithPred(
           nodeMap.get(nodeName)!,
           pred,
           succ,
         )
         if (
-          predecessor &&
-          mergeableWithSucc(nodeMap.get(predecessor)!, pred, succ)
+          predecessorIndex !== 0 &&
+          mergeableWithSucc(predecessorIndex, pred, succ)
         ) {
           if (i > 0) {
             read.sequence.splice(i, 1)
             // adjust position of mismatches
-            const predLength = nodeByName(predecessor).sequenceLength
+            const predLength = nodes[predecessorIndex]!.sequenceLength
             sequenceNew[i]!.mismatches.forEach(mismatch => {
               mismatch.pos += predLength
             })
@@ -3451,10 +3479,13 @@ function mergeNodes(): void {
 
   // update node sequences + sequence lengths
   for (let i = 0; i < nodes.length; i += 1) {
-    if (mergeableWithSucc(i, pred, succ) && !mergeableWithPred(i, pred, succ)) {
+    if (
+      mergeableWithSucc(i, pred, succ) &&
+      mergeableWithPred(i, pred, succ) === 0
+    ) {
       let donor = i
       while (mergeableWithSucc(donor, pred, succ)) {
-        donor = nodeMap.get(forward(succ[donor]![0]!))!
+        donor = soleNeighbor(succ, donor)
         nodes[i]!.sequenceLength += nodes[donor]!.sequenceLength
         nodes[i]!.seq += nodes[donor]!.seq
       }
@@ -3462,50 +3493,49 @@ function mergeNodes(): void {
   }
 
   // actually merge the nodes by removing the corresponding nodes from track data
+  const absorbed = new Uint8Array(nodes.length)
+  for (let i = 0; i < nodes.length; i += 1) {
+    if (mergeableWithPred(i, pred, succ) !== 0) absorbed[i] = 1
+  }
   tracks.forEach(track => {
-    for (let i = track.sequence.length - 1; i >= 0; i -= 1) {
-      nodeName = forward(track.sequence[i]!)
-      const nodeIndex = nodeMap.get(nodeName)!
-      if (mergeableWithPred(nodeIndex, pred, succ)) {
-        track.sequence.splice(i, 1)
+    const { sequence } = track
+    let kept = 0
+    for (const nodeName of sequence) {
+      if (absorbed[Math.abs(visit(nodeName))] === 0) {
+        sequence[kept] = nodeName
+        kept += 1
       }
     }
+    sequence.length = kept
   })
 
   // remove the nodes from node-array
   for (let i = nodes.length - 1; i >= 0; i -= 1) {
-    if (mergeableWithPred(i, pred, succ)) {
+    if (absorbed[i] === 1) {
       nodes.splice(i, 1)
     }
   }
 }
 
+// The index of the node `index` merges into, or 0 when it merges into none.
 function mergeableWithPred(
   index: number,
-  pred: string[][],
-  succ: string[][],
-): string | false {
-  if (pred[index]!.length !== 1) return false
-  if (pred[index]![0] === 'None') return false
-  const predecessor = forward(pred[index]![0]!)
-  const predecessorIndex = nodeMap.get(predecessor)!
-  if (succ[predecessorIndex]!.length !== 1) return false
-  if (succ[predecessorIndex]![0] === 'None') return false
-  return predecessor
+  pred: Neighbors,
+  succ: Neighbors,
+): number {
+  const predecessor = soleNeighbor(pred, index)
+  return predecessor !== 0 && soleNeighbor(succ, predecessor) !== 0
+    ? predecessor
+    : 0
 }
 
 function mergeableWithSucc(
   index: number,
-  pred: string[][],
-  succ: string[][],
+  pred: Neighbors,
+  succ: Neighbors,
 ): boolean {
-  if (succ[index]!.length !== 1) return false
-  if (succ[index]![0] === 'None') return false
-  const successor = forward(succ[index]![0]!)
-  const successorIndex = nodeMap.get(successor)!
-  if (pred[successorIndex]!.length !== 1) return false
-  if (pred[successorIndex]![0] === 'None') return false
-  return true
+  const successor = soleNeighbor(succ, index)
+  return successor !== 0 && soleNeighbor(pred, successor) !== 0
 }
 
 function filterReads<
