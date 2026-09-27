@@ -296,9 +296,10 @@ export function layoutTubeMap(
     // A deduplicated reference walk also stands for the haplotypes identical to
     // it through the window; those belong in the bands, not the reference lane.
     const refDuplicates = (ref.freq ?? 1) - 1
+    const refSigns = firstVisitSigns(ref)
     const altHaplotypes = tracks
       .filter((_, i) => i !== refIndex)
-      .map(walk => orientedLike(ref, walk))
+      .map(walk => orientedLike(refSigns, walk))
     if (refDuplicates > 0) altHaplotypes.push({ ...ref, freq: refDuplicates })
     if (altHaplotypes.length > 0) {
       const { bands, total } = buildCoarsenedSyntheticBands(
@@ -2823,13 +2824,15 @@ function buildCoarsenedSyntheticBands(
     sourceTrackID: number
     lastSource: number
   }
-  const edges = new Map<string, EdgeAgg>()
+  const edges = new Map<number, EdgeAgg>()
   let total = 0
+  // One number per signed edge: signed indices run from -span to span.
+  const span = nodes.length
+  const edgeKey = (s: number, d: number): number =>
+    (s + span) * (2 * span + 1) + d + span
   // When ignoring strand, (+A→+B) and (-B→-A) refer to the same underlying
-  // graph connection — collapse both into one canonical key. We pick the
-  // lexicographically smaller of the two orientations so a stable canonical
-  // form is chosen; whichever orientation is seen first determines the
-  // visual band direction.
+  // graph connection, so both collapse into the smaller of their two keys;
+  // whichever orientation is seen first determines the visual band direction.
   const ignoreStrand = config.ignoreStrand
   for (const [sourceIndex, item] of source.entries()) {
     // a deduplicated walk stands for `freq` identical haplotypes
@@ -2845,14 +2848,9 @@ function buildCoarsenedSyntheticBands(
       const srcNode = nodes[sIdx]
       const dstNode = nodes[dIdx]
       if (!srcNode || !dstNode) continue
-      let key: string
-      if (ignoreStrand) {
-        const a = `${sSigned}>${dSigned}`
-        const b = `${-dSigned}>${-sSigned}`
-        key = a < b ? a : b
-      } else {
-        key = `${sSigned}>${dSigned}`
-      }
+      const key = ignoreStrand
+        ? Math.min(edgeKey(sSigned, dSigned), edgeKey(-dSigned, -sSigned))
+        : edgeKey(sSigned, dSigned)
       const existing = edges.get(key)
       if (existing === undefined) {
         edges.set(key, {
@@ -2975,16 +2973,13 @@ function buildCoarsenedSyntheticBands(
 // back to front relative to the reference. Banded that way, one allele splits
 // into a forward and a reverse band. Turn a walk around when it runs against
 // the reference on most of the nodes they share.
-function orientedLike(ref: Track, walk: Track): Track {
-  const refSign = new Map<number, number>()
-  for (const visit of ref.indexSequence) {
-    const node = Math.abs(visit)
-    if (!refSign.has(node)) refSign.set(node, Math.sign(visit))
-  }
+function orientedLike(refSigns: Int8Array, walk: Track): Track {
   let agreement = 0
   for (const visit of walk.indexSequence) {
-    const sign = refSign.get(Math.abs(visit))
-    if (sign !== undefined) agreement += sign === Math.sign(visit) ? 1 : -1
+    const sign = refSigns[Math.abs(visit)]
+    if (sign !== undefined && sign !== 0) {
+      agreement += sign === Math.sign(visit) ? 1 : -1
+    }
   }
   return agreement >= 0
     ? walk
@@ -2993,6 +2988,16 @@ function orientedLike(ref: Track, walk: Track): Track {
         sequence: walk.sequence.map(flip).reverse(),
         indexSequence: walk.indexSequence.map(visit => -visit).reverse(),
       }
+}
+
+// The sign of `ref`'s first visit to each node index, 0 where it never visits.
+function firstVisitSigns(ref: Track): Int8Array {
+  const signs = new Int8Array(nodes.length)
+  for (const visit of ref.indexSequence) {
+    const node = Math.abs(visit)
+    if (signs[node] === 0) signs[node] = Math.sign(visit)
+  }
+  return signs
 }
 
 function formatShare({ count, total }: HaplotypeShare): string {
