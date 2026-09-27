@@ -1,10 +1,7 @@
 # @gmod/tubemap-core
 
-The sequenceTubeMap layout on its own: give it a graph's nodes and the paths
-(and reads) through it, and it returns tube map shapes in layout coordinates. It
-has no DOM, d3 or React dependency, so a canvas, an SVG string or another app
-can draw the result. The sequenceTubeMap app draws it with d3; the JBrowse graph
-genome plugin draws it on a canvas.
+sequenceTubeMap's layout: graph nodes and paths (and reads) in, tube map shapes
+out. No DOM, d3 or React.
 
 ```ts
 import { curvePaths, layoutTubeMap, nodeOutlinePath } from '@gmod/tubemap-core'
@@ -21,54 +18,27 @@ const layout = layoutTubeMap(
     { id: 1, name: 'alt', sequence: ['1', '3', '4'], sourceTrackID: 0 },
   ],
   [], // reads
-  {
-    nodeWidthOption: 'compressed',
-    trackColor: t => (t.id ? 'purple' : 'teal'),
-  },
+  { nodeWidthOption: 'compressed' },
 )
 ```
 
-A node name prefixed `-` is a reverse visit. Track 0 is the reference: the
-layout straightens it and orders every other node around it.
-
-`layout.shapes` holds what to draw, back to front:
-
-- `rectangles` — a track's straight runs, through nodes and between them
-- `curves` — a track changing lanes between columns; `curvePaths(curves, type)`
-  returns them in draw order with an SVG `path` set on each
-- `verticalRectangles` and `corners` — a track turning around at an inversion
-- `nodeOutlinePath(node)` — each node's rounded outline, for every node with an
-  `x` (unreached nodes have none)
-
-Paths are SVG path data, so on a canvas `ctx.fill(new Path2D(curve.path))` draws
-the same shape.
-
-`layout.nodes` is 1-indexed with a hole at 0, so iterate it with `forEach` or
-`flatMap`, which skip holes, rather than `for...of`.
+- Track 0 is the reference; `-name` is a reverse visit
+- `layout.shapes`: `rectangles`, `curves` (`curvePaths` adds SVG paths),
+  `verticalRectangles` and `corners` (inversions)
+- `nodeOutlinePath(node)`: a node's box as SVG path data; `new Path2D(d)` on a
+  canvas
+- `layout.nodes` has a hole at index 0: use `forEach`, not `for...of`
 
 ## Options
 
-| option                 | default     |                                                   |
-| ---------------------- | ----------- | ------------------------------------------------- |
-| `nodeWidthOption`      | `'normal'`  | `normal`, `compressed` (log2), `small`, `fixed`   |
-| `charWidth`            | `8.401`     | px per base under `normal`                        |
-| `trackWidth`           | `15`        | a haplotype tube's width, unless `freq` scales it |
-| `mergeNodes`           | `true`      | merge runs of nodes every track passes through    |
-| `showReads`            | `true`      |                                                   |
-| `coarsenedReadView`    | `false`     | one band per edge, weighted by read count         |
-| `ignoreStrand`         | `false`     | coarsened bands merge both traversals of an edge  |
-| `mappingQualityCutoff` | `0`         | drop reads below it                               |
-| `focusReadNames`       | `null`      | draw only these reads                             |
-| `trackColor`           | categorical | `(track, highlight) => color`                     |
-| `trackAlpha`           | `1`         | `(track) => alpha`                                |
+- `nodeWidthOption`: `normal` (default), `compressed`, `small`, `fixed`
+- `charWidth`: px per base under `normal` (8.401)
+- `trackWidth`: tube width (15)
+- `mergeNodes`, `showReads` (true); `coarsenedReadView`, `ignoreStrand` (false)
+- `mappingQualityCutoff`, `focusReadNames`: read filters
+- `trackColor(track, highlight)`, `trackAlpha(track)`
 
-## Developing
+## Releasing
 
-The package lives in the sequenceTubeMap repo as a pnpm workspace member, and
-the app imports its TypeScript source directly. `pnpm build` here emits `dist/`,
-which is what npm gets.
-
-To release, bump `version` in this package.json, commit, and push a matching
-tag: `git tag tubemap-core-v0.1.1 && git push origin tubemap-core-v0.1.1`.
-`.github/workflows/publish-tubemap-core.yml` tests, builds and publishes it by
-npm trusted publishing, and refuses a tag that doesn't match the version.
+- Bump `version`, commit, push tag `tubemap-core-v<version>`
+- `.github/workflows/publish-tubemap-core.yml` tests and publishes it
