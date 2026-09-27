@@ -9,6 +9,7 @@ import type { InfoAttribute, InputNode, InputTrack } from './tubemap.ts'
 import { computeExampleData } from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
 import * as demo from './demo-data.js'
+import { measureSvgContent } from './svgBounds.ts'
 
 // Numeric suffixes only — keeps the row format compact below. Strings are
 // preferable to numbers for the dataOrigin lookup so we don't trip
@@ -204,6 +205,45 @@ describe('tubemap.create — resizing', () => {
     resized()
     expect(svg.getAttribute('width')).toBe('900')
     expect(svg.querySelector(':scope > g')?.hasAttribute('width')).toBe(false)
+  })
+})
+
+describe('tubemap.zoomBy', () => {
+  // Past the 750 ms transition
+  const settle = () => new Promise(resolve => setTimeout(resolve, 1000))
+
+  it('does nothing before the first draw', async () => {
+    vi.resetModules()
+    const fresh = await import('./tubemap.ts')
+    expect(() => {
+      fresh.zoomBy(2)
+    }).not.toThrow()
+  })
+
+  it('does nothing once the drawing is released', async () => {
+    setupSvg()
+    const { nodes, tracks } = dataForExample('7')
+    const svg = render(nodes, tracks)
+    const before = svg.querySelector(':scope > g')?.getAttribute('transform')
+    tubeMap.releaseDomBindings()
+    tubeMap.zoomBy(2)
+    await settle()
+    expect(svg.querySelector(':scope > g')?.getAttribute('transform')).toBe(
+      before,
+    )
+  })
+
+  // Example 7 is narrower and shorter than the viewport
+  it('zooms out to a small graph centred across the viewport, its top in view', async () => {
+    setupSvg(1800, 1200)
+    const { nodes, tracks } = dataForExample('7')
+    const svg = render(nodes, tracks)
+    tubeMap.zoomBy(0.5)
+    await settle()
+    const box = measureSvgContent(svg).box!
+    expect(Math.abs(box.x + box.width / 2 - 900)).toBeLessThan(20)
+    expect(box.y).toBeGreaterThan(0)
+    expect(box.y).toBeLessThan(40)
   })
 })
 

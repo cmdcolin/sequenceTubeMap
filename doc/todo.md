@@ -64,8 +64,8 @@ Structural work not yet done:
   `layoutTubeMap` call. Threading it through as a parameter is mechanical but
   touches nearly every function in the file, so it wants a dedicated pass with
   the render and golden tests as the safety net. `tubemap.ts` holds the latest
-  layout and its UI state; `imageBounds` stays there because the exported
-  `zoomBy()` reads it long after a draw returned.
+  layout and its UI state; `imageBounds` stays there because a resize recomputes
+  the zoom's extents from it long after a draw returned.
 - **`generateBasicPathsForReads` vs `generateLaneAssignment`** walk a path with
   the same 60-line case analysis (forward / backward / same-order, with and
   without turnaround segments); the lane version also emits `SegmentAssignment`s

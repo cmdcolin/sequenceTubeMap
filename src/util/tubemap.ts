@@ -237,6 +237,8 @@ let nodeMap: Map<string, number> = new Map()
 // The root <svg> until alignSVG, then the zoomed <g> everything is drawn in
 let svg: AnySelection
 let zoom: d3.ZoomBehavior<Element, unknown>
+// The <svg> the zoom is attached to, while a drawing is on the page
+let zoomRoot: AnySelection | null = null
 
 const config: TubeMapConfig = {
   mergeNodesFlag: true,
@@ -283,8 +285,7 @@ const config: TubeMapConfig = {
 let shapes: TrackShapes = emptyTrackShapes()
 
 // The extent of the drawn content, in layout coordinates. Outlives the draw
-// because zoomBy() (called from the toolbar, long after createTubeMap has
-// returned) needs it to clamp panning.
+// because a resize recomputes the zoom's extents from it.
 let imageBounds: ImageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
 let trackForRuler: string | undefined
 // The coarsened bands' read counts and labels, for the hover and click
@@ -297,14 +298,16 @@ let coarsened: Coarsening | undefined
 // tracking the previous registration the listeners stack up.
 let cleanupParentBindings: (() => void) | null = null
 
-// Everything this module attaches outside its own <svg>: the parent's wheel
-// listener / ResizeObserver and the hover tooltip in <body>. The next draw
-// recreates them, so call this when the map leaves the page.
+// Everything this module attaches outside its own <svg> (the parent's wheel
+// listener and ResizeObserver, the hover tooltip in <body>) and what zoomBy
+// acts on. The next draw recreates them, so call this when the map leaves the
+// page.
 export function releaseDomBindings(): void {
   if (cleanupParentBindings) {
     cleanupParentBindings()
     cleanupParentBindings = null
   }
+  zoomRoot = null
   hoverTooltip?.remove()
   hoverTooltip = undefined
   // The highlighted elements are about to be removed along with the old SVG.
@@ -915,6 +918,7 @@ function alignSVG(preserveViewport: boolean): () => void {
   // Initially configure panning and zooming
   configureZoomBounds()
   root.call(zoom).on('dblclick.zoom', null)
+  zoomRoot = root
   // @ts-expect-error — d3 Selection<SVGGElement> is not structurally assignable to Selection<Element> due to callback this-type invariance, but works at runtime.
   svg = root.append('g')
 
@@ -974,36 +978,11 @@ function alignSVG(preserveViewport: boolean): () => void {
   }
 }
 
+// Zooms about the viewport centre, within the zoom's scale and translate extents
 export function zoomBy(zoomFactor: number): void {
-  const parentElement = getSvgParent()
-  if (!parentElement) return
-
-  const width = parentElement.clientWidth
-  const height = parentElement.clientHeight
-
-  const node = d3.select<Element, unknown>(svgID).node()
-  if (!node) return
-  const transform = d3.zoomTransform(node)
-  const translateK = Math.min(
-    MAX_ZOOM,
-    Math.max(transform.k * zoomFactor, minZoom()),
-  )
-  let translateX =
-    width / 2.0 - ((width / 2.0 - transform.x) * translateK) / transform.k
-  translateX = Math.min(translateX, -imageBounds.minX * translateK)
-  translateX = Math.max(translateX, width - imageBounds.maxX * translateK)
-  // Zoom about the viewport centre vertically too. Recomputing translateY from
-  // imageBounds.minY would throw away whatever the user had scrolled to.
-  const translateY =
-    height / 2.0 - ((height / 2.0 - transform.y) * translateK) / transform.k
-  d3.select(svgID)
-    .transition()
-    .duration(750)
-    .call(
-      // @ts-expect-error — zoom.transform doesn't match Transition.call()'s expected signature due to d3 type limitations.
-      zoom.transform,
-      d3.zoomIdentity.translate(translateX, translateY).scale(translateK),
-    )
+  if (zoomRoot) {
+    zoom.scaleBy(zoomRoot.transition().duration(750), zoomFactor)
+  }
 }
 
 // The scheme for a track's source file: whatever the UI last set, else the
