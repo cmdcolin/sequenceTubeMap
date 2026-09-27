@@ -1909,8 +1909,11 @@ async function fetchToFile(url, maxBytes, destination) {
   }
 }
 
+const MAX_TEXT_FETCH_BYTES = 10 * 1024 * 1024
+
 // Download a small text document (a BED file, a chunk index) as a string.
-async function fetchText(url, maxBytes) {
+async function fetchText(url) {
+  const maxBytes = MAX_TEXT_FETCH_BYTES
   const { response, timer } = await beginValidatedFetch(url, maxBytes)
   try {
     const chunks = []
@@ -1950,7 +1953,7 @@ const retrieveChunk = async (bedURL, chunk, includeContent) => {
   // Each chunk has an index in "chunk_contents.txt"
   const chunkContentURL = new URL('chunk_contents.txt', chunkURL).toString()
 
-  const chunkContent = await fetchText(chunkContentURL, config.maxFileSizeBytes)
+  const chunkContent = await fetchText(chunkContentURL)
   const fileNames = chunkContent.split('\n')
 
   // download all the files in the chunk
@@ -2060,7 +2063,7 @@ async function getBedRegions(bed) {
   console.log('bed file received ', bed)
   assertBedFileReadable(bed)
   if (isValidURL(bed)) {
-    bed_data = await fetchText(bed, config.maxFileSizeBytes)
+    bed_data = await fetchText(bed)
   } else {
     // Load and parse the BED file from dataPath
     bed_data = fs.readFileSync(bed).toString()

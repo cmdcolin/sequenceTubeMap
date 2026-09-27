@@ -212,6 +212,25 @@ describe('fetching URLs', () => {
     expect(body.bedRegions.desc).toEqual(['first ten'])
   })
 
+  it('refuses a BED file over 10 MiB', async () => {
+    serverConfig.allowedPrivateFetchAddresses = ['127.0.0.1']
+    const remote = await serveRoutes({
+      '/regions.bed': (req, res) => {
+        res.writeHead(200)
+        const line = Buffer.from('ref\t1\t10\tfirst ten\n'.padEnd(1024, ' '))
+        for (let i = 0; i <= 10 * 1024; i++) {
+          res.write(line)
+        }
+        res.end()
+      },
+    })
+    const { status, body } = await post('getBedRegions', {
+      bedFile: `${remote.url}/regions.bed`,
+    })
+    expect(status).toBe(400)
+    expect(body.error).toMatch(/exceeds maximum file size of 10485760 bytes/)
+  })
+
   it.skipIf(process.getuid?.() === 0)(
     'reports a download it cannot write as an error',
     async () => {
