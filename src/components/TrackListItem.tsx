@@ -7,17 +7,11 @@ import { useState } from 'react'
 import { defaultTrackColors } from '../common.ts'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import type {
-  AvailableTrack,
-  ColorPaletteName,
-  FileType,
-  Track,
-} from '../Types.ts'
+import type { AvailableTrack, FileType, Track } from '../Types.ts'
 
 interface TrackListItemProps {
   trackProps: Track
   availableTracks: AvailableTrack[]
-  availableColors?: ColorPaletteName[]
   onChange: (trackID: number, newProps: Track) => void
   onDelete: (trackID: number) => void
   trackID: number
@@ -41,7 +35,6 @@ const TRACK_TYPE_OPTIONS: FileType[] = [
 export const TrackListItem = ({
   trackProps,
   availableTracks,
-  availableColors,
   onChange,
   onDelete,
   trackID,
@@ -125,7 +118,6 @@ export const TrackListItem = ({
               trackColorSettings: { ...trackColorSettings, [key]: value },
             })
           }}
-          availableColors={availableColors}
           label={trackName}
           testID={`settings-button-component${trackID}`}
         />

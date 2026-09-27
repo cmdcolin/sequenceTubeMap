@@ -1,16 +1,9 @@
 import { TrackListItem } from './TrackListItem.tsx'
-import type {
-  AvailableTrack,
-  ColorPaletteName,
-  FileType,
-  Track,
-  Tracks,
-} from '../Types.ts'
+import type { AvailableTrack, FileType, Track, Tracks } from '../Types.ts'
 
 interface TrackListProps {
   tracks: Tracks
   availableTracks: AvailableTrack[]
-  availableColors?: ColorPaletteName[]
   onChange: (trackID: number, newTrack: Track) => void
   onDelete: (trackID: number) => void
   handleFileUpload: (
@@ -23,7 +16,6 @@ interface TrackListProps {
 export const TrackList = ({
   tracks,
   availableTracks,
-  availableColors,
   onChange,
   onDelete,
   handleFileUpload,
@@ -36,7 +28,6 @@ export const TrackList = ({
           key={idx}
           trackProps={trackProps}
           availableTracks={availableTracks}
-          availableColors={availableColors}
           onChange={onChange}
           onDelete={onDelete}
           trackID={idx}

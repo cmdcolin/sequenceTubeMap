@@ -4,13 +4,7 @@ import { TrackList } from './TrackList.tsx'
 import { TrackAddButton } from './TrackAddButton.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import type {
-  AvailableTrack,
-  ColorPaletteName,
-  FileType,
-  Track,
-  Tracks,
-} from '../Types.ts'
+import type { AvailableTrack, FileType, Track, Tracks } from '../Types.ts'
 
 // Sentinel for deletions in the pending change set.
 const DELETED = Symbol('deleted')
@@ -20,7 +14,6 @@ type TrackChanges = Record<string, TrackChange>
 interface TrackPickerDisplayProps {
   tracks: Tracks
   availableTracks: AvailableTrack[]
-  availableColors?: ColorPaletteName[]
   onChange: (newTracks: Tracks) => void
   handleFileUpload: (
     fileType: FileType,
@@ -70,7 +63,6 @@ function sameTracks(a: Tracks, b: Tracks) {
 export const TrackPickerDisplay = ({
   tracks,
   availableTracks,
-  availableColors,
   onChange,
   handleFileUpload,
   apiMode,
@@ -106,7 +98,6 @@ export const TrackPickerDisplay = ({
         <TrackList
           tracks={applied}
           availableTracks={availableTracks}
-          availableColors={availableColors}
           onChange={(trackID, newTrack) => {
             stage({ [trackID]: newTrack })
           }}

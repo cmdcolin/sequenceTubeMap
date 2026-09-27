@@ -1,14 +1,7 @@
 import Box from '@mui/material/Box'
 import RadioRow from './RadioRow.tsx'
 import ColorPicker from './ColorPicker.tsx'
-import {
-  DEFAULT_AVAILABLE_COLORS,
-  type ColorPaletteName,
-  type ColorScheme,
-  type FileType,
-  type PaletteField,
-  type Palette,
-} from '../Types.ts'
+import type { ColorScheme, FileType, PaletteField, Palette } from '../Types.ts'
 
 type SettingsFileType = FileType | 'nodeLabel'
 
@@ -17,7 +10,6 @@ interface TrackSettingsProps {
   // Partial because the node-label dialog only carries mainPalette.
   trackColorSettings: Partial<ColorScheme>
   setTrackColorSetting: (key: PaletteField, value: Palette) => void
-  availableColors?: ColorPaletteName[]
   presetColors?: string[]
 }
 
@@ -48,7 +40,6 @@ interface PaletteRowProps {
   palette: Palette | undefined
   field: PaletteField
   setColor: (field: PaletteField, value: Palette) => void
-  availableColors: ColorPaletteName[]
   presetColors: string[]
 }
 
@@ -57,7 +48,6 @@ const PaletteRow = ({
   palette,
   field,
   setColor,
-  availableColors,
   presetColors,
 }: PaletteRowProps) => (
   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 680 }}>
@@ -67,7 +57,6 @@ const PaletteRow = ({
         color={palette}
         setting={field}
         setColorSetting={setColor}
-        availableColors={availableColors}
       />
     </Box>
     <ColorPicker
@@ -87,7 +76,6 @@ export const TrackSettings = ({
   fileType = 'haplotype',
   trackColorSettings,
   setTrackColorSetting,
-  availableColors = DEFAULT_AVAILABLE_COLORS,
   presetColors = DEFAULT_PRESET_COLORS,
 }: TrackSettingsProps) => {
   const labels = ROW_LABELS[fileType]
@@ -98,7 +86,6 @@ export const TrackSettings = ({
         palette={trackColorSettings.mainPalette}
         field="mainPalette"
         setColor={setTrackColorSetting}
-        availableColors={availableColors}
         presetColors={presetColors}
       />
       {labels[1] !== undefined && (
@@ -107,7 +94,6 @@ export const TrackSettings = ({
           palette={trackColorSettings.auxPalette}
           field="auxPalette"
           setColor={setTrackColorSetting}
-          availableColors={availableColors}
           presetColors={presetColors}
         />
       )}

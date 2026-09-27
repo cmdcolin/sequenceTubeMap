@@ -4,7 +4,7 @@ import '../config-client.js'
 import { config } from '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
 import { selectMuiOption } from '../testUtils.ts'
-import type { AvailableTrack, ColorPaletteName, Tracks } from '../Types.ts'
+import type { AvailableTrack, Tracks } from '../Types.ts'
 
 function openAutocomplete(container: HTMLElement) {
   const input = within(container).getByRole('combobox')
@@ -17,13 +17,6 @@ describe('TrackPickerDisplay', () => {
     config.defaultTrackProps,
     config.defaultTrackProps,
     config.defaultTrackProps,
-  ]
-  const availableColors: ColorPaletteName[] = [
-    'greys',
-    'ygreys',
-    'reds',
-    'plainColors',
-    'lightColors',
   ]
   const availableTracks: AvailableTrack[] = [
     { trackFile: 'fileA1.vg', trackType: 'graph' },
@@ -40,7 +33,6 @@ describe('TrackPickerDisplay', () => {
         apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange}
         handleFileUpload={vi.fn()}
       />,
@@ -61,7 +53,6 @@ describe('TrackPickerDisplay', () => {
         apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange}
         handleFileUpload={vi.fn()}
       />,
@@ -90,7 +81,6 @@ describe('TrackPickerDisplay', () => {
         apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange}
         handleFileUpload={vi.fn()}
       />,
@@ -139,7 +129,6 @@ describe('TrackPickerDisplay', () => {
         apiMode="server"
         tracks={newTracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange}
         handleFileUpload={vi.fn()}
       />,
@@ -170,7 +159,6 @@ describe('TrackPickerDisplay', () => {
         apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange}
         handleFileUpload={vi.fn()}
       />,

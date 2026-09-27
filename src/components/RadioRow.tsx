@@ -2,12 +2,7 @@ import type { ReactNode, ChangeEvent } from 'react'
 import Box from '@mui/material/Box'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Radio from '@mui/material/Radio'
-import {
-  DEFAULT_AVAILABLE_COLORS,
-  type ColorPaletteName,
-  type PaletteField,
-  type Palette,
-} from '../Types.ts'
+import type { ColorPaletteName, PaletteField, Palette } from '../Types.ts'
 
 // map of all possible colors [displayedName, value]
 const colorMap = new Map<string, ColorPaletteName>([
@@ -24,7 +19,6 @@ interface RadioRowProps {
   rowHeading: ReactNode
   setColorSetting: (setting: PaletteField, value: Palette) => void
   setting: PaletteField
-  availableColors?: ColorPaletteName[]
 }
 
 function RadioRow({
@@ -32,7 +26,6 @@ function RadioRow({
   rowHeading,
   setColorSetting,
   setting,
-  availableColors = DEFAULT_AVAILABLE_COLORS,
 }: RadioRowProps) {
   const onChange = (event: ChangeEvent<HTMLInputElement>) => {
     const next = colorMap.get(event.target.value)
@@ -40,10 +33,6 @@ function RadioRow({
       setColorSetting(setting, next)
     }
   }
-
-  const shown = [...colorMap].filter(([, valueColor]) =>
-    availableColors.includes(valueColor),
-  )
 
   return (
     <Box
@@ -56,7 +45,7 @@ function RadioRow({
       }}
     >
       {rowHeading}:
-      {shown.map(([keyColor, valueColor]) => (
+      {[...colorMap].map(([keyColor, valueColor]) => (
         <FormControlLabel
           key={keyColor}
           label={keyColor}

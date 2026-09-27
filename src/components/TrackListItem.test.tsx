@@ -7,18 +7,11 @@ import {
 } from '@testing-library/react'
 import { TrackListItem } from './TrackListItem.tsx'
 import { selectMuiOption } from '../testUtils.ts'
-import type { AvailableTrack, ColorPaletteName, ColorScheme } from '../Types.ts'
+import type { AvailableTrack, ColorScheme } from '../Types.ts'
 
 describe('TrackListItem', () => {
   const trackFile = undefined
   const trackType = 'graph'
-  const availableColors: ColorPaletteName[] = [
-    'greys',
-    'ygreys',
-    'reds',
-    'plainColors',
-    'lightColors',
-  ]
   const availableTracks: AvailableTrack[] = [
     { trackFile: 'fileA1.vg', trackType: 'graph' },
     { trackFile: 'fileA2.gbwt', trackType: 'haplotype' },
@@ -42,7 +35,6 @@ describe('TrackListItem', () => {
           trackType,
           trackColorSettings,
         }}
-        availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
@@ -68,7 +60,6 @@ describe('TrackListItem', () => {
           trackType,
           trackColorSettings,
         }}
-        availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
@@ -94,7 +85,6 @@ describe('TrackListItem', () => {
           trackType: 'haplotype',
           trackColorSettings,
         }}
-        availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
@@ -124,7 +114,6 @@ describe('TrackListItem', () => {
           trackType: 'haplotype',
           trackColorSettings,
         }}
-        availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
@@ -198,7 +187,6 @@ describe('TrackListItem', () => {
           trackType,
           trackColorSettings,
         }}
-        availableColors={availableColors}
         availableTracks={availableTracks}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}

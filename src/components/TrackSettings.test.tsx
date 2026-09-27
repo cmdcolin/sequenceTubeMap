@@ -1,16 +1,8 @@
 import { render, fireEvent } from '@testing-library/react'
 import { TrackSettings } from './TrackSettings.tsx'
-import type { ColorPaletteName, ColorScheme } from '../Types.ts'
+import type { ColorScheme } from '../Types.ts'
 
 describe('TrackSettings', () => {
-  const availableColors: ColorPaletteName[] = [
-    'greys',
-    'ygreys',
-    'blues',
-    'reds',
-    'plainColors',
-    'lightColors',
-  ]
   const trackColorSettings: ColorScheme = {
     mainPalette: 'blues',
     auxPalette: 'reds',
@@ -22,7 +14,6 @@ describe('TrackSettings', () => {
       <TrackSettings
         fileType="haplotype"
         trackColorSettings={trackColorSettings}
-        availableColors={availableColors}
         setTrackColorSetting={fakeOnChange}
       />,
     )
@@ -36,7 +27,6 @@ describe('TrackSettings', () => {
       <TrackSettings
         fileType="haplotype"
         trackColorSettings={trackColorSettings}
-        availableColors={availableColors}
         setTrackColorSetting={fakeOnChange}
       />,
     )
@@ -60,7 +50,6 @@ describe('TrackSettings', () => {
       <TrackSettings
         fileType="haplotype"
         trackColorSettings={trackColorSettings}
-        availableColors={availableColors}
         setTrackColorSetting={fakeOnChange}
       />,
     )

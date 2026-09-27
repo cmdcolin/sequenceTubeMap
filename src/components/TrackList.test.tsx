@@ -7,12 +7,7 @@ import {
 } from '@testing-library/react'
 import { TrackList } from './TrackList.tsx'
 import { selectMuiOption } from '../testUtils.ts'
-import type {
-  AvailableTrack,
-  ColorPaletteName,
-  Tracks,
-  Track,
-} from '../Types.ts'
+import type { AvailableTrack, Tracks, Track } from '../Types.ts'
 
 function openAutocomplete(container: HTMLElement) {
   const input = within(container).getByRole('combobox')
@@ -47,13 +42,6 @@ describe('TrackList', () => {
       },
     },
   ]
-  const availableColors: ColorPaletteName[] = [
-    'greys',
-    'ygreys',
-    'reds',
-    'plainColors',
-    'lightColors',
-  ]
   const availableTracks: AvailableTrack[] = [
     { trackFile: 'fileA1.vg', trackType: 'graph' },
     { trackFile: 'fileA2.gbwt', trackType: 'haplotype' },
@@ -73,7 +61,6 @@ describe('TrackList', () => {
         apiMode="server"
         tracks={newTracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
         handleFileUpload={vi.fn()}
@@ -89,7 +76,6 @@ describe('TrackList', () => {
         apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
         handleFileUpload={vi.fn()}
@@ -111,7 +97,6 @@ describe('TrackList', () => {
         apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange}
         onDelete={fakeOnDelete}
         handleFileUpload={vi.fn()}
@@ -172,7 +157,6 @@ describe('TrackList', () => {
         apiMode="server"
         tracks={tracks}
         availableTracks={availableTracks}
-        availableColors={availableColors}
         onChange={fakeOnChange1}
         onDelete={fakeOnDelete}
         handleFileUpload={vi.fn()}
