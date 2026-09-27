@@ -27,7 +27,6 @@ export function BedFileDropdown({
   return (
     <Autocomplete<string, false, true>
       id={id}
-      size="small"
       disableClearable
       value={value ?? 'none'}
       options={options}
@@ -38,7 +37,6 @@ export function BedFileDropdown({
       renderInput={params => (
         <TextField
           {...params}
-          size="small"
           placeholder="None"
           slotProps={{
             ...params.slotProps,

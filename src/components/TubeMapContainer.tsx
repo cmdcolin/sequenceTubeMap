@@ -112,7 +112,6 @@ function LargeGraphNotice({
               <Button
                 color="warning"
                 variant="contained"
-                size="small"
                 onClick={() => {
                   onCoarsen()
                 }}
@@ -123,7 +122,6 @@ function LargeGraphNotice({
             <Button
               color="warning"
               variant="outlined"
-              size="small"
               onClick={() => {
                 onDrawAnyway()
               }}
@@ -408,7 +406,6 @@ function TubeMapContainer({
           <Button
             color="error"
             variant="outlined"
-            size="small"
             sx={{ flexShrink: 0 }}
             onClick={() => {
               onRetry()

@@ -30,7 +30,6 @@ function TrackVisibilityPanel() {
     <Stack spacing={1} sx={{ minWidth: 220 }}>
       <Stack direction="row" spacing={1}>
         <Button
-          size="small"
           variant="outlined"
           onClick={() => {
             tubeMap.changeAllTracksVisibility(true)
@@ -39,7 +38,6 @@ function TrackVisibilityPanel() {
           Select all
         </Button>
         <Button
-          size="small"
           variant="outlined"
           onClick={() => {
             tubeMap.changeAllTracksVisibility(false)
@@ -48,7 +46,7 @@ function TrackVisibilityPanel() {
           Deselect all
         </Button>
       </Stack>
-      <Table size="small">
+      <Table>
         <TableHead>
           <TableRow>
             <TableCell sx={{ width: 24 }}>Color</TableCell>
@@ -77,7 +75,6 @@ function TrackVisibilityPanel() {
               </TableCell>
               <TableCell padding="checkbox">
                 <Checkbox
-                  size="small"
                   checked={!item.hidden}
                   onChange={() => {
                     tubeMap.changeTrackVisibility(item.id)

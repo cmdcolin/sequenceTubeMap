@@ -29,7 +29,6 @@ export function CheckboxMenuItem({
     >
       <ListItemIcon>
         <Checkbox
-          size="small"
           sx={{ p: 0 }}
           checked={checked}
           disabled={disabled}

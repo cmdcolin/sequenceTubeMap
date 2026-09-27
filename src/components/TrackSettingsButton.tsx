@@ -29,7 +29,6 @@ export const TrackSettingsButton = ({
     <>
       <Button
         variant="contained"
-        size="small"
         aria-label={
           label === undefined
             ? 'Track color settings'

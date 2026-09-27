@@ -23,7 +23,6 @@ export function IconOnlyButton({
   return (
     <Button
       variant="contained"
-      size="small"
       id={id}
       aria-label={label}
       title={label}

@@ -52,7 +52,6 @@ function DataPositionFormRow({
       }}
     >
       <Button
-        size="small"
         variant="contained"
         title={goTitle}
         id="goButton"
@@ -83,7 +82,6 @@ function DataPositionFormRow({
         }}
       />
       <Button
-        size="small"
         variant="contained"
         id="downloadButton"
         startIcon={<Icon icon={faCamera} />}

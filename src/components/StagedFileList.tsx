@@ -84,7 +84,6 @@ export function StagedFileList({
             </select>
           )}
           <Button
-            size="small"
             variant="text"
             onClick={() => {
               onRemove(i)

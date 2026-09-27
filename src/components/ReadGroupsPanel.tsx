@@ -111,7 +111,6 @@ const PaletteChooser = ({
   return (
     <>
       <Select<string>
-        size="small"
         value={solid === undefined ? value : SOLID_SENTINEL}
         onChange={e => {
           const chosen = e.target.value

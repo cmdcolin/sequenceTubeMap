@@ -116,7 +116,6 @@ export const TrackFilePicker = ({
         <Autocomplete<TrackOption, false, true>
           options={allOptions}
           value={currentOption}
-          size="small"
           disableClearable
           isOptionEqualToValue={(o, v) => o.value === v.value}
           getOptionLabel={o => o.label}

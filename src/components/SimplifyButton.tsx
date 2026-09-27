@@ -29,7 +29,6 @@ export const SimplifyButton = ({
   return (
     <>
       <Button
-        size="small"
         variant={simplify || removeSequences ? 'contained' : 'outlined'}
         startIcon={<Icon icon={faGear} />}
         onClick={() => {

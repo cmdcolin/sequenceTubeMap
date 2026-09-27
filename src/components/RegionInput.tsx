@@ -76,7 +76,6 @@ export const RegionInput = ({
           onClose={() => {
             setPopupOpen(false)
           }}
-          size="small"
           sx={{ flexGrow: 1 }}
           getOptionLabel={option =>
             typeof option === 'string' ? option : option.label
@@ -99,7 +98,6 @@ export const RegionInput = ({
           renderInput={params => (
             <TextField
               {...params}
-              size="small"
               label={'Region'}
               name="Region Input"
               inputRef={inputRef}

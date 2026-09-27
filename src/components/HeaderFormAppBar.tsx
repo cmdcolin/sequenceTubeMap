@@ -59,7 +59,7 @@ export function HeaderFormAppBar({
       position="static"
       color="primary"
       elevation={2}
-      sx={{ background: '#1a5276', mb: 1 }}
+      sx={{ background: '#1a5276', mb: 2 }}
     >
       <Toolbar>
         <Box

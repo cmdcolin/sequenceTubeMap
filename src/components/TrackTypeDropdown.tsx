@@ -19,7 +19,6 @@ export function TrackTypeDropdown<T extends string>({
   return (
     <div data-testid={testID}>
       <Select<T>
-        size="small"
         value={value}
         inputProps={{ 'aria-label': label }}
         // MUI types the change event's value as the union with a plain string,

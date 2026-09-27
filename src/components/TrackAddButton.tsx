@@ -15,7 +15,6 @@ export const TrackAddButton = ({
   return (
     <Button
       variant="contained"
-      size="small"
       aria-label="Add track"
       onClick={() => {
         onChange()

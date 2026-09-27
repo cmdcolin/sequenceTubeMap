@@ -41,7 +41,6 @@ export function HelpDialog({
       {'label' in trigger ? (
         <Button
           variant="text"
-          size="small"
           sx={{ fontSize: '0.8em', p: 0, ml: 1, minWidth: 0 }}
           onClick={openDialog}
         >
@@ -49,7 +48,6 @@ export function HelpDialog({
         </Button>
       ) : (
         <IconButton
-          size="small"
           aria-label={`${title} help`}
           title={`${title} help`}
           onClick={openDialog}

@@ -735,7 +735,6 @@ function HeaderForm({
                 <>
                   <Button
                     variant="contained"
-                    size="small"
                     disabled={regionIndex === 0}
                     onClick={() => {
                       void jumpRegion(-1)
@@ -745,7 +744,6 @@ function HeaderForm({
                   </Button>
                   <Button
                     variant="contained"
-                    size="small"
                     disabled={regionIndex >= bedRegionCount - 1}
                     onClick={() => {
                       void jumpRegion(1)

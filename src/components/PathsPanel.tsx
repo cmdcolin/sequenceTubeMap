@@ -127,13 +127,8 @@ function PathsPanel({
             </p>
             <p>
               Paths longer than {SLOW_PATH_THRESHOLD.toLocaleString()} bp are
-              marked{' '}
-              <Chip
-                label="slow to load whole path"
-                size="small"
-                color="warning"
-              />{' '}
-              — loading them can freeze the browser for several seconds, so you
+              marked <Chip label="slow to load whole path" color="warning" /> —
+              loading them can freeze the browser for several seconds, so you
               will be asked to confirm before they render.
             </p>
             <p>
@@ -147,7 +142,7 @@ function PathsPanel({
       />
       <Collapse in={isOpen}>
         <CardContent sx={{ maxHeight: '200px', overflowY: 'auto', p: 0 }}>
-          <Table size="small">
+          <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
@@ -170,12 +165,7 @@ function PathsPanel({
                     <TableCell>
                       {name}
                       {cyclic && (
-                        <Chip
-                          label="cyclic"
-                          size="small"
-                          color="info"
-                          sx={BADGE_SX}
-                        />
+                        <Chip label="cyclic" color="info" sx={BADGE_SX} />
                       )}
                       {start > 0 && (
                         // A contig split into fragments contributes one row per
@@ -200,7 +190,6 @@ function PathsPanel({
                       {slow && (
                         <Chip
                           label="slow to load whole path"
-                          size="small"
                           color="warning"
                           sx={BADGE_SX}
                           title="Loading this path may freeze the browser for several seconds"
@@ -213,7 +202,6 @@ function PathsPanel({
                         {heavyReads && (
                           <Chip
                             label="heavy"
-                            size="small"
                             color="warning"
                             sx={BADGE_SX}
                             title="High coverage — will be subsampled by default to keep the browser responsive"
@@ -223,7 +211,6 @@ function PathsPanel({
                     )}
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
                       <Button
-                        size="small"
                         variant="outlined"
                         color="secondary"
                         sx={{ mr: 0.5 }}
@@ -236,7 +223,6 @@ function PathsPanel({
                         Copy to region
                       </Button>
                       <Button
-                        size="small"
                         variant="contained"
                         disabled={length === null}
                         onClick={() => {

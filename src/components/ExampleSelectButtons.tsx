@@ -73,7 +73,6 @@ function ExampleSelectButtons({ showExample }: ExampleSelectButtonsProps) {
         <Button
           key={id}
           variant="contained"
-          size="small"
           id={id}
           onClick={() => {
             showExample(origin)

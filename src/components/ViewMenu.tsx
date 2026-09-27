@@ -166,7 +166,6 @@ export function ViewMenu({
                 placed reads.
               </HelpDialog>
               <Select
-                size="small"
                 labelId="mappingQualityCutoffLabel"
                 disabled={perReadDisabled}
                 value={visOptions.mappingQualityCutoff}

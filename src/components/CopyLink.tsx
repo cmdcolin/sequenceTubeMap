@@ -36,7 +36,6 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
   return (
     <>
       <Button
-        size="small"
         variant="contained"
         id="copyLinkButton"
         startIcon={<Icon icon={faLink} />}
@@ -62,7 +61,6 @@ export function CopyLink({ currentViewTarget }: CopyLinkProps) {
         <TextField
           value={dialogLink ?? ''}
           fullWidth
-          size="small"
           autoFocus
           onFocus={e => {
             e.target.select()

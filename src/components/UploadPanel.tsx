@@ -254,7 +254,6 @@ export const UploadPanel = ({
       >
         <Button
           variant="contained"
-          size="small"
           onClick={() => {
             void upload()
           }}

@@ -52,7 +52,6 @@ function RadioRow({
           sx={{ '& .MuiFormControlLabel-label': { fontSize: 'inherit' } }}
           control={
             <Radio
-              size="small"
               value={keyColor}
               checked={color === valueColor}
               onChange={onChange}

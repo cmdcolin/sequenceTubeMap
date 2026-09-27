@@ -49,7 +49,6 @@ export const PopupDialog = ({
         data-testid={testID.concat('CloseButton')}
         aria-label="Close"
         title="Close"
-        size="small"
         sx={{ position: 'absolute', top: 8, right: 8 }}
       >
         <Icon icon={faX} />

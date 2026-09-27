@@ -18,7 +18,6 @@ export function TrackDeleteButton({
   return (
     <Button
       variant="contained"
-      size="small"
       aria-label="Delete track"
       data-testid={testID}
       {...rest}
