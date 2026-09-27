@@ -122,9 +122,8 @@ const lockTypes = {
   WRITE_LOCK: 'write_lock',
 }
 
-// In memory storage of fetched file eTags
-// Used to check if the file has been updated and we need to fetch again
-// Stores urls mapped to the eTag from the most recently received request
+// The ETag of each URL's copy on disk, so an unchanged file isn't downloaded
+// again.
 const ETagMap = new Map()
 
 // Make sure that the scratch directory exists at startup, so multiple requests
@@ -2354,11 +2353,6 @@ async function beginValidatedFetch(url, maxBytes, existingLocation) {
       return { notModified: true, response, timer }
     }
 
-    const eTag = response.headers.etag
-    if (eTag !== undefined) {
-      ETagMap.set(url, eTag)
-    }
-
     if (response.statusCode < 200 || response.statusCode >= 300) {
       response.resume()
       throw new BadRequestError(
@@ -2413,8 +2407,10 @@ async function fetchToFile(url, maxBytes, destination) {
       return false
     }
     console.log('Save to:', destination)
-    // overwrites file if it already exists
-    const fileStream = fs.createWriteStream(destination, { flags: 'w' })
+    // Concurrent requests may be downloading the same file, or running vg on
+    // the copy already there, so only a complete file replaces it.
+    const partial = `${destination}.${randomUUID()}.part`
+    const fileStream = fs.createWriteStream(partial)
     try {
       await readBodyUpTo(url, response, maxBytes, async chunk => {
         if (!fileStream.write(chunk)) {
@@ -2423,11 +2419,14 @@ async function fetchToFile(url, maxBytes, destination) {
       })
       fileStream.end()
       await finished(fileStream)
+      await fs.promises.rename(partial, destination)
     } catch (e) {
       fileStream.destroy()
-      // Don't leave a truncated file where a good one is expected.
-      await fs.promises.rm(destination, { force: true })
+      await fs.promises.rm(partial, { force: true })
       throw e
+    }
+    if (response.headers.etag !== undefined) {
+      ETagMap.set(url, response.headers.etag)
     }
     return true
   } finally {

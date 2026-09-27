@@ -4,6 +4,7 @@
 
 process.env.SERVER_PORT = '0'
 
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
@@ -94,8 +95,14 @@ async function post(route, body) {
 // requested so far.
 async function serveRoutes(routes) {
   const requests = []
+  const notModified = []
   const server = http.createServer((req, res) => {
     requests.push(req.url)
+    res.on('finish', () => {
+      if (res.statusCode === 304) {
+        notModified.push(req.url)
+      }
+    })
     const handler = routes[req.url]
     if (handler === undefined) {
       res.writeHead(404).end()
@@ -106,7 +113,11 @@ async function serveRoutes(routes) {
   server.listen(0, '127.0.0.1')
   await new Promise(resolve => server.once('listening', resolve))
   remoteServers.push(server)
-  return { url: `http://127.0.0.1:${server.address().port}`, requests }
+  return {
+    url: `http://127.0.0.1:${server.address().port}`,
+    requests,
+    notModified,
+  }
 }
 
 function redirectTo(location) {
@@ -116,8 +127,13 @@ function redirectTo(location) {
 }
 
 function sendBody(body) {
+  const etag = `"${createHash('sha256').update(body).digest('hex')}"`
   return (req, res) => {
-    res.writeHead(200).end(body)
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304).end()
+    } else {
+      res.writeHead(200, { ETag: etag }).end(body)
+    }
   }
 }
 
@@ -222,6 +238,25 @@ describe.skipIf(!HAS_VG)('BED files at URLs', () => {
       remote.requests.filter(request => request === path).length
     expect(fetches('/regions.bed')).toBe(1)
     expect(fetches('/chunk-cactus-no-reads/chunk_contents.txt')).toBe(1)
+  })
+
+  it('keeps a downloaded chunk file the host reports unchanged', async () => {
+    const remote = await serveRoutes({
+      '/regions.bed': sendBody(
+        'ref\t500\t600\tno reads\tchunk-cactus-no-reads\n',
+      ),
+      ...chunkRoutes('chunk-cactus-no-reads'),
+    })
+    const request = {
+      region: 'ref:500-600',
+      bedFile: `${remote.url}/regions.bed`,
+      tracks: [CACTUS_GRAPH],
+    }
+    expect((await post('getChunkedData', request)).status).toBe(200)
+    const { status, body } = await post('getChunkedData', request)
+    expect(status).toBe(200)
+    expect(body.graph.node.length).toBeGreaterThan(0)
+    expect(remote.notModified).toContain('/chunk-cactus-no-reads/chunk.vg')
   })
 })
 
