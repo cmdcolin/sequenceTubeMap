@@ -10,18 +10,18 @@ function fakeFile(name: string, content = 'data') {
 }
 
 describe('UploadPanel mode toggle', () => {
-  it('renders both modes and highlights the active one', () => {
+  it('highlights the active mode', () => {
     render(
       <UploadPanel
         onUploaded={vi.fn()}
         handleFileUpload={vi.fn()}
         apiMode="upstream"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={vi.fn()}
       />,
     )
 
-    expect(screen.getByTestId('mode-server')).toHaveAttribute(
+    expect(screen.getByTestId('mode-upstream')).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -31,14 +31,14 @@ describe('UploadPanel mode toggle', () => {
     )
   })
 
-  it('clicking "Local parsing" switches the mode', async () => {
+  it('switches to the mode clicked', async () => {
     const onDestChange = vi.fn()
     render(
       <UploadPanel
         onUploaded={vi.fn()}
         handleFileUpload={vi.fn()}
         apiMode="upstream"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={onDestChange}
       />,
     )
@@ -47,34 +47,28 @@ describe('UploadPanel mode toggle', () => {
     expect(onDestChange).toHaveBeenCalledWith('local')
   })
 
-  it('clicking "Server upload" picks the configured server mode (upstream when no self-hosted backend)', async () => {
+  it('offers the self-hosted server only when one is configured', async () => {
     const onDestChange = vi.fn()
-    render(
+    const { rerender } = render(
       <UploadPanel
         onUploaded={vi.fn()}
         handleFileUpload={vi.fn()}
         apiMode="local"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={onDestChange}
       />,
     )
+    expect(screen.queryByTestId('mode-server')).toBeNull()
 
-    await userEvent.click(screen.getByTestId('mode-server'))
-    expect(onDestChange).toHaveBeenCalledWith('upstream')
-  })
-
-  it('clicking "Server upload" picks self-hosted "server" when configured', async () => {
-    const onDestChange = vi.fn()
-    render(
+    rerender(
       <UploadPanel
         onUploaded={vi.fn()}
         handleFileUpload={vi.fn()}
         apiMode="local"
-        serverModeId="server"
+        selfHostedServer
         onDestChange={onDestChange}
       />,
     )
-
     await userEvent.click(screen.getByTestId('mode-server'))
     expect(onDestChange).toHaveBeenCalledWith('server')
   })
@@ -86,7 +80,7 @@ describe('UploadPanel mode toggle', () => {
         onUploaded={vi.fn()}
         handleFileUpload={() => new Promise(() => {})}
         apiMode="upstream"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={onDestChange}
       />,
     )
@@ -109,7 +103,7 @@ describe('UploadPanel mode toggle', () => {
         apiMode="upstream"
       />,
     )
-    expect(screen.queryByTestId('mode-server')).toBeNull()
+    expect(screen.queryByTestId('mode-upstream')).toBeNull()
     expect(screen.queryByTestId('mode-local')).toBeNull()
   })
 })
@@ -128,7 +122,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
         onUploaded={onUploaded}
         handleFileUpload={handleFileUpload}
         apiMode="upstream"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={vi.fn()}
       />,
     )
@@ -177,7 +171,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
         onUploaded={onUploaded}
         handleFileUpload={handleFileUpload}
         apiMode="local"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={vi.fn()}
       />,
     )
@@ -227,7 +221,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
         onUploaded={onUploaded}
         handleFileUpload={handleFileUpload}
         apiMode="server"
-        serverModeId="server"
+        selfHostedServer
         onDestChange={vi.fn()}
       />,
     )
@@ -267,7 +261,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
         onUploaded={vi.fn()}
         handleFileUpload={vi.fn()}
         apiMode="local"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={vi.fn()}
       />,
     )
@@ -293,7 +287,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
         onUploaded={vi.fn()}
         handleFileUpload={handleFileUpload}
         apiMode="upstream"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={vi.fn()}
       />,
     )
@@ -321,7 +315,7 @@ describe('UploadPanel mode flip', () => {
         onUploaded={vi.fn()}
         handleFileUpload={vi.fn()}
         apiMode="upstream"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={vi.fn()}
       />,
     )
@@ -341,7 +335,7 @@ describe('UploadPanel mode flip', () => {
         onUploaded={vi.fn()}
         handleFileUpload={vi.fn()}
         apiMode="local"
-        serverModeId="upstream"
+        selfHostedServer={false}
         onDestChange={vi.fn()}
       />,
     )

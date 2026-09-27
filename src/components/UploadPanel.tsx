@@ -28,11 +28,9 @@ interface UploadPanelProps {
     batch?: string,
   ) => Promise<string | undefined>
   apiMode?: 'local' | 'server' | 'upstream'
-  // The non-local API mode to switch to when the user toggles "Server upload".
-  // 'server' if a self-hosted backend is configured, else 'upstream' (vgteam).
-  serverModeId?: 'server' | 'upstream'
-  // Called when the user switches the upload destination within the panel.
-  // Allows the parent to switch the global API mode so uploads use the right backend.
+  // Offer the self-hosted backend alongside the in-browser reader and vgteam's
+  selfHostedServer?: boolean
+  // Switches the app's backend, so uploads go where the toggle points
   onDestChange?: (mode: string) => void
 }
 
@@ -73,7 +71,7 @@ export const UploadPanel = ({
   onUploaded,
   handleFileUpload,
   apiMode = 'local',
-  serverModeId = 'upstream',
+  selfHostedServer = false,
   onDestChange,
 }: UploadPanelProps) => {
   const [files, setFiles] = useState<StagedFile[]>([])
@@ -171,7 +169,7 @@ export const UploadPanel = ({
       {onDestChange ? (
         <UploadModeToggle
           apiMode={apiMode}
-          serverModeId={serverModeId}
+          selfHostedServer={selfHostedServer}
           onDestChange={onDestChange}
           // A running upload sends its files to this backend and hands back
           // names only this backend knows.

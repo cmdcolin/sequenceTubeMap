@@ -11,7 +11,6 @@ import {
   urlParamsToVisOptions,
 } from './urlViewTarget.ts'
 import { EMPTY_VIEW_TARGET, useViewHistory } from './useViewHistory.ts'
-import BackendSelector from './components/BackendSelector.tsx'
 import Footer from './components/Footer.tsx'
 import { ViewMenu } from './components/ViewMenu.tsx'
 import {
@@ -145,6 +144,18 @@ const defaultViewTarget: ViewTarget = normalizeViewTarget(
       : (config.DATA_SOURCES[0] ?? EMPTY_VIEW_TARGET)),
 )
 
+// A vg server rejects .gbz.db graphs, so switching to one never falls back to
+// a view that only the in-browser reader can open.
+const serverDefaultViewTarget: ViewTarget = isLocalCompatibleDataSource(
+  defaultViewTarget,
+)
+  ? normalizeViewTarget(
+      config.DATA_SOURCES.find(
+        (ds: ViewTarget) => !isLocalCompatibleDataSource(ds),
+      ) ?? EMPTY_VIEW_TARGET,
+    )
+  : defaultViewTarget
+
 // View menu settings named by the URL win over the stored preference, so a
 // shared link shows the view its author was looking at.
 const urlVisOptions = urlParamsToVisOptions(document.location)
@@ -213,7 +224,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   const data = fetchKey === null ? undefined : fetched
 
   // Which backend each mode talks to, and the view target to fall back to
-  // when switching to it (the in-browser reader can only open .gbz.db).
+  // when switching to it.
   const apiModes: Record<
     APIMode,
     { create: () => APIInterface; viewTarget: ViewTarget }
@@ -224,11 +235,11 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     },
     server: {
       create: () => new ServerAPI(apiUrl),
-      viewTarget: defaultViewTarget,
+      viewTarget: serverDefaultViewTarget,
     },
     upstream: {
       create: () => new ServerAPI(UPSTREAM_API_URL, 'upstream'),
-      viewTarget: defaultViewTarget,
+      viewTarget: serverDefaultViewTarget,
     },
   }
 
@@ -350,7 +361,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         goForward={viewHistory.forward}
         APIInterface={apiInterface}
         onAPIMode={setAPIMode}
-        serverModeId={isLocalMode ? 'upstream' : 'server'}
+        selfHostedServer={!isLocalMode}
         loading={isValidating}
         legendTracks={legendVisible ? legendTracks : undefined}
         onEscape={() => {
@@ -406,11 +417,6 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
           }}
         />
       </div>
-      <BackendSelector
-        currentAPIMode={apiInterface.mode}
-        setAPIMode={setAPIMode}
-        showServerOption={!isLocalMode}
-      />
       <Footer />
     </div>
   )

@@ -90,7 +90,7 @@ interface HeaderFormProps {
   goForward: (() => void) | undefined
   APIInterface: APIInterface
   onAPIMode: (mode: string) => void
-  serverModeId: 'server' | 'upstream'
+  selfHostedServer: boolean
   // Whether the committed view is currently being fetched, so the Go button
   // can say so.
   loading: boolean
@@ -132,7 +132,7 @@ function HeaderForm({
   goForward,
   APIInterface,
   onAPIMode,
-  serverModeId,
+  selfHostedServer,
   loading,
   onEscape,
   visMenus,
@@ -650,7 +650,7 @@ function HeaderForm({
           loadUploadedTracks(uploadedTracks)
         }}
         apiMode={apiMode}
-        serverModeId={serverModeId}
+        selfHostedServer={selfHostedServer}
         onDestChange={onAPIMode}
         visMenus={visMenus}
       />

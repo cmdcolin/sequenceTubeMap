@@ -35,6 +35,13 @@ const renderApp = (api: APIInterface = fakeAPI()) =>
 const getRegionInput = () =>
   screen.getByRole<HTMLInputElement>('combobox', { name: /Region/i })
 
+const switchBackend = async (modeTestId: string) => {
+  await userEvent.click(screen.getByTestId('fileMenuButton'))
+  await userEvent.click(screen.getByTestId('openCustomFiles'))
+  await userEvent.click(screen.getByTestId(modeTestId))
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+}
+
 const pickDataSource = async (name: string) => {
   await userEvent.click(screen.getByTestId('examplesMenuButton'))
   await userEvent.click(screen.getByRole('menuitem', { name }))
@@ -146,11 +153,7 @@ it('re-seeds the form when the backend is switched', async () => {
   await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
   expect(getRegionInput().value).toEqual('ref:1-100')
 
-  // The backend selector switches the API mode, which resets the form to the
-  // view target of the newly-selected backend.
-  await userEvent.click(screen.getByText('Backend configuration'))
-  await userEvent.click(screen.getByLabelText('Extract tube map data'))
-  await userEvent.click(screen.getByRole('option', { name: /vgteam server/i }))
+  await switchBackend('mode-upstream')
 
   await waitFor(() => {
     expect(getRegionInput().value).toEqual('17:1-100')
@@ -497,11 +500,7 @@ describe('the address bar', () => {
     await waitFor(() => {
       expect(getRegionInput().value).toEqual('x:1-100')
     })
-    await userEvent.click(screen.getByText('Backend configuration'))
-    await userEvent.click(screen.getByLabelText('Extract tube map data'))
-    await userEvent.click(
-      screen.getByRole('option', { name: /vgteam server/i }),
-    )
+    await switchBackend('mode-upstream')
     await waitFor(() => {
       expect(getRegionInput().value).toEqual('17:1-100')
     })
@@ -511,8 +510,11 @@ describe('the address bar', () => {
     await waitFor(() => {
       expect(getRegionInput().value).toEqual('ref:1-100')
     })
-    expect(screen.getByLabelText('Extract tube map data')).toHaveTextContent(
-      'Self-hosted server',
+    await userEvent.click(screen.getByTestId('fileMenuButton'))
+    await userEvent.click(screen.getByTestId('openCustomFiles'))
+    expect(screen.getByTestId('mode-server')).toHaveAttribute(
+      'aria-pressed',
+      'true',
     )
   })
 

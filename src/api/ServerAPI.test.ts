@@ -231,3 +231,15 @@ describe('ServerAPI.putFile', () => {
     expect(FakeXhr.latest?.aborted).toBe(true)
   })
 })
+
+describe('ServerAPI.getPathInfo', () => {
+  it('answers no paths from vgteam without asking, as it lacks the endpoint', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const api = new ServerAPI('http://example.test/api/v0', 'upstream')
+    await expect(api.getPathInfo('graph.xg', null)).resolves.toEqual({
+      pathInfo: [],
+    })
+    expect(fetchSpy).not.toHaveBeenCalled()
+    fetchSpy.mockRestore()
+  })
+})

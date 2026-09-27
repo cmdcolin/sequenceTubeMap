@@ -15,7 +15,7 @@ interface UploadDialogProps {
     file: File,
   ) => Promise<string | undefined>
   apiMode: 'local' | 'server' | 'upstream'
-  serverModeId?: 'server' | 'upstream'
+  selfHostedServer?: boolean
   onDestChange?: (mode: string) => void
 }
 
@@ -25,7 +25,7 @@ export function UploadDialog({
   onUploaded,
   handleFileUpload,
   apiMode,
-  serverModeId,
+  selfHostedServer,
   onDestChange,
 }: UploadDialogProps) {
   return (
@@ -46,7 +46,7 @@ export function UploadDialog({
           }}
           handleFileUpload={handleFileUpload}
           apiMode={apiMode}
-          serverModeId={serverModeId}
+          selfHostedServer={selfHostedServer}
           onDestChange={onDestChange}
         />
       </DialogContent>

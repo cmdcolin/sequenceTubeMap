@@ -68,7 +68,7 @@ function renderForm(options: RenderOptions = {}) {
         goForward={undefined}
         APIInterface={api}
         onAPIMode={() => {}}
-        serverModeId="server"
+        selfHostedServer
         loading={options.loading ?? false}
         onEscape={options.onEscape ?? (() => {})}
         visMenus={null}

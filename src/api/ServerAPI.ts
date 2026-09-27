@@ -213,6 +213,10 @@ export class ServerAPI implements APIInterface {
     graphFile: string,
     cancelSignal: AbortSignal | null,
   ): Promise<{ pathInfo: PathInfo[] }> {
+    // This fork added the endpoint; vgteam's server does not have it.
+    if (this.mode === 'upstream') {
+      return { pathInfo: [] }
+    }
     return await this.postJSON<{ pathInfo: PathInfo[] }>(
       'getPathInfo',
       { graphFile },

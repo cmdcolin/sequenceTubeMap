@@ -30,7 +30,7 @@ interface HeaderFormAppBarProps {
   ) => Promise<string | undefined>
   onUploaded: (tracks: Track[]) => void
   apiMode: 'local' | 'server' | 'upstream'
-  serverModeId: 'server' | 'upstream'
+  selfHostedServer: boolean
   onDestChange: (mode: string) => void
   // Menus owned by the app (the visualization options), rendered after the
   // form's own menus.
@@ -50,7 +50,7 @@ export function HeaderFormAppBar({
   handleFileUpload,
   onUploaded,
   apiMode,
-  serverModeId,
+  selfHostedServer,
   onDestChange,
   visMenus,
 }: HeaderFormAppBarProps) {
@@ -61,7 +61,7 @@ export function HeaderFormAppBar({
       elevation={2}
       sx={{ background: '#1a5276', mb: 1 }}
     >
-      <Toolbar variant="dense">
+      <Toolbar>
         <Box
           component="img"
           src="./logo.svg"
@@ -100,7 +100,7 @@ export function HeaderFormAppBar({
             handleFileUpload={handleFileUpload}
             onUploaded={onUploaded}
             apiMode={apiMode}
-            serverModeId={serverModeId}
+            selfHostedServer={selfHostedServer}
             onDestChange={onDestChange}
           />
           {visMenus}

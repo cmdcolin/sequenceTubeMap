@@ -17,7 +17,7 @@ interface FileMenuProps {
   ) => Promise<string | undefined>
   onUploaded: (tracks: Track[]) => void
   apiMode: 'local' | 'server' | 'upstream'
-  serverModeId: 'server' | 'upstream'
+  selfHostedServer: boolean
   onDestChange: (mode: string) => void
 }
 
@@ -29,7 +29,7 @@ export function FileMenu({
   handleFileUpload,
   onUploaded,
   apiMode,
-  serverModeId,
+  selfHostedServer,
   onDestChange,
 }: FileMenuProps) {
   const [tracksDialogOpen, setTracksDialogOpen] = useState(false)
@@ -87,7 +87,7 @@ export function FileMenu({
         onUploaded={onUploaded}
         handleFileUpload={handleFileUpload}
         apiMode={apiMode}
-        serverModeId={serverModeId}
+        selfHostedServer={selfHostedServer}
         onDestChange={onDestChange}
       />
     </>
