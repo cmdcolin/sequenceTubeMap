@@ -56,7 +56,7 @@ export interface TrackCorner {
 
 export interface Segment {
   order: number
-  lane?: number | null
+  lane?: number
   isForward: boolean
   node: number | null
   y?: number

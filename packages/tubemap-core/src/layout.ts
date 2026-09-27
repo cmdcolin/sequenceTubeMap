@@ -536,7 +536,9 @@ function assignReadsToNodes(state: LayoutState): void {
 
 // calculate paths (incl. correct y coordinate) for all reads
 function placeReads(state: LayoutState): void {
-  generateBasicPathsForReads(state)
+  state.reads.forEach(read => {
+    read.path = basicPath(state, read)
+  })
   assignReadsToNodes(state)
 
   // placed nodes by order, then by y-coordinate
@@ -1027,121 +1029,45 @@ function calculateBottomY(state: LayoutState): number[] {
   return bottomY
 }
 
-// generate path-info for each read
-// containing order, node and orientation, but no concrete coordinates
-// TODO: Duplicates a lot of the same work as generateLaneAssignment() does for non-read tracks.
-function generateBasicPathsForReads(state: LayoutState): void {
-  state.reads.forEach(read => {
-    // add info for start of track
-    let currentNodeIndex = Math.abs(read.indexSequence[0]!)
-    let currentNodeIsForward = isForwardIndex(read.indexSequence[0]!)
-    let currentNode = state.nodes[currentNodeIndex]!
-    let previousNode: LayoutNode
-    let previousNodeIsForward: boolean
+// The segments a track draws, in order: one per node visit, plus one per
+// order slot it passes or turns around in without visiting a node. They carry
+// no lanes or coordinates yet.
+function basicPath(state: LayoutState, track: Track): Segment[] {
+  const path: Segment[] = []
+  const pass = (order: number, isForward: boolean): void => {
+    path.push({ order, isForward, node: null })
+  }
+  const visit = (order: number, isForward: boolean, node: number): void => {
+    path.push({ order, isForward, node })
+  }
 
-    read.path = []
-    read.path.push({
-      order: currentNode.order,
-      isForward: currentNodeIsForward,
-      node: currentNodeIndex,
-    })
+  let currentNodeIndex = Math.abs(track.indexSequence[0]!)
+  let currentNodeIsForward = isForwardIndex(track.indexSequence[0]!)
+  let currentNode = state.nodes[currentNodeIndex]!
+  visit(currentNode.order, currentNodeIsForward, currentNodeIndex)
 
-    for (let i = 1; i < read.sequence.length; i += 1) {
-      previousNode = currentNode
-      previousNodeIsForward = currentNodeIsForward
+  for (let i = 1; i < track.sequence.length; i += 1) {
+    const previousNode = currentNode
+    const previousNodeIsForward = currentNodeIsForward
+    currentNodeIndex = Math.abs(track.indexSequence[i]!)
+    currentNodeIsForward = isForwardIndex(track.indexSequence[i]!)
+    currentNode = state.nodes[currentNodeIndex]!
+    const { order } = currentNode
 
-      currentNodeIndex = Math.abs(read.indexSequence[i]!)
-      currentNodeIsForward = isForwardIndex(read.indexSequence[i]!)
-      currentNode = state.nodes[currentNodeIndex]!
-
-      if (currentNode.order > previousNode.order) {
-        if (!previousNodeIsForward) {
-          // backward to forward at previous node
-          read.path.push({
-            order: previousNode.order,
-            isForward: true,
-            node: null,
-          })
-        }
-        for (let j = previousNode.order + 1; j < currentNode.order; j += 1) {
-          // forward without nodes
-          read.path.push({ order: j, isForward: true, node: null })
-        }
-        if (!currentNodeIsForward) {
-          // forward to backward at current node
-          read.path.push({
-            order: currentNode.order,
-            isForward: true,
-            node: null,
-          })
-          read.path.push({
-            order: currentNode.order,
-            isForward: false,
-            node: currentNodeIndex,
-          })
-        } else {
-          // current Node forward
-          read.path.push({
-            order: currentNode.order,
-            isForward: true,
-            node: currentNodeIndex,
-          })
-        }
-      } else if (currentNode.order < previousNode.order) {
-        if (previousNodeIsForward) {
-          // turnaround from fw to bw at previous node
-          read.path.push({
-            order: previousNode.order,
-            isForward: false,
-            node: null,
-          })
-        }
-        for (let j = previousNode.order - 1; j > currentNode.order; j -= 1) {
-          // bachward without nodes
-          read.path.push({ order: j, isForward: false, node: null })
-        }
-        if (currentNodeIsForward) {
-          // backward to forward at current node
-          read.path.push({
-            order: currentNode.order,
-            isForward: false,
-            node: null,
-          })
-          read.path.push({
-            order: currentNode.order,
-            isForward: true,
-            node: currentNodeIndex,
-          })
-        } else {
-          // backward at current node
-          read.path.push({
-            order: currentNode.order,
-            isForward: false,
-            node: currentNodeIndex,
-          })
-        }
-      } else {
-        if (currentNodeIsForward !== previousNodeIsForward) {
-          read.path.push({
-            order: currentNode.order,
-            isForward: currentNodeIsForward,
-            node: currentNodeIndex,
-          })
-        } else {
-          read.path.push({
-            order: currentNode.order,
-            isForward: !currentNodeIsForward,
-            node: null,
-          })
-          read.path.push({
-            order: currentNode.order,
-            isForward: currentNodeIsForward,
-            node: currentNodeIndex,
-          })
-        }
-      }
+    if (order > previousNode.order) {
+      if (!previousNodeIsForward) pass(previousNode.order, true)
+      for (let j = previousNode.order + 1; j < order; j += 1) pass(j, true)
+      if (!currentNodeIsForward) pass(order, true)
+    } else if (order < previousNode.order) {
+      if (previousNodeIsForward) pass(previousNode.order, false)
+      for (let j = previousNode.order - 1; j > order; j -= 1) pass(j, false)
+      if (currentNodeIsForward) pass(order, false)
+    } else if (currentNodeIsForward === previousNodeIsForward) {
+      pass(order, !currentNodeIsForward)
     }
-  })
+    visit(order, currentNodeIsForward, currentNodeIndex)
+  }
+  return path
 }
 
 // reverse reads which are reversed
@@ -1840,12 +1766,6 @@ function calculateExtraSpace(state: LayoutState): number[] {
 
 // create and fill assignment-variable, which contains info about tracks and lanes for each order-value
 function generateLaneAssignment(state: LayoutState): void {
-  let segmentNumber: number
-  let currentNodeIndex: number
-  let currentNodeIsForward: boolean
-  let currentNode: LayoutNode
-  let previousNode: LayoutNode
-  let previousNodeIsForward: boolean
   // For each horizontal order slot, for each track number, holds the
   // SegmentAssignment object for the visit of that track to that order slot.
   // When an order slot is visited multiple times, holds whatever
@@ -1862,283 +1782,21 @@ function generateLaneAssignment(state: LayoutState): void {
     prevSegmentPerOrderPerTrack[i] = []
   }
 
+  // Record each track's segments in the order slots they cross, leaving the
+  // lanes for the sweep below.
   state.tracks.forEach((track, trackNo) => {
-    // Trace along each track and create Segment objects in the track's path
-    // field, and SegmentAssignment objects in NodeAssignment objects in all
-    // the order slots that are visited by the track. Set up all the
-    // cross-reverencing indexes and work out when we need segments to let
-    // tracks pass nodes and turn around, but leave all the assigned lane
-    // values empty for now.
-
-    // add info for start of track
-    currentNodeIndex = Math.abs(track.indexSequence[0]!)
-    currentNodeIsForward = isForwardIndex(track.indexSequence[0]!)
-    currentNode = state.nodes[currentNodeIndex]!
-
-    track.path = []
-    track.path.push({
-      order: currentNode.order,
-      lane: null,
-      isForward: currentNodeIsForward,
-      node: currentNodeIndex,
+    track.path = basicPath(state, track)
+    track.path.forEach((segment, segmentNumber) => {
+      addToAssignment(
+        state,
+        segment.order,
+        segment.node,
+        trackNo,
+        segmentNumber,
+        prevSegmentPerOrderPerTrack,
+        assignmentByOrderAndNode,
+      )
     })
-    addToAssignment(
-      state,
-      currentNode.order,
-      currentNodeIndex,
-      trackNo,
-      0,
-      prevSegmentPerOrderPerTrack,
-      assignmentByOrderAndNode,
-    )
-
-    segmentNumber = 1
-    for (let i = 1; i < track.sequence.length; i += 1) {
-      previousNode = currentNode
-      previousNodeIsForward = currentNodeIsForward
-
-      currentNodeIndex = Math.abs(track.indexSequence[i]!)
-      currentNodeIsForward = isForwardIndex(track.indexSequence[i]!)
-      currentNode = state.nodes[currentNodeIndex]!
-
-      if (currentNode.order > previousNode.order) {
-        if (!previousNodeIsForward) {
-          // backward to forward at previous node
-          track.path.push({
-            order: previousNode.order,
-            lane: null,
-            isForward: true,
-            node: null,
-          })
-          addToAssignment(
-            state,
-            previousNode.order,
-            null,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        }
-        for (let j = previousNode.order + 1; j < currentNode.order; j += 1) {
-          // forward without nodes
-          track.path.push({
-            order: j,
-            lane: null,
-            isForward: true,
-            node: null,
-          })
-          addToAssignment(
-            state,
-            j,
-            null,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        }
-        if (!currentNodeIsForward) {
-          // forward to backward at current node
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: true,
-            node: null,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            null,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: false,
-            node: currentNodeIndex,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            currentNodeIndex,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        } else {
-          // current Node forward
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: true,
-            node: currentNodeIndex,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            currentNodeIndex,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        }
-      } else if (currentNode.order < previousNode.order) {
-        if (previousNodeIsForward) {
-          // turnaround from fw to bw at previous node
-          track.path.push({
-            order: previousNode.order,
-            lane: null,
-            isForward: false,
-            node: null,
-          })
-          addToAssignment(
-            state,
-            previousNode.order,
-            null,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        }
-        for (let j = previousNode.order - 1; j > currentNode.order; j -= 1) {
-          // bachward without nodes
-          track.path.push({
-            order: j,
-            lane: null,
-            isForward: false,
-            node: null,
-          })
-          addToAssignment(
-            state,
-            j,
-            null,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        }
-        if (currentNodeIsForward) {
-          // backward to forward at current node
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: false,
-            node: null,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            null,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: true,
-            node: currentNodeIndex,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            currentNodeIndex,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        } else {
-          // backward at current node
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: false,
-            node: currentNodeIndex,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            currentNodeIndex,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        }
-      } else {
-        if (currentNodeIsForward !== previousNodeIsForward) {
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: currentNodeIsForward,
-            node: currentNodeIndex,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            currentNodeIndex,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        } else {
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: !currentNodeIsForward,
-            node: null,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            null,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-          track.path.push({
-            order: currentNode.order,
-            lane: null,
-            isForward: currentNodeIsForward,
-            node: currentNodeIndex,
-          })
-          addToAssignment(
-            state,
-            currentNode.order,
-            currentNodeIndex,
-            trackNo,
-            segmentNumber,
-            prevSegmentPerOrderPerTrack,
-            assignmentByOrderAndNode,
-          )
-          segmentNumber += 1
-        }
-      }
-    }
   })
 
   // Now sweep left to right across order slots and assign vertical lanes to all the segments.
@@ -2232,8 +1890,7 @@ function getIdealLanesAndCoords(
             track.idealLane = track.trackID
             track.idealY = null
           } else {
-            track.idealLane =
-              state.tracks[track.trackID]!.path[index]!.lane ?? undefined
+            track.idealLane = state.tracks[track.trackID]!.path[index]!.lane
             track.idealY = state.tracks[track.trackID]!.path[index]!.y
           }
         }

@@ -53,18 +53,10 @@ next. The sort decides draw order and turnaround nesting in
 goldens, so a replacement needs a deliberate choice of order and a look at the
 renders.
 
-Structural work not yet done:
-
-- **`generateBasicPathsForReads` vs `generateLaneAssignment`** walk a path with
-  the same 60-line case analysis (forward / backward / same-order, with and
-  without turnaround segments); the lane version also emits `SegmentAssignment`s
-  and `lane: null`. Factoring the walk out is the highest-value remaining dedup
-  and the riskiest change in the file — only attempt it with the render and
-  golden tests green before and after.
-- **`Segment.y` / `Segment.lane` are optional** but always set by the time the
-  drawing code reads them, which leaves a scattering of `!` and `?? 0`. A
-  `PlacedSegment` type (or splitting placement out of `Segment`) would remove
-  them.
+Structural work not yet done: **`Segment.y` / `Segment.lane` are optional** but
+always set by the time the drawing code reads them, which leaves a scattering of
+`!` and `?? 0`. A `PlacedSegment` type (or splitting placement out of `Segment`)
+would remove them.
 
 ## Encodings as a grammar of graphics
 
