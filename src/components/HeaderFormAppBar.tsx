@@ -29,7 +29,6 @@ interface HeaderFormAppBarProps {
     file: File,
   ) => Promise<string | undefined>
   onUploaded: (tracks: Track[]) => void
-  onOpenCustomFiles: () => void
   apiMode: 'local' | 'server' | 'upstream'
   serverModeId: 'server' | 'upstream'
   onDestChange: (mode: string) => void
@@ -50,7 +49,6 @@ export function HeaderFormAppBar({
   onTracksChange,
   handleFileUpload,
   onUploaded,
-  onOpenCustomFiles,
   apiMode,
   serverModeId,
   onDestChange,
@@ -101,7 +99,6 @@ export function HeaderFormAppBar({
             onTracksChange={onTracksChange}
             handleFileUpload={handleFileUpload}
             onUploaded={onUploaded}
-            onOpenCustomFiles={onOpenCustomFiles}
             apiMode={apiMode}
             serverModeId={serverModeId}
             onDestChange={onDestChange}

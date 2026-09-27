@@ -535,7 +535,7 @@ describe('the Open dialog', () => {
     expect(screen.getByText('graph.gbz.db')).toBeInTheDocument()
   })
 
-  it('leaves the view on screen until files are loaded', async () => {
+  it('leaves the view and the form alone when cancelled', async () => {
     renderApp()
     await waitFor(() => {
       expect(window.location.search).toContain('region=17:1-100')
@@ -549,6 +549,11 @@ describe('the Open dialog', () => {
 
     expect(window.location.search).toContain('region=17:1-100')
     expect(screen.queryByText(/Nothing loaded/)).not.toBeInTheDocument()
+    expect(getRegionInput().value).toEqual('17:1-100')
+    expect(screen.getByRole('button', { name: 'Go' })).toHaveAttribute(
+      'title',
+      'No changes to apply; view is up to date.',
+    )
   })
 
   it('takes Back from the first view of loaded files to the view before them', async () => {

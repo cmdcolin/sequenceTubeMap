@@ -320,6 +320,24 @@ it('shows a spinner on Go while the committed view loads', () => {
   expect(go).toHaveAttribute('title', 'Loading the current view…')
 })
 
+it('takes tracks edited in Manage tracks as custom files, keeping the region', async () => {
+  renderForm()
+  expect(
+    screen.queryByRole('button', { name: 'Simplify' }),
+  ).not.toBeInTheDocument()
+  await userEvent.click(screen.getByTestId('fileMenuButton'))
+  await userEvent.click(screen.getByTestId('manageTracks'))
+
+  await userEvent.click(screen.getByTestId('delete-button-component0'))
+  await userEvent.click(screen.getByTestId('TrackPickerCloseButton'))
+  await waitFor(() => {
+    expect(screen.queryByTestId('TrackPicker')).not.toBeInTheDocument()
+  })
+
+  expect(screen.getByRole('button', { name: 'Simplify' })).toBeInTheDocument()
+  expect(regionInput().value).toEqual('x:100-200')
+})
+
 it('says inside Manage tracks when an upload is over the size limit', async () => {
   const putFile = vi.fn(async () => 'uploaded')
   renderForm({ api: fakeAPI({ putFile }) })

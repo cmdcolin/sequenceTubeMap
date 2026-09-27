@@ -346,25 +346,27 @@ it('produces correct link when data source is changed', async () => {
   expectSameLink(fakeClipboard, expectedLinkCactus)
 }, 20000)
 
-it('can retrieve the list of mounted graph files', async () => {
-  // Wait for everything to settle so we don't stop the server while it is thinking
-  await waitForLoadEnd()
-
-  // Swap over to the custom files mode via the File menu
-  await act(async () => {
-    fireEvent.click(screen.getByTestId('fileMenuButton'))
-  })
-  await act(async () => {
-    fireEvent.click(screen.getByTestId('openCustomFiles'))
-  })
-
-  // Open "Manage tracks…" from the File menu (the former AppBar "Tracks" button)
+// Manage tracks edits the current view's tracks, so building a view from
+// scratch starts by emptying the list.
+async function openEmptyTrackList() {
   await act(async () => {
     fireEvent.click(screen.getByTestId('fileMenuButton'))
   })
   await act(async () => {
     fireEvent.click(screen.getByTestId('manageTracks'))
   })
+  while (screen.queryByTestId('delete-button-component0')) {
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('delete-button-component0'))
+    })
+  }
+}
+
+it('can retrieve the list of mounted graph files', async () => {
+  // Wait for everything to settle so we don't stop the server while it is thinking
+  await waitForLoadEnd()
+
+  await openEmptyTrackList()
 
   // add a new track
   await waitFor(() => {
@@ -393,21 +395,7 @@ it.skipIf(!HAS_VG)(
   async () => {
     await waitForLoadEnd()
 
-    // Swap over to the custom files mode via the File menu
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('fileMenuButton'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('openCustomFiles'))
-    })
-
-    // Open "Manage tracks…" from the File menu (the former AppBar "Tracks" button)
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('fileMenuButton'))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('manageTracks'))
-    })
+    await openEmptyTrackList()
 
     // add a new track
     await waitFor(() => {

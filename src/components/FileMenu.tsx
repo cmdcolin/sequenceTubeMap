@@ -16,7 +16,6 @@ interface FileMenuProps {
     file: File,
   ) => Promise<string | undefined>
   onUploaded: (tracks: Track[]) => void
-  onOpenCustomFiles: () => void
   apiMode: 'local' | 'server' | 'upstream'
   serverModeId: 'server' | 'upstream'
   onDestChange: (mode: string) => void
@@ -29,7 +28,6 @@ export function FileMenu({
   onTracksChange,
   handleFileUpload,
   onUploaded,
-  onOpenCustomFiles,
   apiMode,
   serverModeId,
   onDestChange,
@@ -45,9 +43,6 @@ export function FileMenu({
               data-testid="openCustomFiles"
               selected={customFilesFlag}
               onClick={() => {
-                if (!customFilesFlag) {
-                  onOpenCustomFiles()
-                }
                 setUploadDialogOpen(true)
                 close()
               }}

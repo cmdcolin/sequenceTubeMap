@@ -188,7 +188,13 @@ function HeaderForm({
   )
 
   const files = filenamesData?.files ?? []
-  const availableBeds = ['none', ...(filenamesData?.bedFiles ?? [])]
+  const mountedBeds = filenamesData?.bedFiles ?? []
+  // Tracks edited from a dataset keep its BED, which may not be a mounted one.
+  const availableBeds = [
+    'none',
+    ...mountedBeds,
+    ...(isSet(bedFile) && !mountedBeds.includes(bedFile) ? [bedFile] : []),
+  ]
   const availableTrackSet = makeAvailableTrackSet(files)
   const availableTracks = trackListWithImplied(files, availableTrackSet, tracks)
   // In local mode the in-browser gbz-base reader only understands .gbz.db files,
@@ -199,7 +205,7 @@ function HeaderForm({
       : DATA_SOURCES
   const discoveredDataSources = discoverDataSources(
     files,
-    filenamesData?.bedFiles ?? [],
+    mountedBeds,
     visibleDataSources,
     config.dataPath,
     filenamesData?.folderManifests,
@@ -460,8 +466,13 @@ function HeaderForm({
     }
   }
 
+  // Tracks edited in Manage tracks are the user's own set rather than the named
+  // dataset's, which is what custom-files mode (with its BED picker and
+  // Simplify) is for. Everything else the form describes stays.
   function handleInputChange(newTracks: Tracks) {
     setTracks(newTracks)
+    setName(undefined)
+    setDataType(dataTypes.CUSTOM_FILES)
   }
 
   async function jumpRegion(offset: -1 | 1) {
@@ -500,27 +511,21 @@ function HeaderForm({
     })
   }
 
-  // Point the form at files the user picks rather than a named dataset: the
-  // File menu's Open… item, with none yet, or files from its dialog. The view
-  // on screen stays until the user commits another. The success banner takes
-  // its filenames from the tracks' `trackDisplayName` (set by UploadPanel).
-  function enterCustomFilesMode(newTracks: Tracks) {
+  // Files from the Open dialog have loaded. They replace the view, so the
+  // previous dataset's graph doesn't linger while the user picks a region in
+  // them. The success banner takes its filenames from the tracks'
+  // `trackDisplayName` (set by UploadPanel).
+  function loadUploadedTracks(uploadedTracks: Tracks) {
     abortChunkTracks()
     setBedFile('none')
     setChosenRegion('')
     setName(undefined)
-    setTracks(newTracks)
+    setTracks(uploadedTracks)
     setDataType(dataTypes.CUSTOM_FILES)
     setManualError(null)
     setRecentlyUploaded(
-      newTracks.map(t => t.trackDisplayName ?? t.trackFile ?? '(unnamed)'),
+      uploadedTracks.map(t => t.trackDisplayName ?? t.trackFile ?? '(unnamed)'),
     )
-  }
-
-  // Loaded files replace the view, so the previous dataset's graph doesn't
-  // linger while the user picks a region in them.
-  function loadUploadedTracks(uploadedTracks: Tracks) {
-    enterCustomFilesMode(uploadedTracks)
     setCurrentViewTarget({ tracks: [], region: '' })
   }
 
@@ -531,9 +536,7 @@ function HeaderForm({
     // "Loaded N files: …" message can't persist across dataset switches.
     setRecentlyUploaded([])
 
-    if (value === dataTypes.CUSTOM_FILES) {
-      enterCustomFilesMode([])
-    } else if (value === dataTypes.EXAMPLES) {
+    if (value === dataTypes.EXAMPLES) {
       setDataType(dataTypes.EXAMPLES)
     } else {
       const ds = allDataSources.find(d => d.name === value)
@@ -640,9 +643,6 @@ function HeaderForm({
         handleFileUpload={handleFileUpload}
         onUploaded={uploadedTracks => {
           loadUploadedTracks(uploadedTracks)
-        }}
-        onOpenCustomFiles={() => {
-          handleDataSourceChange(dataTypes.CUSTOM_FILES)
         }}
         apiMode={apiMode}
         serverModeId={serverModeId}
