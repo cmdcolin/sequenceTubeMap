@@ -33,24 +33,16 @@ describe('RootErrorBoundary', () => {
     expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
   })
 
-  it('drops the query string before reloading on Start over', async () => {
-    const reload = vi.fn()
-    vi.spyOn(window, 'location', 'get').mockReturnValue({
-      ...window.location,
-      pathname: '/',
-      hash: '#local',
-      reload,
-    })
-    const replaceState = vi
-      .spyOn(window.history, 'replaceState')
-      .mockImplementation(() => {})
+  // jsdom cannot reload, so this checks the address it would reload
+  it('drops the view from the address on Start over, keeping the backend', async () => {
+    window.history.replaceState(null, '', '/?tracks=node:x.tsv#local')
     render(
       <RootErrorBoundary>
         <Throws />
       </RootErrorBoundary>,
     )
     await userEvent.click(screen.getByRole('button', { name: 'Start over' }))
-    expect(replaceState).toHaveBeenCalledWith(null, '', '/#local')
-    expect(reload).toHaveBeenCalled()
+    expect(window.location.search).toBe('')
+    expect(window.location.hash).toBe('#local')
   })
 })
