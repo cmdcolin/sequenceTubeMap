@@ -331,10 +331,22 @@ function HeaderForm({
   }, [APIInterface, refetchFilenames])
 
   // Per-invocation AbortController for getChunkTracks (event-driven, not
-  // SWR-cached). We abort the prior in-flight call when a new region change
-  // arrives so its result can't overwrite the newer one. Assigned only inside
-  // an event handler — never during render.
+  // SWR-cached). A late answer would commit the view it was fetched for, so
+  // anything that moves the form off that view aborts it: another region
+  // change, a data source or an upload, and a view or backend arriving from
+  // outside the form. Assigned only outside render.
   const chunkTracksAbortRef = useRef<AbortController | null>(null)
+
+  function abortChunkTracks() {
+    chunkTracksAbortRef.current?.abort()
+  }
+
+  useEffect(
+    () => () => {
+      chunkTracksAbortRef.current?.abort()
+    },
+    [seedViewTarget, APIInterface],
+  )
 
   function buildViewTarget(overrides?: {
     region?: string
@@ -410,7 +422,7 @@ function HeaderForm({
     const chunk = coordsToMetaData[coords]?.chunk ?? null
 
     if (!newTracks && isSet(bedFile) && chunk) {
-      chunkTracksAbortRef.current?.abort()
+      abortChunkTracks()
       const controller = new AbortController()
       chunkTracksAbortRef.current = controller
       try {
@@ -419,6 +431,9 @@ function HeaderForm({
           chunk,
           controller.signal,
         )
+        if (controller.signal.aborted) {
+          return null
+        }
         newTracks = json.tracks ?? null
       } catch (e) {
         if (controller.signal.aborted) {
@@ -490,6 +505,7 @@ function HeaderForm({
   // on screen stays until the user commits another. The success banner takes
   // its filenames from the tracks' `trackDisplayName` (set by UploadPanel).
   function enterCustomFilesMode(newTracks: Tracks) {
+    abortChunkTracks()
     setBedFile('none')
     setChosenRegion('')
     setName(undefined)
@@ -509,6 +525,7 @@ function HeaderForm({
   }
 
   function handleDataSourceChange(value: string) {
+    abortChunkTracks()
     setManualError(null)
     // Banner is upload-specific; clear it on any other navigation so a stale
     // "Loaded N files: …" message can't persist across dataset switches.

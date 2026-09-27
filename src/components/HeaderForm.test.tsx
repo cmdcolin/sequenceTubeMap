@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import '../config-client.js'
@@ -6,7 +6,7 @@ import { config } from '../config-global.mjs'
 import { selectMuiOption } from '../testUtils.ts'
 import HeaderForm from './HeaderForm.tsx'
 import type { APIInterface } from '../api/APIInterface.ts'
-import type { RegionInfo, ViewTarget } from '../Types.ts'
+import type { RegionInfo, Tracks, ViewTarget } from '../Types.ts'
 
 const TRACKS: ViewTarget['tracks'] = [
   { trackType: 'graph', trackFile: 'graph.vg' },
@@ -55,27 +55,35 @@ function renderForm(options: RenderOptions = {}) {
     simplify: false,
     removeSequences: false,
   }
+  const api = options.api ?? fakeAPI()
   // A fresh SWR cache per test, so one test's fetches can't answer another's.
-  render(
+  const form = (seedViewTarget: ViewTarget | null) => (
     <SWRConfig value={{ provider: () => new Map() }}>
       <HeaderForm
         showExample={() => {}}
         legendTracks={undefined}
         setCurrentViewTarget={setCurrentViewTarget}
         currentViewTarget={viewTarget}
-        seedViewTarget={null}
+        seedViewTarget={seedViewTarget}
         goBack={options.goBack}
         goForward={undefined}
-        APIInterface={options.api ?? fakeAPI()}
+        APIInterface={api}
         onAPIMode={() => {}}
         serverModeId="server"
         loading={options.loading ?? false}
         onEscape={options.onEscape ?? (() => {})}
         visMenus={null}
       />
-    </SWRConfig>,
+    </SWRConfig>
   )
-  return { setCurrentViewTarget }
+  const { rerender } = render(form(null))
+  return {
+    setCurrentViewTarget,
+    // What App does after Back/Forward or a switch of backend.
+    reseed: (target: ViewTarget) => {
+      rerender(form(target))
+    },
+  }
 }
 
 const regionInput = () =>
@@ -178,6 +186,61 @@ it('walks the BED regions with Prev and Next', async () => {
     expect(regionInput().value).toEqual('x:500-600')
   })
   expect(screen.getByRole('button', { name: 'Prev' })).toBeEnabled()
+})
+
+describe('a BED chunk still loading', () => {
+  const chunkTracks: Tracks = [{ trackType: 'graph', trackFile: 'chunk.vg' }]
+
+  // The second BED region's tracks come from a chunk the backend has to cut
+  // first, and each request waits until the test answers it.
+  function renderChunkedForm() {
+    const requests: { signal: AbortSignal | null; answer: () => void }[] = []
+    const form = renderForm({
+      viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },
+      api: fakeAPI({
+        getBedRegions: async () => ({
+          bedRegions: { ...BED_REGIONS, chunk: ['', 'chunk-1', ''] },
+        }),
+        getChunkTracks: (_bed, _chunk, signal) =>
+          new Promise(resolve => {
+            requests.push({
+              signal,
+              answer: () => {
+                resolve({ tracks: chunkTracks })
+              },
+            })
+          }),
+      }),
+    })
+    return { ...form, requests }
+  }
+
+  it('is dropped when the user picks another data source', async () => {
+    const { setCurrentViewTarget, requests } = renderChunkedForm()
+    await userEvent.click(await screen.findByRole('button', { name: 'Next' }))
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+
+    await act(async () => {
+      requests[0]!.answer()
+    })
+
+    expect(requests[0]!.signal?.aborted).toBe(true)
+    expect(lastRegion(setCurrentViewTarget)).toEqual('ref:1-100')
+  })
+
+  it('is dropped when a view arrives from outside the form', async () => {
+    const { setCurrentViewTarget, reseed, requests } = renderChunkedForm()
+    await userEvent.click(await screen.findByRole('button', { name: 'Next' }))
+    reseed({ region: 'y:10-20', tracks: TRACKS, bedFile: 'regions.bed' })
+
+    await act(async () => {
+      requests[0]!.answer()
+    })
+
+    expect(requests[0]!.signal?.aborted).toBe(true)
+    expect(setCurrentViewTarget).not.toHaveBeenCalled()
+  })
 })
 
 it('shifts and rescales the region, one commit per click', async () => {
