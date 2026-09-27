@@ -1864,7 +1864,7 @@ function ensureHoverTooltip(): HTMLDivElement {
     'border-radius:4px',
     'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
     'max-width:320px',
-    'white-space:nowrap',
+    'overflow-wrap:anywhere',
     'display:none',
   ].join(';')
   document.body.appendChild(el)

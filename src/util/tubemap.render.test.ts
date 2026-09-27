@@ -484,6 +484,18 @@ describe('tubemap.create — reads', () => {
     expect(document.body.lastElementChild?.textContent).toBe('Read0 (read)')
   })
 
+  // A band's label runs to "12,345 haplotypes (67%): Node … → Node …"
+  it('wraps a tooltip too long for its box', () => {
+    const { nodes, tracks, reads } = dataForExample('7')
+    const svg = render(nodes, tracks, reads)
+    svg
+      .querySelector(`[trackID="${reads[0]!.id}"]`)!
+      .dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+    const tooltip = document.body.lastElementChild as HTMLElement
+    expect(tooltip.style.maxWidth).toBe('320px')
+    expect(tooltip.style.whiteSpace).not.toBe('nowrap')
+  })
+
   // Read0 visits 60080785 in reverse, and the layout flips that node to draw it
   it("gives a read's path in its own orientation, not the layout's", () => {
     const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
