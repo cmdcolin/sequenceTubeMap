@@ -147,9 +147,7 @@ export function legendGroup(
     group.appendChild(label(doc, sectionHeading(section), PAD, y, 'bold'))
     if (section.rows.length === 0) {
       y += LINE
-      group.appendChild(
-        label(doc, 'no color scheme', PAD + INDENT, y, 'normal'),
-      )
+      group.appendChild(label(doc, 'nothing drawn', PAD + INDENT, y, 'normal'))
     }
     for (const row of section.rows) {
       y += LINE

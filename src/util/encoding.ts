@@ -1,12 +1,13 @@
-// Which scale colors which tracks, in one place. The renderer asks it for
-// each drawn track's color and opacity, and the legend asks it for the rows
-// keying each loaded file, so the key can't disagree with the picture.
+// Which scale colors which mark, in one place. The renderer asks it for each
+// drawn track's color and opacity, and the legend asks it for the rows keying
+// each loaded file, so the key can't disagree with the picture.
 import { isCoarsenedId } from '@gmod/tubemap-core'
-import type { ColorableTrack, Coarsening } from '@gmod/tubemap-core'
-import type { FileType } from '../Types.ts'
+import type { ColorableTrack } from '@gmod/tubemap-core'
 import {
   type AlphaScale,
   type ColorScale,
+  type DrawnTrack,
+  type Mark,
   mappingQualityAlphaScale,
   mappingQualityColorScale,
   pathScale,
@@ -18,8 +19,7 @@ import {
   strandScale,
 } from './scales.ts'
 
-// What a drawn track is, as far as coloring goes
-export type Mark = 'reference' | 'path' | 'read' | 'readBand' | 'haplotypeBand'
+export type { DrawnTrack, Mark } from './scales.ts'
 
 export interface Coloring {
   // Named read groups override every other read coloring while any exists
@@ -28,8 +28,11 @@ export interface Coloring {
   ignoreStrand?: boolean
   colorReadsByMappingQuality?: boolean
   alphaReadsByMappingQuality?: boolean
-  // What the layout drew as bands, for the key; drawn tracks carry their own
-  coarsened?: Coarsening | undefined
+}
+
+// A read group as the renderer holds it, with the reads that belong to it
+export interface ReadGroupMembers extends ReadGroupColor {
+  reads?: ReadonlySet<string>
 }
 
 // The reference is whichever track sits first in the input, which
@@ -49,39 +52,43 @@ export function markOf(
   }
 }
 
-export interface FileMark {
-  mark: Mark
-  noun: string
+// Last group wins on overlap
+function groupOf(
+  name: string | undefined,
+  groups: readonly ReadGroupMembers[],
+): number | undefined {
+  if (name === undefined) {
+    return undefined
+  }
+  for (let i = groups.length - 1; i >= 0; i--) {
+    if (groups[i]!.reads?.has(name)) {
+      return i
+    }
+  }
+  return undefined
 }
 
-// What a loaded file draws, or undefined for one that draws no tracks of its
-// own. With a haplotype file loaded, the paths beside the reference are its
-// tracks rather than the graph's.
-export function fileMarks(
-  type: FileType,
-  coloring: Coloring,
-  hasHaplotype: boolean,
-): FileMark[] | undefined {
-  const others: FileMark =
-    coloring.coarsened?.unit === 'haplotype'
-      ? { mark: 'haplotypeBand', noun: 'bands' }
-      : {
-          mark: 'path',
-          noun: type === 'graph' ? 'other paths' : 'haplotypes',
-        }
-  if (type === 'read') {
-    return coloring.coarsened?.unit === 'read'
-      ? [{ mark: 'readBand', noun: 'read bands' }]
-      : [{ mark: 'read', noun: 'reads' }]
-  } else if (type === 'graph') {
-    return [
-      { mark: 'reference', noun: 'reference path' },
-      ...(hasHaplotype ? [] : [others]),
-    ]
-  } else if (type === 'haplotype') {
-    return [others]
-  } else {
-    return undefined
+// The layout's track, projected onto what the scales read
+export function drawnTrack(
+  track: ColorableTrack,
+  referenceId: number | undefined,
+  groups: readonly ReadGroupMembers[],
+): DrawnTrack {
+  const mark = markOf(track, referenceId)
+  const group = mark === 'read' ? groupOf(track.name, groups) : undefined
+  return {
+    mark,
+    source: track.sourceTrackID,
+    id: track.id,
+    reverse: track.is_reverse === true,
+    ...(track.name === undefined ? {} : { name: track.name }),
+    ...(track.mapping_quality === undefined
+      ? {}
+      : { mappingQuality: track.mapping_quality }),
+    ...(group === undefined ? {} : { group }),
+    ...(track.haplotypeShare === undefined
+      ? {}
+      : { share: track.haplotypeShare }),
   }
 }
 
@@ -109,22 +116,15 @@ export function colorScaleFor(
   const readGroups = coloring.readGroups ?? []
   switch (mark) {
     case 'haplotypeBand':
-      return shareScale(coloring.coarsened, ignoreStrand)
+      return shareScale(ignoreStrand)
     case 'readBand':
-      return (
-        scheme &&
-        strandScale(
-          scheme,
-          ignoreStrand,
-          coloring.coarsened?.reverse ?? !ignoreStrand,
-        )
-      )
+      return scheme && strandScale(scheme, ignoreStrand)
     case 'read':
       return readGroups.length > 0
         ? readGroupScale(readGroups, coloring.otherReadsColor ?? 'greys')
         : coloring.colorReadsByMappingQuality
           ? mappingQualityColorScale
-          : scheme && strandScale(scheme, ignoreStrand, !ignoreStrand)
+          : scheme && strandScale(scheme, ignoreStrand)
     case 'reference':
       return scheme && referenceScale(scheme)
     case 'path':

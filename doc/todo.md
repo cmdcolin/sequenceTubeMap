@@ -66,12 +66,15 @@ palettes, the mapping-quality scale and the share ramp are scales; and
 `nodeWidthOption` is the x scale.
 
 The legend no longer restates the renderer. `src/util/scales.ts` holds scale
-objects that each color a track and write their own legend rows, and
-`src/util/encoding.ts` picks the scale for each kind of drawn track (read groups
-over mapping quality over strand, bands apart). The renderer's colorer and
-`legendSections` both ask it, so the key can't disagree with the picture. The
-View menu's flags still choose among the scales; making each choice a
-`{ field, scale }` entry would finish the job. A view would then read like:
+objects that each color a drawn track and key their own legend rows from the
+tracks they colored, so a value nothing in view takes gets no row.
+`src/util/encoding.ts` projects each layout track onto the variables the scales
+read (`DrawnTrack`: mark, strand, mapping quality, group, share) and picks the
+scale for each mark (read groups over mapping quality over strand, bands apart).
+The renderer's colorer and `legendSections` both ask it, and the renderer
+reports the projected tracks it placed, so the key can't disagree with the
+picture. The View menu's flags still choose among the scales; making each choice
+a `{ field, scale }` entry would finish the job. A view would then read like:
 
 ```ts
 {

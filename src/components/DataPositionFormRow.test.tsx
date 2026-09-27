@@ -45,11 +45,35 @@ function renderRow(legendTracks: Tracks | undefined) {
   )
 }
 
-// The map the button serializes. Its content does not matter here; that it is
-// the element the export reaches for does.
+// The map the button serializes, drawn for real so the key has tracks to
+// describe: one reference path and one read from each file
 function drawSomething() {
-  document.body.innerHTML =
-    '<svg id="svg" width="800" height="600"><g><rect x="0" y="0" width="10" height="10"/></g></svg>'
+  document.body.innerHTML = ''
+  const container = document.createElement('div')
+  // jsdom lays nothing out, so give the drawing a viewport to fit
+  Object.defineProperty(container, 'clientWidth', { value: 800 })
+  Object.defineProperty(container, 'clientHeight', { value: 600 })
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('id', 'svg')
+  container.appendChild(svg)
+  document.body.appendChild(container)
+  tubeMap.create({
+    svgID: '#svg',
+    nodes: [
+      { name: '1', seq: 'AAAA' },
+      { name: '2', seq: 'CCCC' },
+    ],
+    tracks: [{ id: 0, name: 'ref', sequence: ['1', '2'], sourceTrackID: 0 }],
+    reads: [
+      {
+        id: 1,
+        name: 'r1',
+        type: 'read',
+        sequence: ['1', '2'],
+        sourceTrackID: 1,
+      },
+    ],
+  })
 }
 
 beforeEach(() => {
@@ -68,11 +92,13 @@ it('saves the color key the render is actually using', async () => {
   const xml = await saved.text
   expect(xml).toContain('Color legend')
   expect(xml).toContain('graph.gbz.db')
-  expect(xml).toContain('Forward reads')
+  expect(xml).toContain('Reads')
 })
 
 it('describes read groups once the user has made some', async () => {
   tubeMap.setReadGroups([{ name: 'Carriers', color: 'reds', reads: ['r1'] }])
+  // The app redraws when groups change, and the key describes the drawing
+  drawSomething()
   const saved = captureDownload()
   renderRow(TRACKS)
 
@@ -82,7 +108,7 @@ it('describes read groups once the user has made some', async () => {
   // Every read is drawn in a group color while a group exists, so naming the
   // strand palettes here would name colors the picture does not use.
   expect(xml).toContain('Carriers')
-  expect(xml).not.toContain('Forward reads')
+  expect(xml).not.toContain('Reads')
 })
 
 it('leaves the key out when the legend is hidden', async () => {

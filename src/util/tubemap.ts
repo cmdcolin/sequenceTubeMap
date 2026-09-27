@@ -9,7 +9,8 @@ import {
   alphaScaleFor,
   type Coloring,
   colorScaleFor,
-  markOf,
+  type DrawnTrack,
+  drawnTrack,
 } from './encoding.ts'
 import type { Scheme } from './scales.ts'
 import { formatTrackDisplayName } from './trackName.ts'
@@ -280,6 +281,10 @@ let trackForRuler: string | undefined
 // handlers
 let coarsenedEdgeMeta = new Map<number, CoarsenedEdgeMeta>()
 let coarsened: Coarsening | undefined
+// What the last draw placed, projected for the legend, and the scheme each
+// source's tracks were colored with
+let drawn: DrawnTrack[] = []
+let drawnSchemes = new Map<number, ColorScheme>()
 
 // alignSVG attaches a wheel listener and ResizeObserver to the parent each
 // time it runs; create() runs on every TubeMap prop change, so without
@@ -560,14 +565,16 @@ export function setMappingQualityCutoff(value: number): void {
 }
 
 export interface RenderedColoring extends Coloring {
-  // Indexed by source track, holes where nothing set one.
+  // Indexed by source track: what the UI set, else the default the draw fell
+  // back to, with holes only where a track drew nothing.
   colorSchemes: ColorScheme[]
   readGroups: { name?: string; color: string }[]
   otherReadsColor: string
   ignoreStrand: boolean
   colorReadsByMappingQuality: boolean
   alphaReadsByMappingQuality: boolean
-  coarsened: Coarsening | undefined
+  // Every track the last draw placed, which is what a legend keys
+  drawn: DrawnTrack[]
 }
 
 // What the current drawing is colored with. A legend has to describe the
@@ -578,6 +585,9 @@ export function getRenderedColoring(): RenderedColoring {
   for (const [id, scheme] of Object.entries(config.colorSchemes)) {
     colorSchemes[Number(id)] = scheme
   }
+  for (const [source, scheme] of drawnSchemes) {
+    colorSchemes[source] ??= scheme
+  }
   return {
     colorSchemes,
     readGroups: config.readGroups.map(({ reads, ...group }) => group),
@@ -585,7 +595,7 @@ export function getRenderedColoring(): RenderedColoring {
     ignoreStrand: config.ignoreStrand,
     colorReadsByMappingQuality: config.colorReadsByMappingQuality,
     alphaReadsByMappingQuality: config.alphaReadsByMappingQuality,
-    coarsened,
+    drawn,
   }
 }
 
@@ -666,6 +676,8 @@ function createTubeMap(preserveViewport = true): void {
     imageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
     trackForRuler = undefined
     coarsened = undefined
+    drawn = []
+    drawnSchemes = new Map()
     emitRenderedColoring()
     return
   }
@@ -680,6 +692,18 @@ function createTubeMap(preserveViewport = true): void {
     coarsened,
   } = layout)
   imageBounds = layout.bounds
+  drawn = tracks.map(datumOf)
+  drawnSchemes = new Map()
+  // A haplotype band is shaded by its share, so it says nothing about the
+  // scheme its file's paths took
+  for (const [i, track] of tracks.entries()) {
+    if (
+      drawn[i]!.mark !== 'haplotypeBand' &&
+      !drawnSchemes.has(track.sourceTrackID)
+    ) {
+      drawnSchemes.set(track.sourceTrackID, colorSchemeFor(track))
+    }
+  }
   emitRenderedColoring()
   const applyInitialTransform = alignSVG(preserveViewport)
   defineHoverPattern()
@@ -994,14 +1018,18 @@ function colorSchemeFor(track: ColorableTrack): ColorScheme {
   )
 }
 
+function datumOf(track: ColorableTrack): DrawnTrack {
+  return drawnTrack(track, inputTracks[0]?.id, config.readGroups)
+}
+
 function generateTrackColor(track: ColorableTrack): string {
-  const mark = markOf(track, inputTracks[0]?.id)
-  return colorScaleFor(mark, colorSchemeFor(track), config).color(track)
+  const datum = datumOf(track)
+  return colorScaleFor(datum.mark, colorSchemeFor(track), config).color(datum)
 }
 
 function generateTrackAlpha(track: ColorableTrack): number {
-  const mark = markOf(track, inputTracks[0]?.id)
-  return alphaScaleFor(mark, config)?.alpha(track) ?? 1
+  const datum = datumOf(track)
+  return alphaScaleFor(datum.mark, config)?.alpha(datum) ?? 1
 }
 
 // to avoid problems with wrong overlapping of tracks, draw them in order of their color
@@ -1732,15 +1760,13 @@ function defineHoverPattern(): void {
     patternUnits: 'userSpaceOnUse',
     patternTransform: 'rotate(45)',
   })
-  pattern
-    .append('rect')
-    .call(applyAttrs, {
-      x: 0,
-      y: 0,
-      width: tile,
-      height: tile,
-      fill: '#FFFFFF',
-    })
+  pattern.append('rect').call(applyAttrs, {
+    x: 0,
+    y: 0,
+    width: tile,
+    height: tile,
+    fill: '#FFFFFF',
+  })
   for (const y of [0, gap]) {
     for (const x of [0, gap]) {
       pattern

@@ -2,6 +2,8 @@
 //
 // gbz-base emits three flavors of path names:
 //   * Real PanSN, e.g. `CHM13#0#chrM`           — show as-is
+//   * Reference: `_gbwt_ref#0#contig`           — the sample gbz-base gives a
+//     reference path; show the contig, which is what the Region field takes
 //   * Anonymized cluster: `unknown#N#contig`    — vg gbwt strips real sample
 //     names from non-reference haplotypes; render as "contig haplotype #N"
 //     and append the cluster weight when known (with --distinct, identical
@@ -15,6 +17,10 @@ export function formatTrackDisplayName(
   freq?: number,
 ): string {
   if (name === undefined) return '(unnamed)'
+  const ref = /^_gbwt_ref#\d+#(.+)$/.exec(name)
+  if (ref) {
+    return ref[1]!
+  }
   const anon = /^unknown#(\d+)#(.+)$/.exec(name)
   if (anon) {
     const base = `${anon[2]} haplotype #${anon[1]}`

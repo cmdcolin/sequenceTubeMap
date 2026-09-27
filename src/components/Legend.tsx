@@ -190,9 +190,7 @@ function Legend({
                 ))}
               </div>
             ) : (
-              <div style={{ color: '#999', paddingLeft: 8 }}>
-                no color scheme
-              </div>
+              <div style={{ color: '#999', paddingLeft: 8 }}>nothing drawn</div>
             )}
           </div>
         ))}

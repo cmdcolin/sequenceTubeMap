@@ -130,12 +130,13 @@ pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --legend --out brca1.svg
 
 ![A figure carrying its color legend](tubemap-cli-samples/snp1kg-BRCA1.png)
 
-It shows the colors each thing is drawn in, which are not always the obvious
-ones: everything but a read takes `mainPalette`'s first color for the reference
-path, which the key shows as that one swatch, and colors every other path from
-`auxPalette`, so a graph with no separate haplotype track gets both rows. The
-**Download Image** button in the app saves the same key, whenever the legend
-panel is open.
+It keys what the figure draws, in the colors it draws them: the reference path
+as the one swatch it takes from `mainPalette`, each other path by name in its
+`auxPalette` color while that palette can tell them apart, and reads by strand,
+group or mapping quality as the view colors them. A file whose tracks are all
+out of view, hidden or filtered gets no rows rather than a key to colors nothing
+has. The **Download Image** button in the app saves the same key, whenever the
+legend panel is open.
 
 Pass it where a color means something, and leave it off where it does not. None
 of the `--example` datasets contain a wholly reverse-strand read, so a key on

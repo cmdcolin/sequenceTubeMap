@@ -1,6 +1,8 @@
 // Each scale maps a drawn track to its color or opacity, and keys that same
-// mapping as legend rows, so a key built from a scale can't disagree with it.
-import type { ColorableTrack, Coarsening } from '@gmod/tubemap-core'
+// mapping as legend rows for the tracks actually drawn. A key built from a
+// scale can't disagree with it, and a key trained on the drawing can't name a
+// color nothing in view has.
+import type { HaplotypeShare } from '@gmod/tubemap-core'
 import {
   MAX_MAPPING_QUALITY,
   mappingQualityAlpha,
@@ -11,6 +13,25 @@ import {
   haplotypeShareRamp,
   paletteColors,
 } from './palettes.ts'
+import { formatTrackDisplayName } from './trackName.ts'
+
+// What a drawn track is, as far as coloring goes
+export type Mark = 'reference' | 'path' | 'read' | 'readBand' | 'haplotypeBand'
+
+// A drawn track projected onto the variables the scales read: the data the
+// scales color and the legend is trained on
+export interface DrawnTrack {
+  mark: Mark
+  // Index of the loaded file it came from
+  source: number
+  id: number
+  name?: string
+  reverse: boolean
+  mappingQuality?: number
+  // Index of the read group that colors it, for a read in one
+  group?: number
+  share?: HaplotypeShare
+}
 
 // Palettes by name, or a bare hex for a single custom color
 export interface Scheme {
@@ -23,22 +44,22 @@ export type LegendRow =
   // A continuous scale, low to high
   | { label: string; ramp: readonly string[] }
 
-// `noun` names the tracks the rows key, lowercase and plural: "reads"
+// `noun` names the tracks the rows key, lowercase and plural: "reads".
+// `drawn` is what this scale colored, and trains the rows: a value nothing
+// drawn takes gets no row.
 export interface ColorScale {
-  color(track: ColorableTrack): string
-  rows(noun: string): LegendRow[]
+  color(track: DrawnTrack): string
+  rows(noun: string, drawn: readonly DrawnTrack[]): LegendRow[]
 }
 
 export interface AlphaScale {
-  alpha(track: ColorableTrack): number
+  alpha(track: DrawnTrack): number
   rows(): LegendRow[]
 }
 
-// The renderer needs a group's reads to color by it; its key needs only the name
 export interface ReadGroupColor {
   name?: string
   color: string
-  reads?: ReadonlySet<string>
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -51,110 +72,128 @@ function staggered(palette: string, id: number): string {
   return colors[id % colors.length]!
 }
 
-// Forward from the main palette, reverse from the aux, staggered by id.
-// `keyReverse` says whether anything drawn can be reverse-strand.
-export function strandScale(
-  scheme: Scheme,
+function trackLabel(track: DrawnTrack): string {
+  return track.name === undefined
+    ? `#${track.id}`
+    : formatTrackDisplayName(track.name)
+}
+
+// The strand qualifies a row only where it tells the reader something: once
+// anything drawn is reverse, its row has to say so, and the forward row then
+// says so too
+function strandRows(
+  noun: string,
+  drawn: readonly DrawnTrack[],
   ignoreStrand: boolean,
-  keyReverse: boolean,
-): ColorScale {
+  row: (strand: 'Forward' | 'Reverse' | undefined) => LegendRow,
+): LegendRow[] {
+  if (ignoreStrand || !drawn.some(t => t.reverse)) {
+    return [row(undefined)]
+  }
+  return [
+    ...(drawn.some(t => !t.reverse) ? [row('Forward')] : []),
+    row('Reverse'),
+  ]
+}
+
+const strandLabel = (strand: string | undefined, noun: string) =>
+  strand === undefined ? capitalize(noun) : `${strand} ${noun}`
+
+// Forward from the main palette, reverse from the aux, staggered by id
+export function strandScale(scheme: Scheme, ignoreStrand: boolean): ColorScale {
   const aux = scheme.auxPalette ?? FALLBACK_PALETTE
   return {
     color: track =>
       staggered(
-        track.is_reverse === true && !ignoreStrand ? aux : scheme.mainPalette,
+        track.reverse && !ignoreStrand ? aux : scheme.mainPalette,
         track.id,
       ),
-    rows: noun =>
-      keyReverse
-        ? [
-            { label: `Forward ${noun}`, palette: scheme.mainPalette },
-            { label: `Reverse ${noun}`, palette: aux },
-          ]
-        : [{ label: capitalize(noun), palette: scheme.mainPalette }],
+    rows: (noun, drawn) =>
+      strandRows(noun, drawn, ignoreStrand, strand => ({
+        label: strandLabel(strand, noun),
+        palette: strand === 'Reverse' ? aux : scheme.mainPalette,
+      })),
   }
 }
 
-// One color, the main palette's first, so its key is a single swatch
+// One color, the main palette's first, so its key is a single swatch naming
+// the path
 export function referenceScale(scheme: Scheme): ColorScale {
   const color = paletteColors(scheme.mainPalette)[0]!
   return {
     color: () => color,
-    rows: noun => [{ label: capitalize(noun), palette: color }],
+    rows: (noun, drawn) =>
+      drawn.map(track => ({
+        label:
+          track.name === undefined
+            ? capitalize(noun)
+            : `${capitalize(noun)} ${trackLabel(track)}`,
+        palette: color,
+      })),
   }
 }
 
-// The paths beside the reference, which leave the reference's color to it
+// The paths beside the reference, which leave the reference's color to it.
+// Each gets its own row while the palette can tell them apart; past that the
+// colors repeat, so one row shows the palette they cycle through.
 export function pathScale(scheme: Scheme): ColorScale {
   const aux = scheme.auxPalette ?? FALLBACK_PALETTE
+  const colors = paletteColors(aux)
+  const color = (track: DrawnTrack) =>
+    colors[(track.id - 1 + colors.length) % colors.length]!
   return {
-    color: track => {
-      const colors = paletteColors(aux)
-      return colors[(track.id - 1 + colors.length) % colors.length]!
-    },
-    rows: noun => [{ label: capitalize(noun), palette: aux }],
+    color,
+    rows: (noun, drawn) =>
+      drawn.length <= colors.length
+        ? [...drawn]
+            .sort((a, b) => a.id - b.id)
+            .map(track => ({ label: trackLabel(track), palette: color(track) }))
+        : [{ label: `${drawn.length.toLocaleString()} ${noun}`, palette: aux }],
   }
 }
 
 // A coarsened haplotype band, shaded by its share of the banded haplotypes
-export function shareScale(
-  coarsened: Coarsening | undefined,
-  ignoreStrand: boolean,
-): ColorScale {
+export function shareScale(ignoreStrand: boolean): ColorScale {
   return {
     color: track =>
-      haplotypeShareColor(
-        track.haplotypeShare!,
-        track.is_reverse === true && !ignoreStrand,
-      ),
-    rows: noun => {
-      if (coarsened === undefined) {
+      haplotypeShareColor(track.share!, track.reverse && !ignoreStrand),
+    rows: (noun, drawn) => {
+      const total = drawn[0]?.share?.total
+      if (total === undefined) {
         return []
       }
-      const { total, reverse } = coarsened
       const span =
         total === 1
           ? 'the one other haplotype'
           : `1 to all ${total.toLocaleString()} other haplotypes`
-      return reverse
-        ? [
-            { label: `Forward ${noun}, ${span}`, ramp: haplotypeShareRamp() },
-            {
-              label: `Reverse ${noun}, ${span}`,
-              ramp: haplotypeShareRamp(true),
-            },
-          ]
-        : [
-            {
-              label: `${capitalize(noun)}, ${span}`,
-              ramp: haplotypeShareRamp(),
-            },
-          ]
+      return strandRows(noun, drawn, ignoreStrand, strand => ({
+        label: `${strandLabel(strand, noun)}, ${span}`,
+        ramp: haplotypeShareRamp(strand === 'Reverse'),
+      }))
     },
   }
 }
 
-// Last group wins on overlap; reads in no group take `otherColor`
+// Reads in no group take `otherColor`
 export function readGroupScale(
   groups: readonly ReadGroupColor[],
   otherColor: string,
 ): ColorScale {
   return {
-    color: track => {
-      const { name } = track
-      for (let i = groups.length - 1; i >= 0; i--) {
-        if (name !== undefined && groups[i]!.reads?.has(name)) {
-          return staggered(groups[i]!.color, track.id)
-        }
-      }
-      return staggered(otherColor, track.id)
-    },
-    rows: noun => [
-      ...groups.map((g, i) => ({
-        label: g.name ?? `Group ${i + 1}`,
-        palette: g.color,
-      })),
-      { label: `Other ${noun}`, palette: otherColor },
+    color: track =>
+      staggered(
+        track.group === undefined ? otherColor : groups[track.group]!.color,
+        track.id,
+      ),
+    rows: (noun, drawn) => [
+      ...groups.flatMap((g, i) =>
+        drawn.some(t => t.group === i)
+          ? [{ label: g.name ?? `Group ${i + 1}`, palette: g.color }]
+          : [],
+      ),
+      ...(drawn.some(t => t.group === undefined)
+        ? [{ label: `Other ${noun}`, palette: otherColor }]
+        : []),
     ],
   }
 }
@@ -166,7 +205,7 @@ function mappingQualityRamp(color: (quality: number) => string): string[] {
 }
 
 export const mappingQualityColorScale: ColorScale = {
-  color: track => mappingQualityColor(track.mapping_quality),
+  color: track => mappingQualityColor(track.mappingQuality),
   rows: () => [
     {
       label: `Mapping quality ${MAPPING_QUALITY_RANGE}`,
@@ -185,7 +224,7 @@ function fadedBlack(quality: number): string {
 }
 
 export const mappingQualityAlphaScale: AlphaScale = {
-  alpha: track => mappingQualityAlpha(track.mapping_quality),
+  alpha: track => mappingQualityAlpha(track.mappingQuality),
   rows: () => [
     {
       label: `Opacity, mapping quality ${MAPPING_QUALITY_RANGE}`,

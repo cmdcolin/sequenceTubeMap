@@ -6,6 +6,8 @@ import * as d3 from 'd3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tubeMap from './tubemap.ts'
 import { haplotypeShareColor } from './palettes.ts'
+import { legendSections } from './legend.ts'
+import { defaultTrackColors } from '../common.ts'
 import type { InfoAttribute, InputNode, InputTrack } from './tubemap.ts'
 import { computeExampleData } from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
@@ -790,11 +792,11 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
     expect(colorOf('Node 1 → Node 2')).toBe(rare)
     expect(colorOf('Node 2 → Node 4')).toBe(rare)
     expect(rare).not.toBe(common)
-    expect(tubeMap.getRenderedColoring().coarsened).toEqual({
-      unit: 'haplotype',
-      total: 4,
-      reverse: false,
-    })
+    const bands = tubeMap
+      .getRenderedColoring()
+      .drawn.filter(t => t.mark === 'haplotypeBand')
+    expect(bands.map(t => t.share?.total)).toEqual([4, 4, 4, 4])
+    expect(bands.some(t => t.reverse)).toBe(false)
   })
 
   // The widest band gets the full 60-unit lane. A curve runs M x y … x
@@ -930,5 +932,55 @@ describe('tubemap.getRenderedColoring', () => {
     expect(coloring.readGroups).toEqual([{ name: 'Carriers', color: 'reds' }])
     expect(coloring.otherReadsColor).toBe('greys')
     expect(coloring.ignoreStrand).toBe(true)
+  })
+
+  // The snp1kg example's graph carries one path, so its key has a reference
+  // row and no row for other paths
+  it('reports what the draw placed and the scheme each file fell back to', () => {
+    setupSvg()
+    tubeMap.setColorSet(0, { mainPalette: 'greys', auxPalette: 'ygreys' })
+    const nodes: InputNode[] = [
+      { name: '1', seq: 'AAAA' },
+      { name: '2', seq: 'CCCC' },
+    ]
+    const graph: InputTrack[] = [
+      {
+        id: 0,
+        name: '17',
+        sequence: ['1', '2'],
+        sourceTrackID: 0,
+        indexOfFirstBase: 0,
+      },
+    ]
+    const reads: InputTrack[] = [
+      {
+        id: 1,
+        name: 'r1',
+        type: 'read',
+        sequence: ['1', '2'],
+        sourceTrackID: 2,
+      },
+    ]
+    render(nodes, graph, reads)
+
+    const coloring = tubeMap.getRenderedColoring()
+    expect([...coloring.drawn].sort((a, b) => a.id - b.id)).toEqual([
+      { mark: 'reference', source: 0, id: 0, name: '17', reverse: false },
+      { mark: 'read', source: 2, id: 1, name: 'r1', reverse: false },
+    ])
+    expect(coloring.colorSchemes[2]).toEqual(defaultTrackColors('read'))
+    const sections = legendSections({
+      tracks: [
+        { trackType: 'graph', trackFile: 'x.xg' },
+        { trackType: 'haplotype', trackFile: 'x.gbwt' },
+        { trackType: 'read', trackFile: 'x.gam' },
+      ],
+      ...coloring,
+    })
+    expect(sections.map(s => s.rows.map(r => r.label))).toEqual([
+      ['Reference path 17'],
+      [],
+      ['Reads'],
+    ])
   })
 })
