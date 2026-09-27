@@ -14,6 +14,7 @@ import type {
   Mismatch,
   Node,
   NodeAssignment,
+  ReadSequenceEntry,
   Segment,
   SegmentAssignment,
   Track,
@@ -3290,120 +3291,79 @@ function mergeNodes(): void {
     }
   })
 
-  // update reads which pass through merging nodes
-  if (reads.length > 0) {
-    // sort nodes by order, then by y-coordinate
-    const sortedNodes = nodes.slice()
-    sortedNodes.sort(compareNodesByOrder)
-
-    // iterate over all nodes and calculate their position within the new merged node
-    // Both maps carry an entry for each orientation of every node name ("7"
-    // and "-7"), because the read update below looks up whichever orientation
-    // the read happens to visit.
-    const mergeOffset = new Map<string, number>()
-    // maps to leftmost node of a node's "merging cascade"
-    const mergeOrigin = new Map<string, string>()
-    const offsetOf = (nodeName: string): number => {
-      const offset = mergeOffset.get(nodeName)
-      if (offset === undefined) {
-        throw new Error(`No merge offset recorded for node ${nodeName}`)
-      }
-      return offset
-    }
-    const originOf = (nodeName: string): string => {
-      const origin = mergeOrigin.get(nodeName)
-      if (origin === undefined) {
-        throw new Error(`No merge origin recorded for node ${nodeName}`)
-      }
-      return origin
-    }
-    sortedNodes.forEach(node => {
-      const predecessorIndex = mergeableWithPred(
-        nodeMap.get(node.name)!,
-        pred,
-        succ,
-      )
-      if (predecessorIndex !== 0) {
-        const predecessor = nodes[predecessorIndex]!.name
-        // Nodes are visited in order, so the predecessor of a merge cascade is
-        // always recorded before the node that follows it.
-        const offset =
-          offsetOf(predecessor) + nodes[predecessorIndex]!.sequenceLength
-        mergeOffset.set(node.name, offset)
-        mergeOffset.set(reverse(node.name), offset)
-        mergeOrigin.set(node.name, originOf(predecessor))
-        mergeOrigin.set(reverse(node.name), originOf(predecessor))
-      } else {
-        mergeOffset.set(node.name, 0)
-        mergeOffset.set(reverse(node.name), 0)
-        mergeOrigin.set(node.name, node.name)
-        mergeOrigin.set(reverse(node.name), node.name)
-      }
-    })
-
-    reads.forEach(read => {
-      const sequenceNew =
-        read.sequenceNew ??
-        read.sequence.map(nodeName => ({ nodeName, mismatches: [] }))
-      read.firstNodeOffset =
-        (read.firstNodeOffset ?? 0) + offsetOf(read.sequence[0]!)
-      read.finalNodeCoverLength =
-        (read.finalNodeCoverLength ?? 0) +
-        offsetOf(read.sequence[read.sequence.length - 1]!)
-      for (let i = read.sequence.length - 1; i >= 0; i -= 1) {
-        const nodeName = forward(read.sequence[i]!)
-        const predecessorIndex = mergeableWithPred(
-          nodeMap.get(nodeName)!,
-          pred,
-          succ,
-        )
-        if (predecessorIndex !== 0) {
-          if (i > 0) {
-            read.sequence.splice(i, 1)
-            // adjust position of mismatches
-            const predLength = nodes[predecessorIndex]!.sequenceLength
-            sequenceNew[i]!.mismatches.forEach(mismatch => {
-              mismatch.pos += predLength
-            })
-            // append mismatches to previous entry's mismatches
-            sequenceNew[i - 1]!.mismatches = sequenceNew[
-              i - 1
-            ]!.mismatches.concat(sequenceNew[i]!.mismatches)
-            sequenceNew.splice(i, 1)
-          } else {
-            read.sequence[0] = originOf(read.sequence[0]!)
-            const firstEntry = sequenceNew[0]!
-            const firstOffset = offsetOf(firstEntry.nodeName)
-            firstEntry.mismatches.forEach(mismatch => {
-              mismatch.pos += firstOffset
-            })
-            firstEntry.nodeName = originOf(firstEntry.nodeName)
-          }
-        }
-      }
-    })
-  }
-
-  // update node sequences + sequence lengths
-  for (let i = 0; i < nodes.length; i += 1) {
-    if (
-      mergeableWithSucc(i, pred, succ) &&
-      mergeableWithPred(i, pred, succ) === 0
-    ) {
-      let donor = i
-      while (mergeableWithSucc(donor, pred, succ)) {
-        donor = soleNeighbor(succ, donor)
-        nodes[i]!.sequenceLength += nodes[donor]!.sequenceLength
-        nodes[i]!.seq += nodes[donor]!.seq
-      }
-    }
-  }
-
-  // actually merge the nodes by removing the corresponding nodes from track data
   const absorbed = new Uint8Array(nodes.length)
-  for (let i = 0; i < nodes.length; i += 1) {
+  nodes.forEach((_, i) => {
     if (mergeableWithPred(i, pred, succ) !== 0) absorbed[i] = 1
-  }
+  })
+
+  // Merge each run into its first node, noting the node every run member
+  // merges into and where the member's bases start and end within it.
+  const origin = new Int32Array(nodes.length)
+  const start = new Float64Array(nodes.length)
+  const end = new Float64Array(nodes.length)
+  nodes.forEach((node, head) => {
+    if (absorbed[head] === 1) return
+    origin[head] = head
+    end[head] = node.sequenceLength
+    for (let donor = head; mergeableWithSucc(donor, pred, succ);) {
+      donor = soleNeighbor(succ, donor)
+      origin[donor] = head
+      start[donor] = node.sequenceLength
+      node.sequenceLength += nodes[donor]!.sequenceLength
+      node.seq += nodes[donor]!.seq
+      end[donor] = node.sequenceLength
+    }
+  })
+
+  // A read's offsets and mismatch positions count along the strand it visits
+  // a node on: from the left end of a forward visit, the right end of a
+  // reverse one. A forward visit to an absorbed node folds into the visit
+  // before it, a reverse one into the visit after it.
+  reads.forEach(read => {
+    const { sequence } = read
+    const entries =
+      read.sequenceNew ??
+      sequence.map(nodeName => ({ nodeName, mismatches: [] as Mismatch[] }))
+    const shift = (nodeName: string): number => {
+      const index = Math.abs(visit(nodeName))
+      return isReverse(nodeName)
+        ? nodes[origin[index]!]!.sequenceLength - end[index]!
+        : start[index]!
+    }
+    const last = sequence.length - 1
+    read.firstNodeOffset = (read.firstNodeOffset ?? 0) + shift(sequence[0]!)
+    read.finalNodeCoverLength =
+      (read.finalNodeCoverLength ?? 0) + shift(sequence[last]!)
+
+    const mergedSequence: string[] = []
+    const mergedEntries: ReadSequenceEntry[] = []
+    let carried: Mismatch[] = []
+    sequence.forEach((nodeName, i) => {
+      const index = Math.abs(visit(nodeName))
+      const { mismatches } = entries[i]!
+      const by = shift(nodeName)
+      mismatches.forEach(mismatch => {
+        mismatch.pos += by
+      })
+      if (absorbed[index] === 1 && !isReverse(nodeName) && i > 0) {
+        mergedEntries.at(-1)!.mismatches.push(...mismatches)
+      } else if (absorbed[index] === 1 && isReverse(nodeName) && i < last) {
+        carried.push(...mismatches)
+      } else {
+        const name = nodes[origin[index]!]!.name
+        const merged = isReverse(nodeName) ? reverse(name) : name
+        mergedSequence.push(merged)
+        mergedEntries.push({
+          nodeName: merged,
+          mismatches: carried.concat(mismatches),
+        })
+        carried = []
+      }
+    })
+    read.sequence = mergedSequence
+    if (read.sequenceNew !== undefined) read.sequenceNew = mergedEntries
+  })
+
   tracks.forEach(track => {
     const { sequence } = track
     let kept = 0

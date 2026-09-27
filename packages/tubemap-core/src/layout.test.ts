@@ -277,6 +277,70 @@ describe('layoutTubeMap', () => {
     expect(two!.seq[read!.sequenceNew![1]!.mismatches[0]!.pos]).toBe('C')
   })
 
+  describe('merging nodes under a read that crosses an inversion', () => {
+    // A merges B; the reads walk the merged run backwards
+    const line: InputNode[] = [
+      { name: 'X', seq: 'CC' },
+      { name: 'A', seq: 'AC' },
+      { name: 'B', seq: 'GT' },
+    ]
+    const ref: InputTrack = {
+      id: 0,
+      sequence: ['X', 'A', 'B'],
+      sourceTrackID: 0,
+    }
+    const layoutRead = (read: Partial<InputTrack>) =>
+      layoutTubeMap(
+        line,
+        [ref],
+        [{ id: 1, type: 'read', sourceTrackID: 1, sequence: [], ...read }],
+      )!.reads[0]!
+
+    it('folds a reverse visit into the visit after it', () => {
+      const read = layoutRead({
+        sequence: ['-B', '-A', 'X'],
+        firstNodeOffset: 1,
+        finalNodeCoverLength: 1,
+        sequenceNew: [
+          {
+            nodeName: '-B',
+            mismatches: [{ type: 'substitution', pos: 0, seq: 'G' }],
+          },
+          {
+            nodeName: '-A',
+            mismatches: [{ type: 'substitution', pos: 1, seq: 'G' }],
+          },
+          { nodeName: 'X', mismatches: [] },
+        ],
+      })
+      expect(read.sequence).toEqual(['-A', 'X'])
+      expect(read.firstNodeOffset).toBe(1)
+      expect(read.sequenceNew![0]!.mismatches.map(m => m.pos)).toEqual([0, 3])
+    })
+
+    it('counts a reverse visit from the merged node’s right end', () => {
+      const read = layoutRead({
+        sequence: ['X', '-B', '-A'],
+        firstNodeOffset: 1,
+        finalNodeCoverLength: 2,
+        sequenceNew: [
+          { nodeName: 'X', mismatches: [] },
+          {
+            nodeName: '-B',
+            mismatches: [{ type: 'substitution', pos: 1, seq: 'G' }],
+          },
+          { nodeName: '-A', mismatches: [] },
+        ],
+      })
+      expect(read.sequence).toEqual(['X', '-A'])
+      expect(read.sequenceNew!.map(e => e.mismatches.map(m => m.pos))).toEqual([
+        [],
+        [1],
+      ])
+      expect(read.finalNodeCoverLength).toBe(4)
+    })
+  })
+
   it('returns undefined when every track is hidden', () => {
     const hidden = tracks.map(t => ({ ...t, hidden: true }))
     expect(layoutTubeMap(nodes, hidden)).toBeUndefined()
