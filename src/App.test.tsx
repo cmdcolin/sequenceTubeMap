@@ -1,6 +1,6 @@
 // Tests functionality without server
 
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import App from './App.tsx'
@@ -666,5 +666,70 @@ describe('leaving a view before it loads', () => {
       expect(asked).toEqual(['17:1-100', 'ref:1-100', 'x:1-100', 'ref:1-100'])
     })
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+
+  // Back on a view before its aborted fetch settled, SWR waits on that fetch
+  // and retries once it fails. The retry used to be marked finished as it
+  // started, so it ran with no loading overlay.
+  it('shows the retried fetch as loading when the view is back before its abort lands', async () => {
+    const asked: string[] = []
+    const settleAbort = new Map<string, () => void>()
+    renderApp(
+      fakeAPI({
+        getChunkedData: (target, signal) => {
+          asked.push(target.region)
+          if (target.region === '17:1-100') {
+            return Promise.resolve({})
+          }
+          return new Promise((_resolve, reject) => {
+            signal?.addEventListener('abort', () => {
+              settleAbort.set(target.region, () => {
+                reject(new DOMException('Aborted', 'AbortError'))
+              })
+            })
+          })
+        },
+      }),
+    )
+    // A drawn view for keepPreviousData to hold, so loading shows as the
+    // overlay rather than the empty-state loader.
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(
+      screen.getByRole('menuitem', { name: 'Synthetic examples' }),
+    )
+    await userEvent.click(screen.getByText('Inversions'))
+    await waitFor(() => {
+      expect(document.querySelector('#tubeMapSVG svg')).toBeTruthy()
+    })
+    await pick('cactus')
+    await pick('vg "small" example')
+    await pick('cactus')
+
+    await act(async () => {
+      settleAbort.get('ref:1-100')!()
+      await new Promise(resolve => setTimeout(resolve, 20))
+    })
+    await waitFor(() => {
+      expect(asked.filter(region => region === 'ref:1-100')).toHaveLength(2)
+    })
+    expect(screen.getByTestId('tubeMapLoadingOverlay')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+
+  // Only an abort of the app's own fetch is a view left behind; retrying any
+  // other AbortError would never end.
+  it('reports an AbortError it did not cause as an error', async () => {
+    let calls = 0
+    renderApp(
+      fakeAPI({
+        getChunkedData: async () => {
+          calls += 1
+          throw new DOMException('Upstream gave up', 'AbortError')
+        },
+      }),
+    )
+
+    expect(await screen.findByText(/Upstream gave up/)).toBeInTheDocument()
+    expect(calls).toBe(1)
   })
 })

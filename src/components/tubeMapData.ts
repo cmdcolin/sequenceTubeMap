@@ -9,7 +9,7 @@ import type {
 } from '../util/tubemap.ts'
 import type { APIInterface, ChunkedDataResponse } from '../api/APIInterface.ts'
 import { dataOriginTypes } from '../enums.ts'
-import { isAbortError } from '../util/error.ts'
+import { errorMessage, isAbortError } from '../util/error.ts'
 import type { Tracks, ViewTarget } from '../Types.ts'
 
 // demo-data.js types are inferred from JS literals; keep this loose so the
@@ -203,6 +203,13 @@ export async function fetchTubeMapData(
         await api.getChunkedData(target, controller.signal),
         target.tracks,
       )
+    } catch (e) {
+      // Only an abort of this fetch means its view was left. Any other would
+      // pass for one, and `refetchAborted` would retry it forever.
+      if (isAbortError(e) && !controller.signal.aborted) {
+        throw new Error(errorMessage(e), { cause: e })
+      }
+      throw e
     } finally {
       if (inflight === controller) {
         inflight = undefined
@@ -223,13 +230,16 @@ export async function fetchTubeMapData(
 // SWR retry options for the tube map fetch. An aborted fetch belongs to a view
 // the user left, so SWR retries it only if that view is on screen again: the
 // user came back before it settled, and SWR waited on it instead of fetching
-// anew.
+// anew. SWR records the failed request's end after calling onErrorRetry, which
+// would mark a retry started from inside it as finished, so it starts after.
 export const refetchAborted: Pick<
   SWRConfiguration,
   'shouldRetryOnError' | 'onErrorRetry'
 > = {
   shouldRetryOnError: isAbortError,
   onErrorRetry: (_error, _key, _config, revalidate, opts) => {
-    void revalidate(opts)
+    setTimeout(() => {
+      void revalidate(opts)
+    }, 0)
   },
 }
