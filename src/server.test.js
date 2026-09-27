@@ -250,6 +250,30 @@ describe.skipIf(!HAS_VG)('pre-fetched chunks', () => {
     expect(body.gam[0].length).toBeGreaterThan(0)
   })
 
+  it('keeps read files in chunk order past ten of them', async () => {
+    const bedFile = makeBedWithChunks([['ref:1-10', 'chunk-ref-1-20']])
+    const chunkDir = path.join(path.dirname(bedFile), 'chunk-ref-1-20')
+    const gam = number => path.join(chunkDir, `chunk${number}_0_ref_0_1926.gam`)
+    for (let i = 2; i <= 9; i++) {
+      fs.copyFileSync(gam('-1'), gam(`-${i}`))
+    }
+    fs.copyFileSync(
+      'exampleData/chunk-ref-2000-3000/chunk_0_ref_1955_5023.gam',
+      gam('-10'),
+    )
+
+    const { status, body } = await post('getChunkedData', {
+      region: 'ref:1-10',
+      bedFile,
+      tracks: [CACTUS_GRAPH],
+    })
+    expect(status).toBe(200)
+    const readNames = body.gam.map(reads => reads.map(read => read.name).join())
+    expect(readNames).toHaveLength(11)
+    expect(new Set(readNames.slice(1, 10)).size).toBe(1)
+    expect(new Set([readNames[0], readNames[1], readNames[10]]).size).toBe(3)
+  })
+
   it('reports a chunk without regions.tsv as an error', async () => {
     const bedFile = makeBedWithChunks(
       [['ref:500-600', 'chunk-cactus-no-reads']],

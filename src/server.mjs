@@ -1555,9 +1555,7 @@ function processGamFile(req, res, next, gamFile, gamFileNumber) {
   try {
     if (!isAllowedPath(gamFile)) {
       // This is probably under SCRATCH_DATA_PATH
-      throw new BadRequestError(
-        'Path to GAM/GAF file not allowed: ' + req.gamFile,
-      )
+      throw new BadRequestError('Path to GAM/GAF file not allowed: ' + gamFile)
     }
 
     if (gamFile.endsWith('.json')) {
@@ -1696,7 +1694,7 @@ function processGamFiles(req, res, next) {
         }
         return parseInt(matches[1])
       } else {
-        const pattern = /.*\/chunk(-([0-9])+)?_.*\.ga[mf]/
+        const pattern = /.*\/chunk(-([0-9]+))?_.*\.ga[mf]/
         const matches = gamName.match(pattern)
         if (!matches) {
           throw new InternalServerError('Bad GAM/GAF name ' + gamName)
