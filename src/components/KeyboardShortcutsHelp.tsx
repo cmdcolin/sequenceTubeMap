@@ -10,7 +10,10 @@ const SHORTCUTS: [string, string][] = [
 
 export function KeyboardShortcutsHelp() {
   return (
-    <HelpDialog title="Keyboard shortcuts" label="Keyboard shortcuts">
+    <HelpDialog
+      title="Keyboard shortcuts"
+      trigger={{ label: 'Keyboard shortcuts' }}
+    >
       <table style={{ borderCollapse: 'collapse' }}>
         <tbody>
           {SHORTCUTS.map(([keys, description]) => (

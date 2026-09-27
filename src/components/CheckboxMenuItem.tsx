@@ -2,7 +2,7 @@ import Checkbox from '@mui/material/Checkbox'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
 import MenuItem from '@mui/material/MenuItem'
-import { HelpIcon } from './HelpIcon.tsx'
+import { HelpDialog } from './HelpDialog.tsx'
 
 export function CheckboxMenuItem({
   label,
@@ -39,7 +39,7 @@ export function CheckboxMenuItem({
         />
       </ListItemIcon>
       <ListItemText primary={label} />
-      {helpText && <HelpIcon label={label} helpText={helpText} />}
+      {helpText && <HelpDialog title={label}>{helpText}</HelpDialog>}
     </MenuItem>
   )
 }

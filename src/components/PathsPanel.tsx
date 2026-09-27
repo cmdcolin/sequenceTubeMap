@@ -110,7 +110,10 @@ function PathsPanel({
           </Button>
         }
         action={
-          <HelpDialog title="Paths in this graph">
+          <HelpDialog
+            title="Paths in this graph"
+            trigger={{ label: 'What is this?' }}
+          >
             <p>
               These are the named paths embedded in the pangenome graph file
               (e.g. reference chromosomes or haplotypes stored in a GBZ/VG/XG

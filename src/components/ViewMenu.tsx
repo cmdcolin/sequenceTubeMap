@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography'
 import type { ViewTarget, VisOptionFlag, VisOptions } from '../Types.ts'
 import { AppBarMenu } from './AppBarMenu.tsx'
 import { CheckboxMenuItem } from './CheckboxMenuItem.tsx'
-import { HelpIcon } from './HelpIcon.tsx'
+import { HelpDialog } from './HelpDialog.tsx'
 import { OpenInBandageJsMenuItem } from './OpenInBandageJsMenuItem.tsx'
 import PopupDialog from './PopupDialog.tsx'
 import TrackVisibilityPanel from './TrackVisibilityPanel.tsx'
@@ -156,10 +156,11 @@ export function ViewMenu({
               <Typography variant="body2" id="mappingQualityCutoffLabel">
                 Mapping quality cutoff:
               </Typography>
-              <HelpIcon
-                label="Mapping quality cutoff"
-                helpText="Hides reads whose mapping quality (MAPQ) score falls below this value (0–60). Higher values show only the most confidently placed reads."
-              />
+              <HelpDialog title="Mapping quality cutoff">
+                Hides reads whose mapping quality (MAPQ) score falls below this
+                value (0–60). Higher values show only the most confidently
+                placed reads.
+              </HelpDialog>
               <Select
                 size="small"
                 labelId="mappingQualityCutoffLabel"
