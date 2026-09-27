@@ -448,7 +448,7 @@ function straightenTrack(index: number): void {
 
   nodes.forEach(node => {
     if (nodesToInvert.has(node.name)) {
-      node.seq = node.seq.split('').reverse().join('')
+      node.seq = getReverseComplement(node.seq)
     }
   })
 }
