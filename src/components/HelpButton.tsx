@@ -61,6 +61,7 @@ export const HelpButton = ({ file }: HelpButtonProps) => {
     <>
       <IconButton
         color="inherit"
+        aria-label="Help"
         title="Help — region format, controls, and feature reference"
         onClick={() => {
           setOpen(!open)
