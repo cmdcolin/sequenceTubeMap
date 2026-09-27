@@ -686,7 +686,7 @@ function createTubeMap(preserveViewport = true): void {
   imageBounds = layout.bounds
   emitRenderedColoring()
   const applyInitialTransform = alignSVG(preserveViewport)
-  defineSVGPatterns()
+  defineHoverPattern()
 
   // all drawn tracks are grouped
   const trackGroup = svg.append('g').attr('class', 'track')
@@ -1706,47 +1706,27 @@ function appendTrackRectangles(
     .on('contextmenu', trackRightClick)
 }
 
-// The diagonal cross-hatch patterns used to highlight a hovered track
-// (patternA), plus the per-track plaid fills. All eight share one geometry:
-// a white tile with four small squares, rotated 45°.
-interface HatchPattern {
-  id: string
-  tile: number
-  dot: number
-  gap: number
-  color: string
-}
-
-const HATCH_PATTERNS: readonly HatchPattern[] = [
-  { id: 'patternA', tile: 7, dot: 3, gap: 4, color: '#505050' },
-  { id: 'patternB', tile: 8, dot: 3, gap: 5, color: '#1f77b4' },
-  { id: 'plaid0', tile: 6, dot: 2, gap: 4, color: '#1f77b4' },
-  { id: 'plaid1', tile: 6, dot: 2, gap: 4, color: '#ff7f0e' },
-  { id: 'plaid2', tile: 6, dot: 2, gap: 4, color: '#2ca02c' },
-  { id: 'plaid3', tile: 6, dot: 2, gap: 4, color: '#d62728' },
-  { id: 'plaid4', tile: 6, dot: 2, gap: 4, color: '#9467bd' },
-  { id: 'plaid5', tile: 6, dot: 2, gap: 4, color: '#8c564b' },
-]
-
-function defineSVGPatterns(): void {
-  const defs = svg.append('defs')
-  for (const { id, tile, dot, gap, color } of HATCH_PATTERNS) {
-    const pattern = defs.append('pattern').call(applyAttrs, {
-      id,
-      width: tile,
-      height: tile,
-      patternUnits: 'userSpaceOnUse',
-      patternTransform: 'rotate(45)',
-    })
-    pattern
-      .append('rect')
-      .call(applyAttrs, { x: 0, y: 0, width: tile, height: tile, fill: '#FFFFFF' })
-    for (const y of [0, gap]) {
-      for (const x of [0, gap]) {
-        pattern
-          .append('rect')
-          .call(applyAttrs, { x, y, width: dot, height: dot, fill: color })
-      }
+// The diagonal cross-hatch a hovered track is filled with: a white tile with
+// four small grey squares, rotated 45°
+function defineHoverPattern(): void {
+  const tile = 7
+  const dot = 3
+  const gap = 4
+  const pattern = svg.append('defs').append('pattern').call(applyAttrs, {
+    id: 'patternA',
+    width: tile,
+    height: tile,
+    patternUnits: 'userSpaceOnUse',
+    patternTransform: 'rotate(45)',
+  })
+  pattern
+    .append('rect')
+    .call(applyAttrs, { x: 0, y: 0, width: tile, height: tile, fill: '#FFFFFF' })
+  for (const y of [0, gap]) {
+    for (const x of [0, gap]) {
+      pattern
+        .append('rect')
+        .call(applyAttrs, { x, y, width: dot, height: dot, fill: '#505050' })
     }
   }
 }
