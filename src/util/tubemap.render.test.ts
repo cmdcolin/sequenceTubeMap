@@ -1196,6 +1196,108 @@ describe('tubemap.create — facets', () => {
     expect(alignedReads(b!)).toBe(1)
   })
 
+  it("lists the clicked panel's reads in a node's right-click menu", () => {
+    const onMenu = vi.fn<(menu: { readNames: string[] } | null) => void>()
+    tubeMap.setNodeContextMenuCallback(onMenu)
+    const svg = draw('read_group')
+    const menuReads = (g: SVGGElement) => {
+      onMenu.mockClear()
+      g.querySelector('g.node path[id="1"]')!.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true }),
+      )
+      return onMenu.mock.calls[0]?.[0]?.readNames
+    }
+    const [a, b] = facetGroups(svg)
+    expect(menuReads(a!)).toEqual(['a1', 'a2'])
+    expect(menuReads(b!)).toEqual(['b1'])
+    const unfaceted = draw(null)
+    expect(menuReads(unfaceted)).toEqual(['a1', 'a2', 'b1'])
+  })
+
+  it('counter-scales panel labels with the zoom, as it does node labels', () => {
+    const svg = draw('read_group')
+    for (const group of svg.querySelectorAll('.facet-label-group')) {
+      expect(group.getAttribute('transform')).toMatch(
+        /^translate\([^)]+\) scale\([\d.]+\)$/,
+      )
+    }
+  })
+
+  describe('by haplotype sample', () => {
+    const samples: InputTrack[] = [
+      { ...tracks[0]!, name: 'GRCh38#0#chr1' },
+      { id: 1, name: 'HG1#1#chr1', sequence: ['1', '3', '4'] },
+      { id: 2, name: 'HG1#2#chr1', sequence: ['1', '2', '4'] },
+      { id: 3, name: 'HG2#1#chr1', sequence: ['1', '3', '4'] },
+      { id: 4, name: 'Track X', sequence: ['1', '3', '4'] },
+    ].map(track => ({ sourceTrackID: 0, ...track }))
+    const sampleReads = reads.map(read => ({ ...read, id: read.id + 3 }))
+
+    function drawSamples(withReads: boolean) {
+      setupSvg()
+      tubeMap.setMergeNodesFlag(false)
+      tubeMap.setFacetBy('haplotype_sample')
+      return render(nodes, samples, withReads ? sampleReads : [])
+    }
+
+    it('stacks a panel per sample with the reference, the unnamed next and the reads last', () => {
+      const svg = drawSamples(true)
+      const groups = facetGroups(svg)
+      expect(
+        groups.map(g => g.querySelector('.facet-label')?.textContent),
+      ).toEqual([
+        'Sample HG1 · 2 haplotypes',
+        'Sample HG2 · 1 haplotype',
+        'No PanSN sample · 1 haplotype',
+        'Reads · 3 reads',
+      ])
+      const drawnNames = (g: SVGGElement) =>
+        new Set(
+          [...g.querySelectorAll('[trackID]')].map(el =>
+            el.getAttribute('trackName'),
+          ),
+        )
+      expect(drawnNames(groups[0]!)).toEqual(
+        new Set(['GRCh38#0#chr1', 'HG1#1#chr1', 'HG1#2#chr1']),
+      )
+      expect(drawnNames(groups[2]!)).toEqual(
+        new Set(['GRCh38#0#chr1', 'Track X']),
+      )
+      expect(drawnNames(groups[3]!)).toEqual(
+        new Set(['GRCh38#0#chr1', 'a1', 'a2', 'b1']),
+      )
+      const ids = tubeMap.getRenderedColoring().drawn.map(t => t.id)
+      expect(ids.sort()).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+    })
+
+    it('lists reads only in the reads panel', () => {
+      const onMenu = vi.fn<(menu: { readNames: string[] } | null) => void>()
+      tubeMap.setNodeContextMenuCallback(onMenu)
+      const groups = facetGroups(drawSamples(true))
+      const menuReads = (g: SVGGElement) => {
+        onMenu.mockClear()
+        g.querySelector('g.node path[id="1"]')!.dispatchEvent(
+          new MouseEvent('contextmenu', { bubbles: true }),
+        )
+        return onMenu.mock.calls[0]?.[0]?.readNames
+      }
+      expect(menuReads(groups[0]!)).toEqual([])
+      expect(menuReads(groups[3]!)).toEqual(['a1', 'a2', 'b1'])
+    })
+
+    it('draws no reads panel when no reads were loaded', () => {
+      expect(
+        facetGroups(drawSamples(false)).map(
+          g => g.querySelector('.facet-label')?.textContent,
+        ),
+      ).toEqual([
+        'Sample HG1 · 2 haplotypes',
+        'Sample HG2 · 1 haplotype',
+        'No PanSN sample · 1 haplotype',
+      ])
+    })
+  })
+
   it('places again on the same topology after a facet change, and recolors without either', () => {
     draw(null)
     vi.mocked(layoutTopology).mockClear()
