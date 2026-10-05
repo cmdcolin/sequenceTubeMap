@@ -4,7 +4,7 @@ description: Finish the grammar of graphics already latent in the encodings: lay
 metadata:
   category: ready
   area: encodings
-  first_move: "Split layoutTubeMap into topology and placement, and decide whether read filters affect topology."
+  first_move: "Give placeTubeMap layers, each a track set with its own stat, starting with banded haplotypes under reads."
   order: 4
 ---
 
@@ -35,9 +35,8 @@ disagree with the picture.
 The renderer applies the encoding at draw time. Layout shapes carry only their
 track's `id`; `src/util/tubemap.ts` paints each from that track's `DrawnTrack`
 and reuses the latest layout while its inputs and options are unchanged, so a
-recolor costs a redraw but no layout. Turnaround rectangles and corners still
-take no opacity, as before the move, so a read faded by mapping quality draws
-its turnarounds opaque.
+recolor costs a redraw but no layout. Turnaround rectangles and corners take
+their track's opacity like every other shape.
 
 Naming the field each scale reads, and letting a full view spec stand in for the
 flags, would finish the job. A view would then read like:
@@ -61,51 +60,80 @@ on screen. New encodings (`color ← population`, `alpha ← share`) become entr
 rather than flags, and the URL could carry the spec instead of a growing flag
 list.
 
+## The two-phase layout
+
+`layoutTubeMap` in `packages/tubemap-core/src/layout.ts` composes two exported
+phases. `layoutTopology` merges, orders and orients the nodes, sizes them and
+fixes their x. `placeTubeMap` lays out the topology's haplotypes and the reads
+its filters keep: lanes, read stacking, `adjustVertically` and shapes. A caller
+can run the topology once and place it several times, and every placement keeps
+the same node order and x.
+
+The topology reads every visible haplotype and every primary read, unfiltered.
+Reads can't stay out of it: `generateNodeOrder` orders a node only reads reach
+from those reads, `mergeNodes` must not merge across an edge only a read takes,
+and reads vote in `switchNodeOrientation`. A haplotype-only topology would drop
+read-only nodes and move every default view with reads. The mapping-quality and
+focus filters now run at placement, so they no longer change how nodes merge or
+order. A node only filtered-out reads visit keeps its place, drawn empty, and
+secondary alignments still drop at the input. Hiding a haplotype stays a
+topology input, since the reference straightens around the first visible track.
+
+The topology holds x too, but x needs a placement: `calculateExtraSpace` sizes
+each gap from the turns and slopes of placed tracks. So `layoutTopology`
+measures x from placing every track and read under its options, which is why
+`trackWidth`, `coarsenedReadView` and `ignoreStrand` are `TopologyOptions`
+although they leave node order alone. A filter then changes no x. When the
+filters keep every read, `layoutTubeMap` returns that measuring placement, so a
+default view still places once; a filtered view places twice.
+
+No golden changed. The `brca1.mapq-500` golden never showed filter-dependent
+topology: its reads cross three nodes with nothing to merge. A test in
+`packages/tubemap-core/src/layout.test.ts` pins the new behavior instead, with a
+read whose filtered-out edge keeps a node from merging.
+
 ## What remains
 
-The layer split is harder than the sketch above suggests, because reads and
-haplotypes shape each other's layout in `packages/tubemap-core/src/layout.ts`:
-
-- The mapq and focus filters run before topology (`layoutTubeMap`, 214-216).
-  Reads then feed `mergeNodes`, `generateNodeOrder` and `switchNodeOrientation`,
-  so changing the mapq cutoff changes how haplotype nodes merge and order (the
-  `brca1.mapq-500` golden shows it). A per-layer filter that leaves haplotypes
-  alone changes behavior and the goldens.
-- Reads stack under haplotypes at `node.y + contentHeight`, and
-  `adjustVertically3` pushes lower haplotype nodes down.
 - Coarsening is either/or. Banded haplotypes reuse `state.reads` and exist only
-  when no reads load; one `coarsened` value and one `coarsenedEdgeMeta` reset
-  mean two banded layers would overwrite each other.
-
-The scales don't yet name the field they read.
+  when no reads load; one `coarsened` value and one `coarsenedEdgeMeta` mean two
+  banded layers would overwrite each other.
+- `coarsenedReadView` and `ignoreStrand` should move from `TopologyOptions` to
+  the layer that bands, with the measuring placement drawing every layer.
+- The renderer still calls `layoutTubeMap`, so a mapping-quality change reruns
+  the topology. Caching the topology in `layOut()` in `src/util/tubemap.ts`
+  would make a filter change cost a placement only.
+- The scales don't yet name the field they read.
 
 Order of work:
 
-1. **Split `layoutTubeMap` into topology and placement.** Topology (merge,
-   order, orientation, node widths) runs once on all tracks; placement (lanes,
-   reads) runs per layer or panel. Decide here whether read filters affect
-   topology. Layers, banded haplotypes with reads on screen, and facets all wait
-   on this split.
-2. **Facets.** Small multiples over subsets of tracks, drawn from one layout so
-   panels align. Re-laying out per panel breaks alignment: lane order, lane y,
-   `adjustVertically`, the straightened reference and even x gaps
-   (`calculateExtraSpace`) all depend on which tracks are present. Panels
-   sharing a layout keep the full height, with 15 px gaps per missing haplotype
-   and 7 px per missing read, so k panels take about k times the height; x takes
-   the maximum extra space over all panels. Haplotypes carry no population or
-   sample-group metadata today (only reads carry `sample_name` and
+1. **Layers.** `placeTubeMap` takes layers, each a set of tracks with its own
+   stat, so haplotypes can draw banded with reads on screen. Within one
+   placement, reads already stack under haplotypes at `node.y + contentHeight`
+   and `adjustVertically3` pushes lower nodes down, so a banded layer slots into
+   the read overlay; what it needs is band ids, metadata and a `Coarsening` per
+   layer.
+2. **Facets.** Small multiples over subsets of tracks, each a placement of one
+   topology, so panels share node order and x. Lane order, lane y,
+   `adjustVertically` and the straightened reference still depend on which
+   tracks a panel holds, so panels align in x only. Haplotypes carry no
+   population or sample-group metadata today (only reads carry `sample_name` and
    `read_group`), so grouping haplotypes means parsing PanSN names. Every panel
-   needs its own legend rows for color-only encodings.
+   needs its own legend rows for color-only encodings, and the renderer draws
+   one layout into one SVG with one zoom.
 3. **Per-region facets.** Separate layouts with shared scales and legend. Wait
    until `src/util/tubemap.ts` state (about 20 module-level `let`s, `config`,
    hover state, subscriber stores, one `svgID` and one zoom) is an instance.
    Each panel costs another placement pass, so this ties to
    [wide-pangenome-windows](wide-pangenome-windows.md).
 
-The layout now passes a `LayoutState` rather than module-level scratch, so a
-layer can run its passes on its own state. The colorer already reads each drawn
-track's computed variables (share, strand, mapping quality, name) off
-`ColorableTrack`, so a layer's stat only has to fill them in. Review the layout
-goldens (66) at step 1.
+Layers come first. They change the core and the legend but keep the renderer's
+single panel, and they turn coarsening into a per-layer stat that facets then
+reuse, a panel being a placement of a set of layers. Facets first would mean
+multi-panel drawing in a renderer built around one SVG before the layer spec
+they draw from exists.
+
+The colorer already reads each drawn track's computed variables (share, strand,
+mapping quality, name) off `ColorableTrack`, so a layer's stat only has to fill
+them in.
 
 A general grammar engine is not the goal.

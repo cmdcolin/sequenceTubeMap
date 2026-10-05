@@ -18,4 +18,4 @@ no generator, so edit it when an entry changes.
 | [Wide pangenome windows](todo/wide-pangenome-windows.md)          | rendering | Select a haplotype set through subgraphForHaplotypes and the companion HaplotypeAnchors.                                      |
 | [Coarsened haplotype view](todo/coarsened-haplotype-view.md)      | rendering | Profile generateNodeOrder, mergeNodes and generateTrackIndexSequences, the remaining top layout costs.                        |
 | [The layout engine](todo/layout-engine-cleanup.md)                | layout    | Choose a deliberate draw order to replace the non-transitive compareTrackByInitialOrdering and review the 60 changed goldens. |
-| [Encodings as a grammar of graphics](todo/encodings-as-layers.md) | encodings | Split layoutTubeMap into topology and placement, and decide whether read filters affect topology.                             |
+| [Encodings as a grammar of graphics](todo/encodings-as-layers.md) | encodings | Give placeTubeMap layers, each a track set with its own stat, starting with banded haplotypes under reads.                    |

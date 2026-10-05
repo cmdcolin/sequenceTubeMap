@@ -33,13 +33,32 @@ const layout = layoutTubeMap(
 - `layout.nodes` has a hole at index 0: use `forEach` or `filter`, not
   `for...of` or `find`
 
+## Topology and placement
+
+`layoutTubeMap` runs two phases, also exported for running one topology under
+several placements:
+
+```ts
+const topology = layoutTopology(nodes, tracks, reads, topologyOptions)
+const all = placeTubeMap(topology)
+const confident = placeTubeMap(topology, { mappingQualityCutoff: 30 })
+```
+
+- `layoutTopology` merges, orders, orients and sizes the nodes under the visible
+  tracks and every primary read, and fixes each node's x from placing them all
+- `placeTubeMap` lays out the haplotypes and the reads its options keep at the
+  topology's x positions, so every placement of one topology lines up
+- Read filters never move a node; one only a filtered-out read visits keeps its
+  place, drawn empty
+
 ## Options
 
 - `nodeWidthOption`: `normal` (default), `compressed`, `small`, `fixed`
 - `charWidth`: px per base under `normal` (8.401)
 - `trackWidth`: tube width (15)
 - `mergeNodes`, `showReads` (true); `coarsenedReadView`, `ignoreStrand` (false)
-- `mappingQualityCutoff`, `focusReadNames`: read filters
+- `mappingQualityCutoff`, `focusReadNames`: read filters, the only placement
+  options; the rest belong to the topology
 
 ## Releasing
 
