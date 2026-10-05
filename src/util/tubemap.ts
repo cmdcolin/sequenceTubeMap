@@ -1110,7 +1110,7 @@ function drawReversalsByColor(
     colorOf,
   )
   for (const [color, colorRectangles] of rectsByColor) {
-    appendTrackRectangles(colorRectangles, groupTrack, () => null)
+    appendTrackRectangles(colorRectangles, groupTrack)
     appendTrackCorners(cornersByColor.get(color) ?? [], groupTrack)
   }
 }
@@ -1780,11 +1780,9 @@ function drawTrackRectangles(
   )
 }
 
-// The turnarounds have never taken a track's opacity
 function appendTrackRectangles(
   rectangles: TrackRectangle[],
   groupTrack: SvgGroupSelection,
-  opacity: (rect: TrackRectangle) => number | null = alphaOf,
 ): void {
   groupTrack
     .selectAll('trackRectangles')
@@ -1796,7 +1794,7 @@ function appendTrackRectangles(
     .attr('width', d => d.xEnd - d.xStart + 1)
     .attr('height', d => d.yEnd - d.yStart + 1)
     .style('fill', colorOf)
-    .style('fill-opacity', opacity)
+    .style('fill-opacity', alphaOf)
     .attr('trackID', d => d.id)
     .attr('trackName', d => d.name ?? null)
     .attr('class', d => `track${d.id}`)
@@ -1875,6 +1873,7 @@ function appendTrackCorners(
     .append('path')
     .attr('d', d => d.path)
     .style('fill', colorOf)
+    .style('fill-opacity', alphaOf)
     .attr('trackID', d => d.id)
     .attr('trackName', d => d.name ?? null)
     .attr('class', d => `track${d.id}`)

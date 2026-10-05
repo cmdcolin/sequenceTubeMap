@@ -549,6 +549,22 @@ describe('tubemap.create — reads', () => {
     expect(tooltip.style.whiteSpace).not.toBe('nowrap')
   })
 
+  it('fades every shape of a read alike, its turnarounds too', () => {
+    tubeMap.setAlphaReadsByMappingQualityFlag(true)
+    const { nodes, tracks, reads } = dataForExample('7')
+    const svg = render(nodes, tracks, reads)
+    tubeMap.setAlphaReadsByMappingQualityFlag(false)
+    for (const { id } of reads) {
+      const opacities = new Set(
+        [...svg.querySelectorAll<SVGElement>(`[trackID="${id}"]`)].map(
+          el => el.style.fillOpacity,
+        ),
+      )
+      expect(opacities.size).toBeLessThanOrEqual(1)
+      expect(opacities).not.toContain('')
+    }
+  })
+
   // Read0 visits 60080785 in reverse, and the layout flips that node to draw it
   it("gives a read's path in its own orientation, not the layout's", () => {
     const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
