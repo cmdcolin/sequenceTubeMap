@@ -145,7 +145,7 @@ The tube map is inherited from upstream and ported to TypeScript, in two parts:
   keeps the colouring, which the layout asks for through its `trackColor` and
   `trackAlpha` options.
 
-[todo.md](todo.md#the-layout-engine) has the clean-up still to do.
+[layout-engine-cleanup.md](../agent-docs/todo/layout-engine-cleanup.md) has the clean-up still to do.
 
 Invariants to know before editing it:
 
