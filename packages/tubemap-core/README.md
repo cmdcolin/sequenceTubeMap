@@ -51,6 +51,23 @@ const confident = placeTubeMap(topology, { mappingQualityCutoff: 30 })
 - Read filters never move a node; one only a filtered-out read visits keeps its
   place, drawn empty
 
+## Facets
+
+`placeFacets` places one topology once per subset and stacks the panels, each
+with an `offsetY`, at the topology's x:
+
+```ts
+const { panels, bounds } = placeFacets(topology, { facetBy: 'sample_name' })
+```
+
+- `facetBy`: `read_group` or `sample_name` splits the reads and repeats every
+  haplotype in each panel; `haplotype_sample` splits the haplotypes by the
+  sample in their PanSN names (`parsePanSN`), each panel keeping the reference,
+  and draws the reads in a last panel
+- `PlacementOptions.facet` places one panel alone, as `placeTubeMap` does
+- Without `facetBy`, or with nothing to split, `panels` holds one panel of
+  `placeTubeMap`'s layout
+
 ## Options
 
 - `nodeWidthOption`: `normal` (default), `compressed`, `small`, `fixed`
@@ -68,6 +85,17 @@ const confident = placeTubeMap(topology, { mappingQualityCutoff: 30 })
 `layout.coarsened` holds a `Coarsening` per banded layer, and
 `layout.coarsenedEdgeMeta` labels every band by its id, which no two bands
 share.
+
+## Changes since 0.1.0
+
+- Breaking: shapes no longer carry `color` or `alpha`, and the `trackColor` and
+  `trackAlpha` options are gone; color each shape from its track by `id`
+- Breaking: `layout.coarsened` is a `Coarsenings` record keyed by layer data,
+  not one `Coarsening`
+- `layoutTopology` and `placeTubeMap` split the layout in two, and the read
+  filters now run at placement
+- `layers` bands haplotypes with reads on screen
+- `placeFacets` and `parsePanSN` facet by read group, sample or haplotype sample
 
 ## Releasing
 
