@@ -142,10 +142,11 @@ The tube map is inherited from upstream and ported to TypeScript, in two parts:
   It is _not_ a React component: it holds the latest layout and its UI state at
   module level, and `TubeMap.tsx` drives it through `create()` plus a set of
   `setX()` functions, which is why only one tube map can exist per page. It
-  keeps the colouring, which the layout asks for through its `trackColor` and
-  `trackAlpha` options.
+  colors each shape at draw time from the track its `id` names, and reuses the
+  latest layout when only the coloring changed.
 
-[layout-engine-cleanup.md](../agent-docs/todo/layout-engine-cleanup.md) has the clean-up still to do.
+[layout-engine-cleanup.md](../agent-docs/todo/layout-engine-cleanup.md) has the
+clean-up still to do.
 
 Invariants to know before editing it:
 

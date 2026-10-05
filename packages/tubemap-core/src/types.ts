@@ -19,8 +19,6 @@ export interface TrackRectangle {
   yStart: number
   xEnd: number
   yEnd: number
-  color: string
-  alpha?: number
   id: number
   name?: string
   type?: TrackType
@@ -32,8 +30,6 @@ export interface TrackCurve {
   xEnd: number
   yEnd: number
   width: number
-  color: string
-  alpha?: number
   id: number
   name?: string
   type?: TrackType
@@ -48,7 +44,6 @@ export interface TrackCurve {
 
 export interface TrackCorner {
   path: string
-  color: string
   id: number
   name?: string
   type?: TrackType

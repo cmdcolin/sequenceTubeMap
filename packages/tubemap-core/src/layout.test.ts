@@ -73,14 +73,22 @@ describe('layoutTubeMap', () => {
     expect(first.shapes).toEqual(snapshot)
   })
 
-  it('draws each track in the colour the caller gives it', () => {
-    const layout = layoutTubeMap(nodes, tracks, [], {
-      trackColor: track => (track.id === 0 ? 'red' : 'blue'),
-    })!
-    const colors = new Set(
-      layout.shapes.rectangles.map(r => `${r.name}:${r.color}`),
+  it('keys each shape by the id of the track it draws, leaving color out', () => {
+    const { rectangles, curves, corners, verticalRectangles } = layoutTubeMap(
+      nodes,
+      tracks,
+    )!.shapes
+    expect(new Set(rectangles.map(r => `${r.name}:${r.id}`))).toEqual(
+      new Set(['ref:0', 'alt:1']),
     )
-    expect(colors).toEqual(new Set(['ref:red', 'alt:blue']))
+    for (const shape of [
+      ...rectangles,
+      ...curves,
+      ...corners,
+      ...verticalRectangles,
+    ]) {
+      expect(shape).not.toHaveProperty('color')
+    }
   })
 
   it('places reads under the haplotypes that carry them', () => {
@@ -400,7 +408,6 @@ describe('layoutTubeMap', () => {
       xEnd: order * 100 + 40,
       yEnd: 20,
       width: 4,
-      color: 'black',
       id: order,
       type: 'haplotype',
       nodeStart: null,

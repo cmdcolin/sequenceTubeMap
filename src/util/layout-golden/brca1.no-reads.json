@@ -10,7 +10,7 @@
     {"id":0,"type":"haplotype","width":15,"reverse":false}
   ],
   "rectangles": [
-    {"xStart":0,"yStart":20,"xEnd":2275,"yEnd":34,"color":"#1f77b4","alpha":1,"id":0,"type":"haplotype"}
+    {"xStart":0,"yStart":20,"xEnd":2275,"yEnd":34,"id":0,"type":"haplotype"}
   ],
   "curves": [],
   "corners": [],

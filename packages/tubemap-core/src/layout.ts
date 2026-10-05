@@ -37,8 +37,8 @@ type MaybeUnplacedNode = MaybeUnset<LayoutNode, 'x' | 'y'>
 
 export type NodeWidthOption = 'normal' | 'compressed' | 'small' | 'fixed'
 
-// What a track looks like to its colouring: the layout asks for a colour per
-// track, and leaves palettes to the caller.
+// The fields of a placed track a renderer colors it by. Shapes carry only the
+// track's id, so a renderer can recolor without laying out again.
 export interface ColorableTrack {
   id: number
   sourceTrackID: number
@@ -64,8 +64,6 @@ export interface LayoutOptions {
   trackWidth?: number
   mappingQualityCutoff?: number
   focusReadNames?: string[] | null
-  trackColor?: (track: ColorableTrack) => string
-  trackAlpha?: (track: ColorableTrack) => number
 }
 
 // A coarsened band's count of contributing reads and its label, keyed by the
@@ -116,20 +114,7 @@ interface LayoutConfig {
   trackWidth: number
   mappingQualityCutoff: number
   focusReadNames: string[] | null
-  trackColor: (track: ColorableTrack) => string
-  trackAlpha: (track: ColorableTrack) => number
 }
-
-const DEFAULT_TRACK_COLORS = [
-  '#1f77b4',
-  '#ff7f0e',
-  '#2ca02c',
-  '#d62728',
-  '#9467bd',
-  '#8c564b',
-  '#e377c2',
-  '#7f7f7f',
-]
 
 function configFrom(options: LayoutOptions): LayoutConfig {
   return {
@@ -142,10 +127,6 @@ function configFrom(options: LayoutOptions): LayoutConfig {
     trackWidth: options.trackWidth ?? 15,
     mappingQualityCutoff: options.mappingQualityCutoff ?? 0,
     focusReadNames: options.focusReadNames ?? null,
-    trackColor:
-      options.trackColor ??
-      (track => DEFAULT_TRACK_COLORS[track.id % DEFAULT_TRACK_COLORS.length]!),
-    trackAlpha: options.trackAlpha ?? (() => 1),
   }
 }
 
@@ -389,14 +370,6 @@ export function layoutTubeMap(
     coarsenedEdgeMeta: state.coarsenedEdgeMeta,
     coarsened,
   }
-}
-
-function generateTrackColor(state: LayoutState, track: ColorableTrack): string {
-  return state.config.trackColor(track)
-}
-
-function generateTrackAlpha(state: LayoutState, track: ColorableTrack): number {
-  return state.config.trackAlpha(track)
 }
 
 // Return true if the given name names a reverse strand node, and false otherwise.
@@ -2163,8 +2136,6 @@ function generateSVGShapesFromPath(state: LayoutState): void {
   let xEnd: number
   let yStart: number
   let yEnd: number
-  let trackColor: string
-  let trackAlpha: number
 
   for (let i = 0; i <= state.maxOrder; i += 1) {
     state.extraLeft.push(0)
@@ -2192,9 +2163,6 @@ function generateSVGShapesFromPath(state: LayoutState): void {
   state.tracks.sort(compareTrackByInitialOrdering)
 
   state.tracks.forEach(track => {
-    trackColor = generateTrackColor(state, track)
-    trackAlpha = generateTrackAlpha(state, track)
-
     // start of path
     yStart = track.path[0]!.y!
     if (track.type !== 'read') {
@@ -2223,8 +2191,6 @@ function generateSVGShapesFromPath(state: LayoutState): void {
             yStart,
             xEnd: Math.max(xStart, xEnd),
             yEnd: yStart + track.width - 1,
-            color: trackColor,
-            alpha: trackAlpha,
             // TODO: This is not actually the index of the track!
             id: track.id,
             name: track.name,
@@ -2243,8 +2209,6 @@ function generateSVGShapesFromPath(state: LayoutState): void {
             xEnd: xEnd + 1,
             yEnd,
             width: track.width,
-            color: trackColor,
-            alpha: trackAlpha,
             id: track.id,
             name: track.name,
             type: track.type,
@@ -2266,8 +2230,6 @@ function generateSVGShapesFromPath(state: LayoutState): void {
             xEnd,
             yEnd,
             width: track.width,
-            color: trackColor,
-            alpha: trackAlpha,
             id: track.id,
             name: track.name,
             type: track.type,
@@ -2289,7 +2251,6 @@ function generateSVGShapesFromPath(state: LayoutState): void {
               yStart,
               yEnd,
               track.width,
-              trackColor,
               track.id,
               track.path[i]!.order,
               track.type,
@@ -2306,7 +2267,6 @@ function generateSVGShapesFromPath(state: LayoutState): void {
               yStart,
               yEnd,
               track.width,
-              trackColor,
               track.id,
               track.path[i]!.order,
               track.type,
@@ -2336,8 +2296,6 @@ function generateSVGShapesFromPath(state: LayoutState): void {
       yStart,
       xEnd: Math.max(xStart, xEnd),
       yEnd: yStart + track.width - 1,
-      color: trackColor,
-      alpha: trackAlpha,
       id: track.id,
       name: track.name,
       type: track.type,
@@ -2585,7 +2543,6 @@ function generateTurnaround(
   yStart: number,
   yEnd: number,
   trackWidth: number,
-  trackColor: string,
   trackID: number,
   order: number,
   type: TrackType | undefined,
@@ -2611,7 +2568,6 @@ function generateTurnaround(
       yStart: segTop,
       xEnd: stubFar,
       yEnd: segTop + trackWidth - 1,
-      color: trackColor,
       id: trackID,
       name: trackName,
       type,
@@ -2624,7 +2580,6 @@ function generateTurnaround(
     yStart: yTop + trackWidth + radius - 1,
     xEnd: dir === 1 ? apex + radius + stem - 1 : apex - radius - 1,
     yEnd: yBottom - radius + 1,
-    color: trackColor,
     id: trackID,
     name: trackName,
     type,
@@ -2640,7 +2595,7 @@ function generateTurnaround(
   d += ` H ${outer}`
   d += ` Q ${outer} ${yBottom + trackWidth} ${apex} ${yBottom + trackWidth}`
   d += ' Z '
-  state.shapes.corners.push({ path: d, color: trackColor, id: trackID, type })
+  state.shapes.corners.push({ path: d, id: trackID, type })
 
   // top 90 degree bend
   d = `M ${apex} ${yTop}`
@@ -2648,7 +2603,7 @@ function generateTurnaround(
   d += ` H ${inner}`
   d += ` Q ${inner} ${yTop + trackWidth} ${apex} ${yTop + trackWidth}`
   d += ' Z '
-  state.shapes.corners.push({ path: d, color: trackColor, id: trackID, type })
+  state.shapes.corners.push({ path: d, id: trackID, type })
   extra[order]! += 1
 }
 

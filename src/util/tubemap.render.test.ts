@@ -13,6 +13,13 @@ import { computeExampleData } from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
 import * as demo from './demo-data.js'
 import { measureSvgContent } from './svgBounds.ts'
+import { layoutTubeMap } from '@gmod/tubemap-core'
+import type * as TubeMapCore from '@gmod/tubemap-core'
+
+vi.mock('@gmod/tubemap-core', async importOriginal => {
+  const core = await importOriginal<typeof TubeMapCore>()
+  return { ...core, layoutTubeMap: vi.fn(core.layoutTubeMap) }
+})
 
 // Numeric suffixes only — keeps the row format compact below. Strings are
 // preferable to numbers for the dataOrigin lookup so we don't trip
@@ -311,6 +318,38 @@ describe('tubemap.create — a redraw of the same data', () => {
     const box = measureSvgContent(svg).box!
     expect(box.x).toBeLessThan(0)
     expect(box.x + box.width).toBeGreaterThanOrEqual(1800)
+  })
+})
+
+describe('tubemap.create — a recolor', () => {
+  afterEach(() => {
+    tubeMap.setColorReadsByMappingQualityFlag(false)
+    tubeMap.setMergeNodesFlag(true)
+  })
+
+  const fills = (svg: SVGSVGElement) =>
+    [...svg.querySelectorAll<SVGElement>('[trackID]')].map(el => el.style.fill)
+
+  it('repaints the same layout, and lays out again when the layout changes', () => {
+    setupSvg()
+    const { nodes, tracks, reads } = dataForExample('7')
+    const svg = render(nodes, tracks, reads)
+    const before = fills(svg)
+    vi.mocked(layoutTubeMap).mockClear()
+
+    tubeMap.setColorReadsByMappingQualityFlag(true)
+    render(nodes, tracks, reads)
+    expect(layoutTubeMap).not.toHaveBeenCalled()
+    expect(fills(svg)).toHaveLength(before.length)
+    expect(fills(svg)).not.toEqual(before)
+
+    tubeMap.setMergeNodesFlag(false)
+    render(nodes, tracks, reads)
+    expect(layoutTubeMap).toHaveBeenCalledTimes(1)
+
+    tubeMap.changeTrackVisibility(tracks[0]!.id)
+    expect(layoutTubeMap).toHaveBeenCalledTimes(2)
+    tubeMap.changeTrackVisibility(tracks[0]!.id)
   })
 })
 

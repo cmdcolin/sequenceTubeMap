@@ -26,6 +26,8 @@ const layout = layoutTubeMap(
 - A node without `seq` needs `sequenceLength`
 - `layout.shapes`: `rectangles`, `curves` (`curvePaths` adds SVG paths),
   `verticalRectangles` and `corners` (inversions)
+- Shapes carry no color: each names its track's `id`, and the caller colors it
+  from that track in `layout.tracks`, so a recolor needs no new layout
 - `nodeOutlinePath(node)`: a node's box as SVG path data; `new Path2D(d)` on a
   canvas
 - `layout.nodes` has a hole at index 0: use `forEach` or `filter`, not
@@ -38,7 +40,6 @@ const layout = layoutTubeMap(
 - `trackWidth`: tube width (15)
 - `mergeNodes`, `showReads` (true); `coarsenedReadView`, `ignoreStrand` (false)
 - `mappingQualityCutoff`, `focusReadNames`: read filters
-- `trackColor(track, highlight)`, `trackAlpha(track)`
 
 ## Releasing
 

@@ -38,6 +38,7 @@ import type {
   LayoutNode,
   Mismatch,
   Node,
+  LayoutOptions,
   ReadSequenceEntry,
   Track,
   TrackCorner,
@@ -45,6 +46,7 @@ import type {
   TrackRectangle,
   TrackShapes,
   TrackType,
+  TubeMapLayout,
 } from '@gmod/tubemap-core'
 
 // Replacement for d3-selection-multi (incompatible with d3 v7). Use via
@@ -285,6 +287,23 @@ let coarsened: Coarsening | undefined
 let drawn: DrawnTrack[] = []
 let drawnSchemes = new Map<number, ColorScheme>()
 
+interface Paint {
+  color: string
+  alpha?: number
+}
+
+// Each drawn track's paint, by id: the shapes carry only the id
+let paints = new Map<number, Paint>()
+
+// The latest layout and the inputs it came from, so a draw that changes only
+// the coloring skips the layout
+let laidOut:
+  | {
+      from: readonly unknown[]
+      layout: TubeMapLayout | undefined
+    }
+  | undefined
+
 // alignSVG attaches a wheel listener and ResizeObserver to the parent each
 // time it runs; create() runs on every TubeMap prop change, so without
 // tracking the previous registration the listeners stack up.
@@ -332,9 +351,18 @@ export function create(params: CreateParams): void {
   lastCreateTracks = params.tracks
   svgID = params.svgID
   svg = d3.select(params.svgID)
-  inputReads = params.reads ?? []
+  inputReads = params.reads ?? NO_READS
   inputRegion = params.region ?? []
   createTubeMap(sameDataset)
+}
+
+const NO_READS: InputTrack[] = []
+
+// Draws again after an edit to inputTracks in place, which the layout's
+// inputs can't show
+function relayout(): void {
+  laidOut = undefined
+  createTubeMap()
 }
 
 // The next layout straightens against the new first track
@@ -348,7 +376,7 @@ export function changeTrackVisibility(trackID: number): void {
   if (track) {
     track.hidden = !track.hidden
   }
-  createTubeMap()
+  relayout()
 }
 
 // to select/deselect all
@@ -356,7 +384,7 @@ export function changeAllTracksVisibility(value: boolean): void {
   for (const t of inputTracks) {
     t.hidden = !value
   }
-  createTubeMap()
+  relayout()
 }
 
 // React subscription for the per-track visibility panel. tubemap.ts owns
@@ -395,7 +423,7 @@ function emitTrackVisibility(): void {
       items.push({
         id: t.id,
         name: t.name ?? String(t.id),
-        color: generateTrackColor(t),
+        color: paintOf(t, datumOf(t)).color,
         hidden: t.hidden === true,
         ...(t.freq !== undefined ? { freq: t.freq } : {}),
       })
@@ -406,8 +434,8 @@ function emitTrackVisibility(): void {
 }
 
 // Every setter below only mutates `config`. `create()` is the single render
-// trigger, so a batch of visOptions changes costs one layout instead of one
-// per changed option.
+// trigger, so a batch of visOptions changes costs one draw, and one that
+// changes only the coloring costs no layout.
 
 // sets the flag for whether redundant nodes should be automatically removed or not
 export function setMergeNodesFlag(value: boolean): void {
@@ -657,19 +685,7 @@ function createTubeMap(preserveViewport = true): void {
   // snapshot when every track is hidden and we bail out early.
   emitTrackVisibility()
 
-  const layout = layoutTubeMap(inputNodes, inputTracks, inputReads, {
-    mergeNodes: config.mergeNodesFlag,
-    showReads: config.showReads,
-    coarsenedReadView: config.coarsenedReadView,
-    ignoreStrand: config.ignoreStrand,
-    nodeWidthOption: config.nodeWidthOption,
-    charWidth:
-      config.nodeWidthOption === 'normal' ? measureCharWidth() : undefined,
-    mappingQualityCutoff: config.mappingQualityCutoff,
-    focusReadNames: config.focusReadNames,
-    trackColor: generateTrackColor,
-    trackAlpha: generateTrackAlpha,
-  })
+  const layout = layOut()
   if (layout === undefined) {
     shapes = emptyTrackShapes()
     imageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
@@ -677,6 +693,7 @@ function createTubeMap(preserveViewport = true): void {
     coarsened = undefined
     drawn = []
     drawnSchemes = new Map()
+    paints = new Map()
     emitRenderedColoring()
     return
   }
@@ -692,6 +709,9 @@ function createTubeMap(preserveViewport = true): void {
   } = layout)
   imageBounds = layout.bounds
   drawn = tracks.map(datumOf)
+  paints = new Map(
+    tracks.map((track, i) => [track.id, paintOf(track, drawn[i]!)]),
+  )
   drawnSchemes = new Map()
   // A haplotype band is shaded by its share, so it says nothing about the
   // scheme its file's paths took
@@ -743,6 +763,31 @@ function createTubeMap(preserveViewport = true): void {
   // labels) is in the DOM. The zoom handler's synchronous "end" flush will
   // counter-scale every label group on this first paint.
   applyInitialTransform()
+}
+
+function layOut(): TubeMapLayout | undefined {
+  const options: LayoutOptions = {
+    mergeNodes: config.mergeNodesFlag,
+    showReads: config.showReads,
+    coarsenedReadView: config.coarsenedReadView,
+    ignoreStrand: config.ignoreStrand,
+    nodeWidthOption: config.nodeWidthOption,
+    charWidth:
+      config.nodeWidthOption === 'normal' ? measureCharWidth() : undefined,
+    mappingQualityCutoff: config.mappingQualityCutoff,
+    focusReadNames: config.focusReadNames,
+  }
+  const from = [inputNodes, inputTracks, inputReads, JSON.stringify(options)]
+  if (
+    laidOut === undefined ||
+    from.some((input, i) => input !== laidOut!.from[i])
+  ) {
+    laidOut = {
+      from,
+      layout: layoutTubeMap(inputNodes, inputTracks, inputReads, options),
+    }
+  }
+  return laidOut.layout
 }
 
 // Minimum zoom is a scaling factor that determines how far the graph can be zoomed out. This function determines
@@ -1021,18 +1066,18 @@ function datumOf(track: ColorableTrack): DrawnTrack {
   return drawnTrack(track, inputTracks[0]?.id, config.readGroups)
 }
 
-function generateTrackColor(track: ColorableTrack): string {
-  const datum = datumOf(track)
-  return encodingFor(colorSchemeFor(track), config)[datum.mark].color.map(datum)
+function paintOf(track: ColorableTrack, datum: DrawnTrack): Paint {
+  const { color, alpha } = encodingFor(colorSchemeFor(track), config)[
+    datum.mark
+  ]
+  return {
+    color: color.map(datum),
+    ...(alpha === undefined ? {} : { alpha: alpha.map(datum) }),
+  }
 }
 
-function generateTrackAlpha(track: ColorableTrack): number {
-  const datum = datumOf(track)
-  return (
-    encodingFor(colorSchemeFor(track), config)[datum.mark].alpha?.map(datum) ??
-    1
-  )
-}
+const colorOf = (shape: { id: number }) => paints.get(shape.id)!.color
+const alphaOf = (shape: { id: number }) => paints.get(shape.id)!.alpha ?? 1
 
 // to avoid problems with wrong overlapping of tracks, draw them in order of their color
 function drawReversalsByColor(
@@ -1045,14 +1090,14 @@ function drawReversalsByColor(
   // colour. Colours are visited in first-appearance order, as before.
   const rectsByColor = groupBy(
     rectangles.filter(rect => rect.type === type),
-    rect => rect.color,
+    colorOf,
   )
   const cornersByColor = groupBy(
     corners.filter(corner => corner.type === type),
-    corner => corner.color,
+    colorOf,
   )
   for (const [color, colorRectangles] of rectsByColor) {
-    appendTrackRectangles(colorRectangles, groupTrack)
+    appendTrackRectangles(colorRectangles, groupTrack, () => null)
     appendTrackCorners(cornersByColor.get(color) ?? [], groupTrack)
   }
 }
@@ -1722,9 +1767,11 @@ function drawTrackRectangles(
   )
 }
 
+// The turnarounds have never taken a track's opacity
 function appendTrackRectangles(
   rectangles: TrackRectangle[],
   groupTrack: SvgGroupSelection,
+  opacity: (rect: TrackRectangle) => number | null = alphaOf,
 ): void {
   groupTrack
     .selectAll('trackRectangles')
@@ -1735,12 +1782,12 @@ function appendTrackRectangles(
     .attr('y', d => d.yStart)
     .attr('width', d => d.xEnd - d.xStart + 1)
     .attr('height', d => d.yEnd - d.yStart + 1)
-    .style('fill', d => d.color)
-    .style('fill-opacity', d => d.alpha ?? null)
+    .style('fill', colorOf)
+    .style('fill-opacity', opacity)
     .attr('trackID', d => d.id)
     .attr('trackName', d => d.name ?? null)
     .attr('class', d => `track${d.id}`)
-    .attr('color', d => d.color)
+    .attr('color', colorOf)
     .on('mouseover', trackMouseOver)
     .on('mousemove', trackMouseMove)
     .on('mouseout', trackMouseOut)
@@ -1790,12 +1837,12 @@ function drawTrackCurves(
     .enter()
     .append('path')
     .attr('d', d => d.path ?? null)
-    .style('fill', d => d.color)
-    .style('fill-opacity', d => d.alpha ?? null)
+    .style('fill', colorOf)
+    .style('fill-opacity', alphaOf)
     .attr('trackID', d => d.id)
     .attr('trackName', d => d.name ?? null)
     .attr('class', d => `track${d.id}`)
-    .attr('color', d => d.color)
+    .attr('color', colorOf)
     .on('mouseover', trackMouseOver)
     .on('mousemove', trackMouseMove)
     .on('mouseout', trackMouseOut)
@@ -1814,11 +1861,11 @@ function appendTrackCorners(
     .enter()
     .append('path')
     .attr('d', d => d.path)
-    .style('fill', d => d.color)
+    .style('fill', colorOf)
     .attr('trackID', d => d.id)
     .attr('trackName', d => d.name ?? null)
     .attr('class', d => `track${d.id}`)
-    .attr('color', d => d.color)
+    .attr('color', colorOf)
     .on('mouseover', trackMouseOver)
     .on('mousemove', trackMouseMove)
     .on('mouseout', trackMouseOut)
@@ -1954,7 +2001,7 @@ function trackDoubleClick(this: SVGElement): void {
   if (index === -1) return
   debugLog(`moving index: ${index}`)
   moveTrackToFirstPosition(index)
-  createTubeMap()
+  relayout()
 }
 
 // The nodes a path visits, as >1>2<3>4 with < for a reverse visit
