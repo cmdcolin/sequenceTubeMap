@@ -27,13 +27,14 @@ scroll.
 
 ![Reads faceted by sample over the HPRC chrM graph](doc/images/facets-by-sample.png)
 
-Facets: the View menu's "Facet reads by" splits one graph into a labelled panel
-per sample or read group. Every panel shares node positions, so a branch one
-sample's reads take and the others skip lines up down the stack. Here HG02886's
-reads leave the reference for the C alleles at chrM 146 and 152 while HG00438's
-and HG00735's stay on T, over the HPRC chrM graph with the other 42 haplotypes
-banded. The reads are simulated from the three samples' haplotypes, since no
-bundled alignment file carries more than one sample. See
+Facets: the View menu's "Facet by" splits one graph into a labelled panel per
+read sample or read group, or per haplotype sample from the haplotypes' PanSN
+names. Every panel shares node positions, so a branch one sample's reads take
+and the others skip lines up down the stack. Here HG02886's reads leave the
+reference for the C alleles at chrM 146 and 152 while HG00438's and HG00735's
+stay on T, over the HPRC chrM graph with the other 42 haplotypes banded. The
+reads are simulated from the three samples' haplotypes, since no bundled
+alignment file carries more than one sample. See
 [headless rendering](doc/headless-rendering.md) for the CLI flags and more
 figures.
 
