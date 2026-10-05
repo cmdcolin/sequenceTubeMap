@@ -4,7 +4,7 @@ description: Finish the grammar of graphics already latent in the encodings: lay
 metadata:
   category: ready
   area: encodings
-  first_move: "Facets: place one topology once per track subset and stack the panels in one SVG, aligned in x."
+  first_move: "Haplotype facets: split the haplotypes into panels by PanSN sample, each panel keeping the reference."
   order: 4
 ---
 
@@ -136,6 +136,56 @@ hold bands. Goldens `example-6.banded-haplotypes` and
 `example-6.banded-haplotypes-and-reads` pin the combination; the other datasets
 with reads carry one haplotype, so their new files point at older ones.
 
+## Facets
+
+`placeFacets` in `packages/tubemap-core/src/layout.ts` places one topology once
+per subset of its reads and stacks the placements top to bottom. `facetReads`
+splits the reads the mapping-quality and focus filters keep by a read field
+(`FacetBy`: `read_group` or `sample_name`), one subset per value in sort order
+and the reads lacking one last. `PlacementOptions.facet` (`{ by, key }`, plain
+JSON, so the renderer's placement cache still keys on `JSON.stringify`) has
+`placeTubeMap` place one subset. Every panel draws every haplotype, under the
+topology's layers, at the topology's x, so panels line up in x exactly; lanes,
+node heights and `adjustVertically` follow each panel's own reads. Read band ids
+run on from one panel to the next, so they stay unique across the stack;
+haplotype bands repeat in every panel under the same ids and shares.
+
+Each panel keeps its own coordinates and carries an `offsetY`: the first sits
+where an unfaceted placement draws, and each later one starts `FACET_GAP` below
+the panel above plus `FACET_LABEL_HEIGHT` for its label. `FacetedLayout.bounds`
+covers the stack and the first label. The offsets stay out of the shapes because
+baking them in would mean rewriting corner path strings and merging node arrays
+that tracks index by position; instead `src/util/tubemap.ts` draws each panel in
+a `<g class="facet">` translated by its offset, under one zoom. An unfaceted
+view, or one with no reads left to split, is one panel of `placeTubeMap`'s
+layout drawn straight into the drawing, so its DOM and every earlier golden stay
+as they were.
+
+Per panel the renderer draws the label (`Read group A · 12 reads`), tracks, node
+outlines, sequence text, mismatches and node labels, since node heights and read
+stacking differ by panel. The ruler draws once, above the first label, from the
+first panel's layout: x is shared. The legend keys each drawn track once, by id,
+so a haplotype repeated in every panel adds one row, not one per panel, and
+paints resolve by id because a repeated track has one paint. One legend covers
+the stack because colors don't vary by panel, which made the per-panel legend
+rows the earlier plan called for unnecessary. A node click reports the counts of
+the panel clicked, found from the clicked node object; hovering a haplotype
+highlights it in every panel. Node outline ids repeat across panels. A facet
+change places again on the cached topology, and a color change does neither.
+
+The View menu's **Facet reads by** (none, read group, sample) sets
+`facetReadsBy`, which the `facet=` URL parameter carries beside `mapq=`, since
+`vis=` holds only on/off flags; the CLI takes `--facet-reads-by`. No bundled
+alignment file carries more than one read group or sample, so the goldens
+(`example-6.facet-*`) give example 6's reads made-up ones, and
+`exampleData/hprc-chrM-3samples.sorted.gam`, reads simulated from three HPRC
+samples' chrM haplotypes, backs the figures in `doc/images/facets-*.png`.
+
+Left out: the label scales with the zoom rather than holding its size like node
+labels; the app's read render limit subsamples before faceting, so panel counts
+are of the subsample; and a node's right-click menu still lists every read
+through it, not the panel's.
+
 ## What remains
 
 - The layers are a topology option, because the topology measures x from placing
@@ -145,26 +195,23 @@ with reads carry one haplotype, so their new files point at older ones.
 
 Order of work:
 
-1. **Facets.** Small multiples over subsets of tracks, each a placement of one
-   topology, so panels share node order and x. `placeTubeMap` would take the
-   subset (haplotype names, or a read predicate like the focus filter) beside
-   its read filters. Lane order, lane y, `adjustVertically` and the straightened
-   reference still depend on which tracks a panel holds, so panels align in x
-   only. The renderer draws one layout into one SVG with one zoom, so the
-   cheapest drawing stacks the panels vertically in that SVG, each offset by the
-   bounds of the panels above, under the one zoom. Haplotypes carry no
-   population or sample-group metadata today (only reads carry `sample_name` and
-   `read_group`), so grouping haplotypes means parsing PanSN names, and faceting
-   reads by `read_group` or `sample_name` is the first case with data behind it.
-   Every panel needs its own legend rows for color-only encodings.
+1. **Haplotype facets.** Split the haplotypes into panels by the sample in their
+   PanSN names (`HG00438#2#MT#0`), the one grouping haplotypes carry. In the
+   core it is a key over `topology.tracks` beside `facetReads`'s key over reads,
+   and a `PlacementOptions.facet` that names haplotypes and has `place` keep the
+   subset; every panel keeps the reference, which carries the ruler and anchors
+   the straightening, and `offsetY` stacking and the renderer carry over as they
+   are. Haplotype bands then shade by share within the panel.
 2. **Per-region facets.** Separate layouts with shared scales and legend. Wait
    until `src/util/tubemap.ts` state (about 20 module-level `let`s, `config`,
    hover state, subscriber stores, one `svgID` and one zoom) is an instance.
    Each panel costs another placement pass, so this ties to
    [wide-pangenome-windows](wide-pangenome-windows.md).
 
-Facets come next because a panel is a placement of a set of layers, which now
-exists. Reads by read group make the first useful facet: the data is there, and
-it exercises a subset filter at placement without touching the topology.
+Haplotype facets come before per-region ones because they reuse the stack
+placeFacets built, need no renderer refactor and answer a question the banded
+view can't: how one population's or sample's haplotypes route through a region
+next to another's. Per-region facets need separate topologies and an instanced
+renderer first.
 
 A general grammar engine is not the goal.

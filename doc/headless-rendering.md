@@ -74,9 +74,10 @@ show — rather than the cropped figure.
 Every option in the app's View menu has a flag: `--compressed`, `--no-reads`,
 `--no-soft-clips`, `--no-merge-nodes`, `--node-labels`, `--transparent-nodes`,
 `--coarsened`, `--banded-haplotypes`, `--ignore-strand`, `--color-by-mapq`,
-`--alpha-by-mapq` and `--mapq N` — `--help` lists them, from the same table that
-reads them, so the two cannot drift apart. The mapping-quality flags only show
-up when the reads actually differ in mapping quality.
+`--alpha-by-mapq`, `--mapq N` and `--facet-reads-by F` — `--help` lists them,
+from the same table that reads them, so the two cannot drift apart. The
+mapping-quality flags only show up when the reads actually differ in mapping
+quality.
 
 `--ignore-strand` is quiet on all nine bundled `--example` datasets, which is
 those datasets rather than the flag. What it moves in the normal view is reads
@@ -105,6 +106,35 @@ solid color soup at that count — so this is the flag to reach for there too; s
 stacks the reads under the bands: one by one, or banded as well under
 `--coarsened`. The legend keys the haplotype bands by their share and the reads
 by whatever colors them.
+
+`--facet-reads-by read_group` (or `sample_name`) draws the graph once per read
+group or sample, stacked top to bottom under a label naming the group and its
+read count, with each panel holding only that group's reads. Every panel takes
+the same node positions, so a node lines up down the stack and a branch one
+group's reads take and another's skip shows at a glance. The ruler draws once,
+at the top, and one legend keys every panel, since a track keeps its color in
+every panel it appears in. `none` turns it off.
+
+The figures below draw `exampleData/hprc-chrM-3samples.sorted.gam`, reads
+simulated from the chrM haplotypes of three HPRC samples (no bundled alignment
+file carries more than one read group or sample), over the first 650 bp of
+`hprc-chrM.gbz.db` with the haplotypes banded. `scripts/make-facet-fixture.sh`
+rebuilds the reads and `scripts/make-facet-figures.sh` the figures.
+
+Split by sample, HG02886's reads leave the reference for the C alleles at chrM
+146 and 152, where HG00438's and HG00735's stay on T:
+
+![Reads faceted by sample](images/facets-by-sample.png)
+
+Under `--coarsened` each panel bands its own reads, so the same split reads as
+one band per sample and edge:
+
+![Read bands faceted by sample](images/facets-by-sample-banded.png)
+
+Split by read group, with `--compressed`, the two lanes of each sample agree
+with each other and differ from the other samples' lanes in the same places:
+
+![Read bands faceted by read group](images/facets-by-read-group.png)
 
 `--compressed` is the one to reach for whenever a figure comes out unreadably
 wide. Node width scales with sequence length, so any region spanning many bases

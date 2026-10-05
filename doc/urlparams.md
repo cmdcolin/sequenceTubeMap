@@ -153,6 +153,13 @@ preference, adjustable from the banner above the map.
 The mapping quality cutoff, a whole number from 0 to 60. `mapq=20`. The app
 rounds any other number to the nearest one in that range.
 
+### `facet`
+
+The read field the map splits into stacked panels, one per value: `read_group`
+or `sample_name`. `facet=read_group`. `none`, or leaving it out, draws one
+panel. The View menu's **Facet reads by** sets it. It sits beside `mapq` rather
+than in `vis`, which holds only on/off flags.
+
 ### `dataType`
 
 `built-in` | `mounted files` | `examples`. Tags the view with how it was built.
