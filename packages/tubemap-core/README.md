@@ -57,8 +57,17 @@ const confident = placeTubeMap(topology, { mappingQualityCutoff: 30 })
 - `charWidth`: px per base under `normal` (8.401)
 - `trackWidth`: tube width (15)
 - `mergeNodes`, `showReads` (true); `coarsenedReadView`, `ignoreStrand` (false)
+- `layers`: the track sets placement draws, each with an optional stat.
+  `{ data: 'haplotypes', stat: 'coarsen' }` bands every haplotype but the
+  reference, one band per edge, and `{ data: 'reads', stat: 'coarsen' }` does
+  the same for the reads, which stack under the haplotypes either way. Unset,
+  `coarsenedReadView` bands the reads, or the haplotypes when no reads load
 - `mappingQualityCutoff`, `focusReadNames`: read filters, the only placement
   options; the rest belong to the topology
+
+`layout.coarsened` holds a `Coarsening` per banded layer, and
+`layout.coarsenedEdgeMeta` labels every band by its id, which no two bands
+share.
 
 ## Releasing
 
