@@ -16,7 +16,7 @@ Surveyed 2026-09-27 against this app and
   region-indexed adapters (tabix rGFA, gbz-base over range requests). It caps at
   5 Mb with a Force load button, caps parsed graphs at 20,000 nodes, and has a
   coarse tier past a zoom level. Its tube map layout is `@gmod/tubemap-core`,
-  whose source is `packages/tubemap-core` here.
+  developed in [GMOD/tubemap-core](https://github.com/GMOD/tubemap-core).
 - **This app re-fetches on every move.** Shift, widen and narrow are a new
   region string, a full fetch and a full redraw; d3-zoom pans within the loaded
   content only (`translateExtent` is clamped to the layout bounds in
@@ -29,11 +29,10 @@ Surveyed 2026-09-27 against this app and
 ## Why neither tiles
 
 Linear-browser lazy loading works because a block's pixels depend only on that
-block. In `layoutTubeMap` (`packages/tubemap-core/src/layout.ts`) a node's
-column and every walk's lane depend on the whole window: it straightens on track
-0, merges nodes, and orders nodes across all tracks twice. Appending a
-neighbouring chunk can reorder and re-lane the graph anywhere, and x is in
-layout-order space, not bp.
+block. In `layoutTubeMap` (tubemap-core's `layout.ts`) a node's column and every
+walk's lane depend on the whole window: it straightens on track 0, merges nodes,
+and orders nodes across all tracks twice. Appending a neighbouring chunk can
+reorder and re-lane the graph anywhere, and x is in layout-order space, not bp.
 
 ## The plausible path
 

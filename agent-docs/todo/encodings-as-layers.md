@@ -62,12 +62,12 @@ spec instead of a growing flag list.
 
 ## The two-phase layout
 
-`layoutTubeMap` in `packages/tubemap-core/src/layout.ts` composes two exported
-phases. `layoutTopology` merges, orders and orients the nodes, sizes them and
-fixes their x. `placeTubeMap` lays out the topology's haplotypes and the reads
-its filters keep: lanes, read stacking, `adjustVertically` and shapes. A caller
-can run the topology once and place it several times, and every placement keeps
-the same node order and x.
+`layoutTubeMap` in [tubemap-core](https://github.com/GMOD/tubemap-core)'s
+`layout.ts` composes two exported phases. `layoutTopology` merges, orders and
+orients the nodes, sizes them and fixes their x. `placeTubeMap` lays out the
+topology's haplotypes and the reads its filters keep: lanes, read stacking,
+`adjustVertically` and shapes. A caller can run the topology once and place it
+several times, and every placement keeps the same node order and x.
 
 The topology reads every visible haplotype and every primary read, unfiltered.
 Reads can't stay out of it: `generateNodeOrder` orders a node only reads reach
@@ -98,13 +98,13 @@ handed the renderer a new array and missed both caches.
 
 No golden changed. The `brca1.mapq-500` golden never showed filter-dependent
 topology: its reads cross three nodes with nothing to merge. A test in
-`packages/tubemap-core/src/layout.test.ts` pins the new behavior instead, with a
-read whose filtered-out edge keeps a node from merging.
+tubemap-core's `layout.test.ts` pins the new behavior instead, with a read whose
+filtered-out edge keeps a node from merging.
 
 ## Layers
 
-`TopologyOptions.layers` in `packages/tubemap-core/src/layout.ts` lists the
-track sets placement draws, each with an optional stat:
+`TopologyOptions.layers` in tubemap-core's `layout.ts` lists the track sets
+placement draws, each with an optional stat:
 
 ```ts
 layers: [{ data: 'haplotypes', stat: 'coarsen' }, { data: 'reads' }]
@@ -138,18 +138,17 @@ with reads carry one haplotype, so their new files point at older ones.
 
 ## Facets
 
-`placeFacets` in `packages/tubemap-core/src/layout.ts` places one topology once
-per subset of its tracks and reads and stacks the placements top to bottom.
-`facetReads` splits the reads the mapping-quality and focus filters keep by a
-read field (`ReadFacetBy`: `read_group` or `sample_name`), one subset per value
-in sort order and the reads lacking one last. `PlacementOptions.facet`
-(`{ by, key }`, plain JSON, so the renderer's placement cache still keys on
-`JSON.stringify`) has `placeTubeMap` place one subset. Every panel draws every
-haplotype, under the topology's layers, at the topology's x, so panels line up
-in x exactly; lanes, node heights and `adjustVertically` follow each panel's own
-reads. Read band ids run on from one panel to the next, so they stay unique
-across the stack; haplotype bands repeat in every panel under the same ids and
-shares.
+`placeFacets` in tubemap-core's `layout.ts` places one topology once per subset
+of its tracks and reads and stacks the placements top to bottom. `facetReads`
+splits the reads the mapping-quality and focus filters keep by a read field
+(`ReadFacetBy`: `read_group` or `sample_name`), one subset per value in sort
+order and the reads lacking one last. `PlacementOptions.facet` (`{ by, key }`,
+plain JSON, so the renderer's placement cache still keys on `JSON.stringify`)
+has `placeTubeMap` place one subset. Every panel draws every haplotype, under
+the topology's layers, at the topology's x, so panels line up in x exactly;
+lanes, node heights and `adjustVertically` follow each panel's own reads. Read
+band ids run on from one panel to the next, so they stay unique across the
+stack; haplotype bands repeat in every panel under the same ids and shares.
 
 Each panel keeps its own coordinates and carries an `offsetY`: the first sits
 where an unfaceted placement draws, and each later one starts `FACET_GAP` below
@@ -191,15 +190,15 @@ input.
 ## Haplotype facets
 
 `facetBy: 'haplotype_sample'` splits the haplotypes by the sample in their PanSN
-names. `parsePanSN` in `packages/tubemap-core/src/panSN.ts` reads
-`sample#haplotype#contig` (further `#` fields allowed) and names no sample for
-anything else: fewer than three fields, an empty sample or contig, a haplotype
-that isn't a whole number, or gbz-base's placeholder samples `_gbwt_ref` and
-`unknown`. `facetHaplotypes` makes one subset per sample in sort order, then one
-(`key: null`) for the haplotypes with no PanSN sample, each holding the
-reference: track 0, which the topology straightened, and the ruler's track when
-that is another. The reference takes no panel of its own. With no haplotype
-beside the reference nothing splits, and the view is one unfaceted panel.
+names. `parsePanSN` in tubemap-core's `panSN.ts` reads `sample#haplotype#contig`
+(further `#` fields allowed) and names no sample for anything else: fewer than
+three fields, an empty sample or contig, a haplotype that isn't a whole number,
+or gbz-base's placeholder samples `_gbwt_ref` and `unknown`. `facetHaplotypes`
+makes one subset per sample in sort order, then one (`key: null`) for the
+haplotypes with no PanSN sample, each holding the reference: track 0, which the
+topology straightened, and the ruler's track when that is another. The reference
+takes no panel of its own. With no haplotype beside the reference nothing
+splits, and the view is one unfaceted panel.
 
 `Facet` is now a union: `ReadFacet` (`{ by, key }`) and `HaplotypeFacet`, which
 is `{ by: 'haplotype_sample', key }` or

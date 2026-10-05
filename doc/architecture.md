@@ -100,9 +100,9 @@ for a chosen set of haplotypes cost only that set — goes unexercised here. It
 matters for consumers that draw one lane per selected haplotype, such as JBrowse
 2; the tube map always draws them all.
 
-The package comes from npm (`@gmod/gbz-base`); `pnpm-workspace.yaml` lists it
-under `minimumReleaseAgeExclude` so a fresh release installs without the default
-waiting period.
+The package comes from npm (`@gmod/gbz-base`); `pnpm-workspace.yaml` lists it,
+like `@gmod/tubemap-core`, under `minimumReleaseAgeExclude` so a fresh release
+installs without the default waiting period.
 
 ## Frontend
 
@@ -131,13 +131,16 @@ file.
 
 The tube map is inherited from upstream and ported to TypeScript, in two parts:
 
-- **`packages/tubemap-core`**, published as `@gmod/tubemap-core`, is the layout:
-  node order, orientation, lanes, read placement and node merging, from input
-  nodes and tracks to drawable shapes in layout coordinates, plus the curve and
-  node outline path geometry. It has no DOM or d3, so other apps — the JBrowse
-  graph genome plugin among them — draw its output their own way. Each
-  `layoutTubeMap` call passes its own `LayoutState` through the passes, so calls
-  share nothing.
+- **`@gmod/tubemap-core`**, installed from npm and developed in
+  [GMOD/tubemap-core](https://github.com/GMOD/tubemap-core), is the layout: node
+  order, orientation, lanes, read placement and node merging, from input nodes
+  and tracks to drawable shapes in layout coordinates, plus the curve and node
+  outline path geometry. It has no DOM or d3, so other apps — the JBrowse graph
+  genome plugin among them — draw its output their own way. Each `layoutTubeMap`
+  call passes its own `LayoutState` through the passes, so calls share nothing.
+  `src/util/layout.golden.test.ts` pins its output on the viewer's datasets, and
+  [development.md](development.md#developing-against-a-local-tubemap-core)
+  covers changing both repos together.
 - **`src/util/tubemap.ts`** draws a layout with d3 and handles the interaction.
   It is _not_ a React component: it holds the latest layout and its UI state at
   module level, and `TubeMap.tsx` drives it through `create()` plus a set of

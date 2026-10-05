@@ -121,6 +121,44 @@ It needs `magick` (ImageMagick) for the crop, and no browser-automation
 dependency: Node's own `fetch` and `WebSocket` are the whole driver. Re-run it
 when a change moves any of that UI, and commit the PNGs it rewrites.
 
+## Developing against a local tubemap-core
+
+The layout engine lives in
+[GMOD/tubemap-core](https://github.com/GMOD/tubemap-core) and reaches the viewer
+as `@gmod/tubemap-core` from npm. To try a layout change here before releasing
+it, build a clone and link it in place of the npm copy:
+
+```
+core=~/src/gmod/tubemap-core   # any path works
+git clone https://github.com/GMOD/tubemap-core $core
+pnpm -C $core install
+pnpm -C $core build
+pnpm link $core
+```
+
+The package exports its compiled `dist/`, not its sources, so run
+`pnpm -C $core build` after each change there; `pnpm start`, `pnpm test` and
+`pnpm tubemap-cli` all read the rebuilt `dist/`.
+`src/util/layout.golden.test.ts` shows what the change does to the viewer's
+layouts.
+
+`pnpm link` records a `link:` entry under `overrides` in `pnpm-workspace.yaml`
+and `pnpm-lock.yaml`. Never commit those two edits: CI's
+`pnpm install --frozen-lockfile` has no clone to link. Undo the link with:
+
+```
+pnpm unlink @gmod/tubemap-core
+```
+
+`pnpm unlink` drops the override and reinstalls the npm version.
+
+A layout change ships in two steps. Release it from tubemap-core, where pushing
+a `v<version>` tag publishes to npm. Then bump the range in `package.json`, run
+`pnpm install`, rewrite any golden it changes with
+`pnpm vitest run -u src/util/layout.golden.test.ts`, and commit them together.
+`pnpm-workspace.yaml` lists `@gmod/tubemap-core` under
+`minimumReleaseAgeExclude`, so a release installs as soon as npm lists it.
+
 ## Build
 
 ```
