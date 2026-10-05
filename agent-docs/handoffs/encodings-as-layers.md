@@ -34,14 +34,16 @@ lists the open gaps. Figures live in `doc/images/layers-*.png` and
    encodings. Defer until a fourth encoding or layer option would add yet
    another parameter.
 
-## Checks before publishing `@gmod/tubemap-core`
+## Releasing `@gmod/tubemap-core`
 
-The package is not private, and the landed changes break its API: shapes lost
-`color` and `alpha`, `trackColor` and `trackAlpha` are gone, and
-`layoutTopology`, `placeTubeMap`, `placeFacets` and `layers` are new. No
-consumer in this repo uses the removed fields; the JBrowse plugin and any other
-outside consumer are unchecked. Bump the version and note the break in
-`packages/tubemap-core/README.md` before publishing.
+Version 0.2.0 carries these changes and went out through trusted publishing: a
+`tubemap-core-v0.2.0` tag ran `.github/workflows/publish-tubemap-core.yml`,
+which published with provenance and no stored token. The registry took about
+three minutes to list the version after the job reported success, so poll the
+registry before concluding a publish failed. A later release bumps `version`,
+adds to "Changes since 0.1.0" in `packages/tubemap-core/README.md`, and pushes
+the next tag. The JBrowse plugin and any other outside consumer of the removed
+shape fields are unchecked.
 
 ## Open questions
 
