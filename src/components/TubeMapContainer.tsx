@@ -618,6 +618,14 @@ function TubeMapContainer({
     READ_LIMIT_PRESETS[0],
     readRenderLimit ?? Infinity,
   )
+  // The coarsened view collapses reads to one band per edge, so the per-read
+  // cap doesn't apply. The compiler memoizes the subsample on these three
+  // values alone, so a View menu change keeps the array and the layout cache.
+  const { coarsenedReadView } = visOptions
+  const shownReads =
+    reads !== undefined && readRenderLimit !== null && !coarsenedReadView
+      ? subsampleReads(reads, readRenderLimit)
+      : reads
 
   return (
     <div id="tubeMapContainer" style={{ position: 'relative' }}>
@@ -713,7 +721,7 @@ function TubeMapContainer({
       ) : null}
       {reads !== undefined &&
       reads.length > readBannerThreshold &&
-      !visOptions.coarsenedReadView &&
+      !coarsenedReadView &&
       !graphTooLarge ? (
         <ReadRenderLimitBanner
           totalReads={reads.length}
@@ -757,15 +765,7 @@ function TubeMapContainer({
           <TubeMap
             nodes={nodes}
             tracks={tracks}
-            reads={
-              // Coarsened (Sankey) mode collapses reads to one band per edge,
-              // so the per-read render cap doesn't apply — pass the full set.
-              reads !== undefined &&
-              readRenderLimit !== null &&
-              !visOptions.coarsenedReadView
-                ? subsampleReads(reads, readRenderLimit)
-                : reads
-            }
+            reads={shownReads}
             region={region}
             visOptions={{
               coloredNodes,

@@ -29,11 +29,18 @@ interface CapturedMenus {
 // them like the SVG would.
 const mocks = vi.hoisted(() => {
   const menus: CapturedMenus = {}
-  return { menus, coloring: { colorSchemes: [], drawn: [] } }
+  return {
+    menus,
+    coloring: { colorSchemes: [], drawn: [] },
+    drawnReads: [] as (InputTrack[] | null | undefined)[],
+  }
 })
 
 vi.mock('./TubeMap.tsx', () => ({
-  default: () => <div data-testid="tubeMap" />,
+  default: ({ reads }: { reads?: InputTrack[] | null }) => {
+    mocks.drawnReads.push(reads)
+    return <div data-testid="tubeMap" />
+  },
 }))
 
 // The container only reaches for these four, and a full replacement keeps the
@@ -184,6 +191,14 @@ describe('TubeMapContainer', () => {
 
     expect(onReadRenderLimitChange).toHaveBeenCalledWith(500)
     expect(screen.getByText(/Showing 150 of 150 reads/)).toBeInTheDocument()
+  })
+
+  it('keeps the subsampled reads across a View menu change', () => {
+    const { rerenderWith } = renderContainer({ data: makeData(150) })
+    const first = mocks.drawnReads.at(-1)
+    rerenderWith({ visOptions: { ...VIS_OPTIONS, mappingQualityCutoff: 20 } })
+    expect(first).toHaveLength(100)
+    expect(mocks.drawnReads.at(-1)).toBe(first)
   })
 
   it('hides the banner when every read is rendered anyway', () => {
