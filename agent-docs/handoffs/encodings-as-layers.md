@@ -38,13 +38,16 @@ lists the open gaps. Figures live in `doc/images/layers-*.png` and
 
 Version 0.2.0 carries these changes. The package has since moved to
 [GMOD/tubemap-core](https://github.com/GMOD/tubemap-core), and the viewer
-depends on `^0.2.0` from npm. Releases now happen in that repo: bump `version`,
-add to its README's changelog, and push a `v<version>` tag, which publishes with
-provenance through trusted publishing. Then bump the range here as
+depends on `^0.2.1` from npm. Releases happen in that repo: bump `version`, add
+to its README's changelog, and push a `v<version>` tag, which publishes with
+provenance through trusted publishing (0.2.1 went out this way). Then bump the
+range here as
 [development.md](../../doc/development.md#developing-against-a-local-tubemap-core)
-describes. The registry took about three minutes to list 0.2.0 after the job
-reported success, so poll it before concluding a publish failed. The JBrowse
-plugin and any other outside consumer of the removed shape fields are unchecked.
+describes. The registry takes about three minutes to list a version after the
+job reports success, so poll it before concluding a publish failed.
+`@jbrowse/bandage-core` and the graph genome viewer plugin consume the package
+too; both still declare `@gmod/tubemap-core@0.1.0` until their migration
+releases.
 
 The local-link commands in development.md were exercised against a copy of the
 published 0.2.0 standing in for the clone (link, golden test, CLI, Vite dev

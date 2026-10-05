@@ -21,8 +21,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.0
       '@jbrowse/tubemap-core':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.2.1
+        version: 0.2.1
       '@mui/material':
         specifier: ^9.4.0
         version: 9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -468,8 +468,8 @@ packages:
     resolution: {integrity: sha512-2q/jEswxiUNWSiR2O/X7tmdC3tOeMkUYXOIi/zRCALzC1RbjAzgzsDvx0i8VMLwD+LYQfAEOUoBcCTL+dvKVsQ==}
     hasBin: true
 
-  '@jbrowse/tubemap-core@0.2.0':
-    resolution: {integrity: sha512-m6nUd3kP5xhktY8kbMLZw//2G0mEcGeOFCWU+z58ZzYH+AiY1CD2F41gaklqL8K3YMNwGohlcVgeuJJDMqXIWg==}
+  '@jbrowse/tubemap-core@0.2.1':
+    resolution: {integrity: sha512-93MYJ6W6pJQij5y055GBFsNxp/cOplN7/hC+wBxI5xbySZI385V627ENR2HN0aNbnIysxF+pWhl2pnehNRg5VA==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -2854,7 +2854,7 @@ snapshots:
     dependencies:
       generic-filehandle2: 2.4.0
 
-  '@jbrowse/tubemap-core@0.2.0': {}
+  '@jbrowse/tubemap-core@0.2.1': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
