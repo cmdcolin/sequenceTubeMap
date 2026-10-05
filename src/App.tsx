@@ -47,6 +47,7 @@ import {
   DEFAULT_VIS_OPTIONS,
   exampleColorSchemes,
   facetByFrom,
+  fetchTargetFor,
   mappingQualityCutoffFrom,
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
@@ -247,7 +248,11 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     dataOrigin === dataOriginTypes.API
       ? viewTarget.tracks.length === 0 || holdingWideRegion
         ? null
-        : ['tubeMap.api', apiInterface.mode, viewTarget]
+        : [
+            'tubeMap.api',
+            apiInterface.mode,
+            fetchTargetFor(viewTarget, visOptions),
+          ]
       : ['tubeMap.example', dataOrigin]
 
   const {

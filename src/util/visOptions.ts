@@ -7,7 +7,12 @@ import { FACET_FIELDS, type FacetBy } from '@gmod/tubemap-core'
 import * as tubeMap from './tubemap.ts'
 import type { ReadGroup as TubeMapReadGroup } from './tubemap.ts'
 import { dataOriginTypes } from '../enums.ts'
-import type { ColorScheme, VisOptions, VisOptionFlag } from '../Types.ts'
+import type {
+  ColorScheme,
+  ViewTarget,
+  VisOptions,
+  VisOptionFlag,
+} from '../Types.ts'
 
 interface ReadGroupInput {
   color: string
@@ -51,12 +56,23 @@ export function mappingQualityCutoffFrom(value: unknown) {
     : undefined
 }
 
-// A field reads can be faceted by, or null for none; undefined for anything
-// else, which a stored preference or link may hold
+// A field to facet by, or null for none; undefined for anything else, which a
+// stored preference or link may hold
 export function facetByFrom(value: unknown): FacetBy | null | undefined {
   return value === null || value === 'none'
     ? null
     : FACET_FIELDS.find(field => field === value)
+}
+
+// What to fetch for a view: a haplotype facet needs every haplotype under its
+// own name, where the default collapses identical walks into one
+export function fetchTargetFor(
+  viewTarget: ViewTarget,
+  { facetBy }: Pick<VisOptions, 'facetBy'>,
+): ViewTarget {
+  return facetBy === 'haplotype_sample'
+    ? { ...viewTarget, allHaplotypes: true }
+    : viewTarget
 }
 
 export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {

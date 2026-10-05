@@ -17,7 +17,7 @@ import {
   nodes as gbzNodes,
   subgraphAroundNodes,
 } from '@gmod/gbz-base'
-import type { PathName, Subgraph } from '@gmod/gbz-base'
+import type { HaplotypeOutput, PathName, Subgraph } from '@gmod/gbz-base'
 import { SubgraphLimitError } from '@gmod/gbz-base'
 
 import {
@@ -240,6 +240,7 @@ function subgraphLimitMessage(region: string, e: SubgraphLimitError): string {
 async function nodeRegionSubgraph(
   db: GBZBase,
   region: Region,
+  haplotypes: HaplotypeOutput,
   signal: AbortSignal | null,
 ): Promise<Subgraph> {
   const first = region.start
@@ -292,7 +293,7 @@ async function nodeRegionSubgraph(
   }
   const subgraph = await subgraphAroundNodes(db, [...reached], {
     context: 0,
-    haplotypes: 'distinct',
+    haplotypes,
     signal: signal ?? undefined,
   })
   if (db.hasHaplotypeIndex) {
@@ -585,12 +586,18 @@ export class GBZBaseAPI implements APIInterface {
     const db = await this.openGraph(graphFile)
     cancelSignal?.throwIfAborted()
 
+    const haplotypes = viewTarget.allHaplotypes ? 'all' : 'distinct'
     let result
     let region: InputRegion
     try {
       let subgraph
       if (parsed.contig === 'node') {
-        subgraph = await nodeRegionSubgraph(db, parsed, cancelSignal)
+        subgraph = await nodeRegionSubgraph(
+          db,
+          parsed,
+          haplotypes,
+          cancelSignal,
+        )
         // The server's shape for a region with no path coordinates.
         region = [null, null]
       } else {
@@ -607,7 +614,7 @@ export class GBZBaseAPI implements APIInterface {
           start,
           end + 1,
           {
-            haplotypes: 'distinct',
+            haplotypes,
             limit: this.subgraphNodeLimit,
             signal: cancelSignal ?? undefined,
           },

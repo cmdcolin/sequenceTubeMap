@@ -52,6 +52,9 @@ export interface ViewTarget {
 
   simplify?: boolean // Whether to write out small snarls
   removeSequences?: boolean // Whether to remove node sequences server-side
+  // Keep every haplotype rather than one walk per distinct traversal, so each
+  // walk keeps its own name. gbz-base honors it; the server ignores it.
+  allHaplotypes?: boolean
 
   // Non-essential to server, used for examples.
   name?: string

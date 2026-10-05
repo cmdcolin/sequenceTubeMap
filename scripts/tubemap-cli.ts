@@ -124,7 +124,8 @@ below override what it carries.
 
 View options, mirroring the app's View menu:
 ${flagHelp()}  --mapq N            drop reads below mapping quality N
-  --facet-by F  one panel per read_group or sample_name, stacked
+  --facet-by F        one panel per read_group, sample_name or
+                      haplotype_sample (the PanSN sample), stacked
 
 --legend draws the app's color key into the figure, above the map, so it can be
 read away from the app.
@@ -586,7 +587,7 @@ interface Render {
 
 async function resolveRender(api: GBZBaseAPI, args: CliArgs): Promise<Render> {
   const { defaultTrackColors } = await import('../src/common.ts')
-  const { DEFAULT_VIS_OPTIONS, exampleColorSchemes } =
+  const { DEFAULT_VIS_OPTIONS, exampleColorSchemes, fetchTargetFor } =
     await import('../src/util/visOptions.ts')
   const visOptions = {
     ...DEFAULT_VIS_OPTIONS,
@@ -615,7 +616,7 @@ async function resolveRender(api: GBZBaseAPI, args: CliArgs): Promise<Render> {
     `querying ${viewTarget.name ?? 'the link'} @ ${viewTarget.region} ...`,
   )
   return {
-    key: ['tubeMap.api', api.mode, viewTarget],
+    key: ['tubeMap.api', api.mode, fetchTargetFor(viewTarget, visOptions)],
     viewTarget,
     visOptions,
     // Derived exactly as App does, so a source that pins its palettes in
