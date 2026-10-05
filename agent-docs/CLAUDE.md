@@ -8,7 +8,7 @@ Everything here is filed by what it is:
   measurement), `waiting-on-someone-else/` (upstream or data). A verdict leaves
   `ideas/`: an ADR if the decision deserves a record, otherwise deleted.
 - `reference/` — settled: how a subsystem works, and measurements with numbers.
-- `architecture-decision-records/` — *why*, one per file.
+- `architecture-decision-records/` — _why_, one per file.
 - `todo/` — committed work, one file per item, indexed by `TODO.md`.
 - `handoffs/` — live state of an unfinished thread; pointers, not content.
   Delete when the thread lands.

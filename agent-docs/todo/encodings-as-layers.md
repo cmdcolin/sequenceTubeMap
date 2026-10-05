@@ -90,9 +90,9 @@ Order of work:
    `adjustVertically`, the straightened reference and even x gaps
    (`calculateExtraSpace`) all depend on which tracks are present. Panels
    sharing a layout keep the full height, with 15 px gaps per missing haplotype
-   and 7 px per missing read, so k panels take about k times the height; x
-   takes the maximum extra space over all panels. Haplotypes carry no
-   population or sample-group metadata today (only reads carry `sample_name` and
+   and 7 px per missing read, so k panels take about k times the height; x takes
+   the maximum extra space over all panels. Haplotypes carry no population or
+   sample-group metadata today (only reads carry `sample_name` and
    `read_group`), so grouping haplotypes means parsing PanSN names. Every panel
    needs its own legend rows for color-only encodings.
 5. **Per-region facets.** Separate layouts with shared scales and legend. Wait
@@ -104,7 +104,7 @@ Order of work:
 The layout now passes a `LayoutState` rather than module-level scratch, so a
 layer can run its passes on its own state. The colorer already reads each drawn
 track's computed variables (share, strand, mapping quality, name) off
-`ColorableTrack`, so a layer's stat only has to fill them in. Review the
-layout goldens (66) at step 3.
+`ColorableTrack`, so a layer's stat only has to fill them in. Review the layout
+goldens (66) at step 3.
 
 A general grammar engine is not the goal.
