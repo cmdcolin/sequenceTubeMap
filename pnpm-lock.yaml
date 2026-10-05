@@ -21,8 +21,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.0
       '@gmod/tubemap-core':
-        specifier: workspace:*
-        version: link:packages/tubemap-core
+        specifier: ^0.2.0
+        version: 0.2.0
       '@mui/material':
         specifier: ^9.4.0
         version: 9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -117,8 +117,6 @@ importers:
       vitest:
         specifier: ^5.0.2
         version: 5.0.2(@types/node@25.9.1)(jsdom@30.1.2)(vite@8.3.1(@types/node@25.9.1)(esbuild@0.28.0)(terser@5.47.1))
-
-  packages/tubemap-core: {}
 
 packages:
 
@@ -469,6 +467,9 @@ packages:
   '@gmod/gbz-base@3.0.0':
     resolution: {integrity: sha512-2q/jEswxiUNWSiR2O/X7tmdC3tOeMkUYXOIi/zRCALzC1RbjAzgzsDvx0i8VMLwD+LYQfAEOUoBcCTL+dvKVsQ==}
     hasBin: true
+
+  '@gmod/tubemap-core@0.2.0':
+    resolution: {integrity: sha512-P0uAJpGpc3pjFQCQmif0/67L/lCxqvikMY8VcdBoeKVvVXJ6Rl0gPrc67y4+Im50rcaMq1AtdNj++mNvJDmNQg==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -2852,6 +2853,8 @@ snapshots:
   '@gmod/gbz-base@3.0.0':
     dependencies:
       generic-filehandle2: 2.4.0
+
+  '@gmod/tubemap-core@0.2.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
