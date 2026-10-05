@@ -2,9 +2,13 @@
 
 import { curvePaths, nodeOutlinePath } from './geometry.ts'
 import {
+  FACET_GAP,
+  FACET_LABEL_HEIGHT,
+  facetReads,
   getXCoordinateOfBaseWithinNode,
   layoutTopology,
   layoutTubeMap,
+  placeFacets,
   placeTubeMap,
 } from './layout.ts'
 
@@ -599,6 +603,132 @@ describe('layoutTubeMap', () => {
       expect(tail!.order).toBeGreaterThanOrEqual(0)
       expect(Number.isFinite(tail!.y)).toBe(true)
       expectFiniteGeometry(layout)
+    })
+  })
+
+  describe('facets', () => {
+    // Two read groups on opposite alleles, one read in no group
+    const reads: InputTrack[] = [
+      { id: 10, name: 'a1', sequence: ['1', '2', '4'], read_group: 'A' },
+      { id: 11, name: 'a2', sequence: ['1', '2'], read_group: 'A' },
+      { id: 12, name: 'b1', sequence: ['1', '3', '4'], read_group: 'B' },
+      { id: 13, name: 'b2', sequence: ['-4', '-3'], read_group: 'B' },
+      { id: 14, name: 'n1', sequence: ['3', '4'] },
+    ].map((read, i) => ({
+      ...read,
+      type: 'read' as const,
+      sourceTrackID: 1,
+      sample_name: i < 2 ? 'S1' : 'S2',
+      mapping_quality: read.name === 'b2' ? 5 : 60,
+      finalNodeCoverLength: 1,
+    }))
+    const topology = layoutTopology(nodes, tracks, reads, {
+      mergeNodes: false,
+    })!
+    const placed = (layout: TubeMapLayout) =>
+      layout.nodes.flatMap(({ name, order, x }) => [{ name, order, x }])
+    const names = (layout: TubeMapLayout) =>
+      layout.reads.map(r => r.name).sort()
+
+    it('splits the filtered reads into one subset per value, the unset last', () => {
+      const subsets = facetReads(topology, 'read_group', {
+        mappingQualityCutoff: 10,
+      })
+      expect(subsets.map(s => s.facet.key)).toEqual(['A', 'B', null])
+      expect(subsets.map(s => s.reads.map(r => r.name))).toEqual([
+        ['a1', 'a2'],
+        ['b1'],
+        ['n1'],
+      ])
+      expect(
+        facetReads(topology, 'sample_name', {
+          focusReadNames: ['a1', 'n1'],
+        }).map(s => [s.facet.key, s.reads.map(r => r.name)]),
+      ).toEqual([
+        ['S1', ['a1']],
+        ['S2', ['n1']],
+      ])
+    })
+
+    it('stacks panels that partition the reads and share node order and x', () => {
+      const options = { mappingQualityCutoff: 10 }
+      const { panels, bounds } = placeFacets(topology, {
+        ...options,
+        facetReadsBy: 'read_group',
+      })
+      const all = placeTubeMap(topology, options)
+      expect(panels.flatMap(p => names(p.layout)).sort()).toEqual(names(all))
+      for (const panel of panels) {
+        expect(placed(panel.layout)).toEqual(placed(all))
+        expect(panel.layout.reads.map(r => r.id)).toEqual(
+          placeTubeMap(topology, { ...options, facet: panel.facet }).reads.map(
+            r => r.id,
+          ),
+        )
+        expect(
+          panel.layout.tracks
+            .filter(t => t.type === 'haplotype')
+            .map(t => t.id)
+            .sort(),
+        ).toEqual([0, 1])
+        expectFiniteGeometry(panel.layout)
+      }
+      expect(panels.map(p => p.readCount)).toEqual([2, 1, 1])
+      expect(panels[0]!.offsetY).toBe(0)
+      for (const [above, below] of [
+        [panels[0]!, panels[1]!],
+        [panels[1]!, panels[2]!],
+      ] as const) {
+        expect(
+          below.offsetY + below.layout.bounds.minY - FACET_LABEL_HEIGHT,
+        ).toBe(above.offsetY + above.layout.bounds.maxY + FACET_GAP)
+      }
+      const last = panels[2]!
+      expect(bounds.minY).toBe(
+        panels[0]!.layout.bounds.minY - FACET_LABEL_HEIGHT,
+      )
+      expect(bounds.maxY).toBe(last.offsetY + last.layout.bounds.maxY)
+    })
+
+    it('is one panel of placeTubeMap unfaceted, or with no reads to split', () => {
+      for (const options of [
+        {},
+        { facetReadsBy: null },
+        { facetReadsBy: 'read_group' as const, focusReadNames: ['none'] },
+      ]) {
+        const { panels, bounds } = placeFacets(topology, options)
+        expect(panels).toHaveLength(1)
+        expect(panels[0]!.facet).toBeUndefined()
+        expect(panels[0]!.offsetY).toBe(0)
+        expect(bounds).toEqual(panels[0]!.layout.bounds)
+      }
+      expect(placeFacets(topology).panels[0]!.layout).toBe(
+        placeTubeMap(topology),
+      )
+    })
+
+    it('keeps read band ids unique across panels, and haplotype bands shared', () => {
+      const banded = layoutTopology(nodes, tracks, reads, {
+        mergeNodes: false,
+        layers: [
+          { data: 'haplotypes', stat: 'coarsen' },
+          { data: 'reads', stat: 'coarsen' },
+        ],
+      })!
+      const { panels } = placeFacets(banded, { facetReadsBy: 'sample_name' })
+      expect(panels).toHaveLength(2)
+      const ofKind = (haplotype: boolean) =>
+        panels.map(p =>
+          p.layout.reads
+            .filter(r => (r.haplotypeShare !== undefined) === haplotype)
+            .map(r => r.id),
+        )
+      const readBands = ofKind(false).flat()
+      expect(readBands.length).toBeGreaterThan(2)
+      expect(new Set(readBands).size).toBe(readBands.length)
+      const [first, second] = ofKind(true)
+      expect(first!.length).toBeGreaterThan(0)
+      expect(second).toEqual(first)
     })
   })
 
