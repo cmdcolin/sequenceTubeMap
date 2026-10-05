@@ -1,5 +1,6 @@
 import {
   DEFAULT_VIS_OPTIONS,
+  facetReadsByFrom,
   mappingQualityCutoffFrom,
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
@@ -54,6 +55,7 @@ const VIEW_PARAM_KEYS = [
   'colors',
   'vis',
   'mapq',
+  'facet',
   'bedFile',
   'name',
   'dataType',
@@ -349,9 +351,11 @@ export function urlParamsToVisOptions(
   }
 
   const cutoff = mappingQualityCutoffFrom(Number(readScalar(params, 'mapq')))
+  const facetReadsBy = facetReadsByFrom(readScalar(params, 'facet'))
   return {
     ...flags,
     ...(cutoff !== undefined && { mappingQualityCutoff: cutoff }),
+    ...(facetReadsBy !== undefined && { facetReadsBy }),
   }
 }
 
@@ -398,6 +402,9 @@ function visOptionsToParams(visOptions: StoredVisOptions) {
     ...(visOptions.mappingQualityCutoff !==
     DEFAULT_VIS_OPTIONS.mappingQualityCutoff
       ? [scalarParam('mapq', String(visOptions.mappingQualityCutoff))]
+      : []),
+    ...(visOptions.facetReadsBy !== DEFAULT_VIS_OPTIONS.facetReadsBy
+      ? [scalarParam('facet', visOptions.facetReadsBy ?? 'none')]
       : []),
   ]
 }

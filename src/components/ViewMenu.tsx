@@ -5,6 +5,7 @@ import ListSubheader from '@mui/material/ListSubheader'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
 import Typography from '@mui/material/Typography'
+import type { FacetBy } from '@gmod/tubemap-core'
 import type { ViewTarget, VisOptionFlag, VisOptions } from '../Types.ts'
 import { MAX_MAPPING_QUALITY_CUTOFF } from '../util/visOptions.ts'
 import { AppBarMenu } from './AppBarMenu.tsx'
@@ -19,12 +20,19 @@ const MAPPING_QUALITY_VALUES = Array.from(
   (_, i) => i,
 )
 
+const FACET_CHOICES: Record<string, FacetBy | null> = {
+  none: null,
+  read_group: 'read_group',
+  sample_name: 'sample_name',
+}
+
 interface ViewMenuProps {
   legendVisible: boolean
   toggleLegend: () => void
   visOptions: VisOptions
   toggleVisOptionFlag: (flag: VisOptionFlag) => void
   handleMappingQualityCutoffChange: (value: number) => void
+  handleFacetReadsByChange: (value: FacetBy | null) => void
   compressedViewLocked?: boolean
   bandageJsViewTarget: ViewTarget | undefined
   trackFileBaseURI: string | undefined
@@ -36,6 +44,7 @@ export function ViewMenu({
   visOptions,
   toggleVisOptionFlag,
   handleMappingQualityCutoffChange,
+  handleFacetReadsByChange,
   compressedViewLocked,
   bandageJsViewTarget,
   trackFileBaseURI,
@@ -186,6 +195,43 @@ export function ViewMenu({
                     {value}
                   </MenuItem>
                 ))}
+              </Select>
+            </Box>
+            <Box
+              sx={{
+                px: 2,
+                py: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+              onKeyDown={e => {
+                e.stopPropagation()
+              }}
+            >
+              <Typography variant="body2" id="facetReadsByLabel">
+                Facet reads by:
+              </Typography>
+              <HelpDialog title="Facet reads by">
+                Draws the graph once per read group or sample, stacked top to
+                bottom with each panel holding only that subset of the reads.
+                Every panel shares node positions, so the same node lines up
+                across panels and their reads compare at a glance.
+              </HelpDialog>
+              <Select
+                labelId="facetReadsByLabel"
+                disabled={readsDisabled}
+                value={visOptions.facetReadsBy ?? 'none'}
+                onChange={e => {
+                  handleFacetReadsByChange(
+                    FACET_CHOICES[e.target.value] ?? null,
+                  )
+                }}
+                data-testid="facetReadsBySelect"
+              >
+                <MenuItem value="none">none</MenuItem>
+                <MenuItem value="read_group">read group</MenuItem>
+                <MenuItem value="sample_name">sample</MenuItem>
               </Select>
             </Box>
             <Divider />

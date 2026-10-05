@@ -1,3 +1,5 @@
+import type { FacetBy } from '@gmod/tubemap-core'
+
 // Shared types used across the frontend.
 
 // Possible track filetypes taken from the request.
@@ -138,6 +140,8 @@ export interface VisOptions {
   // the reverse-strand auxPalette, and the Sankey view merges (+A→+B) and
   // (-B→-A) into a single band. Useful when strand isn't relevant.
   ignoreStrand: boolean
+  // One panel per value of this read field, stacked; null draws one panel
+  facetReadsBy: FacetBy | null
 }
 
 // Keys of VisOptions that hold a boolean, i.e. the ones that can be toggled.

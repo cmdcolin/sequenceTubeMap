@@ -3,6 +3,7 @@
 // once. Keeping it here is what stops the CLI from quietly depending on
 // tubemap's module-level defaults happening to match the app's.
 
+import { FACET_FIELDS, type FacetBy } from '@gmod/tubemap-core'
 import * as tubeMap from './tubemap.ts'
 import type { ReadGroup as TubeMapReadGroup } from './tubemap.ts'
 import { dataOriginTypes } from '../enums.ts'
@@ -50,6 +51,14 @@ export function mappingQualityCutoffFrom(value: unknown) {
     : undefined
 }
 
+// A field reads can be faceted by, or null for none; undefined for anything
+// else, which a stored preference or link may hold
+export function facetReadsByFrom(value: unknown): FacetBy | null | undefined {
+  return value === null || value === 'none'
+    ? null
+    : FACET_FIELDS.find(field => field === value)
+}
+
 export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   removeRedundantNodes: true,
   compressedView: false,
@@ -63,6 +72,7 @@ export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   coarsenedReadView: false,
   coarsenedHaplotypeView: false,
   ignoreStrand: false,
+  facetReadsBy: null,
 }
 
 // The bundled demo datasets carry no track settings to derive colors from, so
@@ -144,6 +154,7 @@ export function applyVisOptions(
   })
   tubeMap.setMappingQualityCutoff(visOptions.mappingQualityCutoff)
   tubeMap.setFocusReadNames(visOptions.focusReadNames)
+  tubeMap.setFacetReadsBy(visOptions.facetReadsBy)
   tubeMap.setReadGroups(visOptions.readGroups)
   tubeMap.setOtherReadsColor(visOptions.otherReadsColor)
 }

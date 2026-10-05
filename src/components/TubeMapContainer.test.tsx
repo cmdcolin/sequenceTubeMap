@@ -72,6 +72,7 @@ const VIS_OPTIONS: VisOptions = {
   coarsenedReadView: false,
   coarsenedHaplotypeView: false,
   ignoreStrand: false,
+  facetReadsBy: null,
 }
 
 const VIEW_TARGET: ViewTarget = {

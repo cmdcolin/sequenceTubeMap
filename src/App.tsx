@@ -46,6 +46,7 @@ import { isAbortError } from './util/error.ts'
 import {
   DEFAULT_VIS_OPTIONS,
   exampleColorSchemes,
+  facetReadsByFrom,
   mappingQualityCutoffFrom,
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
@@ -57,6 +58,7 @@ import type {
   VisOptionFlag,
   VisOptions,
 } from './Types.ts'
+import type { FacetBy } from '@gmod/tubemap-core'
 
 type APIMode = APIInterface['mode']
 
@@ -76,10 +78,12 @@ function validateVisOptions(value: unknown): StoredVisOptions | undefined {
       }
     }
     const cutoff = mappingQualityCutoffFrom(value.mappingQualityCutoff)
+    const facetReadsBy = facetReadsByFrom(value.facetReadsBy)
     return {
       ...DEFAULT_VIS_OPTIONS,
       ...flags,
       ...(cutoff !== undefined && { mappingQualityCutoff: cutoff }),
+      ...(facetReadsBy !== undefined && { facetReadsBy }),
     }
   }
   return undefined
@@ -365,6 +369,10 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     updateVisOptions({ ...visOptions, mappingQualityCutoff: value })
   }
 
+  const handleFacetReadsByChange = (value: FacetBy | null) => {
+    updateVisOptions({ ...visOptions, facetReadsBy: value })
+  }
+
   const setLegend = (visible: boolean) => {
     setLegendVisible(visible)
     writeStored(LEGEND_VISIBLE_KEY, visible)
@@ -416,6 +424,7 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
             visOptions={visOptions}
             toggleVisOptionFlag={toggleVisOptionFlag}
             handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
+            handleFacetReadsByChange={handleFacetReadsByChange}
             compressedViewLocked={viewTarget.removeSequences}
             bandageJsViewTarget={
               dataOrigin === dataOriginTypes.API ? viewTarget : undefined
