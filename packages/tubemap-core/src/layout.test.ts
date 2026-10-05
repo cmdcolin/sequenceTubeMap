@@ -1,7 +1,12 @@
 // @vitest-environment node
 
 import { curvePaths, nodeOutlinePath } from './geometry.ts'
-import { getXCoordinateOfBaseWithinNode, layoutTubeMap } from './layout.ts'
+import {
+  getXCoordinateOfBaseWithinNode,
+  layoutTopology,
+  layoutTubeMap,
+  placeTubeMap,
+} from './layout.ts'
 
 import type { TubeMapLayout } from './layout.ts'
 import type { InputNode, InputTrack, TrackCurve } from './types.ts'
@@ -523,6 +528,77 @@ describe('layoutTubeMap', () => {
         '199 haplotypes (>99%): Node 1 → Node 2',
         '199 haplotypes (>99%): Node 2 → Node 4',
       ])
+    })
+  })
+
+  describe('topology and placement', () => {
+    // r1 leaves b for 2, an edge no haplotype takes, so 1 stays its own node
+    const reads: InputTrack[] = [
+      {
+        id: 2,
+        name: 'r1',
+        type: 'read',
+        sequence: ['b', '2'],
+        sourceTrackID: 1,
+        mapping_quality: 10,
+      },
+      {
+        id: 3,
+        name: 'r2',
+        type: 'read',
+        sequence: ['1', '3', '4', 'tail'],
+        sourceTrackID: 1,
+        mapping_quality: 60,
+      },
+    ]
+    const withTail = [...run, { name: 'tail', seq: 'GGGG' }]
+    const placed = (layout: TubeMapLayout) =>
+      layout.nodes.flatMap(({ name, order, x }) => [{ name, order, x }])
+
+    it('keeps node order and x across placements of one topology', () => {
+      const topology = layoutTopology(withTail, runTracks, reads)!
+      const snapshot = structuredClone(topology)
+      const all = placeTubeMap(topology)
+      const confident = placeTubeMap(topology, { mappingQualityCutoff: 30 })
+      const focused = placeTubeMap(topology, { focusReadNames: ['r1'] })
+      expect(confident.reads.map(r => r.name)).toEqual(['r2'])
+      expect(focused.reads.map(r => r.name)).toEqual(['r1'])
+      expect(placed(confident)).toEqual(placed(all))
+      expect(placed(focused)).toEqual(placed(all))
+      expect(topology).toEqual(snapshot)
+    })
+
+    it('lays out as placing the composed phases would', () => {
+      for (const cutoff of [0, 30]) {
+        const options = { mergeNodes: true, mappingQualityCutoff: cutoff }
+        expect(layoutTubeMap(withTail, runTracks, reads, options)).toEqual(
+          placeTubeMap(
+            layoutTopology(withTail, runTracks, reads, options)!,
+            options,
+          ),
+        )
+      }
+    })
+
+    it('leaves nodes merged and ordered as the unfiltered reads have them', () => {
+      const names = (layout: TubeMapLayout) => placed(layout).map(n => n.name)
+      const filtered = layoutTubeMap(withTail, runTracks, reads, {
+        mappingQualityCutoff: 30,
+      })!
+      expect(names(filtered)).toEqual(
+        names(layoutTubeMap(withTail, runTracks, reads)!),
+      )
+      expect(names(filtered)).toContain('1')
+    })
+
+    it('still places a node only a filtered-out read visits', () => {
+      const layout = layoutTubeMap(withTail, runTracks, reads, {
+        focusReadNames: ['r1'],
+      })!
+      const [tail] = layout.nodes.filter(n => n.name === 'tail')
+      expect(tail!.order).toBeGreaterThanOrEqual(0)
+      expect(Number.isFinite(tail!.y)).toBe(true)
+      expectFiniteGeometry(layout)
     })
   })
 

@@ -1,6 +1,8 @@
 // The tube map layout, from input nodes and tracks to drawable shapes. Ported
 // from the original sequenceTubeMap JS, where it shared one module with the d3
-// drawing. Each layoutTubeMap call hands its passes a fresh LayoutState.
+// drawing. It runs in two phases, each on a fresh LayoutState: layoutTopology
+// merges, orders, orients and sizes the nodes and fixes their x, and
+// placeTubeMap stacks a chosen set of tracks and reads on that topology.
 import { emptyTrackShapes } from './types.ts'
 
 import type {
@@ -49,7 +51,10 @@ export interface ColorableTrack {
   haplotypeShare?: HaplotypeShare
 }
 
-export interface LayoutOptions {
+// The options a topology fixes. trackWidth, coarsenedReadView and ignoreStrand
+// leave node order alone, but the topology measures x from placing every track
+// and read under them.
+export interface TopologyOptions {
   mergeNodes?: boolean
   showReads?: boolean
   coarsenedReadView?: boolean
@@ -62,9 +67,15 @@ export interface LayoutOptions {
   charWidth?: number
   // a haplotype tube's width in layout px, where no `freq` scales it
   trackWidth?: number
+}
+
+// Which of a topology's reads a placement draws
+export interface PlacementOptions {
   mappingQualityCutoff?: number
   focusReadNames?: string[] | null
 }
+
+export interface LayoutOptions extends TopologyOptions, PlacementOptions {}
 
 // A coarsened band's count of contributing reads and its label, keyed by the
 // band's synthetic track id
@@ -93,7 +104,7 @@ export interface TubeMapLayout {
   tracks: Track[]
   // the placed reads alone
   reads: Track[]
-  nodeMap: Map<string, number>
+  nodeMap: ReadonlyMap<string, number>
   shapes: TrackShapes
   bounds: ImageBounds
   maxOrder: number
@@ -104,33 +115,55 @@ export interface TubeMapLayout {
   coarsened: Coarsening | undefined
 }
 
-interface LayoutConfig {
-  mergeNodesFlag: boolean
-  showReads: boolean
-  coarsenedReadView: boolean
-  ignoreStrand: boolean
-  nodeWidthOption: NodeWidthOption
-  charWidth: number
-  trackWidth: number
-  mappingQualityCutoff: number
-  focusReadNames: string[] | null
+// A node before placement gives it a y and the reads through it
+export type TopologyNode = Omit<
+  LayoutNode,
+  | 'y'
+  | 'contentHeight'
+  | 'topLane'
+  | 'incomingReads'
+  | 'outgoingReads'
+  | 'internalReads'
+>
+
+// A haplotype or read before placement gives it a width and lanes
+export type TopologyTrack = Omit<Track, 'path' | 'width'>
+
+// What every placement of one input shares: the merged, ordered and oriented
+// nodes with their widths and x positions, and the oriented haplotypes and
+// reads. A placement reads it and never changes it.
+export interface TubeMapTopology {
+  options: Required<TopologyOptions>
+  // 1-indexed with a hole at 0, like TubeMapLayout.nodes. A node no track or
+  // read reaches has order UNREACHABLE_ORDER and no x.
+  nodes: readonly TopologyNode[]
+  // the visible haplotypes, track 0 read left to right
+  tracks: readonly TopologyTrack[]
+  // every primary alignment that shares a node with a track, unfiltered
+  reads: readonly TopologyTrack[]
+  // whether any reads were loaded: the coarsened view bands haplotypes only
+  // when none were, not when a filter hides them all
+  hasReads: boolean
+  nodeMap: ReadonlyMap<string, number>
+  maxOrder: number
+  trackForRuler: string | undefined
 }
 
-function configFrom(options: LayoutOptions): LayoutConfig {
+type LayoutConfig = Required<TopologyOptions>
+
+function configFrom(options: TopologyOptions): LayoutConfig {
   return {
-    mergeNodesFlag: options.mergeNodes ?? true,
+    mergeNodes: options.mergeNodes ?? true,
     showReads: options.showReads ?? true,
     coarsenedReadView: options.coarsenedReadView ?? false,
     ignoreStrand: options.ignoreStrand ?? false,
     nodeWidthOption: options.nodeWidthOption ?? 'normal',
     charWidth: options.charWidth ?? 8.401,
     trackWidth: options.trackWidth ?? 15,
-    mappingQualityCutoff: options.mappingQualityCutoff ?? 0,
-    focusReadNames: options.focusReadNames ?? null,
   }
 }
 
-// The working state of one layoutTubeMap call, shared by its passes.
+// The working state of one topology or placement, shared by its passes.
 interface LayoutState {
   config: LayoutConfig
   // Sparse like TubeMapLayout.nodes, but forEach, map and sort skip the hole
@@ -141,7 +174,7 @@ interface LayoutState {
   tracks: Track[]
   // Reads have a `path` too, but stack vertically by a different system.
   reads: Track[]
-  nodeMap: Map<string, number>
+  nodeMap: ReadonlyMap<string, number>
   nodesPerOrder: number[][]
   // generateNodeOrder's scratch, by node index; undefined until assigned.
   nodeOrders: (number | undefined)[]
@@ -157,17 +190,9 @@ interface LayoutState {
   coarsenedEdgeMeta: Map<number, CoarsenedEdgeMeta>
 }
 
-// Lay out `inputNodes` and `inputTracks` (and `inputReads`, when
-// `showReads`), or return undefined when nothing visible is left to draw.
-// Neither input is modified. Track 0 is the reference the layout straightens.
-export function layoutTubeMap(
-  inputNodes: readonly InputNode[],
-  inputTracks: readonly InputTrack[],
-  inputReads: readonly InputTrack[] = [],
-  options: LayoutOptions = {},
-): TubeMapLayout | undefined {
-  const state: LayoutState = {
-    config: configFrom(options),
+function emptyState(config: LayoutConfig): LayoutState {
+  return {
+    config,
     nodes: [],
     tracks: [],
     reads: [],
@@ -183,6 +208,76 @@ export function layoutTubeMap(
     trackForRuler: undefined,
     coarsenedEdgeMeta: new Map(),
   }
+}
+
+// placeTubeMap(layoutTopology(...), options), placing the reads once when the
+// filters keep them all. Undefined when nothing visible is left to draw.
+export function layoutTubeMap(
+  inputNodes: readonly InputNode[],
+  inputTracks: readonly InputTrack[],
+  inputReads: readonly InputTrack[] = [],
+  options: LayoutOptions = {},
+): TubeMapLayout | undefined {
+  const measured = measureTopology(inputNodes, inputTracks, inputReads, options)
+  if (measured === undefined) {
+    return undefined
+  }
+  const { topology, everything } = measured
+  return selectReads(topology, options).length === topology.reads.length
+    ? everything
+    : placeTubeMap(topology, options)
+}
+
+// Merge, order and orient the nodes under the visible `inputTracks` and, when
+// `showReads`, every primary alignment in `inputReads`, then size them and
+// fix their x positions. Undefined when nothing visible is left to draw.
+// Neither input is modified. Track 0 is the reference the layout straightens.
+export function layoutTopology(
+  inputNodes: readonly InputNode[],
+  inputTracks: readonly InputTrack[],
+  inputReads: readonly InputTrack[] = [],
+  options: TopologyOptions = {},
+): TubeMapTopology | undefined {
+  return measureTopology(inputNodes, inputTracks, inputReads, options)?.topology
+}
+
+// Lay out the topology's haplotypes and the reads `options` keep at the
+// topology's x positions, stacking each read under the nodes it visits.
+export function placeTubeMap(
+  topology: TubeMapTopology,
+  options: PlacementOptions = {},
+): TubeMapLayout {
+  return place(topology, selectReads(topology, options), 'topology')
+}
+
+// The x gaps between order slots make room for the tracks' turns and slopes,
+// so the topology takes its x positions from placing every track and read.
+function measureTopology(
+  inputNodes: readonly InputNode[],
+  inputTracks: readonly InputTrack[],
+  inputReads: readonly InputTrack[],
+  options: TopologyOptions,
+): { topology: TubeMapTopology; everything: TubeMapLayout } | undefined {
+  const topology = arrangeTopology(inputNodes, inputTracks, inputReads, options)
+  if (topology === undefined) {
+    return undefined
+  }
+  const everything = place(topology, topology.reads, 'measure')
+  everything.nodes.forEach((node, i) => {
+    if (node.order >= 0) {
+      topology.nodes[i]!.x = node.x
+    }
+  })
+  return { topology, everything }
+}
+
+function arrangeTopology(
+  inputNodes: readonly InputNode[],
+  inputTracks: readonly InputTrack[],
+  inputReads: readonly InputTrack[],
+  options: TopologyOptions,
+): TubeMapTopology | undefined {
+  const state = emptyState(configFrom(options))
 
   if (inputNodes.length === 0 || inputTracks.length === 0) {
     return undefined
@@ -197,22 +292,18 @@ export function layoutTubeMap(
   // down and leave a hole (rather than an `undefined` entry) at 0, which we
   // won't iterate over. Made after the copy, because not every structuredClone
   // keeps a hole.
-  state.nodes = []
   structuredClone(inputNodes).forEach((node, i) => {
     node.seq ??= ''
     node.sequenceLength ??= node.seq.length
     state.nodes[i + 1] = node as LayoutNode
   })
   state.tracks = structuredClone(inputTracks) as Track[]
-  // Whether any reads were loaded at all, distinct from `reads.length` below:
-  // a mapping-quality cutoff or focus-name filter can filter every read out,
-  // and that should not make the coarsened view fall back to bunching
-  // haplotypes instead — the graph does have reads, they're just all hidden.
-  const hadInputReads = inputReads.length > 0
-  // Drop the reads we will never draw before cloning them — the deep copy of a
-  // large GAM is the single most expensive step in a redraw.
+  // Secondary alignments never draw, so drop them before the deep copy, the
+  // most expensive step in a redraw.
   state.reads = state.config.showReads
-    ? (structuredClone(filterReads(state, inputReads)) as Track[])
+    ? (structuredClone(
+        inputReads.filter(read => read.is_secondary !== true),
+      ) as Track[])
     : []
 
   for (let i = state.tracks.length - 1; i >= 0; i -= 1) {
@@ -239,7 +330,7 @@ export function layoutTubeMap(
   generateTrackIndexSequences(state, state.reads)
   generateNodeWidth(state)
 
-  if (state.config.mergeNodesFlag) {
+  if (state.config.mergeNodes) {
     generateNodeSuccessors(state)
     generateNodeOrder(state)
     reverseReversedReads(state)
@@ -252,15 +343,55 @@ export function layoutTubeMap(
 
   generateNodeSuccessors(state)
   generateNodeDegree(state)
-  debugLog(`${state.nodes.length} nodes.`)
   generateNodeOrder(state)
-  state.maxOrder = getMaxOrder(state)
 
   // can cause problems when there is a reversed single track node
   // OTOH, can solve problems with complex inversion patterns
   switchNodeOrientation(state)
   generateNodeOrder(state)
-  state.maxOrder = getMaxOrder(state)
+  reverseReversedReads(state)
+  generateTrackIndexSequences(state, state.reads)
+
+  return {
+    options: state.config,
+    nodes: state.nodes,
+    tracks: state.tracks,
+    reads: state.reads,
+    hasReads: inputReads.length > 0,
+    nodeMap: state.nodeMap,
+    maxOrder: getMaxOrder(state),
+    trackForRuler: state.trackForRuler,
+  }
+}
+
+function selectReads(
+  topology: TubeMapTopology,
+  { mappingQualityCutoff = 0, focusReadNames = null }: PlacementOptions,
+): readonly TopologyTrack[] {
+  const focus = focusReadNames ? new Set(focusReadNames) : null
+  return topology.reads.filter(
+    read =>
+      (read.mapping_quality ?? 0) >= mappingQualityCutoff &&
+      (focus === null || (read.name !== undefined && focus.has(read.name))),
+  )
+}
+
+// Place copies of the topology's nodes, tracks and the given reads, measuring
+// x from them or taking the topology's.
+function place(
+  topology: TubeMapTopology,
+  reads: readonly TopologyTrack[],
+  x: 'measure' | 'topology',
+): TubeMapLayout {
+  const state = emptyState(topology.options)
+  topology.nodes.forEach((node, i) => {
+    state.nodes[i] = { ...node } as LayoutNode
+  })
+  state.tracks = topology.tracks.map(track => ({ ...track }) as Track)
+  state.reads = reads.map(read => ({ ...read }) as Track)
+  state.nodeMap = topology.nodeMap
+  state.maxOrder = topology.maxOrder
+  state.trackForRuler = topology.trackForRuler
 
   // Coarsened (Sankey) mode normally collapses the *read* list into synthetic
   // per-edge bands (below). A haplotype-only graph has no reads to coarsen,
@@ -272,7 +403,9 @@ export function layoutTubeMap(
   // reads.
   let coarsened: Coarsening | undefined
   const coarsenHaplotypes =
-    state.config.showReads && state.config.coarsenedReadView && !hadInputReads
+    state.config.showReads &&
+    state.config.coarsenedReadView &&
+    !topology.hasReads
   if (coarsenHaplotypes) {
     const rulerIndex =
       state.trackForRuler === undefined
@@ -309,6 +442,8 @@ export function layoutTubeMap(
 
   calculateTrackWidth(state)
   generateLaneAssignment(state)
+  // also places the nodes that only filtered-out reads visit
+  generateReadOnlyNodeAttributes(state)
 
   // Coarsened (Sankey) mode: collapse the read list (or, when coarsening
   // haplotypes, the alt haplotypes pulled out above) to one synthetic "read"
@@ -319,28 +454,28 @@ export function layoutTubeMap(
   // up-right" topology for loops automatically, and uses the same elegant
   // bezier. Node heights end up proportional to *edge* count (typically
   // tens) rather than *read* or *haplotype* count (potentially thousands).
-  const drawCoarsenedReads =
+  if (
     state.config.coarsenedReadView &&
     state.reads.length > 0 &&
     !coarsenHaplotypes
-  if (state.reads.length > 0) {
-    generateReadOnlyNodeAttributes(state)
+  ) {
+    const { bands, total } = buildCoarsenedSyntheticBands(
+      state,
+      state.reads,
+      'read',
+    )
+    state.reads = bands
+    coarsened = { unit: 'read', total, reverse: false }
+  }
+  if (coarsened !== undefined) {
     reverseReversedReads(state)
     generateTrackIndexSequences(state, state.reads)
-    if (drawCoarsenedReads) {
-      const { bands, total } = buildCoarsenedSyntheticBands(
-        state,
-        state.reads,
-        'read',
-      )
-      state.reads = bands
-      coarsened = { unit: 'read', total, reverse: false }
-      reverseReversedReads(state)
-      generateTrackIndexSequences(state, state.reads)
-    }
-    if (coarsened !== undefined && !state.config.ignoreStrand) {
+    if (!state.config.ignoreStrand) {
       coarsened.reverse = state.reads.some(band => band.is_reverse === true)
     }
+  }
+
+  if (state.reads.length > 0) {
     placeReads(state)
     state.tracks = state.tracks.concat(state.reads)
   } else {
@@ -351,7 +486,9 @@ export function layoutTubeMap(
     })
   }
 
-  generateNodeXCoords(state)
+  if (x === 'measure') {
+    generateNodeXCoords(state)
+  }
 
   generateSVGShapesFromPath(state)
   debugLog('Tracks:', state.tracks)
@@ -1199,11 +1336,11 @@ function nodeByName(state: LayoutState, nodeName: string): LayoutNode {
 
 // map node names to node indices
 function generateNodeMap(state: LayoutState): Map<string, number> {
-  state.nodeMap = new Map()
+  const nodeMap = new Map<string, number>()
   state.nodes.forEach((node, index) => {
-    state.nodeMap.set(node.name, index)
+    nodeMap.set(node.name, index)
   })
-  return state.nodeMap
+  return nodeMap
 }
 
 // adds a successor-array to each node containing the indices of the nodes coming directly after the current node
@@ -2867,23 +3004,4 @@ function mergeableWithSucc(
 ): boolean {
   const successor = soleNeighbor(succ, index)
   return successor !== 0 && soleNeighbor(pred, successor) !== 0
-}
-
-function filterReads<
-  T extends {
-    is_secondary?: boolean
-    mapping_quality?: number
-    name?: string
-  },
->(state: LayoutState, readList: readonly T[]): T[] {
-  const focusNames = state.config.focusReadNames
-    ? new Set(state.config.focusReadNames)
-    : null
-  return readList.filter(
-    read =>
-      read.is_secondary !== true &&
-      (read.mapping_quality ?? 0) >= state.config.mappingQualityCutoff &&
-      (focusNames === null ||
-        (read.name !== undefined && focusNames.has(read.name))),
-  )
 }

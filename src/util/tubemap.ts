@@ -225,7 +225,7 @@ let nodes: LayoutNode[] = []
 // haplotype tracks, then the placed reads
 let tracks: Track[] = []
 let reads: Track[] = []
-let nodeMap: Map<string, number> = new Map()
+let nodeMap: ReadonlyMap<string, number> = new Map()
 
 // --- UI state, outlives a render ---
 // The root <svg> until alignSVG, then the zoomed <g> everything is drawn in
