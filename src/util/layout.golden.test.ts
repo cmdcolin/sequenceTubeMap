@@ -41,6 +41,15 @@ const VARIANTS: Record<string, LayoutOptions> = {
 
 const READ_VARIANTS: Record<string, LayoutOptions> = {
   'no-reads': { showReads: false },
+  'banded-haplotypes': {
+    layers: [{ data: 'haplotypes', stat: 'coarsen' }, { data: 'reads' }],
+  },
+  'banded-haplotypes-and-reads': {
+    layers: [
+      { data: 'haplotypes', stat: 'coarsen' },
+      { data: 'reads', stat: 'coarsen' },
+    ],
+  },
 }
 
 function exampleDataset(n: number): Dataset {
