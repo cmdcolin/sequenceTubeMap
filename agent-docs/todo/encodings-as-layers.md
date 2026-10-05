@@ -84,8 +84,17 @@ each gap from the turns and slopes of placed tracks. So `layoutTopology`
 measures x from placing every track and read under its options, which is why
 `trackWidth`, `coarsenedReadView` and `ignoreStrand` are `TopologyOptions`
 although they leave node order alone. A filter then changes no x. When the
-filters keep every read, `layoutTubeMap` returns that measuring placement, so a
+filters keep every read, `placeTubeMap` returns that measuring placement, so a
 default view still places once; a filtered view places twice.
+
+The renderer caches both phases. `layOut()` in `src/util/tubemap.ts` keys the
+topology on the inputs and `TopologyOptions` and the placement on that topology
+and `PlacementOptions`, so a mapping-quality or focus change costs a placement
+only and a color change costs neither. Above the read render limit, the
+container subsamples the reads outside the JSX, where the React Compiler keys
+the subsample on the reads, the limit and `coarsenedReadView`; inline in the
+`<TubeMap>` element it shared that element's scope, so any View menu change
+handed the renderer a new array and missed both caches.
 
 No golden changed. The `brca1.mapq-500` golden never showed filter-dependent
 topology: its reads cross three nodes with nothing to merge. A test in
@@ -99,9 +108,6 @@ read whose filtered-out edge keeps a node from merging.
   banded layers would overwrite each other.
 - `coarsenedReadView` and `ignoreStrand` should move from `TopologyOptions` to
   the layer that bands, with the measuring placement drawing every layer.
-- The renderer still calls `layoutTubeMap`, so a mapping-quality change reruns
-  the topology. Caching the topology in `layOut()` in `src/util/tubemap.ts`
-  would make a filter change cost a placement only.
 - The scales don't yet name the field they read.
 
 Order of work:
