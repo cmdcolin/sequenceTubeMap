@@ -1,10 +1,10 @@
 ---
 name: encodings-as-layers
-description: Finish the grammar of graphics already latent in the encodings: draw-time encoding, a view spec in place of flags, then layers and facets on a two-phase layout.
+description: Finish the grammar of graphics already latent in the encodings: layers and facets on a two-phase layout.
 metadata:
   category: ready
   area: encodings
-  first_move: "Move color and alpha out of layout so the renderer applies the encoding at draw time."
+  first_move: "Split layoutTubeMap into topology and placement, and decide whether read filters affect topology."
   order: 4
 ---
 
@@ -24,12 +24,23 @@ tracks they colored, so a value nothing in view takes gets no row.
 `src/util/encoding.ts` projects each layout track onto the variables the scales
 read (`DrawnTrack`: mark, strand, mapping quality, group, share) and lays the
 aesthetic mapping out as a table, `encodingFor`: one `{ color, alpha }` entry
-per mark, chosen from the View menu's flags (read groups over mapping quality
-over strand, bands apart). The renderer's colorer and `legendSections` both read
-it, and the renderer reports the projected tracks it placed, so the key can't
-disagree with the picture. Naming the field each scale reads, and letting a view
-spec pick the entries instead of the flags, would finish the job. A view would
-then read like:
+per mark. A small spec, `Coloring.read`
+(`{ color: 'group' | 'mapq' | 'strand', alpha?: 'mapq' }`), picks the read
+entry; `readEncodingFrom` derives it from the View menu's flags (read groups
+over mapping quality over strand, bands apart), which the `vis=` URL parameter
+still carries. The renderer's colorer and `legendSections` both read the table,
+and the renderer reports the projected tracks it placed, so the key can't
+disagree with the picture.
+
+The renderer applies the encoding at draw time. Layout shapes carry only their
+track's `id`; `src/util/tubemap.ts` paints each from that track's `DrawnTrack`
+and reuses the latest layout while its inputs and options are unchanged, so a
+recolor costs a redraw but no layout. Turnaround rectangles and corners still
+take no opacity, as before the move, so a read faded by mapping quality draws
+its turnarounds opaque.
+
+Naming the field each scale reads, and letting a full view spec stand in for the
+flags, would finish the job. A view would then read like:
 
 ```ts
 {
@@ -55,37 +66,27 @@ list.
 The layer split is harder than the sketch above suggests, because reads and
 haplotypes shape each other's layout in `packages/tubemap-core/src/layout.ts`:
 
-- The mapq and focus filters run before topology (233-235). Reads then feed
-  `mergeNodes`, `generateNodeOrder` and `switchNodeOrientation`, so changing the
-  mapq cutoff changes how haplotype nodes merge and order (the `brca1.mapq-500`
-  golden shows it). A per-layer filter that leaves haplotypes alone changes
-  behavior and the goldens.
+- The mapq and focus filters run before topology (`layoutTubeMap`, 214-216).
+  Reads then feed `mergeNodes`, `generateNodeOrder` and `switchNodeOrientation`,
+  so changing the mapq cutoff changes how haplotype nodes merge and order (the
+  `brca1.mapq-500` golden shows it). A per-layer filter that leaves haplotypes
+  alone changes behavior and the goldens.
 - Reads stack under haplotypes at `node.y + contentHeight`, and
   `adjustVertically3` pushes lower haplotype nodes down.
 - Coarsening is either/or. Banded haplotypes reuse `state.reads` and exist only
   when no reads load; one `coarsened` value and one `coarsenedEdgeMeta` reset
   mean two banded layers would overwrite each other.
 
-Color is also baked in during layout: `generateSVGShapesFromPath` calls
-`trackColor` and `trackAlpha`, so every color toggle reruns the whole layout.
-The scales don't yet name the field they read, and the View-menu flags still
-pick the `encodingFor` entries.
+The scales don't yet name the field they read.
 
 Order of work:
 
-1. **Encoding at draw time.** Shapes carry the track id and the projected
-   `DrawnTrack`; the renderer applies color and alpha. Recoloring then needs no
-   relayout.
-2. **A small coloring spec.** Turn `Coloring` into
-   `{ read: { color: 'group' | 'mapq' | 'strand', alpha?: 'mapq' } }`, derived
-   from the existing flags. Keep writing the `vis=` flags: the CLI and headless
-   renderer read them, and old links must keep working (`doc/urlparams.md`).
-3. **Split `layoutTubeMap` into topology and placement.** Topology (merge,
+1. **Split `layoutTubeMap` into topology and placement.** Topology (merge,
    order, orientation, node widths) runs once on all tracks; placement (lanes,
    reads) runs per layer or panel. Decide here whether read filters affect
    topology. Layers, banded haplotypes with reads on screen, and facets all wait
    on this split.
-4. **Facets.** Small multiples over subsets of tracks, drawn from one layout so
+2. **Facets.** Small multiples over subsets of tracks, drawn from one layout so
    panels align. Re-laying out per panel breaks alignment: lane order, lane y,
    `adjustVertically`, the straightened reference and even x gaps
    (`calculateExtraSpace`) all depend on which tracks are present. Panels
@@ -95,7 +96,7 @@ Order of work:
    sample-group metadata today (only reads carry `sample_name` and
    `read_group`), so grouping haplotypes means parsing PanSN names. Every panel
    needs its own legend rows for color-only encodings.
-5. **Per-region facets.** Separate layouts with shared scales and legend. Wait
+3. **Per-region facets.** Separate layouts with shared scales and legend. Wait
    until `src/util/tubemap.ts` state (about 20 module-level `let`s, `config`,
    hover state, subscriber stores, one `svgID` and one zoom) is an instance.
    Each panel costs another placement pass, so this ties to
@@ -105,6 +106,6 @@ The layout now passes a `LayoutState` rather than module-level scratch, so a
 layer can run its passes on its own state. The colorer already reads each drawn
 track's computed variables (share, strand, mapping quality, name) off
 `ColorableTrack`, so a layer's stat only has to fill them in. Review the layout
-goldens (66) at step 3.
+goldens (66) at step 1.
 
 A general grammar engine is not the goal.
