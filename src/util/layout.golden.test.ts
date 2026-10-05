@@ -8,7 +8,10 @@
 import { readFileSync } from 'node:fs'
 import {
   curvePaths,
+  layoutTopology,
   layoutTubeMap,
+  placeFacets,
+  type FacetOptions,
   type InputNode,
   type InputTrack,
   type LayoutOptions,
@@ -205,4 +208,48 @@ describe('layoutTubeMap golden output', () => {
       })
     }
   })
+})
+
+// Example 6's five reads under made-up read groups and samples, since no
+// bundled dataset small enough to pin carries more than one of either. Each
+// panel is pinned on its own, beside a file for the stack.
+describe('placeFacets golden output', () => {
+  const data = exampleDataset(6)
+  const reads = data.reads.map((read, i) => ({
+    ...read,
+    read_group: [`RG1`, `RG2`, `RG1`, `RG2`, null][i] ?? null,
+    sample_name: i < 3 ? 'S1' : 'S2',
+  }))
+  const variants: Record<string, LayoutOptions & FacetOptions> = {
+    'facet-read-group': { facetReadsBy: 'read_group' },
+    'facet-sample': { facetReadsBy: 'sample_name' },
+    'facet-read-group-coarsened': {
+      facetReadsBy: 'read_group',
+      coarsenedReadView: true,
+    },
+  }
+  for (const [variant, options] of Object.entries(variants)) {
+    const topology = layoutTopology(data.nodes, data.tracks, reads, options)!
+    const { panels, bounds } = placeFacets(topology, options)
+    const name = `example-6.${variant}`
+    it(`example 6, ${variant}`, async () => {
+      await expectGolden(
+        name,
+        goldenText({
+          bounds,
+          panels: panels.map(({ facet, readCount, offsetY }) => ({
+            facet,
+            readCount,
+            offsetY,
+          })),
+        }),
+      )
+      for (const [i, { layout }] of panels.entries()) {
+        await expectGolden(
+          `${name}.panel-${i}`,
+          goldenText(describeLayout(layout)),
+        )
+      }
+    })
+  }
 })

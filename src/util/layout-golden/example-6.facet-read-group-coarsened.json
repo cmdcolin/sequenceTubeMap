@@ -1,0 +1,8 @@
+{
+  "bounds": {"minX":20,"maxX":4434.456364330479,"minY":-45,"maxY":844},
+  "panels": [
+    {"facet":{"by":"read_group","key":"RG1"},"readCount":2,"offsetY":0},
+    {"facet":{"by":"read_group","key":"RG2"},"readCount":2,"offsetY":335},
+    {"facet":{"by":"read_group","key":null},"readCount":1,"offsetY":632}
+  ]
+}
