@@ -22,10 +22,11 @@ import {
   getXCoordinateOfBaseWithinNode,
   isCoarsenedId,
   isReverse,
-  layoutTubeMap,
+  layoutTopology,
   mirroredMismatch,
   nodeOutlinePath,
   nodePixelCoordinatesInX,
+  placeTubeMap,
   READ_WIDTH,
   reverse,
 } from '@gmod/tubemap-core'
@@ -39,8 +40,9 @@ import type {
   LayoutNode,
   Mismatch,
   Node,
-  LayoutOptions,
+  PlacementOptions,
   ReadSequenceEntry,
+  TopologyOptions,
   Track,
   TrackCorner,
   TrackCurve,
@@ -48,6 +50,7 @@ import type {
   TrackShapes,
   TrackType,
   TubeMapLayout,
+  TubeMapTopology,
 } from '@gmod/tubemap-core'
 
 // Replacement for d3-selection-multi (incompatible with d3 v7). Use via
@@ -296,14 +299,16 @@ interface Paint {
 // Each drawn track's paint, by id: the shapes carry only the id
 let paints = new Map<number, Paint>()
 
-// The latest layout and the inputs it came from, so a draw that changes only
-// the coloring skips the layout
-let laidOut:
-  | {
-      from: readonly unknown[]
-      layout: TubeMapLayout | undefined
-    }
-  | undefined
+interface Cached<T> {
+  from: readonly unknown[]
+  value: T
+}
+
+// The latest topology and placement with the inputs each came from, so a
+// filter change places again on the same topology and a draw that changes
+// only the coloring skips both
+let topologyCache: Cached<TubeMapTopology | undefined> | undefined
+let placementCache: Cached<TubeMapLayout | undefined> | undefined
 
 // alignSVG attaches a wheel listener and ResizeObserver to the parent each
 // time it runs; create() runs on every TubeMap prop change, so without
@@ -362,7 +367,8 @@ const NO_READS: InputTrack[] = []
 // Draws again after an edit to inputTracks in place, which the layout's
 // inputs can't show
 function relayout(): void {
-  laidOut = undefined
+  topologyCache = undefined
+  placementCache = undefined
   createTubeMap()
 }
 
@@ -775,7 +781,7 @@ function createTubeMap(preserveViewport = true): void {
 }
 
 function layOut(): TubeMapLayout | undefined {
-  const options: LayoutOptions = {
+  const topologyOptions: TopologyOptions = {
     mergeNodes: config.mergeNodesFlag,
     showReads: config.showReads,
     coarsenedReadView: config.coarsenedReadView,
@@ -783,20 +789,34 @@ function layOut(): TubeMapLayout | undefined {
     nodeWidthOption: config.nodeWidthOption,
     charWidth:
       config.nodeWidthOption === 'normal' ? measureCharWidth() : undefined,
+  }
+  const placementOptions: PlacementOptions = {
     mappingQualityCutoff: config.mappingQualityCutoff,
     focusReadNames: config.focusReadNames,
   }
-  const from = [inputNodes, inputTracks, inputReads, JSON.stringify(options)]
-  if (
-    laidOut === undefined ||
-    from.some((input, i) => input !== laidOut!.from[i])
-  ) {
-    laidOut = {
-      from,
-      layout: layoutTubeMap(inputNodes, inputTracks, inputReads, options),
-    }
-  }
-  return laidOut.layout
+  topologyCache = cached(
+    topologyCache,
+    [inputNodes, inputTracks, inputReads, JSON.stringify(topologyOptions)],
+    () =>
+      layoutTopology(inputNodes, inputTracks, inputReads, topologyOptions),
+  )
+  const topology = topologyCache.value
+  placementCache = cached(
+    placementCache,
+    [topology, JSON.stringify(placementOptions)],
+    () => topology && placeTubeMap(topology, placementOptions),
+  )
+  return placementCache.value
+}
+
+function cached<T>(
+  last: Cached<T> | undefined,
+  from: readonly unknown[],
+  compute: () => T,
+): Cached<T> {
+  return last !== undefined && from.every((input, i) => input === last.from[i])
+    ? last
+    : { from, value: compute() }
 }
 
 // Minimum zoom is a scaling factor that determines how far the graph can be zoomed out. This function determines

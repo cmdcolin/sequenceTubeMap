@@ -13,12 +13,16 @@ import { computeExampleData } from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
 import * as demo from './demo-data.js'
 import { measureSvgContent } from './svgBounds.ts'
-import { layoutTubeMap } from '@gmod/tubemap-core'
+import { layoutTopology, placeTubeMap } from '@gmod/tubemap-core'
 import type * as TubeMapCore from '@gmod/tubemap-core'
 
 vi.mock('@gmod/tubemap-core', async importOriginal => {
   const core = await importOriginal<typeof TubeMapCore>()
-  return { ...core, layoutTubeMap: vi.fn(core.layoutTubeMap) }
+  return {
+    ...core,
+    layoutTopology: vi.fn(core.layoutTopology),
+    placeTubeMap: vi.fn(core.placeTubeMap),
+  }
 })
 
 // Numeric suffixes only — keeps the row format compact below. Strings are
@@ -325,6 +329,7 @@ describe('tubemap.create — a recolor', () => {
   afterEach(() => {
     tubeMap.setColorReadsByMappingQualityFlag(false)
     tubeMap.setMergeNodesFlag(true)
+    tubeMap.setMappingQualityCutoff(0)
   })
 
   const fills = (svg: SVGSVGElement) =>
@@ -335,21 +340,54 @@ describe('tubemap.create — a recolor', () => {
     const { nodes, tracks, reads } = dataForExample('7')
     const svg = render(nodes, tracks, reads)
     const before = fills(svg)
-    vi.mocked(layoutTubeMap).mockClear()
+    vi.mocked(layoutTopology).mockClear()
 
     tubeMap.setColorReadsByMappingQualityFlag(true)
     render(nodes, tracks, reads)
-    expect(layoutTubeMap).not.toHaveBeenCalled()
+    expect(layoutTopology).not.toHaveBeenCalled()
     expect(fills(svg)).toHaveLength(before.length)
     expect(fills(svg)).not.toEqual(before)
 
     tubeMap.setMergeNodesFlag(false)
     render(nodes, tracks, reads)
-    expect(layoutTubeMap).toHaveBeenCalledTimes(1)
+    expect(layoutTopology).toHaveBeenCalledTimes(1)
 
     tubeMap.changeTrackVisibility(tracks[0]!.id)
-    expect(layoutTubeMap).toHaveBeenCalledTimes(2)
+    expect(layoutTopology).toHaveBeenCalledTimes(2)
     tubeMap.changeTrackVisibility(tracks[0]!.id)
+  })
+
+  function renderThenClear() {
+    setupSvg()
+    const { nodes, tracks, reads } = dataForExample('7')
+    render(nodes, tracks, reads)
+    vi.mocked(layoutTopology).mockClear()
+    vi.mocked(placeTubeMap).mockClear()
+    return () => render(nodes, tracks, reads)
+  }
+
+  it('places again on the same topology after a mapping-quality change', () => {
+    const redraw = renderThenClear()
+    tubeMap.setMappingQualityCutoff(30)
+    redraw()
+    expect(layoutTopology).not.toHaveBeenCalled()
+    expect(placeTubeMap).toHaveBeenCalledTimes(1)
+  })
+
+  it('neither lays out nor places after a color change', () => {
+    const redraw = renderThenClear()
+    tubeMap.setColorReadsByMappingQualityFlag(true)
+    redraw()
+    expect(layoutTopology).not.toHaveBeenCalled()
+    expect(placeTubeMap).not.toHaveBeenCalled()
+  })
+
+  it('lays out and places after a merge change', () => {
+    const redraw = renderThenClear()
+    tubeMap.setMergeNodesFlag(false)
+    redraw()
+    expect(layoutTopology).toHaveBeenCalledTimes(1)
+    expect(placeTubeMap).toHaveBeenCalledTimes(1)
   })
 })
 
