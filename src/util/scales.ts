@@ -158,14 +158,18 @@ export function shareScale(ignoreStrand: boolean): ColorScale {
     map: track =>
       haplotypeShareColor(track.share!, track.reverse && !ignoreStrand),
     rows: (noun, drawn) => {
-      const total = drawn[0]?.share?.total
+      const totals = new Set(drawn.map(track => track.share?.total))
+      const [total] = totals
       if (total === undefined) {
         return []
       }
+      // Panels faceted by sample band their own haplotypes, each its own total
       const span =
-        total === 1
-          ? 'the one other haplotype'
-          : `1 to all ${total.toLocaleString()} other haplotypes`
+        totals.size > 1
+          ? "1 to all of a panel's other haplotypes"
+          : total === 1
+            ? 'the one other haplotype'
+            : `1 to all ${total.toLocaleString()} other haplotypes`
       return strandRows(noun, drawn, ignoreStrand, strand => ({
         label: `${strandLabel(strand, noun)}, ${span}`,
         ramp: haplotypeShareRamp(strand === 'Reverse'),

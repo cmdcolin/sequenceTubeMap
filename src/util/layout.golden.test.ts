@@ -210,10 +210,73 @@ describe('layoutTubeMap golden output', () => {
   })
 })
 
-// Example 6's five reads under made-up read groups and samples, since no
-// bundled dataset small enough to pin carries more than one of either. Each
-// panel is pinned on its own, beside a file for the stack.
+// A stack is pinned as one file for the panels' facets, counts and offsets,
+// and one per panel in `pinned` (every panel unless given) for its layout.
+async function expectFacetGoldens(
+  name: string,
+  data: Dataset,
+  options: LayoutOptions & FacetOptions,
+  pinned?: readonly number[],
+) {
+  const topology = layoutTopology(data.nodes, data.tracks, data.reads, options)!
+  const { panels, bounds } = placeFacets(topology, options)
+  await expectGolden(
+    name,
+    goldenText({
+      bounds,
+      panels: panels.map(({ facet, readCount, haplotypeCount, offsetY }) => ({
+        facet,
+        readCount,
+        ...(facet?.by === 'haplotype_sample' && { haplotypeCount }),
+        offsetY,
+      })),
+    }),
+  )
+  for (const [i, { layout }] of panels.entries()) {
+    if (pinned === undefined || pinned.includes(i)) {
+      await expectGolden(
+        `${name}.panel-${i}`,
+        goldenText(describeLayout(layout)),
+      )
+    }
+  }
+}
+
+// A bundled HPRC graph through its companion index, every haplotype under its
+// own name, and optionally reads
+async function hprcDataset(
+  graph: string,
+  region: string,
+  gam?: string,
+): Promise<Dataset> {
+  const api = new GBZBaseAPI()
+  const graphId = await upload(api, 'graph', `exampleData/${graph}.gbz.db`)
+  const indexId = await upload(
+    api,
+    'graph',
+    `exampleData/${graph}.haplotype-index.db`,
+  )
+  const tracks: Tracks = [
+    { trackFile: graphId, trackType: 'graph', haplotypeIndexFile: indexId },
+  ]
+  if (gam !== undefined) {
+    const readId = await upload(api, 'read', gam)
+    await upload(api, 'read', `${gam}.gai`)
+    tracks.push({ trackFile: readId, trackType: 'read' })
+  }
+  const data = parseChunkedData(
+    await api.getChunkedData(
+      { dataType: 'mounted files', tracks, region, allHaplotypes: true },
+      null,
+    ),
+    tracks,
+  )
+  return { nodes: data.nodes, tracks: data.tracks, reads: data.reads }
+}
+
 describe('placeFacets golden output', () => {
+  // Example 6's five reads under made-up read groups and samples, since no
+  // bundled dataset small enough to pin carries more than one of either
   const data = exampleDataset(6)
   const reads = data.reads.map((read, i) => ({
     ...read,
@@ -227,29 +290,78 @@ describe('placeFacets golden output', () => {
       facetBy: 'read_group',
       coarsenedReadView: true,
     },
+    // No demo haplotype has a PanSN name, so they share one panel and the
+    // reads take another
+    'facet-haplotype-sample': { facetBy: 'haplotype_sample' },
   }
   for (const [variant, options] of Object.entries(variants)) {
-    const topology = layoutTopology(data.nodes, data.tracks, reads, options)!
-    const { panels, bounds } = placeFacets(topology, options)
-    const name = `example-6.${variant}`
     it(`example 6, ${variant}`, async () => {
-      await expectGolden(
-        name,
-        goldenText({
-          bounds,
-          panels: panels.map(({ facet, readCount, offsetY }) => ({
-            facet,
-            readCount,
-            offsetY,
-          })),
-        }),
+      await expectFacetGoldens(
+        `example-6.${variant}`,
+        { ...data, reads },
+        options,
       )
-      for (const [i, { layout }] of panels.entries()) {
-        await expectGolden(
-          `${name}.panel-${i}`,
-          goldenText(describeLayout(layout)),
-        )
-      }
     })
   }
+
+  // 42 samples with one haplotype each, and reads simulated from three of
+  // them in a last panel. The first two sample panels and the reads panel are
+  // pinned whole.
+  describe('hprc-chrM GRCh38#chrM:245-255', () => {
+    let chrM: Dataset
+    beforeAll(async () => {
+      chrM = await hprcDataset(
+        'hprc-chrM',
+        'GRCh38#chrM:245-255',
+        'exampleData/hprc-chrM-3samples.sorted.gam',
+      )
+    })
+
+    it('carries a PanSN name on every haplotype and a sample on every read', () => {
+      expect(chrM.tracks.length).toBeGreaterThan(30)
+      expect(
+        chrM.tracks.every(t => /^[A-Za-z]+[0-9]+#\d+#/.test(t.name ?? '')),
+      ).toBe(true)
+      expect(new Set(chrM.reads.map(r => r.sample_name))).toEqual(
+        new Set(['HG00438', 'HG00735', 'HG02886']),
+      )
+    })
+
+    it('facet-haplotype-sample', async () => {
+      const options: FacetOptions = { facetBy: 'haplotype_sample' }
+      const topology = layoutTopology(chrM.nodes, chrM.tracks, chrM.reads)!
+      const last = placeFacets(topology, options).panels.length - 1
+      await expectFacetGoldens(
+        'hprc-chrM.facet-haplotype-sample',
+        chrM,
+        options,
+        [0, 1, last],
+      )
+    })
+  })
+
+  // Diploid samples, banded: a band's share of its panel's two haplotypes
+  // reads as zygosity. CHM13's panel comes first; HG00438 (heterozygous at
+  // the first bubble only) and HG00673 (heterozygous at most) are pinned.
+  describe('micb-kir3dl1 GRCh38#chr6:31500700-31500949', () => {
+    it('facet-haplotype-sample-banded', async () => {
+      const micb = await hprcDataset(
+        'micb-kir3dl1',
+        'GRCh38#chr6:31500700-31500949',
+      )
+      expect(new Set(micb.tracks.map(t => t.name)).size).toBe(
+        micb.tracks.length,
+      )
+      await expectFacetGoldens(
+        'micb-kir3dl1.facet-haplotype-sample-banded',
+        micb,
+        {
+          facetBy: 'haplotype_sample',
+          nodeWidthOption: 'compressed',
+          layers: [{ data: 'haplotypes', stat: 'coarsen' }, { data: 'reads' }],
+        },
+        [1, 3],
+      )
+    })
+  })
 })

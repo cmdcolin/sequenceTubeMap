@@ -219,6 +219,22 @@ describe('legendSections', () => {
     ])
   })
 
+  it("keys haplotype bands by each panel's share when panels differ in total", () => {
+    const band = (id: number, total: number): DrawnTrack => ({
+      mark: 'haplotypeBand',
+      source: 0,
+      id: 1_000_000_000 + id,
+      reverse: false,
+      share: { count: 1, total },
+    })
+    expect(rowsFor(GRAPH, [reference, band(1, 1), band(2, 2)])).toEqual([
+      [
+        'Reference path 17=#d9d9d9',
+        "Bands, 1 to all of a panel's other haplotypes=ramp",
+      ],
+    ])
+  })
+
   it('keys banded haplotypes and the reads under them, each by its own scale', () => {
     const band: DrawnTrack = {
       mark: 'haplotypeBand',

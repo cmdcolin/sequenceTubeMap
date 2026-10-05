@@ -1,0 +1,7 @@
+{
+  "bounds": {"minX":20,"maxX":4200.428571428571,"minY":-45,"maxY":373},
+  "panels": [
+    {"facet":{"by":"haplotype_sample","key":null},"readCount":0,"haplotypeCount":8,"offsetY":0},
+    {"facet":{"by":"haplotype_sample","reads":true},"readCount":5,"haplotypeCount":0,"offsetY":265}
+  ]
+}
