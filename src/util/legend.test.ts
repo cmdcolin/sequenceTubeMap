@@ -1,8 +1,16 @@
 // @vitest-environment node
 
 import { describe, expect, it } from 'vitest'
-import type { DrawnTrack } from './encoding.ts'
-import { legendSections, type LegendRow } from './legend.ts'
+import {
+  type DrawnTrack,
+  type ReadColoringFlags,
+  readEncodingFrom,
+} from './encoding.ts'
+import {
+  type LegendColoring,
+  legendSections,
+  type LegendRow,
+} from './legend.ts'
 import { mappingQualityColor } from './mappingQuality.ts'
 import { paletteColors } from './palettes.ts'
 import type { Tracks } from '../Types.ts'
@@ -48,15 +56,17 @@ function read(id: number, extra: Partial<DrawnTrack> = {}): DrawnTrack {
 
 const bothStrands = [read(1), read(2, { reverse: true })]
 
+// The View menu's flags pick the read encoding, as they do for the renderer
 function rowsFor(
   tracks: Tracks,
   drawn: DrawnTrack[],
-  extra: Record<string, unknown> = {},
+  extra: Partial<LegendColoring> & ReadColoringFlags = {},
 ) {
   return legendSections({
     tracks,
     colorSchemes: [GREYS, READS],
     drawn,
+    read: readEncodingFrom(extra),
     ...extra,
   }).map(s => s.rows.map(describeRow))
 }
@@ -137,7 +147,7 @@ describe('legendSections', () => {
       tracks: GRAPH_AND_READS,
       colorSchemes: [GREYS, READS],
       drawn: bothStrands,
-      colorReadsByMappingQuality: true,
+      read: { color: 'mapq' },
     })
     expect(reads?.rows).toEqual([
       {
@@ -219,6 +229,7 @@ describe('legendSections', () => {
           ...[1, 2, 3, 4, 5, 6, 7, 8].map(id => path(id)),
           ...bothStrands,
         ],
+        read: { color: 'strand' },
       }).map(s => s.rows.map(describeRow)),
     ).toEqual([
       ['Reference path 17=#6baed6', '8 other paths=greys'],
@@ -234,6 +245,7 @@ describe('legendSections', () => {
       ],
       colorSchemes: [GREYS, READS],
       drawn: [],
+      read: { color: 'strand' },
     })
     expect(sections.map(s => s.label)).toEqual(['x.gbz.db', 'mine.gam'])
   })

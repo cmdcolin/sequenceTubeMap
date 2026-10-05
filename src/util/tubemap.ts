@@ -10,6 +10,7 @@ import {
   type DrawnTrack,
   drawnTrack,
   encodingFor,
+  readEncodingFrom,
 } from './encoding.ts'
 import type { Scheme } from './scales.ts'
 import { formatTrackDisplayName } from './trackName.ts'
@@ -598,10 +599,18 @@ export interface RenderedColoring extends Coloring {
   readGroups: { name?: string; color: string }[]
   otherReadsColor: string
   ignoreStrand: boolean
-  colorReadsByMappingQuality: boolean
-  alphaReadsByMappingQuality: boolean
   // Every track the last draw placed, which is what a legend keys
   drawn: DrawnTrack[]
+}
+
+// The View menu's flags in config, as the coloring they pick
+function currentColoring(): Coloring {
+  return {
+    read: readEncodingFrom(config),
+    readGroups: config.readGroups,
+    otherReadsColor: config.otherReadsColor,
+    ignoreStrand: config.ignoreStrand,
+  }
 }
 
 // What the current drawing is colored with. A legend has to describe the
@@ -616,12 +625,11 @@ export function getRenderedColoring(): RenderedColoring {
     colorSchemes[source] ??= scheme
   }
   return {
+    read: readEncodingFrom(config),
     colorSchemes,
     readGroups: config.readGroups.map(({ reads, ...group }) => group),
     otherReadsColor: config.otherReadsColor,
     ignoreStrand: config.ignoreStrand,
-    colorReadsByMappingQuality: config.colorReadsByMappingQuality,
-    alphaReadsByMappingQuality: config.alphaReadsByMappingQuality,
     drawn,
   }
 }
@@ -709,8 +717,9 @@ function createTubeMap(preserveViewport = true): void {
   } = layout)
   imageBounds = layout.bounds
   drawn = tracks.map(datumOf)
+  const coloring = currentColoring()
   paints = new Map(
-    tracks.map((track, i) => [track.id, paintOf(track, drawn[i]!)]),
+    tracks.map((track, i) => [track.id, paintOf(track, drawn[i]!, coloring)]),
   )
   drawnSchemes = new Map()
   // A haplotype band is shaded by its share, so it says nothing about the
@@ -1066,8 +1075,12 @@ function datumOf(track: ColorableTrack): DrawnTrack {
   return drawnTrack(track, inputTracks[0]?.id, config.readGroups)
 }
 
-function paintOf(track: ColorableTrack, datum: DrawnTrack): Paint {
-  const { color, alpha } = encodingFor(colorSchemeFor(track), config)[
+function paintOf(
+  track: ColorableTrack,
+  datum: DrawnTrack,
+  coloring = currentColoring(),
+): Paint {
+  const { color, alpha } = encodingFor(colorSchemeFor(track), coloring)[
     datum.mark
   ]
   return {

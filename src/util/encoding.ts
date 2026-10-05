@@ -22,14 +22,38 @@ import {
 
 export type { DrawnTrack, Mark } from './scales.ts'
 
-// The View menu's choices among the scales
+// The variable a read's color shows, and the one its opacity shows
+export interface ReadEncoding {
+  color: 'group' | 'mapq' | 'strand'
+  alpha?: 'mapq'
+}
+
+// The view's coloring: which variables encode a read, and what the scales take
 export interface Coloring {
-  // Named read groups override every other read coloring while any exists
+  read: ReadEncoding
   readGroups?: readonly ReadGroupColor[]
   otherReadsColor?: string
   ignoreStrand?: boolean
+}
+
+// The View menu's read flags, as visOptions and the vis= URL parameter carry them
+export interface ReadColoringFlags {
+  readGroups?: readonly unknown[]
   colorReadsByMappingQuality?: boolean
   alphaReadsByMappingQuality?: boolean
+}
+
+// Named read groups win while any exists, then mapping quality, then strand
+export function readEncodingFrom(flags: ReadColoringFlags): ReadEncoding {
+  return {
+    color:
+      (flags.readGroups?.length ?? 0) > 0
+        ? 'group'
+        : flags.colorReadsByMappingQuality
+          ? 'mapq'
+          : 'strand',
+    ...(flags.alphaReadsByMappingQuality ? { alpha: 'mapq' } : {}),
+  }
 }
 
 // A read group as the renderer holds it, with the reads that belong to it
@@ -102,26 +126,33 @@ export interface Aesthetics {
 
 export type Encoding = Record<Mark, Aesthetics>
 
+function readColorScale(coloring: Coloring, strand: ColorScale): ColorScale {
+  switch (coloring.read.color) {
+    case 'group':
+      return readGroupScale(
+        coloring.readGroups ?? [],
+        coloring.otherReadsColor ?? 'greys',
+      )
+    case 'mapq':
+      return mappingQualityColorScale
+    case 'strand':
+      return strand
+  }
+}
+
 // What each mark is drawn with, under one file's scheme and the view's
-// choices. A band stands for many reads or haplotypes, so a read group or a
+// coloring. A band stands for many reads or haplotypes, so a read group or a
 // mapping quality, which belong to one read, don't color it: a haplotype band
-// takes its share of the haplotypes, a read band its strand. A read takes its
-// group, else its mapping quality, else its strand.
+// takes its share of the haplotypes, a read band its strand.
 export function encodingFor(scheme: Scheme, coloring: Coloring): Encoding {
   const ignoreStrand = coloring.ignoreStrand ?? false
-  const readGroups = coloring.readGroups ?? []
   const strand = strandScale(scheme, ignoreStrand)
   return {
     reference: { color: referenceScale(scheme) },
     path: { color: pathScale(scheme) },
     read: {
-      color:
-        readGroups.length > 0
-          ? readGroupScale(readGroups, coloring.otherReadsColor ?? 'greys')
-          : coloring.colorReadsByMappingQuality
-            ? mappingQualityColorScale
-            : strand,
-      ...(coloring.alphaReadsByMappingQuality
+      color: readColorScale(coloring, strand),
+      ...(coloring.read.alpha === 'mapq'
         ? { alpha: mappingQualityAlphaScale }
         : {}),
     },
