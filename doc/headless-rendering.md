@@ -220,7 +220,7 @@ rsvg-convert -w 1600 banded.svg | magick - -background white -flatten \
   doc/images/layers-banded-haplotypes.png
 ```
 
-`--read-limit 40` thins the window's 285 reads so the figure stays one page
+`--read-limit 40` thins the chr5 window's 285 reads so the figure stays one page
 tall. Adding `--coarsened` bands all 285 instead, in blue under the orange,
 which turns the whole window into allele balance at a glance: the darker
 haplotype band through the last bubble's node carries more haplotypes than the
