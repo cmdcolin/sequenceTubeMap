@@ -836,7 +836,7 @@ const FACET_FIELD_NOUNS: Record<FacetBy, string> = {
   sample_name: 'sample',
 }
 
-export function facetLabel(facet: Facet, readCount: number): string {
+function facetLabel(facet: Facet, readCount: number): string {
   const noun = FACET_FIELD_NOUNS[facet.by]
   const name =
     facet.key === null
