@@ -23,6 +23,7 @@ import {
   isReverse,
   FACET_GAP,
   FACET_LABEL_HEIGHT,
+  facetHoldsRead,
   layoutTopology,
   mirroredMismatch,
   nodeOutlinePath,
@@ -39,6 +40,7 @@ import type {
   FacetedLayout,
   FacetOptions,
   FacetPanel,
+  ReadFacetBy,
   Layer,
   ColorableTrack,
   ImageBounds,
@@ -136,7 +138,7 @@ interface TubeMapConfig {
   readContextMenuCallback: (menu: ReadContextMenuState | null) => void
   nodeContextMenuCallback: (menu: NodeContextMenuState | null) => void
   focusReadNames: string[] | null
-  facetReadsBy: FacetBy | null
+  facetBy: FacetBy | null
   readGroups: ReadGroup[]
   otherReadsColor: string
 }
@@ -270,7 +272,7 @@ const config: TubeMapConfig = {
   nodeContextMenuCallback: function () {},
   coloredNodes: [],
   focusReadNames: null,
-  facetReadsBy: null,
+  facetBy: null,
   // Array of { color, reads: Set<string> }. Reads matching a group's set are
   // drawn in that color, overriding the default strand/palette coloring. The
   // last group in the array wins for reads belonging to multiple groups.
@@ -567,11 +569,12 @@ export function setNodeContextMenuCallback(
 export function getReadNamesThroughNodes(
   nodeNames: string[],
   mode: 'all' | 'any',
+  keep: (read: InputTrack) => boolean = () => true,
 ): string[] {
   const seen = new Set<string>()
   if (inputReads.length > 0 && nodeNames.length > 0) {
     inputReads.forEach(read => {
-      if (read.name) {
+      if (read.name && keep(read)) {
         const visited = new Set(read.sequence.map(s => forward(s)))
         const match =
           mode === 'all'
@@ -621,8 +624,8 @@ export function setMappingQualityCutoff(value: number): void {
 
 // One panel per value of the reads' field, stacked top to bottom; null draws
 // one panel
-export function setFacetReadsBy(value: FacetBy | null | undefined): void {
-  config.facetReadsBy = value ?? null
+export function setFacetBy(value: FacetBy | null | undefined): void {
+  config.facetBy = value ?? null
 }
 
 export interface RenderedColoring extends Coloring {
@@ -831,19 +834,39 @@ function drawPanel(panel: FacetPanel, first: boolean): void {
   if (config.showNodeLabels) drawNodeLabels(dNodes, target)
 }
 
-const FACET_FIELD_NOUNS: Record<FacetBy, string> = {
+const READ_FACET_NOUNS: Record<ReadFacetBy, string> = {
   read_group: 'read group',
   sample_name: 'sample',
 }
 
-function facetLabel(facet: Facet, readCount: number): string {
-  const noun = FACET_FIELD_NOUNS[facet.by]
+function counted(count: number, noun: string): string {
+  return `${count.toLocaleString()} ${noun}${count === 1 ? '' : 's'}`
+}
+
+function facetLabel(facet: Facet, panel: FacetPanel): string {
+  if (facet.by === 'haplotype_sample') {
+    if ('reads' in facet) {
+      return `Reads · ${counted(panel.readCount, 'read')}`
+    }
+    const name = facet.key === null ? 'No PanSN sample' : `Sample ${facet.key}`
+    return `${name} · ${counted(panel.haplotypeCount, 'haplotype')}`
+  }
+  const noun = READ_FACET_NOUNS[facet.by]
   const name =
     facet.key === null
       ? `No ${noun}`
       : `${noun.charAt(0).toUpperCase()}${noun.slice(1)} ${facet.key}`
-  return `${name} · ${readCount.toLocaleString()} read${readCount === 1 ? '' : 's'}`
+  return `${name} · ${counted(panel.readCount, 'read')}`
 }
+
+// Where a panel label's baseline starts; the zoom counter-scales it from here
+interface FacetLabelAnchor {
+  x: number
+  y: number
+}
+
+// Past this the label would cross the rule above it
+const FACET_LABEL_MAX_SCALE = 2.5
 
 // In the band placeFacets leaves above the panel, with a rule across the gap
 // to the panel above
@@ -867,17 +890,20 @@ function drawFacetLabel(
       .attr('stroke-width', 1)
       .attr('stroke-dasharray', '6 4')
   }
+  const anchor: FacetLabelAnchor = { x: imageBounds.minX, y: top - 10 }
   target
+    .append('g')
+    .datum(anchor)
+    .attr('class', 'facet-label-group')
+    .attr('transform', `translate(${anchor.x},${anchor.y})`)
+    .style('pointer-events', 'none')
     .append('text')
     .attr('class', 'facet-label')
-    .attr('x', imageBounds.minX)
-    .attr('y', top - 10)
-    .text(facetLabel(facet, panel.readCount))
+    .text(facetLabel(facet, panel))
     .attr('font-family', 'Helvetica, Arial, sans-serif')
     .attr('font-size', '16px')
     .attr('font-weight', 'bold')
     .attr('fill', '#333333')
-    .style('pointer-events', 'none')
 }
 
 function layOut(): FacetedLayout | undefined {
@@ -894,7 +920,7 @@ function layOut(): FacetedLayout | undefined {
   const placementOptions: FacetOptions = {
     mappingQualityCutoff: config.mappingQualityCutoff,
     focusReadNames: config.focusReadNames,
-    facetReadsBy: config.facetReadsBy,
+    facetBy: config.facetBy,
   }
   topologyCache = cached(
     topologyCache,
@@ -1003,6 +1029,13 @@ function alignSVG(preserveViewport: boolean): () => void {
           const { cx, cy } = nodeLabelAnchor(d)
           return `translate(${cx},${cy}) scale(${labelScale})`
         })
+      const facetLabelScale = Math.min(1 / pendingK, FACET_LABEL_MAX_SCALE)
+      drawing
+        .selectAll<SVGGElement, FacetLabelAnchor>('.facet-label-group')
+        .attr(
+          'transform',
+          ({ x, y }) => `translate(${x},${y}) scale(${facetLabelScale})`,
+        )
       // Hide per-base detail (mismatches, sequence text) when the zoom is too
       // far out for the glyphs to be readable. Only touch the styles when
       // crossing the threshold so we're not writing attrs every frame. This is
@@ -1278,12 +1311,12 @@ function colorNodes(nodeName: string): Record<string, string> {
 }
 
 // The panel whose layout holds this node object, since a node repeats in
-// every panel with that panel's reads
-function layoutOf(node: Node): TubeMapLayout | undefined {
+// every panel
+function panelOf(node: Node): FacetPanel | undefined {
   return panels.find(({ layout }) => {
     const index = layout.nodeMap.get(node.name)
     return index !== undefined && layout.nodes[index] === node
-  })?.layout
+  })
 }
 
 function nodeSingleClick(
@@ -1291,7 +1324,7 @@ function nodeSingleClick(
   _event: MouseEvent,
   node: Node,
 ): void {
-  const layout = layoutOf(node)
+  const layout = panelOf(node)?.layout
   const currentNode = layout?.nodes[layout.nodeMap.get(node.name)!]
   if (layout === undefined || currentNode === undefined) {
     console.error('Missing node: ', node.name)
@@ -2212,14 +2245,20 @@ function trackRightClick(this: SVGElement, event: MouseEvent): void {
   }
 }
 
-// Right-click on a node. Fires the node context-menu callback with the list of
-// read names (from the unfiltered input) that pass through the node.
-function nodeRightClick(this: SVGElement, event: MouseEvent): void {
-  const nodeName = d3.select(this).attr('id')
+// Right-click on a node. Fires the node context-menu callback with the names
+// of the reads through the node, from the unfiltered input, that the clicked
+// panel holds.
+function nodeRightClick(this: SVGElement, event: MouseEvent, node: Node): void {
+  const nodeName = node.name
+  const facet = panelOf(node)?.facet
   event.preventDefault()
   config.nodeContextMenuCallback({
     nodeName,
-    readNames: getReadNamesThroughNodes([nodeName], 'any'),
+    readNames: getReadNamesThroughNodes(
+      [nodeName],
+      'any',
+      facet && (read => facetHoldsRead(facet, read)),
+    ),
     x: event.clientX,
     y: event.clientY,
   })

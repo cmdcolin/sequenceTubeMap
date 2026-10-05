@@ -4,6 +4,7 @@
 // merges, orders, orients and sizes the nodes and fixes their x, and
 // placeTubeMap stacks a chosen set of tracks and reads on that topology.
 import { emptyTrackShapes } from './types.ts'
+import { parsePanSN } from './panSN.ts'
 
 import type {
   HaplotypeShare,
@@ -83,18 +84,27 @@ export interface TopologyOptions {
   trackWidth?: number
 }
 
-// The read fields reads can be faceted by
-export const FACET_FIELDS = ['read_group', 'sample_name'] as const
+export const READ_FACET_FIELDS = ['read_group', 'sample_name'] as const
+export type ReadFacetBy = (typeof READ_FACET_FIELDS)[number]
+// A read field, or the sample in the haplotypes' PanSN names
+export const FACET_FIELDS = [...READ_FACET_FIELDS, 'haplotype_sample'] as const
 export type FacetBy = (typeof FACET_FIELDS)[number]
 
-// One facet's subset: the reads whose `by` field is `key`, or that lack one
-// when `key` is null
-export interface Facet {
-  by: FacetBy
+// One panel's subset. A read facet keeps every haplotype and the reads whose
+// `by` field is `key`, or that lack one when `key` is null. A haplotype facet
+// keeps the reference and no reads, plus the haplotypes of sample `key`, or
+// those with no PanSN sample when `key` is null; its `reads` panel keeps the
+// reference and the reads.
+export interface ReadFacet {
+  by: ReadFacetBy
   key: string | null
 }
+export type HaplotypeFacet =
+  | { by: 'haplotype_sample'; key: string | null }
+  | { by: 'haplotype_sample'; reads: true }
+export type Facet = ReadFacet | HaplotypeFacet
 
-// Which of a topology's reads a placement draws
+// Which of a topology's tracks and reads a placement draws
 export interface PlacementOptions {
   mappingQualityCutoff?: number
   focusReadNames?: string[] | null
@@ -102,8 +112,8 @@ export interface PlacementOptions {
 }
 
 export interface FacetOptions extends PlacementOptions {
-  // One panel per value of this field among the reads the filters keep
-  facetReadsBy?: FacetBy | null
+  // One panel per value of this field
+  facetBy?: FacetBy | null
 }
 
 export interface LayoutOptions extends TopologyOptions, PlacementOptions {}
@@ -294,7 +304,7 @@ export function layoutTopology(
   if (topology === undefined) {
     return undefined
   }
-  const everything = place(topology, topology.reads, 'measure')
+  const everything = place(topology, topology.tracks, topology.reads, 'measure')
   everything.nodes.forEach((node, i) => {
     if (node.order >= 0) {
       topology.nodes[i]!.x = node.x
@@ -304,19 +314,33 @@ export function layoutTopology(
   return topology
 }
 
-// Lay out the topology's haplotypes and the reads `options` keep at the
-// topology's x positions, stacking each read under the nodes it visits. When
-// the filters keep every read, this returns the placement layoutTopology
-// measured x from, the same object on every such call.
+// Lay out the haplotypes and reads `options` keep at the topology's x
+// positions, stacking each read under the nodes it visits. When they keep
+// everything, this returns the placement layoutTopology measured x from, the
+// same object on every such call.
 export function placeTubeMap(
   topology: TubeMapTopology,
   options: PlacementOptions = {},
 ): TubeMapLayout {
-  const reads = selectReads(topology, options)
+  return placeSubset(
+    topology,
+    selectTracks(topology, options.facet),
+    selectReads(topology, options),
+  )
+}
+
+function placeSubset(
+  topology: TubeMapTopology,
+  tracks: readonly TopologyTrack[],
+  reads: readonly TopologyTrack[],
+  bandIdBase?: BandIdBase,
+): TubeMapLayout {
   const measured = measurements.get(topology)
-  return measured !== undefined && reads.length === topology.reads.length
+  return measured !== undefined &&
+    tracks.length === topology.tracks.length &&
+    reads.length === topology.reads.length
     ? measured
-    : place(topology, reads, 'topology')
+    : place(topology, tracks, reads, 'topology', bandIdBase)
 }
 
 function arrangeTopology(
@@ -420,44 +444,139 @@ function selectReads(
     read =>
       (read.mapping_quality ?? 0) >= mappingQualityCutoff &&
       (focus === null || (read.name !== undefined && focus.has(read.name))) &&
-      (facet === undefined || facetKey(read, facet.by) === facet.key),
+      (facet === undefined || facetHoldsRead(facet, read)),
   )
 }
 
-function facetKey(read: TopologyTrack, by: FacetBy): string | null {
-  return read[by] ?? null
+// Whether a panel of `facet` draws this read when the read filters keep it
+export function facetHoldsRead(
+  facet: Facet,
+  read: Pick<TopologyTrack, ReadFacetBy>,
+): boolean {
+  return facet.by === 'haplotype_sample'
+    ? 'reads' in facet
+    : (read[facet.by] ?? null) === facet.key
 }
 
-// A facet and the reads in it
-export interface FacetSubset {
-  facet: Facet
+// What every haplotype panel keeps: track 0, which the topology straightened,
+// and the track carrying the ruler's coordinates, when that is another
+function references(topology: TubeMapTopology): Set<TopologyTrack> {
+  return new Set(
+    topology.tracks.filter(
+      (track, i) => i === 0 || track.name === topology.trackForRuler,
+    ),
+  )
+}
+
+function selectTracks(
+  topology: TubeMapTopology,
+  facet: Facet | undefined,
+): readonly TopologyTrack[] {
+  if (facet?.by !== 'haplotype_sample') {
+    return topology.tracks
+  }
+  const kept = references(topology)
+  return topology.tracks.filter(
+    track =>
+      kept.has(track) || (!('reads' in facet) && sampleOf(track) === facet.key),
+  )
+}
+
+function sampleOf(track: TopologyTrack): string | null {
+  return parsePanSN(track.name)?.sample ?? null
+}
+
+// The haplotypes among `tracks` beside the reference, a PanSN haplotype
+// counted once however many walks it makes through the window
+function haplotypeCount(
+  topology: TubeMapTopology,
+  tracks: readonly TopologyTrack[],
+): number {
+  const skip = references(topology)
+  return new Set(
+    tracks.flatMap(track => {
+      if (skip.has(track)) {
+        return []
+      }
+      const name = parsePanSN(track.name)
+      return [name ? `${name.sample}#${name.haplotype}` : track]
+    }),
+  ).size
+}
+
+// A facet and the haplotypes and reads it draws
+export interface FacetSubset<F extends Facet = Facet> {
+  facet: F
+  tracks: readonly TopologyTrack[]
   reads: readonly TopologyTrack[]
 }
 
-// Split the reads `options` keep by their `by` field: one subset per value,
-// in sort order with the reads lacking one last, and none left empty
-export function facetReads(
-  topology: TubeMapTopology,
-  by: FacetBy,
-  options: PlacementOptions = {},
-): FacetSubset[] {
-  const subsets = new Map<string | null, TopologyTrack[]>()
-  for (const read of selectReads(topology, { ...options, facet: undefined })) {
-    const key = facetKey(read, by)
-    const subset = subsets.get(key)
-    if (subset === undefined) {
-      subsets.set(key, [read])
+// Group `items` by key: in sort order, the null key last
+function groupBy<T>(
+  items: readonly T[],
+  keyOf: (item: T) => string | null,
+): [string | null, T[]][] {
+  const groups = new Map<string | null, T[]>()
+  for (const item of items) {
+    const key = keyOf(item)
+    const group = groups.get(key)
+    if (group === undefined) {
+      groups.set(key, [item])
     } else {
-      subset.push(read)
+      group.push(item)
     }
   }
-  return [...subsets]
-    .sort(([a], [b]) =>
-      a === null || b === null
-        ? Number(a === null) - Number(b === null)
-        : a.localeCompare(b, undefined, { numeric: true }),
-    )
-    .map(([key, reads]) => ({ facet: { by, key }, reads }))
+  return [...groups].sort(([a], [b]) =>
+    a === null || b === null
+      ? Number(a === null) - Number(b === null)
+      : a.localeCompare(b, undefined, { numeric: true }),
+  )
+}
+
+// Split the reads `options` keep by their `by` field: one subset per value,
+// in sort order with the reads lacking one last, and none left empty. Every
+// subset keeps every haplotype.
+export function facetReads(
+  topology: TubeMapTopology,
+  by: ReadFacetBy,
+  options: PlacementOptions = {},
+): FacetSubset<ReadFacet>[] {
+  return groupBy(
+    selectReads(topology, { ...options, facet: undefined }),
+    read => read[by] ?? null,
+  ).map(([key, reads]) => ({
+    facet: { by, key },
+    tracks: topology.tracks,
+    reads,
+  }))
+}
+
+// Split the haplotypes beside the reference by the sample in their PanSN
+// names: one subset per sample, in sort order, then one for the haplotypes
+// with no PanSN name, each holding the reference too and no reads. The reads
+// `options` keep, when any, go in a last subset with the reference alone. No
+// haplotype beside the reference leaves nothing to split.
+export function facetHaplotypes(
+  topology: TubeMapTopology,
+  options: PlacementOptions = {},
+): FacetSubset<HaplotypeFacet>[] {
+  const kept = references(topology)
+  const samples = groupBy(
+    topology.tracks.filter(track => !kept.has(track)),
+    sampleOf,
+  )
+  if (samples.length === 0) {
+    return []
+  }
+  const ofSample = samples.map(([key]) => {
+    const facet: HaplotypeFacet = { by: 'haplotype_sample', key }
+    return { facet, tracks: selectTracks(topology, facet), reads: [] }
+  })
+  const facet: HaplotypeFacet = { by: 'haplotype_sample', reads: true }
+  const reads = selectReads(topology, { ...options, facet })
+  return reads.length === 0
+    ? ofSample
+    : [...ofSample, { facet, tracks: selectTracks(topology, facet), reads }]
 }
 
 // One placement in a stack of them. Its layout keeps its own coordinates;
@@ -466,6 +585,8 @@ export interface FacetPanel {
   // undefined for the one panel of an unfaceted view
   facet?: Facet
   readCount: number
+  // beside the reference, a PanSN haplotype counted once
+  haplotypeCount: number
   layout: TubeMapLayout
   offsetY: number
 }
@@ -481,44 +602,63 @@ export interface FacetedLayout {
 export const FACET_LABEL_HEIGHT = 30
 export const FACET_GAP = 40
 
-// Place the topology once per facet of its reads and stack the placements top
-// to bottom, the first where an unfaceted placement would draw. Every panel
-// draws every haplotype at the topology's x, so the panels line up in x. Read
-// band ids run on from one panel to the next, so they stay unique across the
-// stack. Without `facetReadsBy`, or with no reads left to split, this is one
-// panel of placeTubeMap's layout.
+// Place the topology once per facet and stack the placements top to bottom,
+// the first where an unfaceted placement would draw. Every panel takes the
+// topology's x, so the panels line up in x. Band ids run on from one panel to
+// the next where panels band different tracks: the reads under a read facet,
+// the haplotypes under a haplotype facet, whose bands then take their share
+// of the panel's haplotypes. Without `facetBy`, or with nothing to split, this
+// is one panel of placeTubeMap's layout.
 export function placeFacets(
   topology: TubeMapTopology,
   options: FacetOptions = {},
 ): FacetedLayout {
-  const { facetReadsBy, ...placement } = options
+  const { facetBy, ...placement } = options
   const subsets =
-    facetReadsBy === undefined || facetReadsBy === null
+    facetBy === undefined || facetBy === null
       ? []
-      : facetReads(topology, facetReadsBy, placement)
+      : facetBy === 'haplotype_sample'
+        ? facetHaplotypes(topology, placement)
+        : facetReads(topology, facetBy, placement)
   if (subsets.length === 0) {
     const layout = placeTubeMap(topology, placement)
     return {
-      panels: [{ layout, readCount: layout.reads.length, offsetY: 0 }],
+      panels: [
+        {
+          layout,
+          readCount: layout.reads.length,
+          haplotypeCount: haplotypeCount(topology, topology.tracks),
+          offsetY: 0,
+        },
+      ],
       bounds: layout.bounds,
     }
   }
-  const measured = measurements.get(topology)
-  let bandIdBase: number | undefined
+  const banded: LayerData =
+    facetBy === 'haplotype_sample' ? 'haplotypes' : 'reads'
+  let nextBandId: number | undefined
   let bottom = 0
-  const panels = subsets.map(({ facet, reads }, i) => {
-    const layout =
-      measured !== undefined && reads.length === topology.reads.length
-        ? measured
-        : place(topology, reads, 'topology', bandIdBase)
+  const panels = subsets.map(({ facet, tracks, reads }, i) => {
+    const layout = placeSubset(
+      topology,
+      tracks,
+      reads,
+      nextBandId === undefined ? undefined : { [banded]: nextBandId },
+    )
     const bandIds = [...layout.coarsenedEdgeMeta.keys()]
     if (bandIds.length > 0) {
-      bandIdBase = Math.max(...bandIds) + 1
+      nextBandId = Math.max(...bandIds) + 1
     }
     const offsetY =
       i === 0 ? 0 : bottom + FACET_GAP + FACET_LABEL_HEIGHT - layout.bounds.minY
     bottom = offsetY + layout.bounds.maxY
-    return { facet, readCount: reads.length, layout, offsetY }
+    return {
+      facet,
+      readCount: reads.length,
+      haplotypeCount: haplotypeCount(topology, tracks),
+      layout,
+      offsetY,
+    }
   })
   return {
     panels,
@@ -531,20 +671,25 @@ export function placeFacets(
   }
 }
 
-// Place copies of the topology's nodes, tracks and the given reads, measuring
-// x from them or taking the topology's. Read bands take ids from
-// `readBandIdBase` when given, else straight after the haplotype bands.
+// The first id each layer's bands take
+type BandIdBase = Partial<Record<LayerData, number>>
+
+// Place copies of the topology's nodes and the given tracks and reads,
+// measuring x from them or taking the topology's. Haplotype bands take ids
+// from COARSENED_ID_BASE and read bands straight after, unless `bandIdBase`
+// says otherwise.
 function place(
   topology: TubeMapTopology,
+  tracks: readonly TopologyTrack[],
   reads: readonly TopologyTrack[],
   x: 'measure' | 'topology',
-  readBandIdBase?: number,
+  bandIdBase: BandIdBase = {},
 ): TubeMapLayout {
   const state = emptyState(topology.options)
   topology.nodes.forEach((node, i) => {
     state.nodes[i] = { ...node } as LayoutNode
   })
-  state.tracks = topology.tracks.map(track => ({ ...track }) as Track)
+  state.tracks = tracks.map(track => ({ ...track }) as Track)
   state.reads = reads.map(read => ({ ...read }) as Track)
   state.nodeMap = topology.nodeMap
   state.maxOrder = topology.maxOrder
@@ -554,9 +699,10 @@ function place(
   // overlay, above the reads, before calculateTrackWidth and
   // generateLaneAssignment see the tracks.
   const { layers, ignoreStrand } = state.config
+  const haplotypeBandIdBase = bandIdBase.haplotypes ?? COARSENED_ID_BASE
   const haplotypeBands =
     statOf(layers, 'haplotypes') === 'coarsen'
-      ? bandHaplotypes(state)
+      ? bandHaplotypes(state, haplotypeBandIdBase)
       : undefined
   if (haplotypeBands !== undefined) {
     state.tracks = [haplotypeBands.ref]
@@ -576,8 +722,8 @@ function place(
           state,
           state.reads,
           'read',
-          readBandIdBase ??
-            COARSENED_ID_BASE + (haplotypeBands?.bands.length ?? 0),
+          bandIdBase.reads ??
+            haplotypeBandIdBase + (haplotypeBands?.bands.length ?? 0),
         )
       : undefined
   if (readBands !== undefined) {
@@ -2765,6 +2911,7 @@ function buildCoarsenedSyntheticBands(
 // node makes no band, and its node would get no y from the read overlay.
 function bandHaplotypes(
   state: LayoutState,
+  firstId: number,
 ): { ref: Track; bands: Track[]; total: number } | undefined {
   const rulerIndex =
     state.trackForRuler === undefined
@@ -2787,6 +2934,7 @@ function bandHaplotypes(
     state,
     altHaplotypes,
     'haplotype',
+    firstId,
   )
   return bands.length > 0 ? { ref, bands, total } : undefined
 }

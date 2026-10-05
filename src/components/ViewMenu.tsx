@@ -32,7 +32,7 @@ interface ViewMenuProps {
   visOptions: VisOptions
   toggleVisOptionFlag: (flag: VisOptionFlag) => void
   handleMappingQualityCutoffChange: (value: number) => void
-  handleFacetReadsByChange: (value: FacetBy | null) => void
+  handleFacetByChange: (value: FacetBy | null) => void
   compressedViewLocked?: boolean
   bandageJsViewTarget: ViewTarget | undefined
   trackFileBaseURI: string | undefined
@@ -44,7 +44,7 @@ export function ViewMenu({
   visOptions,
   toggleVisOptionFlag,
   handleMappingQualityCutoffChange,
-  handleFacetReadsByChange,
+  handleFacetByChange,
   compressedViewLocked,
   bandageJsViewTarget,
   trackFileBaseURI,
@@ -209,7 +209,7 @@ export function ViewMenu({
                 e.stopPropagation()
               }}
             >
-              <Typography variant="body2" id="facetReadsByLabel">
+              <Typography variant="body2" id="facetByLabel">
                 Facet reads by:
               </Typography>
               <HelpDialog title="Facet reads by">
@@ -219,15 +219,13 @@ export function ViewMenu({
                 across panels and their reads compare at a glance.
               </HelpDialog>
               <Select
-                labelId="facetReadsByLabel"
+                labelId="facetByLabel"
                 disabled={readsDisabled}
-                value={visOptions.facetReadsBy ?? 'none'}
+                value={visOptions.facetBy ?? 'none'}
                 onChange={e => {
-                  handleFacetReadsByChange(
-                    FACET_CHOICES[e.target.value] ?? null,
-                  )
+                  handleFacetByChange(FACET_CHOICES[e.target.value] ?? null)
                 }}
-                data-testid="facetReadsBySelect"
+                data-testid="facetBySelect"
               >
                 <MenuItem value="none">none</MenuItem>
                 <MenuItem value="read_group">read group</MenuItem>

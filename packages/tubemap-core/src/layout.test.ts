@@ -4,6 +4,8 @@ import { curvePaths, nodeOutlinePath } from './geometry.ts'
 import {
   FACET_GAP,
   FACET_LABEL_HEIGHT,
+  facetHaplotypes,
+  facetHoldsRead,
   facetReads,
   getXCoordinateOfBaseWithinNode,
   layoutTopology,
@@ -654,7 +656,7 @@ describe('layoutTubeMap', () => {
       const options = { mappingQualityCutoff: 10 }
       const { panels, bounds } = placeFacets(topology, {
         ...options,
-        facetReadsBy: 'read_group',
+        facetBy: 'read_group',
       })
       const all = placeTubeMap(topology, options)
       expect(panels.flatMap(p => names(p.layout)).sort()).toEqual(names(all))
@@ -693,8 +695,8 @@ describe('layoutTubeMap', () => {
     it('is one panel of placeTubeMap unfaceted, or with no reads to split', () => {
       for (const options of [
         {},
-        { facetReadsBy: null },
-        { facetReadsBy: 'read_group' as const, focusReadNames: ['none'] },
+        { facetBy: null },
+        { facetBy: 'read_group' as const, focusReadNames: ['none'] },
       ]) {
         const { panels, bounds } = placeFacets(topology, options)
         expect(panels).toHaveLength(1)
@@ -715,7 +717,7 @@ describe('layoutTubeMap', () => {
           { data: 'reads', stat: 'coarsen' },
         ],
       })!
-      const { panels } = placeFacets(banded, { facetReadsBy: 'sample_name' })
+      const { panels } = placeFacets(banded, { facetBy: 'sample_name' })
       expect(panels).toHaveLength(2)
       const ofKind = (haplotype: boolean) =>
         panels.map(p =>
@@ -729,6 +731,151 @@ describe('layoutTubeMap', () => {
       const [first, second] = ofKind(true)
       expect(first!.length).toBeGreaterThan(0)
       expect(second).toEqual(first)
+    })
+
+    describe('by haplotype sample', () => {
+      // HG1 is heterozygous at the bubble, HG2 carries the alternate, and one
+      // haplotype has no PanSN name
+      const samples: InputTrack[] = [
+        {
+          id: 0,
+          name: 'GRCh38#0#chr1',
+          sequence: ['1', '2', '4'],
+          sourceTrackID: 0,
+          indexOfFirstBase: 1,
+        },
+        { id: 1, name: 'HG2#1#chr1', sequence: ['1', '3', '4'] },
+        { id: 2, name: 'HG1#1#chr1', sequence: ['1', '3', '4'] },
+        { id: 3, name: 'HG1#2#chr1', sequence: ['1', '2', '4'] },
+        { id: 4, name: 'Track X', sequence: ['1', '3', '4'] },
+        { id: 5, name: 'HG1#2#chr1', sequence: ['1', '2'] },
+      ].map(track => ({ sourceTrackID: 0, ...track }))
+      const haplotypes = (layout: TubeMapLayout) =>
+        layout.tracks
+          .filter(t => t.type === 'haplotype')
+          .map(t => t.name)
+          .sort()
+      const withReads = layoutTopology(nodes, samples, reads, {
+        mergeNodes: false,
+      })!
+      const options = {
+        mappingQualityCutoff: 10,
+        facetBy: 'haplotype_sample' as const,
+      }
+
+      it('splits the haplotypes beside the reference by sample, the unnamed last, and puts the reads after', () => {
+        const subsets = facetHaplotypes(withReads, options)
+        expect(subsets.map(s => s.facet)).toEqual([
+          { by: 'haplotype_sample', key: 'HG1' },
+          { by: 'haplotype_sample', key: 'HG2' },
+          { by: 'haplotype_sample', key: null },
+          { by: 'haplotype_sample', reads: true },
+        ])
+        expect(subsets.map(s => s.tracks.map(t => t.name))).toEqual([
+          ['GRCh38#0#chr1', 'HG1#1#chr1', 'HG1#2#chr1', 'HG1#2#chr1'],
+          ['GRCh38#0#chr1', 'HG2#1#chr1'],
+          ['GRCh38#0#chr1', 'Track X'],
+          ['GRCh38#0#chr1'],
+        ])
+        expect(subsets.map(s => s.reads.map(r => r.name))).toEqual([
+          [],
+          [],
+          [],
+          ['a1', 'a2', 'b1', 'n1'],
+        ])
+      })
+
+      it('stacks panels that keep the reference and share node order and x', () => {
+        const { panels } = placeFacets(withReads, options)
+        const all = placeTubeMap(withReads, options)
+        expect(panels.map(p => haplotypes(p.layout))).toEqual([
+          ['GRCh38#0#chr1', 'HG1#1#chr1', 'HG1#2#chr1', 'HG1#2#chr1'],
+          ['GRCh38#0#chr1', 'HG2#1#chr1'],
+          ['GRCh38#0#chr1', 'Track X'],
+          ['GRCh38#0#chr1'],
+        ])
+        expect(panels.map(p => p.haplotypeCount)).toEqual([2, 1, 1, 0])
+        expect(panels.map(p => p.readCount)).toEqual([0, 0, 0, 4])
+        expect(names(panels[3]!.layout)).toEqual(names(all))
+        for (const panel of panels) {
+          expect(placed(panel.layout)).toEqual(placed(all))
+          expect(panel.layout.trackForRuler).toBe('GRCh38#0#chr1')
+          expectFiniteGeometry(panel.layout)
+        }
+        for (const [above, below] of [
+          [panels[0]!, panels[1]!],
+          [panels[2]!, panels[3]!],
+        ] as const) {
+          expect(
+            below.offsetY + below.layout.bounds.minY - FACET_LABEL_HEIGHT,
+          ).toBe(above.offsetY + above.layout.bounds.maxY + FACET_GAP)
+        }
+      })
+
+      it('places each panel as placeTubeMap does its facet', () => {
+        for (const panel of placeFacets(withReads, options).panels) {
+          const alone = placeTubeMap(withReads, {
+            ...options,
+            facet: panel.facet,
+          })
+          expect(haplotypes(alone)).toEqual(haplotypes(panel.layout))
+          expect(alone.shapes).toEqual(panel.layout.shapes)
+        }
+      })
+
+      it("bands each panel's haplotypes by their share of the panel, under ids unique across the stack", () => {
+        const banded = layoutTopology(nodes, samples, [], {
+          mergeNodes: false,
+          layers: [{ data: 'haplotypes', stat: 'coarsen' }],
+        })!
+        const { panels } = placeFacets(banded, {
+          facetBy: 'haplotype_sample',
+        })
+        const shares = panels.map(p =>
+          p.layout.reads
+            .map(band => {
+              const [from, to] = band.sequence
+              const { count, total } = band.haplotypeShare!
+              return `${from}>${to} ${count}/${total}`
+            })
+            .sort(),
+        )
+        expect(shares).toEqual([
+          ['1>2 2/3', '1>3 1/3', '2>4 1/3', '3>4 1/3'],
+          ['1>3 1/1', '3>4 1/1'],
+          ['1>3 1/1', '3>4 1/1'],
+        ])
+        const ids = panels.flatMap(p => p.layout.reads.map(band => band.id))
+        expect(new Set(ids).size).toBe(ids.length)
+        expect(
+          new Set(panels.flatMap(p => [...p.layout.coarsenedEdgeMeta.keys()])),
+        ).toEqual(new Set(ids))
+      })
+
+      it('is one panel with no haplotype beside the reference', () => {
+        const alone = layoutTopology(nodes, samples.slice(0, 1), reads, {
+          mergeNodes: false,
+        })!
+        const { panels } = placeFacets(alone, options)
+        expect(panels).toHaveLength(1)
+        expect(panels[0]!.facet).toBeUndefined()
+        expect(panels[0]!.haplotypeCount).toBe(0)
+      })
+
+      it('holds reads in the reads panel alone', () => {
+        const read = { read_group: 'A', sample_name: 'S1' }
+        expect(
+          facetHoldsRead({ by: 'haplotype_sample', key: 'HG1' }, read),
+        ).toBe(false)
+        expect(
+          facetHoldsRead({ by: 'haplotype_sample', reads: true }, read),
+        ).toBe(true)
+        expect(facetHoldsRead({ by: 'read_group', key: 'A' }, read)).toBe(true)
+        expect(facetHoldsRead({ by: 'sample_name', key: null }, read)).toBe(
+          false,
+        )
+        expect(facetHoldsRead({ by: 'sample_name', key: null }, {})).toBe(true)
+      })
     })
   })
 

@@ -221,10 +221,10 @@ describe('placeFacets golden output', () => {
     sample_name: i < 3 ? 'S1' : 'S2',
   }))
   const variants: Record<string, LayoutOptions & FacetOptions> = {
-    'facet-read-group': { facetReadsBy: 'read_group' },
-    'facet-sample': { facetReadsBy: 'sample_name' },
+    'facet-read-group': { facetBy: 'read_group' },
+    'facet-sample': { facetBy: 'sample_name' },
     'facet-read-group-coarsened': {
-      facetReadsBy: 'read_group',
+      facetBy: 'read_group',
       coarsenedReadView: true,
     },
   }

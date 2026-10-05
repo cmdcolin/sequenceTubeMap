@@ -24,6 +24,6 @@ render() {
     -background white -flatten "$out/$name.png"
 }
 
-render facets-by-sample --facet-reads-by sample_name
-render facets-by-sample-banded --facet-reads-by sample_name --coarsened
-render facets-by-read-group --facet-reads-by read_group --coarsened --compressed
+render facets-by-sample --facet-by sample_name
+render facets-by-sample-banded --facet-by sample_name --coarsened
+render facets-by-read-group --facet-by read_group --coarsened --compressed

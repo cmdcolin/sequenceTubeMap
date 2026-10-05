@@ -53,7 +53,7 @@ export function mappingQualityCutoffFrom(value: unknown) {
 
 // A field reads can be faceted by, or null for none; undefined for anything
 // else, which a stored preference or link may hold
-export function facetReadsByFrom(value: unknown): FacetBy | null | undefined {
+export function facetByFrom(value: unknown): FacetBy | null | undefined {
   return value === null || value === 'none'
     ? null
     : FACET_FIELDS.find(field => field === value)
@@ -72,7 +72,7 @@ export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   coarsenedReadView: false,
   coarsenedHaplotypeView: false,
   ignoreStrand: false,
-  facetReadsBy: null,
+  facetBy: null,
 }
 
 // The bundled demo datasets carry no track settings to derive colors from, so
@@ -154,7 +154,7 @@ export function applyVisOptions(
   })
   tubeMap.setMappingQualityCutoff(visOptions.mappingQualityCutoff)
   tubeMap.setFocusReadNames(visOptions.focusReadNames)
-  tubeMap.setFacetReadsBy(visOptions.facetReadsBy)
+  tubeMap.setFacetBy(visOptions.facetBy)
   tubeMap.setReadGroups(visOptions.readGroups)
   tubeMap.setOtherReadsColor(visOptions.otherReadsColor)
 }

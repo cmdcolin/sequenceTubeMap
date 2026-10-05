@@ -141,7 +141,7 @@ export interface VisOptions {
   // (-B→-A) into a single band. Useful when strand isn't relevant.
   ignoreStrand: boolean
   // One panel per value of this read field, stacked; null draws one panel
-  facetReadsBy: FacetBy | null
+  facetBy: FacetBy | null
 }
 
 // Keys of VisOptions that hold a boolean, i.e. the ones that can be toggled.

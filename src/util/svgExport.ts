@@ -92,9 +92,11 @@ function undoViewportState(svg: Element, saved: SavedAttribute[]): void {
     }
   }
 
-  // Node labels carry a counter-scale so they stay legible as the map is zoomed
-  // out; at natural scale that would just make them oversized.
-  for (const label of svg.querySelectorAll('.node-label-group')) {
+  // Node and panel labels carry a counter-scale so they stay legible as the map
+  // is zoomed out; at natural scale that would just make them oversized.
+  for (const label of svg.querySelectorAll(
+    '.node-label-group, .facet-label-group',
+  )) {
     const anchor = /translate\([^)]*\)/.exec(
       label.getAttribute('transform') ?? '',
     )

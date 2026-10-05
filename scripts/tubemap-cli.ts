@@ -30,7 +30,7 @@ import type {
 } from '../src/Types.ts'
 import { FACET_FIELDS, type FacetBy } from '@gmod/tubemap-core'
 import {
-  facetReadsByFrom,
+  facetByFrom,
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
 } from '../src/util/visOptions.ts'
@@ -124,7 +124,7 @@ below override what it carries.
 
 View options, mirroring the app's View menu:
 ${flagHelp()}  --mapq N            drop reads below mapping quality N
-  --facet-reads-by F  one panel per read_group or sample_name, stacked
+  --facet-by F  one panel per read_group or sample_name, stacked
 
 --legend draws the app's color key into the figure, above the map, so it can be
 read away from the app.
@@ -188,10 +188,10 @@ function parseCount(name: string, raw: string): number {
 }
 
 function parseFacet(raw: string): FacetBy | null {
-  const facet = facetReadsByFrom(raw)
+  const facet = facetByFrom(raw)
   if (facet === undefined) {
     throw new Error(
-      `--facet-reads-by takes ${FACET_FIELDS.join(', ')} or none, got "${raw}"`,
+      `--facet-by takes ${FACET_FIELDS.join(', ')} or none, got "${raw}"`,
     )
   }
   return facet
@@ -256,7 +256,7 @@ function parseCli(): CliArgs {
       legend: { type: 'boolean', default: false },
       'read-limit': { type: 'string' },
       mapq: { type: 'string' },
-      'facet-reads-by': { type: 'string' },
+      'facet-by': { type: 'string' },
       help: { type: 'boolean', default: false },
       ...flagArgOptions(),
     },
@@ -296,8 +296,8 @@ function parseCli(): CliArgs {
         // 0 is the default "no cutoff", so it has to be accepted.
         mappingQualityCutoff: parseCount('mapq', values.mapq),
       }),
-      ...(values['facet-reads-by'] !== undefined && {
-        facetReadsBy: parseFacet(values['facet-reads-by']),
+      ...(values['facet-by'] !== undefined && {
+        facetBy: parseFacet(values['facet-by']),
       }),
     },
   }

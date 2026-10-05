@@ -466,19 +466,19 @@ describe('vis short form', () => {
   })
 
   it('reads the read facet from facet, ignoring a field it cannot split by', () => {
-    expect(visOf('facet=read_group')).toEqual({ facetReadsBy: 'read_group' })
-    expect(visOf('facet=sample_name')).toEqual({ facetReadsBy: 'sample_name' })
-    expect(visOf('facet=none')).toEqual({ facetReadsBy: null })
+    expect(visOf('facet=read_group')).toEqual({ facetBy: 'read_group' })
+    expect(visOf('facet=sample_name')).toEqual({ facetBy: 'sample_name' })
+    expect(visOf('facet=none')).toEqual({ facetBy: null })
     expect(visOf('facet=population')).toEqual({})
   })
 
   it('round trips a read facet', () => {
     const params = viewTargetToUrlParams(
       { region: 'x:1-100', tracks: [] },
-      { ...DEFAULT_VIS_OPTIONS, facetReadsBy: 'sample_name' },
+      { ...DEFAULT_VIS_OPTIONS, facetBy: 'sample_name' },
     )
     expect(params).toContain('facet=sample_name')
-    expect(visOf(params)).toEqual({ facetReadsBy: 'sample_name' })
+    expect(visOf(params)).toEqual({ facetBy: 'sample_name' })
   })
 })
 

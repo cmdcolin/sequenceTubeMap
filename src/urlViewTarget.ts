@@ -1,6 +1,6 @@
 import {
   DEFAULT_VIS_OPTIONS,
-  facetReadsByFrom,
+  facetByFrom,
   mappingQualityCutoffFrom,
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
@@ -351,11 +351,11 @@ export function urlParamsToVisOptions(
   }
 
   const cutoff = mappingQualityCutoffFrom(Number(readScalar(params, 'mapq')))
-  const facetReadsBy = facetReadsByFrom(readScalar(params, 'facet'))
+  const facetBy = facetByFrom(readScalar(params, 'facet'))
   return {
     ...flags,
     ...(cutoff !== undefined && { mappingQualityCutoff: cutoff }),
-    ...(facetReadsBy !== undefined && { facetReadsBy }),
+    ...(facetBy !== undefined && { facetBy }),
   }
 }
 
@@ -403,8 +403,8 @@ function visOptionsToParams(visOptions: StoredVisOptions) {
     DEFAULT_VIS_OPTIONS.mappingQualityCutoff
       ? [scalarParam('mapq', String(visOptions.mappingQualityCutoff))]
       : []),
-    ...(visOptions.facetReadsBy !== DEFAULT_VIS_OPTIONS.facetReadsBy
-      ? [scalarParam('facet', visOptions.facetReadsBy ?? 'none')]
+    ...(visOptions.facetBy !== DEFAULT_VIS_OPTIONS.facetBy
+      ? [scalarParam('facet', visOptions.facetBy ?? 'none')]
       : []),
   ]
 }

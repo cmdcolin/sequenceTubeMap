@@ -53,14 +53,16 @@ describe('exportSvg', () => {
     expect(wide.xml).toEqual(tall.xml)
   })
 
-  it('drops the node-label counter-scale but keeps the anchor', () => {
+  it('drops the node- and panel-label counter-scales but keeps the anchors', () => {
     const { xml } = exportSvg(
       renderedSvg(
-        '<g class="node-label-group" transform="translate(12,34) scale(4)"><text>7</text></g>',
+        '<g class="node-label-group" transform="translate(12,34) scale(4)"><text>7</text></g>' +
+          '<g class="facet-label-group" transform="translate(5,6) scale(2.5)"><text>Sample A</text></g>',
       ),
     )
     expect(xml).toContain('transform="translate(12,34)"')
-    expect(xml).not.toContain('scale(4)')
+    expect(xml).toContain('transform="translate(5,6)"')
+    expect(xml).not.toContain('scale(')
   })
 
   it('restores the detail layers the zoom hid', () => {

@@ -1114,7 +1114,7 @@ describe('tubemap.create — facets', () => {
   ]
 
   afterEach(() => {
-    tubeMap.setFacetReadsBy(null)
+    tubeMap.setFacetBy(null)
     tubeMap.setMergeNodesFlag(true)
     tubeMap.setColorReadsByMappingQualityFlag(false)
   })
@@ -1122,7 +1122,7 @@ describe('tubemap.create — facets', () => {
   function draw(by: 'read_group' | 'sample_name' | null) {
     setupSvg()
     tubeMap.setMergeNodesFlag(false)
-    tubeMap.setFacetReadsBy(by)
+    tubeMap.setFacetBy(by)
     return render(nodes, tracks, reads)
   }
 
@@ -1200,7 +1200,7 @@ describe('tubemap.create — facets', () => {
     draw(null)
     vi.mocked(layoutTopology).mockClear()
     vi.mocked(placeFacets).mockClear()
-    tubeMap.setFacetReadsBy('read_group')
+    tubeMap.setFacetBy('read_group')
     render(nodes, tracks, reads)
     expect(layoutTopology).not.toHaveBeenCalled()
     expect(placeFacets).toHaveBeenCalledTimes(1)
