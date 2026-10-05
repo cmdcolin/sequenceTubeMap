@@ -797,8 +797,7 @@ function layOut(): TubeMapLayout | undefined {
   topologyCache = cached(
     topologyCache,
     [inputNodes, inputTracks, inputReads, JSON.stringify(topologyOptions)],
-    () =>
-      layoutTopology(inputNodes, inputTracks, inputReads, topologyOptions),
+    () => layoutTopology(inputNodes, inputTracks, inputReads, topologyOptions),
   )
   const topology = topologyCache.value
   placementCache = cached(
