@@ -441,7 +441,7 @@ describe('layoutTubeMap', () => {
         labels: [...layout.coarsenedEdgeMeta.values()]
           .map(meta => meta.label)
           .sort(),
-        coarsened: layout.coarsened,
+        coarsened: layout.coarsened.haplotypes,
       }
     }
 
@@ -514,7 +514,7 @@ describe('layoutTubeMap', () => {
       expect(
         [...layout.coarsenedEdgeMeta.values()].map(m => m.label),
       ).toContain('1 haplotype (100%): Node -3 → Node -2')
-      expect(layout.coarsened?.reverse).toBe(true)
+      expect(layout.coarsened.haplotypes?.reverse).toBe(true)
     })
 
     it('never rounds a share to 0% or 100% that is neither', () => {
@@ -622,6 +622,124 @@ describe('layoutTubeMap', () => {
     expect(layout.coarsenedEdgeMeta.size).toBeGreaterThan(0)
     layout.nodes.forEach(node => {
       expect(nodeOutlinePath(node)).not.toContain('NaN')
+    })
+  })
+
+  describe('layers', () => {
+    // Three haplotypes over the bubble and reads on both alleles
+    const threeWay: InputTrack[] = [
+      ...tracks,
+      { id: 2, name: 'alt2', sequence: ['1', '3', '4'], sourceTrackID: 0 },
+    ]
+    const reads: InputTrack[] = [
+      { id: 10, name: 'r1', type: 'read', sequence: ['1', '2', '4'] },
+      { id: 11, name: 'r2', type: 'read', sequence: ['1', '3'] },
+      { id: 12, name: 'r3', type: 'read', sequence: ['-4', '-3'] },
+      { id: 13, name: 'r4', type: 'read', sequence: ['2', '4'] },
+    ].map(read => ({ ...read, sourceTrackID: 1, finalNodeCoverLength: 1 }))
+    const layered = (readStat?: 'coarsen') =>
+      layoutTubeMap(nodes, threeWay, reads, {
+        mergeNodes: false,
+        layers: [
+          { data: 'haplotypes', stat: 'coarsen' },
+          { data: 'reads', ...(readStat ? { stat: readStat } : {}) },
+        ],
+      })!
+    const bands = (layout: TubeMapLayout) =>
+      layout.reads.filter(r => r.haplotypeShare !== undefined)
+
+    it('bands the haplotypes with the reads on screen', () => {
+      const layout = layered()
+      expect(layout.coarsened.haplotypes).toEqual({
+        unit: 'haplotype',
+        total: 2,
+        reverse: false,
+      })
+      expect(layout.coarsened.reads).toBeUndefined()
+      expect(
+        layout.tracks.filter(t => t.type === 'haplotype').map(t => t.id),
+      ).toEqual([0])
+      expect(bands(layout).length).toBeGreaterThan(0)
+      expect(
+        layout.reads
+          .filter(r => r.haplotypeShare === undefined)
+          .map(r => r.name)
+          .sort(),
+      ).toEqual(['r1', 'r2', 'r3', 'r4'])
+    })
+
+    it('keeps band ids and labels apart when both layers band', () => {
+      const layout = layered('coarsen')
+      expect(layout.coarsened.haplotypes?.total).toBe(2)
+      expect(layout.coarsened.reads).toEqual({
+        unit: 'read',
+        total: 4,
+        reverse: false,
+      })
+      const ids = layout.reads.map(r => r.id)
+      expect(new Set(ids).size).toBe(ids.length)
+      expect([...layout.coarsenedEdgeMeta.keys()].sort()).toEqual(
+        [...ids].sort(),
+      )
+      const labelOf = (id: number) => layout.coarsenedEdgeMeta.get(id)!.label
+      for (const band of layout.reads) {
+        expect(labelOf(band.id)).toMatch(
+          band.haplotypeShare === undefined ? / reads?: / : / haplotypes? \(/,
+        )
+      }
+    })
+
+    it('stacks the reads under the banded haplotypes without overlapping a node', () => {
+      for (const layout of [layered(), layered('coarsen')]) {
+        const placedNodes = layout.nodes.filter(n => n.order >= 0)
+        for (const a of placedNodes) {
+          for (const b of placedNodes) {
+            if (a !== b && a.order === b.order) {
+              const [top, bottom] = a.y < b.y ? [a, b] : [b, a]
+              expect(top.y + top.contentHeight).toBeLessThanOrEqual(bottom.y)
+            }
+          }
+        }
+        // in each node, every band sits above every read
+        placedNodes.forEach(node => {
+          const index = layout.nodes.indexOf(node)
+          const inNode = layout.reads.flatMap(read =>
+            read.path
+              .filter(segment => segment.node === index)
+              .map(segment => ({ read, y: segment.y! })),
+          )
+          for (const { read, y } of inNode) {
+            expect(y).toBeGreaterThanOrEqual(node.y)
+            expect(y + read.width).toBeLessThanOrEqual(
+              node.y + node.contentHeight,
+            )
+          }
+          const bandsEnd = Math.max(
+            ...inNode
+              .filter(s => s.read.haplotypeShare)
+              .map(s => s.y + s.read.width),
+          )
+          const readsStart = Math.min(
+            ...inNode.filter(s => !s.read.haplotypeShare).map(s => s.y),
+          )
+          expect(bandsEnd).toBeLessThanOrEqual(readsStart)
+        })
+        expectFiniteGeometry(layout)
+      }
+    })
+
+    it('reads coarsenedReadView as the layers it stands for', () => {
+      const shorthand = layoutTubeMap(nodes, threeWay, reads, {
+        mergeNodes: false,
+        coarsenedReadView: true,
+      })!
+      expect(shorthand).toEqual(
+        layoutTubeMap(nodes, threeWay, reads, {
+          mergeNodes: false,
+          layers: [{ data: 'haplotypes' }, { data: 'reads', stat: 'coarsen' }],
+        }),
+      )
+      expect(shorthand.coarsened.haplotypes).toBeUndefined()
     })
   })
 })

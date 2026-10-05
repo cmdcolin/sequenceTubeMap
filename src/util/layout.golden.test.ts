@@ -91,11 +91,14 @@ function describeLayout(layout: TubeMapLayout | undefined) {
   const { rectangles, curves, corners, verticalRectangles } = layout.shapes
   const withoutName = <T extends { name?: string }>({ name: _, ...rest }: T) =>
     rest
+  // One banded layer as itself, so a single-layer golden reads as it did
+  // before layers
+  const coarsenings = Object.values(layout.coarsened)
   return {
     bounds: layout.bounds,
     maxOrder: layout.maxOrder,
     trackForRuler: layout.trackForRuler ?? null,
-    coarsened: layout.coarsened ?? null,
+    coarsened: coarsenings.length > 1 ? coarsenings : (coarsenings[0] ?? null),
     nodes,
     tracks: layout.tracks.map(t => ({
       id: t.id,

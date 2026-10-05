@@ -51,13 +51,27 @@ export interface ColorableTrack {
   haplotypeShare?: HaplotypeShare
 }
 
-// The options a topology fixes. trackWidth, coarsenedReadView and ignoreStrand
-// leave node order alone, but the topology measures x from placing every track
-// and read under them.
+export type LayerData = 'haplotypes' | 'reads'
+
+// A track set placement draws, and the stat it runs first. `coarsen` turns
+// the set into one band per edge; banded haplotypes keep the reference's lane.
+export interface Layer {
+  data: LayerData
+  stat?: 'coarsen'
+}
+
+// The options a topology fixes. trackWidth, the layers and ignoreStrand leave
+// node order alone, but the topology measures x from placing every track and
+// read under them.
 export interface TopologyOptions {
   mergeNodes?: boolean
   showReads?: boolean
+  // Shorthand for `layers` when those are unset: band the reads, or the
+  // haplotypes when no reads were loaded
   coarsenedReadView?: boolean
+  // The haplotypes draw first and the reads stack under them, each data under
+  // the stat of its first layer here
+  layers?: readonly Layer[]
   ignoreStrand?: boolean
   // normal: width is sequence length, at `charWidth` per base
   // compressed: log2 of sequence length
@@ -77,16 +91,16 @@ export interface PlacementOptions {
 
 export interface LayoutOptions extends TopologyOptions, PlacementOptions {}
 
-// A coarsened band's count of contributing reads and its label, keyed by the
-// band's synthetic track id
 export type CoarsenedUnit = 'read' | 'haplotype'
 
+// A coarsened band's count of contributing reads or haplotypes and its label,
+// keyed by the band's synthetic track id, unique across layers
 export interface CoarsenedEdgeMeta {
   count: number
   label: string
 }
 
-// What the coarsened view drew as bands, how many reads or haplotypes it
+// What a layer's coarsening drew as bands, how many reads or haplotypes it
 // banded (counting a deduplicated walk `freq` times), and whether any band
 // runs reverse-strand
 export interface Coarsening {
@@ -94,6 +108,9 @@ export interface Coarsening {
   total: number
   reverse: boolean
 }
+
+// Each layer that drew bands, by its data
+export type Coarsenings = Partial<Record<LayerData, Coarsening>>
 
 export interface TubeMapLayout {
   // 1-indexed with a hole at 0: a signed index
@@ -111,8 +128,7 @@ export interface TubeMapLayout {
   // the name of the track that carries a coordinate for the ruler
   trackForRuler: string | undefined
   coarsenedEdgeMeta: Map<number, CoarsenedEdgeMeta>
-  // what the coarsened view drew as bands, if it drew any
-  coarsened: Coarsening | undefined
+  coarsened: Coarsenings
 }
 
 // A node before placement gives it a y and the reads through it
@@ -141,9 +157,6 @@ export interface TubeMapTopology {
   tracks: readonly TopologyTrack[]
   // every primary alignment that shares a node with a track, unfiltered
   reads: readonly TopologyTrack[]
-  // whether any reads were loaded: the coarsened view bands haplotypes only
-  // when none were, not when a filter hides them all
-  hasReads: boolean
   nodeMap: ReadonlyMap<string, number>
   maxOrder: number
   trackForRuler: string | undefined
@@ -151,11 +164,34 @@ export interface TubeMapTopology {
 
 type LayoutConfig = Required<TopologyOptions>
 
-function configFrom(options: TopologyOptions): LayoutConfig {
+// The coarsened view bands haplotypes only when no reads were loaded, not when
+// a filter hides them all
+function layersFrom(
+  { layers, coarsenedReadView = false, showReads = true }: TopologyOptions,
+  hasReads: boolean,
+): readonly Layer[] {
+  if (layers !== undefined) {
+    return layers
+  }
+  const coarsen = coarsenedReadView && showReads
+  const stat = (banded: boolean): Pick<Layer, 'stat'> =>
+    banded ? { stat: 'coarsen' } : {}
+  return [
+    { data: 'haplotypes', ...stat(coarsen && !hasReads) },
+    { data: 'reads', ...stat(coarsen && hasReads) },
+  ]
+}
+
+function statOf(layers: readonly Layer[], data: LayerData) {
+  return layers.find(layer => layer.data === data)?.stat
+}
+
+function configFrom(options: TopologyOptions, hasReads: boolean): LayoutConfig {
   return {
     mergeNodes: options.mergeNodes ?? true,
     showReads: options.showReads ?? true,
     coarsenedReadView: options.coarsenedReadView ?? false,
+    layers: layersFrom(options, hasReads),
     ignoreStrand: options.ignoreStrand ?? false,
     nodeWidthOption: options.nodeWidthOption ?? 'normal',
     charWidth: options.charWidth ?? 8.401,
@@ -272,7 +308,7 @@ function arrangeTopology(
   inputReads: readonly InputTrack[],
   options: TopologyOptions,
 ): TubeMapTopology | undefined {
-  const state = emptyState(configFrom(options))
+  const state = emptyState(configFrom(options, inputReads.length > 0))
 
   if (inputNodes.length === 0 || inputTracks.length === 0) {
     return undefined
@@ -352,7 +388,6 @@ function arrangeTopology(
     nodes: state.nodes,
     tracks: state.tracks,
     reads: state.reads,
-    hasReads: inputReads.length > 0,
     nodeMap: state.nodeMap,
     maxOrder: getMaxOrder(state),
     trackForRuler: state.trackForRuler,
@@ -388,51 +423,16 @@ function place(
   state.maxOrder = topology.maxOrder
   state.trackForRuler = topology.trackForRuler
 
-  // Coarsened (Sankey) mode normally collapses the *read* list into synthetic
-  // per-edge bands (below). A haplotype-only graph has no reads to coarsen,
-  // so a coarsened request there instead coarsens every haplotype but the
-  // reference: that one keeps its normal per-track lane (so it still carries
-  // the ruler) while the rest are pulled out of `tracks` here, before
-  // calculateTrackWidth/generateLaneAssignment ever see them, and rejoin the
-  // layout below through the same reads-style overlay used for coarsened
-  // reads.
-  let coarsened: Coarsening | undefined
-  const coarsenHaplotypes =
-    state.config.showReads &&
-    state.config.coarsenedReadView &&
-    !topology.hasReads
-  if (coarsenHaplotypes) {
-    const rulerIndex =
-      state.trackForRuler === undefined
-        ? -1
-        : state.tracks.findIndex(t => t.name === state.trackForRuler)
-    const refIndex = rulerIndex === -1 ? 0 : rulerIndex
-    const ref = state.tracks[refIndex]!
-    // A deduplicated reference walk also stands for the haplotypes identical to
-    // it through the window; those belong in the bands, not the reference lane.
-    const refDuplicates = (ref.freq ?? 1) - 1
-    const refSigns = firstVisitSigns(state, ref)
-    const altHaplotypes = state.tracks
-      .filter((_, i) => i !== refIndex)
-      .map(walk => orientedLike(refSigns, walk))
-    if (refDuplicates > 0) altHaplotypes.push({ ...ref, freq: refDuplicates })
-    if (altHaplotypes.length > 0) {
-      const { bands, total } = buildCoarsenedSyntheticBands(
-        state,
-        altHaplotypes,
-        'haplotype',
-      )
-      // A haplotype that only ever visits one node produces no edge, so an
-      // all-single-node set of alts would otherwise leave `reads` empty and
-      // fall through to the no-overlay branch below, which never gives their
-      // nodes a y/contentHeight. Keep them off to the side instead of
-      // dropping them silently.
-      if (bands.length > 0) {
-        state.tracks = [ref]
-        state.reads = bands
-        coarsened = { unit: 'haplotype', total, reverse: false }
-      }
-    }
+  // Banded haplotypes leave the reference its lane and join the reads'
+  // overlay, above the reads, before calculateTrackWidth and
+  // generateLaneAssignment see the tracks.
+  const { layers, ignoreStrand } = state.config
+  const haplotypeBands =
+    statOf(layers, 'haplotypes') === 'coarsen'
+      ? bandHaplotypes(state)
+      : undefined
+  if (haplotypeBands !== undefined) {
+    state.tracks = [haplotypeBands.ref]
   }
 
   calculateTrackWidth(state)
@@ -440,34 +440,38 @@ function place(
   // also places the nodes that only filtered-out reads visit
   generateReadOnlyNodeAttributes(state)
 
-  // Coarsened (Sankey) mode: collapse the read list (or, when coarsening
-  // haplotypes, the alt haplotypes pulled out above) to one synthetic "read"
-  // per (srcSigned → dstSigned) edge BEFORE the normal read placement runs.
-  // Each synthetic read traverses exactly two nodes, so the rest of the
-  // pipeline (placeReads, generateSVGShapesFromPath, curve drawing) handles
-  // it like any normal read: it gets a lane, picks up the "right-down-left-
-  // up-right" topology for loops automatically, and uses the same elegant
-  // bezier. Node heights end up proportional to *edge* count (typically
-  // tens) rather than *read* or *haplotype* count (potentially thousands).
-  if (
-    state.config.coarsenedReadView &&
-    state.reads.length > 0 &&
-    !coarsenHaplotypes
-  ) {
-    const { bands, total } = buildCoarsenedSyntheticBands(
-      state,
-      state.reads,
-      'read',
-    )
-    state.reads = bands
-    coarsened = { unit: 'read', total, reverse: false }
+  // A band crosses exactly two nodes, so placeReads and the shapes handle it
+  // like any read, and node heights grow with the edge count rather than the
+  // read or haplotype count.
+  const readBands =
+    statOf(layers, 'reads') === 'coarsen' && state.reads.length > 0
+      ? buildCoarsenedSyntheticBands(
+          state,
+          state.reads,
+          'read',
+          COARSENED_ID_BASE + (haplotypeBands?.bands.length ?? 0),
+        )
+      : undefined
+  if (readBands !== undefined) {
+    state.reads = readBands.bands
   }
-  if (coarsened !== undefined) {
-    reverseReversedReads(state)
-    generateTrackIndexSequences(state, state.reads)
-    if (!state.config.ignoreStrand) {
-      coarsened.reverse = state.reads.some(band => band.is_reverse === true)
+  const coarsened: Coarsenings = {}
+  for (const [data, unit, banding] of [
+    ['haplotypes', 'haplotype', haplotypeBands],
+    ['reads', 'read', readBands],
+  ] as const) {
+    if (banding !== undefined) {
+      reverseReversedReads(state, banding.bands)
+      generateTrackIndexSequences(state, banding.bands)
+      coarsened[data] = {
+        unit,
+        total: banding.total,
+        reverse: !ignoreStrand && banding.bands.some(b => b.is_reverse),
+      }
     }
+  }
+  if (haplotypeBands !== undefined) {
+    state.reads = haplotypeBands.bands.concat(state.reads)
   }
 
   if (state.reads.length > 0) {
@@ -650,29 +654,32 @@ function placeReads(state: LayoutState): void {
   const sortedNodes = state.nodes.filter(node => node.order >= 0)
   sortedNodes.sort(compareNodesByOrder)
 
-  // Organize read IDs by source track
-  const readsBySource = new Map<number, Set<number>>()
+  // One set per layer and source track: haplotype bands, then each read file
+  const sets = new Map<
+    string,
+    { layer: number; source: number; reads: Set<number> }
+  >()
   for (let i = 0; i < state.reads.length; i++) {
-    const source = state.reads[i]!.sourceTrackID
-    const bucket = readsBySource.get(source)
-    if (bucket === undefined) {
-      readsBySource.set(source, new Set([i]))
+    const read = state.reads[i]!
+    const layer = read.haplotypeShare === undefined ? 1 : 0
+    const source = read.sourceTrackID
+    const key = `${layer}:${source}`
+    const set = sets.get(key)
+    if (set === undefined) {
+      sets.set(key, { layer, source, reads: new Set([i]) })
     } else {
-      bucket.add(i)
+      set.reads.add(i)
     }
   }
+  const orderedSets = [...sets.values()].sort(
+    (a, b) => a.layer - b.layer || a.source - b.source,
+  )
 
-  const allSources = Array.from(readsBySource.keys()).sort((a, b) => a - b)
-
-  // Space out read tracks if multiple exist
-  const topMargin = allSources.length > 1 ? READ_WIDTH : 0
+  // A margin sets each set apart from the one above it
+  const topMargin = orderedSets.length > 1 ? READ_WIDTH : 0
   sortedNodes.forEach(node => {
-    for (const source of allSources) {
-      // Go through all source tracks in order
-
-      // Place the reads from this source in this node.
-      // Use a margin to separate multiple read tracks if we have them.
-      placeReadSet(state, readsBySource.get(source)!, node, topMargin)
+    for (const { reads } of orderedSets) {
+      placeReadSet(state, reads, node, topMargin)
     }
   })
 
@@ -1175,9 +1182,12 @@ function basicPath(state: LayoutState, track: Track): Segment[] {
   return path
 }
 
-// reverse reads which are reversed
-function reverseReversedReads(state: LayoutState): void {
-  state.reads.forEach(read => {
+// Turn each read that visits only reverse nodes around to visit them forward
+function reverseReversedReads(
+  state: LayoutState,
+  reads: readonly Track[] = state.reads,
+): void {
+  reads.forEach(read => {
     let pos = 0
     while (pos < read.sequence.length && read.sequence[pos]!.startsWith('-')) {
       pos += 1
@@ -2463,9 +2473,8 @@ function buildCoarsenedSyntheticBands(
   state: LayoutState,
   source: Track[],
   unit: CoarsenedUnit,
+  firstId = COARSENED_ID_BASE,
 ): { bands: Track[]; total: number } {
-  state.coarsenedEdgeMeta = new Map()
-
   // Aggregate by signed-edge key. Preserve orientation so e.g. (+A→+B) and
   // (-B→-A) stack as separate bands — they're different visual flows.
   interface EdgeAgg {
@@ -2548,7 +2557,7 @@ function buildCoarsenedSyntheticBands(
   const synthetic: Track[] = []
   let i = 0
   for (const edge of edges.values()) {
-    const id = COARSENED_ID_BASE + i
+    const id = firstId + i
     const share =
       unit === 'haplotype' ? { count: edge.count, total } : undefined
     const shareText = share === undefined ? '' : ` (${formatShare(share)})`
@@ -2621,6 +2630,37 @@ function buildCoarsenedSyntheticBands(
     )
   }
   return { bands: synthetic, total }
+}
+
+// Band every haplotype but the reference, which keeps its lane and the ruler.
+// Undefined when no alternate crosses an edge: a haplotype that stays on one
+// node makes no band, and its node would get no y from the read overlay.
+function bandHaplotypes(
+  state: LayoutState,
+): { ref: Track; bands: Track[]; total: number } | undefined {
+  const rulerIndex =
+    state.trackForRuler === undefined
+      ? -1
+      : state.tracks.findIndex(t => t.name === state.trackForRuler)
+  const refIndex = rulerIndex === -1 ? 0 : rulerIndex
+  const ref = state.tracks[refIndex]!
+  // A deduplicated reference walk also stands for the haplotypes identical to
+  // it through the window; those belong in the bands, not the reference lane.
+  const refDuplicates = (ref.freq ?? 1) - 1
+  const refSigns = firstVisitSigns(state, ref)
+  const altHaplotypes = state.tracks
+    .filter((_, i) => i !== refIndex)
+    .map(walk => orientedLike(refSigns, walk))
+  if (refDuplicates > 0) altHaplotypes.push({ ...ref, freq: refDuplicates })
+  if (altHaplotypes.length === 0) {
+    return undefined
+  }
+  const { bands, total } = buildCoarsenedSyntheticBands(
+    state,
+    altHaplotypes,
+    'haplotype',
+  )
+  return bands.length > 0 ? { ref, bands, total } : undefined
 }
 
 // A graph can store a walk in either orientation, so a haplotype can arrive

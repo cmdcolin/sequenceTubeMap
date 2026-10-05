@@ -32,7 +32,7 @@ import {
 } from '@gmod/tubemap-core'
 import type {
   CoarsenedEdgeMeta,
-  Coarsening,
+  Coarsenings,
   ColorableTrack,
   ImageBounds,
   InputNode,
@@ -285,7 +285,7 @@ let trackForRuler: string | undefined
 // The coarsened bands' read counts and labels, for the hover and click
 // handlers
 let coarsenedEdgeMeta = new Map<number, CoarsenedEdgeMeta>()
-let coarsened: Coarsening | undefined
+let coarsened: Coarsenings = {}
 // What the last draw placed, projected for the legend, and the scheme each
 // source's tracks were colored with
 let drawn: DrawnTrack[] = []
@@ -704,7 +704,7 @@ function createTubeMap(preserveViewport = true): void {
     shapes = emptyTrackShapes()
     imageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
     trackForRuler = undefined
-    coarsened = undefined
+    coarsened = {}
     drawn = []
     drawnSchemes = new Map()
     paints = new Map()
@@ -1195,9 +1195,9 @@ function nodeSingleClick(this: SVGElement): void {
     ['Node Length:', currentNode.sequenceLength + ' bases'],
     ['Haplotypes:', currentNode.degree],
   ]
-  // In a coarsened view the reads a node holds are bands, and a band counts
-  // an edge's crossings, which miss reads that stay inside the node
-  if (coarsened === undefined) {
+  // Once any layer is banded the reads a node holds include bands, and a band
+  // counts an edge's crossings, which miss reads that stay inside the node
+  if (Object.keys(coarsened).length === 0) {
     nodeAttributes.push(
       [
         'Aligned Reads:',
