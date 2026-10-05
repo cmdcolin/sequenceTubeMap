@@ -125,8 +125,8 @@ when a change moves any of that UI, and commit the PNGs it rewrites.
 
 The layout engine lives in
 [GMOD/tubemap-core](https://github.com/GMOD/tubemap-core) and reaches the viewer
-as `@gmod/tubemap-core` from npm. To try a layout change here before releasing
-it, build a clone and link it in place of the npm copy:
+as `@jbrowse/tubemap-core` from npm. To try a layout change here before
+releasing it, build a clone and link it in place of the npm copy:
 
 ```
 core=~/src/gmod/tubemap-core   # any path works
@@ -147,7 +147,7 @@ and `pnpm-lock.yaml`. Never commit those two edits: CI's
 `pnpm install --frozen-lockfile` has no clone to link. Undo the link with:
 
 ```
-pnpm unlink @gmod/tubemap-core
+pnpm unlink @jbrowse/tubemap-core
 ```
 
 `pnpm unlink` drops the override and reinstalls the npm version.
@@ -156,7 +156,7 @@ A layout change ships in two steps. Release it from tubemap-core, where pushing
 a `v<version>` tag publishes to npm. Then bump the range in `package.json`, run
 `pnpm install`, rewrite any golden it changes with
 `pnpm vitest run -u src/util/layout.golden.test.ts`, and commit them together.
-`pnpm-workspace.yaml` lists `@gmod/tubemap-core` under
+`pnpm-workspace.yaml` lists `@jbrowse/tubemap-core` under
 `minimumReleaseAgeExclude`, so a release installs as soon as npm lists it.
 
 ## Build

@@ -28,7 +28,7 @@ import type {
   ViewTarget,
   VisOptionFlag,
 } from '../src/Types.ts'
-import { FACET_FIELDS, type FacetBy } from '@gmod/tubemap-core'
+import { FACET_FIELDS, type FacetBy } from '@jbrowse/tubemap-core'
 import {
   facetByFrom,
   VIS_OPTION_FLAGS,

@@ -15,7 +15,7 @@ Surveyed 2026-09-27 against this app and
   leaves the loaded window re-cuts the window plus one screen each side through
   region-indexed adapters (tabix rGFA, gbz-base over range requests). It caps at
   5 Mb with a Force load button, caps parsed graphs at 20,000 nodes, and has a
-  coarse tier past a zoom level. Its tube map layout is `@gmod/tubemap-core`,
+  coarse tier past a zoom level. Its tube map layout is `@jbrowse/tubemap-core`,
   developed in [GMOD/tubemap-core](https://github.com/GMOD/tubemap-core).
 - **This app re-fetches on every move.** Shift, widen and narrow are a new
   region string, a full fetch and a full redraw; d3-zoom pans within the loaded

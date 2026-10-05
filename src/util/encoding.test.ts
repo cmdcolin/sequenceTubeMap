@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import type { ColorableTrack } from '@gmod/tubemap-core'
+import type { ColorableTrack } from '@jbrowse/tubemap-core'
 import { describe, expect, it } from 'vitest'
 import {
   type Coloring,

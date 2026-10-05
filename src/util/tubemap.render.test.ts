@@ -13,10 +13,10 @@ import { computeExampleData } from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
 import * as demo from './demo-data.js'
 import { measureSvgContent } from './svgBounds.ts'
-import { layoutTopology, placeFacets } from '@gmod/tubemap-core'
-import type * as TubeMapCore from '@gmod/tubemap-core'
+import { layoutTopology, placeFacets } from '@jbrowse/tubemap-core'
+import type * as TubeMapCore from '@jbrowse/tubemap-core'
 
-vi.mock('@gmod/tubemap-core', async importOriginal => {
+vi.mock('@jbrowse/tubemap-core', async importOriginal => {
   const core = await importOriginal<typeof TubeMapCore>()
   return {
     ...core,

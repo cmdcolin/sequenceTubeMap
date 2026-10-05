@@ -101,8 +101,8 @@ matters for consumers that draw one lane per selected haplotype, such as JBrowse
 2; the tube map always draws them all.
 
 The package comes from npm (`@gmod/gbz-base`); `pnpm-workspace.yaml` lists it,
-like `@gmod/tubemap-core`, under `minimumReleaseAgeExclude` so a fresh release
-installs without the default waiting period.
+like `@jbrowse/tubemap-core`, under `minimumReleaseAgeExclude` so a fresh
+release installs without the default waiting period.
 
 ## Frontend
 
@@ -131,7 +131,7 @@ file.
 
 The tube map is inherited from upstream and ported to TypeScript, in two parts:
 
-- **`@gmod/tubemap-core`**, installed from npm and developed in
+- **`@jbrowse/tubemap-core`**, installed from npm and developed in
   [GMOD/tubemap-core](https://github.com/GMOD/tubemap-core), is the layout: node
   order, orientation, lanes, read placement and node merging, from input nodes
   and tracks to drawable shapes in layout coordinates, plus the curve and node

@@ -59,7 +59,7 @@ import type {
   VisOptionFlag,
   VisOptions,
 } from './Types.ts'
-import type { FacetBy } from '@gmod/tubemap-core'
+import type { FacetBy } from '@jbrowse/tubemap-core'
 
 type APIMode = APIInterface['mode']
 

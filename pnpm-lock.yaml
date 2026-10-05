@@ -20,7 +20,7 @@ importers:
       '@gmod/gbz-base':
         specifier: ^3.0.0
         version: 3.0.0
-      '@gmod/tubemap-core':
+      '@jbrowse/tubemap-core':
         specifier: ^0.2.0
         version: 0.2.0
       '@mui/material':
@@ -468,8 +468,8 @@ packages:
     resolution: {integrity: sha512-2q/jEswxiUNWSiR2O/X7tmdC3tOeMkUYXOIi/zRCALzC1RbjAzgzsDvx0i8VMLwD+LYQfAEOUoBcCTL+dvKVsQ==}
     hasBin: true
 
-  '@gmod/tubemap-core@0.2.0':
-    resolution: {integrity: sha512-P0uAJpGpc3pjFQCQmif0/67L/lCxqvikMY8VcdBoeKVvVXJ6Rl0gPrc67y4+Im50rcaMq1AtdNj++mNvJDmNQg==}
+  '@jbrowse/tubemap-core@0.2.0':
+    resolution: {integrity: sha512-m6nUd3kP5xhktY8kbMLZw//2G0mEcGeOFCWU+z58ZzYH+AiY1CD2F41gaklqL8K3YMNwGohlcVgeuJJDMqXIWg==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -2854,7 +2854,7 @@ snapshots:
     dependencies:
       generic-filehandle2: 2.4.0
 
-  '@gmod/tubemap-core@0.2.0': {}
+  '@jbrowse/tubemap-core@0.2.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

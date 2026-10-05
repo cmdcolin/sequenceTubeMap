@@ -60,8 +60,8 @@ An inversion: one node traversed both directions, not two nodes:
 
 Graphviz and d3 force layouts draw nodes and edges with no notion of a path or
 of orientation. The tube map draws paths as lines on a transit map, with d3. The
-layout comes from [@gmod/tubemap-core](https://github.com/GMOD/tubemap-core), a
-separate package with no DOM or d3, so other apps can draw it their own way.
+layout comes from [@jbrowse/tubemap-core](https://github.com/GMOD/tubemap-core),
+a separate package with no DOM or d3, so other apps can draw it their own way.
 
 ## Loading data
 

@@ -1,4 +1,4 @@
-import type { FacetBy } from '@gmod/tubemap-core'
+import type { FacetBy } from '@jbrowse/tubemap-core'
 
 // Shared types used across the frontend.
 

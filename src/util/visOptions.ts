@@ -3,7 +3,7 @@
 // once. Keeping it here is what stops the CLI from quietly depending on
 // tubemap's module-level defaults happening to match the app's.
 
-import { FACET_FIELDS, type FacetBy } from '@gmod/tubemap-core'
+import { FACET_FIELDS, type FacetBy } from '@jbrowse/tubemap-core'
 import * as tubeMap from './tubemap.ts'
 import type { ReadGroup as TubeMapReadGroup } from './tubemap.ts'
 import { dataOriginTypes } from '../enums.ts'

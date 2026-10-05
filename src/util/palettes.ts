@@ -1,4 +1,4 @@
-import type { HaplotypeShare } from '@gmod/tubemap-core'
+import type { HaplotypeShare } from '@jbrowse/tubemap-core'
 import { interpolateOranges, interpolatePurples, rgb } from 'd3'
 import type { ColorHex, ColorPaletteName } from '../Types.ts'
 

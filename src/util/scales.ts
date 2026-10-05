@@ -2,7 +2,7 @@
 // mapping as legend rows for the tracks actually drawn. A key built from a
 // scale can't disagree with it, and a key trained on the drawing can't name a
 // color nothing in view has.
-import type { HaplotypeShare } from '@gmod/tubemap-core'
+import type { HaplotypeShare } from '@jbrowse/tubemap-core'
 import {
   MAX_MAPPING_QUALITY,
   mappingQualityAlpha,

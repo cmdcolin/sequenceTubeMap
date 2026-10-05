@@ -34,7 +34,7 @@ lists the open gaps. Figures live in `doc/images/layers-*.png` and
    encodings. Defer until a fourth encoding or layer option would add yet
    another parameter.
 
-## Releasing `@gmod/tubemap-core`
+## Releasing `@jbrowse/tubemap-core`
 
 Version 0.2.0 carries these changes. The package has since moved to
 [GMOD/tubemap-core](https://github.com/GMOD/tubemap-core), and the viewer

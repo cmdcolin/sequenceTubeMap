@@ -16,7 +16,7 @@ import {
   type InputTrack,
   type LayoutOptions,
   type TubeMapLayout,
-} from '@gmod/tubemap-core'
+} from '@jbrowse/tubemap-core'
 import '../config-client.js'
 import { GBZBaseAPI } from '../api/GBZBaseAPI.ts'
 import {

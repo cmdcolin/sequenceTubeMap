@@ -2,8 +2,8 @@
 // laid out as one table. The renderer reads a drawn track's channels off it,
 // and the legend reads the rows keying each loaded file off the same entries,
 // so the key can't disagree with the picture.
-import { isCoarsenedId } from '@gmod/tubemap-core'
-import type { ColorableTrack } from '@gmod/tubemap-core'
+import { isCoarsenedId } from '@jbrowse/tubemap-core'
+import type { ColorableTrack } from '@jbrowse/tubemap-core'
 import {
   type AlphaScale,
   type ColorScale,

@@ -31,7 +31,7 @@ import {
   placeFacets,
   READ_WIDTH,
   reverse,
-} from '@gmod/tubemap-core'
+} from '@jbrowse/tubemap-core'
 import type {
   CoarsenedEdgeMeta,
   Coarsenings,
@@ -57,7 +57,7 @@ import type {
   TrackType,
   TubeMapLayout,
   TubeMapTopology,
-} from '@gmod/tubemap-core'
+} from '@jbrowse/tubemap-core'
 
 // Replacement for d3-selection-multi (incompatible with d3 v7). Use via
 // `selection.call(applyAttrs, {...})` — keeps the chain typed without
@@ -83,13 +83,13 @@ export type {
   InputNode,
   InputTrack,
   Mismatch,
-} from '@gmod/tubemap-core'
+} from '@jbrowse/tubemap-core'
 export {
   compareIncomingReadKeys,
   fillUnassignedOrders,
   reverseMismatches,
   UNREACHABLE_ORDER,
-} from '@gmod/tubemap-core'
+} from '@jbrowse/tubemap-core'
 
 export type InputRegion = (number | null)[]
 
