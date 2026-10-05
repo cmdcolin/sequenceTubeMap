@@ -74,10 +74,9 @@ show — rather than the cropped figure.
 Every option in the app's View menu has a flag: `--compressed`, `--no-reads`,
 `--no-soft-clips`, `--no-merge-nodes`, `--node-labels`, `--transparent-nodes`,
 `--coarsened`, `--banded-haplotypes`, `--ignore-strand`, `--color-by-mapq`,
-`--alpha-by-mapq`, `--mapq N` and `--facet-reads-by F` — `--help` lists them,
-from the same table that reads them, so the two cannot drift apart. The
-mapping-quality flags only show up when the reads actually differ in mapping
-quality.
+`--alpha-by-mapq`, `--mapq N` and `--facet-by F` — `--help` lists them, from the
+same table that reads them, so the two cannot drift apart. The mapping-quality
+flags only show up when the reads actually differ in mapping quality.
 
 `--ignore-strand` is quiet on all nine bundled `--example` datasets, which is
 those datasets rather than the flag. What it moves in the normal view is reads
@@ -107,13 +106,13 @@ stacks the reads under the bands: one by one, or banded as well under
 `--coarsened`. The legend keys the haplotype bands by their share and the reads
 by whatever colors them.
 
-`--facet-reads-by read_group` (or `sample_name`) draws the graph once per read
-group or sample, stacked top to bottom under a label naming the group and its
-read count, with each panel holding only that group's reads. Every panel takes
-the same node positions, so a node lines up down the stack and a branch one
-group's reads take and another's skip shows at a glance. The ruler draws once,
-at the top, and one legend keys every panel, since a track keeps its color in
-every panel it appears in. `none` turns it off.
+`--facet-by read_group` (or `sample_name`) draws the graph once per read group
+or sample, stacked top to bottom under a label naming the group and its read
+count, with each panel holding only that group's reads. Every panel takes the
+same node positions, so a node lines up down the stack and a branch one group's
+reads take and another's skip shows at a glance. The ruler draws once, at the
+top, and one legend keys every panel, since a track keeps its color in every
+panel it appears in. `none` turns it off.
 
 The figures below draw `exampleData/hprc-chrM-3samples.sorted.gam`, reads
 simulated from the chrM haplotypes of three HPRC samples (no bundled alignment
@@ -153,6 +152,80 @@ page actually gives it
 ([SVG](tubemap-cli-samples/demo-example-6-compressed.svg)):
 
 ![Demo example 6, compressed node widths](tubemap-cli-samples/demo-example-6-compressed.png)
+
+### Haplotypes by sample
+
+`--facet-by haplotype_sample` splits the haplotypes instead, by the sample in
+their [PanSN](https://github.com/pangenome/PanSN-spec) names
+(`sample#haplotype#contig`): one panel per sample, labelled with the number of
+that sample's haplotypes, each holding the reference and those haplotypes. The
+haplotypes whose names carry no sample (`unknown#3#chrM`, `thread_7`, `Track A`)
+share a panel labelled _No PanSN sample_ after the samples. Every panel keeps
+the topology's node order and x, so a node a sample's haplotypes skip stays in
+place as an empty outline, and a private allele shows as the one panel whose
+haplotypes enter it.
+
+The reads draw in a last panel of their own, beside the reference alone and
+labelled with their count, rather than repeating under every sample: they come
+from whatever was sequenced, not from the samples the haplotypes name. Reads and
+haplotypes can't both be faceted at once, so the View menu offers the four
+choices (none, read group, read sample, haplotype sample) as one.
+
+The gbz-base backend usually collapses identical haplotypes into one walk named
+for whichever sorted first, which would file the rest under the wrong sample, so
+a haplotype facet fetches every haplotype under its own name. On a hosted graph
+with hundreds of haplotypes that means hundreds of tubes to lay out.
+
+Under `--banded-haplotypes` each panel bands only its own haplotypes, and a
+band's share is of the panel's haplotypes, not the whole cohort's: for a diploid
+sample a band at 50% is a heterozygous allele and one at 100% homozygous. The
+legend says so when the panels band different totals.
+
+The three figures below draw real HPRC haplotypes from the bundled graphs, and
+`scripts/make-facet-figures.sh` regenerates them. Each crops a stack too tall to
+print whole.
+
+MICB-KIR3DL1 at `GRCh38#chr6:31500700-31500949`, the first seven of 45 sample
+panels, each haplotype in its own color and the reference in grey. Where both of
+a sample's haplotypes leave the reference, as HG00733's do, the reference is the
+tube that bends:
+
+```sh
+pnpm tubemap-cli --compressed --legend --out micb.svg --url '?tracksJson=[{"trackFile":"exampleData/micb-kir3dl1.gbz.db","haplotypeIndexFile":"exampleData/micb-kir3dl1.haplotype-index.db","trackType":"graph","trackColorSettings":{"mainPalette":"greys","auxPalette":"plainColors"}}]&region=GRCh38%23chr6:31500700-31500949&facet=haplotype_sample'
+```
+
+![MICB-KIR3DL1 haplotypes faceted by sample](images/facets-haplotypes-by-sample.png)
+
+The same window with `--banded-haplotypes`, the top of the stack. Dark bands are
+alleles both of a sample's haplotypes carry, light ones alleles only one does,
+so HG00733's two haplotypes agree across the window, HG00673's differ at nearly
+every bubble, and HG00438's only at the first:
+
+```sh
+pnpm tubemap-cli --graph exampleData/micb-kir3dl1.gbz.db \
+  --haplotype-index exampleData/micb-kir3dl1.haplotype-index.db \
+  --region 'GRCh38#chr6:31500700-31500949' --compressed --banded-haplotypes \
+  --facet-by haplotype_sample --legend --out micb-banded.svg
+```
+
+![MICB-KIR3DL1 haplotype bands faceted by sample](images/facets-haplotypes-banded.png)
+
+chrM at `GRCh38#chrM:245-255`, banded, the last eight of 42 sample panels above
+the reads panel. Each HPRC sample carries one chrM haplotype, so each panel
+holds one tube. Most of these samples share the same few alternate alleles,
+while NA18906 carries none of them and takes an A and a G further right instead.
+The reads are the simulated three-sample fixture above, banded under
+`--coarsened`:
+
+```sh
+pnpm tubemap-cli --graph exampleData/hprc-chrM.gbz.db \
+  --haplotype-index exampleData/hprc-chrM.haplotype-index.db \
+  --reads exampleData/hprc-chrM-3samples.sorted.gam \
+  --region 'GRCh38#chrM:245-255' --banded-haplotypes --ignore-strand \
+  --coarsened --facet-by haplotype_sample --out chrM.svg
+```
+
+![chrM haplotypes faceted by sample, reads last](images/facets-haplotypes-chrM.png)
 
 ## The color key
 

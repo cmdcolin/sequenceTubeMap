@@ -155,10 +155,12 @@ rounds any other number to the nearest one in that range.
 
 ### `facet`
 
-The read field the map splits into stacked panels, one per value: `read_group`
-or `sample_name`. `facet=read_group`. `none`, or leaving it out, draws one
-panel. The View menu's **Facet reads by** sets it. It sits beside `mapq` rather
-than in `vis`, which holds only on/off flags.
+What the map splits into stacked panels, one per value: the read field
+`read_group` or `sample_name`, or `haplotype_sample`, the sample in each
+haplotype's PanSN name, with the reads in a last panel of their own.
+`facet=haplotype_sample`. `none`, or leaving it out, draws one panel. The View
+menu's **Facet by** sets it. It sits beside `mapq` rather than in `vis`, which
+holds only on/off flags.
 
 ### `dataType`
 
