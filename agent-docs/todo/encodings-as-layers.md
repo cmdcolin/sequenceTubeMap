@@ -1,10 +1,10 @@
 ---
 name: encodings-as-layers
-description: Finish the grammar of graphics already latent in the encodings: per-layer stats and coarsening, a view spec in place of flags.
+description: Finish the grammar of graphics already latent in the encodings: draw-time encoding, a view spec in place of flags, then layers and facets on a two-phase layout.
 metadata:
   category: ready
   area: encodings
-  first_move: "Split haplotypes and reads into layers with a stat each."
+  first_move: "Move color and alpha out of layout so the renderer applies the encoding at draw time."
   order: 4
 ---
 
@@ -50,10 +50,61 @@ on screen. New encodings (`color ← population`, `alpha ← share`) become entr
 rather than flags, and the URL could carry the spec instead of a growing flag
 list.
 
-What remains: split haplotypes and reads into layers with a stat each. The
-layout now passes a `LayoutState` rather than module-level scratch, so a layer
-can run its passes on its own state. The colorer already reads each drawn
+## What remains
+
+The layer split is harder than the sketch above suggests, because reads and
+haplotypes shape each other's layout in `packages/tubemap-core/src/layout.ts`:
+
+- The mapq and focus filters run before topology (233-235). Reads then feed
+  `mergeNodes`, `generateNodeOrder` and `switchNodeOrientation`, so changing the
+  mapq cutoff changes how haplotype nodes merge and order (the `brca1.mapq-500`
+  golden shows it). A per-layer filter that leaves haplotypes alone changes
+  behavior and the goldens.
+- Reads stack under haplotypes at `node.y + contentHeight`, and
+  `adjustVertically3` pushes lower haplotype nodes down.
+- Coarsening is either/or. Banded haplotypes reuse `state.reads` and exist only
+  when no reads load; one `coarsened` value and one `coarsenedEdgeMeta` reset
+  mean two banded layers would overwrite each other.
+
+Color is also baked in during layout: `generateSVGShapesFromPath` calls
+`trackColor` and `trackAlpha`, so every color toggle reruns the whole layout.
+The scales don't yet name the field they read, and the View-menu flags still
+pick the `encodingFor` entries.
+
+Order of work:
+
+1. **Encoding at draw time.** Shapes carry the track id and the projected
+   `DrawnTrack`; the renderer applies color and alpha. Recoloring then needs no
+   relayout.
+2. **A small coloring spec.** Turn `Coloring` into
+   `{ read: { color: 'group' | 'mapq' | 'strand', alpha?: 'mapq' } }`, derived
+   from the existing flags. Keep writing the `vis=` flags: the CLI and headless
+   renderer read them, and old links must keep working (`doc/urlparams.md`).
+3. **Split `layoutTubeMap` into topology and placement.** Topology (merge,
+   order, orientation, node widths) runs once on all tracks; placement (lanes,
+   reads) runs per layer or panel. Decide here whether read filters affect
+   topology. Layers, banded haplotypes with reads on screen, and facets all wait
+   on this split.
+4. **Facets.** Small multiples over subsets of tracks, drawn from one layout so
+   panels align. Re-laying out per panel breaks alignment: lane order, lane y,
+   `adjustVertically`, the straightened reference and even x gaps
+   (`calculateExtraSpace`) all depend on which tracks are present. Panels
+   sharing a layout keep the full height, with 15 px gaps per missing haplotype
+   and 7 px per missing read, so k panels take about k times the height; x
+   takes the maximum extra space over all panels. Haplotypes carry no
+   population or sample-group metadata today (only reads carry `sample_name` and
+   `read_group`), so grouping haplotypes means parsing PanSN names. Every panel
+   needs its own legend rows for color-only encodings.
+5. **Per-region facets.** Separate layouts with shared scales and legend. Wait
+   until `src/util/tubemap.ts` state (about 20 module-level `let`s, `config`,
+   hover state, subscriber stores, one `svgID` and one zoom) is an instance.
+   Each panel costs another placement pass, so this ties to
+   [wide-pangenome-windows](wide-pangenome-windows.md).
+
+The layout now passes a `LayoutState` rather than module-level scratch, so a
+layer can run its passes on its own state. The colorer already reads each drawn
 track's computed variables (share, strand, mapping quality, name) off
-`ColorableTrack`, so a layer's stat only has to fill them in.
+`ColorableTrack`, so a layer's stat only has to fill them in. Review the
+layout goldens (66) at step 3.
 
 A general grammar engine is not the goal.
