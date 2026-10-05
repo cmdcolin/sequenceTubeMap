@@ -13,7 +13,7 @@ import { computeExampleData } from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
 import * as demo from './demo-data.js'
 import { measureSvgContent } from './svgBounds.ts'
-import { layoutTopology, placeTubeMap } from '@gmod/tubemap-core'
+import { layoutTopology, placeFacets } from '@gmod/tubemap-core'
 import type * as TubeMapCore from '@gmod/tubemap-core'
 
 vi.mock('@gmod/tubemap-core', async importOriginal => {
@@ -21,7 +21,7 @@ vi.mock('@gmod/tubemap-core', async importOriginal => {
   return {
     ...core,
     layoutTopology: vi.fn(core.layoutTopology),
-    placeTubeMap: vi.fn(core.placeTubeMap),
+    placeFacets: vi.fn(core.placeFacets),
   }
 })
 
@@ -362,7 +362,7 @@ describe('tubemap.create — a recolor', () => {
     const { nodes, tracks, reads } = dataForExample('7')
     render(nodes, tracks, reads)
     vi.mocked(layoutTopology).mockClear()
-    vi.mocked(placeTubeMap).mockClear()
+    vi.mocked(placeFacets).mockClear()
     return () => render(nodes, tracks, reads)
   }
 
@@ -371,7 +371,7 @@ describe('tubemap.create — a recolor', () => {
     tubeMap.setMappingQualityCutoff(30)
     redraw()
     expect(layoutTopology).not.toHaveBeenCalled()
-    expect(placeTubeMap).toHaveBeenCalledTimes(1)
+    expect(placeFacets).toHaveBeenCalledTimes(1)
   })
 
   it('neither lays out nor places after a color change', () => {
@@ -379,7 +379,7 @@ describe('tubemap.create — a recolor', () => {
     tubeMap.setColorReadsByMappingQualityFlag(true)
     redraw()
     expect(layoutTopology).not.toHaveBeenCalled()
-    expect(placeTubeMap).not.toHaveBeenCalled()
+    expect(placeFacets).not.toHaveBeenCalled()
   })
 
   it('lays out and places after a merge change', () => {
@@ -387,7 +387,7 @@ describe('tubemap.create — a recolor', () => {
     tubeMap.setMergeNodesFlag(false)
     redraw()
     expect(layoutTopology).toHaveBeenCalledTimes(1)
-    expect(placeTubeMap).toHaveBeenCalledTimes(1)
+    expect(placeFacets).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -1071,6 +1071,143 @@ describe('tubemap.create — banded haplotypes with reads on screen', () => {
       ['Reference path ref', 'Bands, 1 to all 2 other haplotypes'],
       ['Read bands'],
     ])
+  })
+})
+
+describe('tubemap.create — facets', () => {
+  const nodes: InputNode[] = [
+    { name: '1', seq: 'AAAA' },
+    { name: '2', seq: 'CCCC' },
+    { name: '3', seq: 'GGGG' },
+    { name: '4', seq: 'TTTT' },
+  ]
+  const tracks: InputTrack[] = [
+    {
+      id: 0,
+      name: 'ref',
+      sequence: ['1', '2', '4'],
+      sourceTrackID: 0,
+      indexOfFirstBase: 0,
+    },
+    { id: 1, name: 'alt', sequence: ['1', '3', '4'], sourceTrackID: 0 },
+  ]
+  const reads: InputTrack[] = [
+    { id: 2, name: 'a1', sequence: ['1', '2', '4'], read_group: 'A' },
+    { id: 3, name: 'a2', sequence: ['1', '2'], read_group: 'A' },
+    { id: 4, name: 'b1', sequence: ['1', '3', '4'], read_group: 'B' },
+  ].map(read => ({
+    ...read,
+    type: 'read' as const,
+    sourceTrackID: 1,
+    sample_name: 'S1',
+    mapping_quality: 60,
+    finalNodeCoverLength: 2,
+  }))
+  const files = [
+    { trackType: 'graph' as const, trackFile: 'x.gbz.db' },
+    { trackType: 'read' as const, trackFile: 'x.gam' },
+  ]
+  const legend = () =>
+    legendSections({ tracks: files, ...tubeMap.getRenderedColoring() })
+  const facetGroups = (svg: SVGSVGElement) => [
+    ...svg.querySelectorAll<SVGGElement>('g.facet'),
+  ]
+
+  afterEach(() => {
+    tubeMap.setFacetReadsBy(null)
+    tubeMap.setMergeNodesFlag(true)
+    tubeMap.setColorReadsByMappingQualityFlag(false)
+  })
+
+  function draw(by: 'read_group' | 'sample_name' | null) {
+    setupSvg()
+    tubeMap.setMergeNodesFlag(false)
+    tubeMap.setFacetReadsBy(by)
+    return render(nodes, tracks, reads)
+  }
+
+  it('stacks one labelled panel per read group, aligned in x', () => {
+    const svg = draw('read_group')
+    const groups = facetGroups(svg)
+    expect(
+      groups.map(g => g.querySelector('.facet-label')?.textContent),
+    ).toEqual(['Read group A · 2 reads', 'Read group B · 1 read'])
+    const offset = (g: SVGGElement) =>
+      Number(/translate\(0,([^)]+)\)/.exec(g.getAttribute('transform')!)![1])
+    expect(offset(groups[0]!)).toBe(0)
+    expect(offset(groups[1]!)).toBeGreaterThan(0)
+    const nodeOutlines = (g: SVGGElement) =>
+      [...g.querySelectorAll('g.node path')].map(p => p.getAttribute('id'))
+    expect(nodeOutlines(groups[0]!)).toEqual(nodeOutlines(groups[1]!))
+    const referenceXs = (g: SVGGElement) =>
+      [...g.querySelectorAll('rect[trackID="0"]')].map(r => r.getAttribute('x'))
+    expect(referenceXs(groups[1]!)).toEqual(referenceXs(groups[0]!))
+    const readNames = (g: SVGGElement) =>
+      new Set(
+        [...g.querySelectorAll('[trackID]')]
+          .map(el => el.getAttribute('trackName'))
+          .filter(name => name !== 'ref' && name !== 'alt'),
+      )
+    expect(readNames(groups[0]!)).toEqual(new Set(['a1', 'a2']))
+    expect(readNames(groups[1]!)).toEqual(new Set(['b1']))
+    const rulerText = (g: SVGGElement) =>
+      g.querySelectorAll(':scope > text:not(.facet-label)').length
+    expect(rulerText(groups[0]!)).toBeGreaterThan(0)
+    expect(rulerText(groups[1]!)).toBe(0)
+    expect(groups[0]!.querySelector('.facet-rule')).toBeNull()
+    expect(groups[1]!.querySelector('.facet-rule')).not.toBeNull()
+  })
+
+  it('keys each track once and paints every copy of it', () => {
+    const unfaceted = (draw(null), legend())
+    const svg = draw('read_group')
+    const ids = tubeMap.getRenderedColoring().drawn.map(t => t.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(ids.sort()).toEqual([0, 1, 2, 3, 4])
+    expect(legend()).toEqual(unfaceted)
+    for (const el of svg.querySelectorAll<SVGElement>('[trackID]')) {
+      expect(el.style.fill).not.toBe('')
+    }
+  })
+
+  it('still labels the one panel when every read shares the value', () => {
+    const svg = draw('sample_name')
+    expect(
+      facetGroups(svg).map(g => g.querySelector('.facet-label')?.textContent),
+    ).toEqual(['Sample S1 · 3 reads'])
+    expect(draw(null).querySelector('g.facet, .facet-label')).toBeNull()
+  })
+
+  it("counts a clicked node's reads in its own panel", () => {
+    const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
+    tubeMap.setInfoCallback(onInfo)
+    const svg = draw('read_group')
+    const alignedReads = (g: SVGGElement) => {
+      onInfo.mockClear()
+      g.querySelector('g.node path[id="1"]')!.dispatchEvent(
+        new MouseEvent('click', { bubbles: true }),
+      )
+      return onInfo.mock.calls[0]?.[0].find(
+        ([label]) => label === 'Aligned Reads:',
+      )?.[1]
+    }
+    const [a, b] = facetGroups(svg)
+    expect(alignedReads(a!)).toBe(2)
+    expect(alignedReads(b!)).toBe(1)
+  })
+
+  it('places again on the same topology after a facet change, and recolors without either', () => {
+    draw(null)
+    vi.mocked(layoutTopology).mockClear()
+    vi.mocked(placeFacets).mockClear()
+    tubeMap.setFacetReadsBy('read_group')
+    render(nodes, tracks, reads)
+    expect(layoutTopology).not.toHaveBeenCalled()
+    expect(placeFacets).toHaveBeenCalledTimes(1)
+    tubeMap.setColorReadsByMappingQualityFlag(true)
+    render(nodes, tracks, reads)
+    expect(layoutTopology).not.toHaveBeenCalled()
+    expect(placeFacets).toHaveBeenCalledTimes(1)
   })
 })
 

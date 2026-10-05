@@ -17,38 +17,41 @@ import { formatTrackDisplayName } from './trackName.ts'
 import {
   clampedXCoordinateOfBaseWithinNode,
   curvePaths,
-  emptyTrackShapes,
   forward,
   getXCoordinateOfBaseWithinNode,
   isCoarsenedId,
   isReverse,
+  FACET_GAP,
+  FACET_LABEL_HEIGHT,
   layoutTopology,
   mirroredMismatch,
   nodeOutlinePath,
   nodePixelCoordinatesInX,
-  placeTubeMap,
+  placeFacets,
   READ_WIDTH,
   reverse,
 } from '@gmod/tubemap-core'
 import type {
   CoarsenedEdgeMeta,
   Coarsenings,
+  Facet,
+  FacetBy,
+  FacetedLayout,
+  FacetOptions,
+  FacetPanel,
   Layer,
   ColorableTrack,
   ImageBounds,
   InputNode,
   InputTrack,
-  LayoutNode,
   Mismatch,
   Node,
-  PlacementOptions,
   ReadSequenceEntry,
   TopologyOptions,
   Track,
   TrackCorner,
   TrackCurve,
   TrackRectangle,
-  TrackShapes,
   TrackType,
   TubeMapLayout,
   TubeMapTopology,
@@ -133,6 +136,7 @@ interface TubeMapConfig {
   readContextMenuCallback: (menu: ReadContextMenuState | null) => void
   nodeContextMenuCallback: (menu: NodeContextMenuState | null) => void
   focusReadNames: string[] | null
+  facetReadsBy: FacetBy | null
   readGroups: ReadGroup[]
   otherReadsColor: string
 }
@@ -224,13 +228,11 @@ let inputReads: InputTrack[] = []
 let inputRegion: InputRegion = []
 
 // --- the latest layout ---
-// nodes is 1-indexed: a hole at index 0 lets a *signed* index mean
-// orientation (-i = reverse of node i).
-let nodes: LayoutNode[] = []
-// haplotype tracks, then the placed reads
+// One per facet, or the one unfaceted placement
+let panels: FacetPanel[] = []
+// Every track the panels drew, once each: a haplotype repeats in every panel
+// under one id
 let tracks: Track[] = []
-let reads: Track[] = []
-let nodeMap: ReadonlyMap<string, number> = new Map()
 
 // --- UI state, outlives a render ---
 // The root <svg> until alignSVG, then the zoomed <g> everything is drawn in
@@ -268,6 +270,7 @@ const config: TubeMapConfig = {
   nodeContextMenuCallback: function () {},
   coloredNodes: [],
   focusReadNames: null,
+  facetReadsBy: null,
   // Array of { color, reads: Set<string> }. Reads matching a group's set are
   // drawn in that color, overriding the default strand/palette coloring. The
   // last group in the array wins for reads belonging to multiple groups.
@@ -278,15 +281,11 @@ const config: TubeMapConfig = {
   otherReadsColor: 'greys',
 }
 
-// Drawing instructions from the latest layout
-let shapes: TrackShapes = emptyTrackShapes()
-
 // The extent of the drawn content, in layout coordinates. Outlives the draw
 // because a resize recomputes the zoom's extents from it.
 let imageBounds: ImageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
-let trackForRuler: string | undefined
-// The coarsened bands' read counts and labels, for the hover and click
-// handlers
+// The coarsened bands' read counts and labels, across panels, for the hover
+// and click handlers
 let coarsenedEdgeMeta = new Map<number, CoarsenedEdgeMeta>()
 let coarsened: Coarsenings = {}
 // What the last draw placed, projected for the legend, and the scheme each
@@ -311,7 +310,7 @@ interface Cached<T> {
 // filter change places again on the same topology and a draw that changes
 // only the coloring skips both
 let topologyCache: Cached<TubeMapTopology | undefined> | undefined
-let placementCache: Cached<TubeMapLayout | undefined> | undefined
+let placementCache: Cached<FacetedLayout | undefined> | undefined
 
 // alignSVG attaches a wheel listener and ResizeObserver to the parent each
 // time it runs; create() runs on every TubeMap prop change, so without
@@ -620,6 +619,12 @@ export function setMappingQualityCutoff(value: number): void {
   config.mappingQualityCutoff = value
 }
 
+// One panel per value of the reads' field, stacked top to bottom; null draws
+// one panel
+export function setFacetReadsBy(value: FacetBy | null | undefined): void {
+  config.facetReadsBy = value ?? null
+}
+
 export interface RenderedColoring extends Coloring {
   // Indexed by source track: what the UI set, else the default the draw fell
   // back to, with holes only where a track drew nothing.
@@ -721,11 +726,11 @@ function createTubeMap(preserveViewport = true): void {
   // snapshot when every track is hidden and we bail out early.
   emitTrackVisibility()
 
-  const layout = layOut()
-  if (layout === undefined) {
-    shapes = emptyTrackShapes()
+  const faceted = layOut()
+  if (faceted === undefined) {
+    panels = []
+    tracks = []
     imageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
-    trackForRuler = undefined
     coarsened = {}
     drawn = []
     drawnSchemes = new Map()
@@ -733,17 +738,18 @@ function createTubeMap(preserveViewport = true): void {
     emitRenderedColoring()
     return
   }
-  ;({
-    nodes,
-    tracks,
-    reads,
-    nodeMap,
-    shapes,
-    trackForRuler,
-    coarsenedEdgeMeta,
-    coarsened,
-  } = layout)
-  imageBounds = layout.bounds
+  panels = faceted.panels
+  const layouts = panels.map(panel => panel.layout)
+  tracks = [
+    ...new Map(
+      layouts.flatMap(layout => layout.tracks.map(t => [t.id, t] as const)),
+    ).values(),
+  ]
+  coarsenedEdgeMeta = new Map(
+    layouts.flatMap(layout => [...layout.coarsenedEdgeMeta]),
+  )
+  coarsened = Object.assign({}, ...layouts.map(layout => layout.coarsened))
+  imageBounds = faceted.bounds
   drawn = tracks.map(datumOf)
   const coloring = currentColoring()
   paints = new Map(
@@ -763,11 +769,38 @@ function createTubeMap(preserveViewport = true): void {
   emitRenderedColoring()
   const applyInitialTransform = alignSVG(preserveViewport)
   defineHoverPattern()
+  panels.forEach((panel, i) => {
+    drawPanel(panel, i === 0)
+  })
+  debugLog(`${tracks.length} tracks in ${panels.length} panel(s)`)
+  // Apply the initial zoom transform now that all content (including node
+  // labels) is in the DOM. The zoom handler's synchronous "end" flush will
+  // counter-scale every label group on this first paint.
+  applyInitialTransform()
+}
 
-  // all drawn tracks are grouped
-  const trackGroup = svg.append('g').attr('class', 'track')
+// An unfaceted panel draws straight into the drawing; a facet draws in a group
+// moved down to its place in the stack, under its label. The first panel
+// carries the ruler, which every panel shares since they share x.
+function drawPanel(panel: FacetPanel, first: boolean): void {
+  const { layout, facet } = panel
+  const target =
+    facet === undefined
+      ? svg
+      : (svg
+          .append('g')
+          .attr('class', 'facet')
+          .attr(
+            'transform',
+            `translate(0,${panel.offsetY})`,
+          ) as unknown as AnySelection)
+  if (facet !== undefined) {
+    drawFacetLabel(target, panel, facet, first)
+  }
+  const { shapes } = layout
+  const trackGroup = target.append('g').attr('class', 'track')
   drawTrackRectangles(shapes.rectangles, 'haplotype', trackGroup)
-  drawTrackCurves('haplotype', trackGroup)
+  drawTrackCurves(shapes.curves, 'haplotype', trackGroup)
   drawReversalsByColor(
     shapes.corners,
     shapes.verticalRectangles,
@@ -775,10 +808,12 @@ function createTubeMap(preserveViewport = true): void {
     trackGroup,
   )
   drawTrackRectangles(shapes.rectangles, 'read', trackGroup)
-  drawTrackCurves('read', trackGroup)
+  drawTrackCurves(shapes.curves, 'read', trackGroup)
 
   // Only the nodes a visible track passes through have coordinates
-  const dNodes = nodes.filter((node: { x?: number }) => node.x !== undefined)
+  const dNodes = layout.nodes.filter(
+    (node: { x?: number }) => node.x !== undefined,
+  )
   drawReversalsByColor(
     shapes.corners,
     shapes.verticalRectangles,
@@ -786,23 +821,66 @@ function createTubeMap(preserveViewport = true): void {
     trackGroup,
   )
 
-  // all drawn nodes are grouped
-  const nodeGroup = svg.append('g').attr('class', 'node')
+  const nodeGroup = target.append('g').attr('class', 'node')
   drawNodes(dNodes, nodeGroup)
   if (config.nodeWidthOption === 'normal' && !config.showNodeLabels)
-    drawLabels(dNodes)
-  if (trackForRuler !== undefined) drawRuler()
-  if (config.nodeWidthOption === 'normal') drawMismatches() // TODO: call this before drawLabels and fix d3 data/append/enter stuff
+    drawLabels(dNodes, target)
+  if (first && layout.trackForRuler !== undefined) drawRuler(layout, target)
+  if (config.nodeWidthOption === 'normal') drawMismatches(layout, target)
   // Drawn last so the labels paint above ruler/mismatches/reads
-  if (config.showNodeLabels) drawNodeLabels(dNodes)
-  debugLog(`${tracks.length} tracks, ${nodes.length} nodes`)
-  // Apply the initial zoom transform now that all content (including node
-  // labels) is in the DOM. The zoom handler's synchronous "end" flush will
-  // counter-scale every label group on this first paint.
-  applyInitialTransform()
+  if (config.showNodeLabels) drawNodeLabels(dNodes, target)
 }
 
-function layOut(): TubeMapLayout | undefined {
+const FACET_FIELD_NOUNS: Record<FacetBy, string> = {
+  read_group: 'read group',
+  sample_name: 'sample',
+}
+
+export function facetLabel(facet: Facet, readCount: number): string {
+  const noun = FACET_FIELD_NOUNS[facet.by]
+  const name =
+    facet.key === null
+      ? `No ${noun}`
+      : `${noun.charAt(0).toUpperCase()}${noun.slice(1)} ${facet.key}`
+  return `${name} · ${readCount.toLocaleString()} read${readCount === 1 ? '' : 's'}`
+}
+
+// In the band placeFacets leaves above the panel, with a rule across the gap
+// to the panel above
+function drawFacetLabel(
+  target: AnySelection,
+  panel: FacetPanel,
+  facet: Facet,
+  first: boolean,
+): void {
+  const top = panel.layout.bounds.minY
+  if (!first) {
+    const ruleY = top - FACET_LABEL_HEIGHT - FACET_GAP / 2
+    target
+      .append('line')
+      .attr('class', 'facet-rule')
+      .attr('x1', imageBounds.minX)
+      .attr('y1', ruleY)
+      .attr('x2', imageBounds.maxX)
+      .attr('y2', ruleY)
+      .attr('stroke', '#bbbbbb')
+      .attr('stroke-width', 1)
+      .attr('stroke-dasharray', '6 4')
+  }
+  target
+    .append('text')
+    .attr('class', 'facet-label')
+    .attr('x', imageBounds.minX)
+    .attr('y', top - 10)
+    .text(facetLabel(facet, panel.readCount))
+    .attr('font-family', 'Helvetica, Arial, sans-serif')
+    .attr('font-size', '16px')
+    .attr('font-weight', 'bold')
+    .attr('fill', '#333333')
+    .style('pointer-events', 'none')
+}
+
+function layOut(): FacetedLayout | undefined {
   const topologyOptions: TopologyOptions = {
     mergeNodes: config.mergeNodesFlag,
     showReads: config.showReads,
@@ -813,9 +891,10 @@ function layOut(): TubeMapLayout | undefined {
     charWidth:
       config.nodeWidthOption === 'normal' ? measureCharWidth() : undefined,
   }
-  const placementOptions: PlacementOptions = {
+  const placementOptions: FacetOptions = {
     mappingQualityCutoff: config.mappingQualityCutoff,
     focusReadNames: config.focusReadNames,
+    facetReadsBy: config.facetReadsBy,
   }
   topologyCache = cached(
     topologyCache,
@@ -826,7 +905,7 @@ function layOut(): TubeMapLayout | undefined {
   placementCache = cached(
     placementCache,
     [topology, JSON.stringify(placementOptions)],
-    () => topology && placeTubeMap(topology, placementOptions),
+    () => topology && placeFacets(topology, placementOptions),
   )
   return placementCache.value
 }
@@ -934,10 +1013,9 @@ function alignSVG(preserveViewport: boolean): () => void {
         detailHidden = shouldHide
         const display = shouldHide ? 'none' : ''
         drawing
-          .select<SVGGElement>('g.mismatches-layer')
-          .style('display', display)
-        drawing
-          .select<SVGGElement>('g.sequence-labels-layer')
+          .selectAll<SVGGElement, unknown>(
+            'g.mismatches-layer, g.sequence-labels-layer',
+          )
           .style('display', display)
         debugLog(
           `detail layers ${shouldHide ? 'hidden' : 'shown'} (zoom k=${pendingK.toFixed(2)}, threshold=${MISMATCH_HIDE_BELOW_K})`,
@@ -1199,18 +1277,24 @@ function colorNodes(nodeName: string): Record<string, string> {
   return nodesColors
 }
 
-// Get any node object by name, or undefined if the graph has no such node.
-function getNodeByName(nodeName: string): LayoutNode | undefined {
-  const index = nodeMap.get(nodeName)
-  return index === undefined ? undefined : nodes[index]
+// The panel whose layout holds this node object, since a node repeats in
+// every panel with that panel's reads
+function layoutOf(node: Node): TubeMapLayout | undefined {
+  return panels.find(({ layout }) => {
+    const index = layout.nodeMap.get(node.name)
+    return index !== undefined && layout.nodes[index] === node
+  })?.layout
 }
 
-function nodeSingleClick(this: SVGElement): void {
-  // Get the node name
-  const nodeName = d3.select(this).attr('id')
-  const currentNode = getNodeByName(nodeName)
-  if (currentNode === undefined) {
-    console.error('Missing node: ', nodeName)
+function nodeSingleClick(
+  this: SVGElement,
+  _event: MouseEvent,
+  node: Node,
+): void {
+  const layout = layoutOf(node)
+  const currentNode = layout?.nodes[layout.nodeMap.get(node.name)!]
+  if (layout === undefined || currentNode === undefined) {
+    console.error('Missing node: ', node.name)
     return
   }
   const nodeAttributes: InfoAttribute[] = [
@@ -1229,7 +1313,7 @@ function nodeSingleClick(this: SVGElement): void {
           currentNode.outgoingReads.length,
       ],
       ['Total Visits:', numReadsVisitNode(currentNode)],
-      ['Coverage:', coverage(currentNode, reads)],
+      ['Coverage:', coverage(currentNode, layout.reads)],
     )
   }
 
@@ -1342,11 +1426,11 @@ export function coverage(
 }
 
 // draw sequence labels for nodes
-function drawLabels(dNodes: Node[]): void {
+function drawLabels(dNodes: Node[], target: AnySelection): void {
   if (config.nodeWidthOption === 'normal') {
     // Wrap in a layer so the zoom flush can hide the per-base sequence text
     // (and only it, not other top-level <text> elements) when zoomed out.
-    svg
+    target
       .append('g')
       .attr('class', 'sequence-labels-layer')
       .selectAll('text')
@@ -1394,8 +1478,8 @@ function labelTextBox(
       }
 }
 
-function drawNodeLabels(dNodes: Node[]): void {
-  const groups = svg
+function drawNodeLabels(dNodes: Node[], target: AnySelection): void {
+  const groups = target
     .append('g')
     .attr('class', 'node-labels')
     .selectAll('g')
@@ -1477,8 +1561,11 @@ export function axisIntervals(
   }
 }
 
-function drawRuler(): void {
-  const rulerTrack = tracks.find(track => track.name === trackForRuler)!
+function drawRuler(layout: TubeMapLayout, target: AnySelection): void {
+  const { nodes } = layout
+  const rulerTrack = layout.tracks.find(
+    track => track.name === layout.trackForRuler,
+  )!
 
   // How often should we have a tick in bp?
   let markingInterval = 100
@@ -1642,13 +1729,13 @@ function drawRuler(): void {
   ticks = separatedTicks
 
   // plot ticks highlighting the region (if it is filled in)
-  drawRulerMarkingRegion(ticks_region)
+  drawRulerMarkingRegion(ticks_region, target)
 
   // draw horizontal line for each interval
 
   const axisY = imageBounds.minY - 10
   mergedIntervals.forEach(interval => {
-    svg
+    target
       .append('line')
       .attr('x1', interval[0])
       .attr('y1', axisY)
@@ -1658,7 +1745,7 @@ function drawRuler(): void {
       .attr('stroke', 'black')
 
     // starting vertical line
-    svg
+    target
       .append('line')
       .attr('x1', interval[0])
       .attr('y1', axisY - 5)
@@ -1668,7 +1755,7 @@ function drawRuler(): void {
       .attr('stroke', 'black')
 
     // ending vertical line
-    svg
+    target
       .append('line')
       .attr('x1', interval[1])
       .attr('y1', axisY - 5)
@@ -1691,7 +1778,7 @@ function drawRuler(): void {
     } else {
       align = 'middle'
     }
-    drawRulerMarking(tick[0], tick[1], align)
+    drawRulerMarking(tick[0], tick[1], align, target)
   }
 }
 
@@ -1702,9 +1789,10 @@ function drawRulerMarking(
   sequencePosition: number,
   xCoordinate: number,
   align: string,
+  target: AnySelection,
 ): void {
   const axisY = imageBounds.minY - 10
-  svg
+  target
     .append('text')
     .attr('text-anchor', align)
     .attr('x', xCoordinate)
@@ -1716,7 +1804,7 @@ function drawRulerMarking(
     .style('pointer-events', 'none')
 
   // vertical line
-  svg
+  target
     .append('line')
     .attr('x1', xCoordinate)
     .attr('y1', axisY - 5)
@@ -1731,16 +1819,19 @@ function drawRulerMarking(
 /// The requested region should be an array of 2 items, each of which is an
 /// array of a sequence position and an image X coordinate. If the array is not
 /// 2 items, no connecting line is drawn.
-function drawRulerMarkingRegion(ticks_region: [number, number][]): void {
+function drawRulerMarkingRegion(
+  ticks_region: [number, number][],
+  target: AnySelection,
+): void {
   // Each tick is a base coordinate and an image coordinate
   ticks_region.forEach(tick => {
-    drawRulerMarkingEndpoint(tick[1])
+    drawRulerMarkingEndpoint(tick[1], target)
   })
 
   const lineY = imageBounds.minY - NODE_MARGIN - 6
 
   if (ticks_region.length === 2) {
-    svg
+    target
       .append('line')
       .attr('x1', ticks_region[0]![1])
       .attr('y1', lineY)
@@ -1751,13 +1842,16 @@ function drawRulerMarkingRegion(ticks_region: [number, number][]): void {
   }
 }
 
-function drawRulerMarkingEndpoint(xCoordinate: number): void {
+function drawRulerMarkingEndpoint(
+  xCoordinate: number,
+  target: AnySelection,
+): void {
   const pointX = xCoordinate
   const pointY = imageBounds.minY - NODE_MARGIN - 1
   const arrowWidth = 8
   const arrowHeight = 10
 
-  svg
+  target
     .append('path')
     .attr(
       'd',
@@ -1879,10 +1973,11 @@ function defineHoverPattern(): void {
 }
 
 function drawTrackCurves(
+  curves: TrackCurve[],
   type: TrackType | undefined,
   groupTrack: SvgGroupSelection,
 ): void {
-  const flattenedGroups = curvePaths(shapes.curves.map(insetBandCurve), type)
+  const flattenedGroups = curvePaths(curves.map(insetBandCurve), type)
 
   groupTrack
     .selectAll('trackCurves')
@@ -2446,12 +2541,13 @@ const MISMATCH_HIDE_BELOW_K = 0.5
 // logs) when the shared threshold is actually crossed.
 let detailHidden = false
 
-function drawMismatches(): void {
-  const layer = svg.append('g').attr('class', 'mismatches-layer')
+function drawMismatches(layout: TubeMapLayout, target: AnySelection): void {
+  const { nodes, nodeMap } = layout
+  const layer = target.append('g').attr('class', 'mismatches-layer')
   // Fresh layer starts visible — reset so the next flush will (re-)hide it
   // if the user is currently zoomed out below the threshold.
   detailHidden = false
-  tracks.forEach(read => {
+  layout.tracks.forEach(read => {
     const sequenceNew = read.sequenceNew
     if (read.type === 'read' && sequenceNew !== undefined) {
       sequenceNew.forEach((element, i) => {
@@ -2582,15 +2678,17 @@ function drawDeletion(
     .on('mouseout', deletionMouseOut)
 }
 
-// A vertical guide from a hovered mismatch up to its node. It takes no hover
-// of its own, or drawing it over the mismatch would fire that mouseout.
+// A vertical guide from a hovered mismatch up to its node, in the mismatch's
+// layer and so in its panel's coordinates. It takes no hover of its own, or
+// drawing it over the mismatch would fire that mouseout.
 function drawMismatchGuide(
+  mismatch: SVGElement,
   className: string,
   x: number,
   y: number,
   nodeY: number,
 ): void {
-  svg
+  d3.select(mismatch.parentElement)
     .append('line')
     .attr('class', className)
     .attr('x1', x)
@@ -2607,7 +2705,7 @@ function insertionMouseOver(this: SVGElement): void {
   const x = Number(d3.select(this).attr('x'))
   const y = Number(d3.select(this).attr('y'))
   const yTop = Number(d3.select(this).attr('nodeY'))
-  drawMismatchGuide('insertionHighlight', x + 4, y - 10, yTop)
+  drawMismatchGuide(this, 'insertionHighlight', x + 4, y - 10, yTop)
 }
 
 function deletionMouseOver(this: SVGElement): void {
@@ -2616,8 +2714,8 @@ function deletionMouseOver(this: SVGElement): void {
   const x2 = Number(d3.select(this).attr('x2'))
   const y = Number(d3.select(this).attr('y1'))
   const yTop = Number(d3.select(this).attr('nodeY'))
-  drawMismatchGuide('deletionHighlight', x1, y - 3, yTop)
-  drawMismatchGuide('deletionHighlight', x2, y - 3, yTop)
+  drawMismatchGuide(this, 'deletionHighlight', x1, y - 3, yTop)
+  drawMismatchGuide(this, 'deletionHighlight', x2, y - 3, yTop)
 }
 
 function substitutionMouseOver(this: SVGElement): void {
@@ -2626,8 +2724,8 @@ function substitutionMouseOver(this: SVGElement): void {
   const x2 = Number(d3.select(this).attr('rightX'))
   const y = Number(d3.select(this).attr('y'))
   const yTop = Number(d3.select(this).attr('nodeY'))
-  drawMismatchGuide('substitutionHighlight', x1 - 1, y - READ_WIDTH, yTop)
-  drawMismatchGuide('substitutionHighlight', x2 + 1, y - READ_WIDTH, yTop)
+  drawMismatchGuide(this, 'substitutionHighlight', x1 - 1, y - READ_WIDTH, yTop)
+  drawMismatchGuide(this, 'substitutionHighlight', x2 + 1, y - READ_WIDTH, yTop)
 }
 
 function insertionMouseOut(this: SVGElement): void {
