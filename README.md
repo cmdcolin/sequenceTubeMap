@@ -97,7 +97,9 @@ viewer.
 
 `pnpm tubemap-cli` renders your own `.gbz.db` and reads, or any link or bundled
 source, to SVG, no browser — made every figure here but the app screenshot.
-[Details](doc/headless-rendering.md).
+[Details](doc/headless-rendering.md), and a
+[gallery](doc/headless-rendering.md#gallery) of banded haplotypes and read
+encodings.
 
 ## Docs
 

@@ -198,6 +198,100 @@ magick str.png -crop 1239x385+9988+0 +repage -background white -flatten \
 A local track file is staged as an upload rather than fetched, so the bundled
 sources render the same way with no network at all.
 
+## Gallery
+
+The figures below show banded layers and read encodings on the small HPRC graphs
+and GAMs in `exampleData/visualization_examples/`. Each block regenerates its
+figure from the repo root, after setting `d=exampleData/visualization_examples`;
+the SVGs it leaves behind are scratch.
+
+`--banded-haplotypes` folds the 19 non-reference haplotypes into orange bands
+shaded by their share, so each SNP's population split sits right above one
+sample's reads: they take both alleles at the first SNP and only the upper one
+at the second.
+
+![Banded haplotypes over one sample's reads](images/layers-banded-haplotypes.png)
+
+```bash
+pnpm tubemap-cli --graph $d/chr5_73149742_73150242.giraffe.gbz.db \
+  --reads $d/normal.chr5_73149742_73150242.sorted.gam --region chr5:1-500 \
+  --compressed --banded-haplotypes --read-limit 40 --legend --out banded.svg
+rsvg-convert -w 1600 banded.svg | magick - -background white -flatten \
+  doc/images/layers-banded-haplotypes.png
+```
+
+`--read-limit 40` thins the window's 285 reads so the figure stays one page
+tall. Adding `--coarsened` bands all 285 instead, in blue under the orange,
+which turns the whole window into allele balance at a glance: the darker
+haplotype band through the last bubble's node carries more haplotypes than the
+lighter one around it.
+
+![Banded haplotypes over banded reads](images/layers-banded-haplotypes-and-reads.png)
+
+```bash
+pnpm tubemap-cli --graph $d/chr5_73149742_73150242.giraffe.gbz.db \
+  --reads $d/normal.chr5_73149742_73150242.sorted.gam --region chr5:1-500 \
+  --compressed --banded-haplotypes --coarsened --legend --out both.svg
+rsvg-convert -w 1600 both.svg | magick - -background white -flatten \
+  doc/images/layers-banded-haplotypes-and-reads.png
+```
+
+A dense pileup is where banding pays most. Drawn per read, the HCC1395 tumor
+sample's 1,076 reads fill the window with stripes; `--coarsened` draws the same
+window as 6 bands, and the reads that skip the node at 1756 become one band to
+weigh against the rest.
+
+![The same tumor pileup per read and banded](images/layers-reads-vs-bands.png)
+
+```bash
+for view in reads bands; do
+  [ $view = bands ] && extra=--coarsened || extra=
+  pnpm tubemap-cli --graph $d/chr7_124051614_124054114__HCC1395.giraffe.gbz.db \
+    --reads $d/Tumor_HCC1395.chr7_124051614_124054114.sorted.gam \
+    --region ref0:1184-1923 --compressed $extra --out $view.svg
+  rsvg-convert -w 1168 $view.svg | magick - -background white -flatten \
+    -bordercolor white -border 16x8 $view.png
+done
+title() {
+  magick -size 1200x56 xc:white -font DejaVu-Sans-Bold -pointsize 26 \
+    -fill '#222' -gravity west -annotate +16+0 "$1" png:-
+}
+title 'Per read: 1,076 reads' > t1.png
+title 'With --coarsened: 6 bands, one per edge' > t2.png
+magick t1.png reads.png -size 1200x2 xc:'#ccc' t2.png bands.png -append \
+  +repage -depth 8 doc/images/layers-reads-vs-bands.png
+```
+
+Mapping quality says how far to trust the HCC1395 tumor reads that skip the
+middle node below. Colored by it (top), the poorly mapped reads cluster among
+them rather than scattering through the pileup; `--alpha-by-mapq` (bottom) keeps
+the strand colors and fades the same reads. Both panels crop to the bottom of
+the pileup, where that band runs, and enlarge the legend so it reads at page
+width.
+
+![Reads colored and faded by mapping quality](images/layers-mapq.png)
+
+```bash
+for enc in color alpha; do
+  pnpm tubemap-cli --graph $d/chr7_124051614_124054114__HCC1395.giraffe.gbz.db \
+    --reads $d/Tumor_HCC1395.chr7_124051614_124054114.sorted.gam \
+    --region ref0:1700-1800 --compressed --$enc-by-mapq --legend --out $enc.svg
+  rsvg-convert -w 1600 $enc.svg | magick - -background white -flatten \
+    -gravity south -crop 1600x331+0+0 +repage $enc-map.png
+done
+# the legend is 112 units tall on color.svg and 144 on alpha.svg
+rsvg-convert -z 1.4 color.svg | magick - -background white -flatten \
+  -crop 588x158+0+0 +repage color-key.png
+rsvg-convert -z 1.4 alpha.svg | magick - -background white -flatten \
+  -crop 588x203+0+0 +repage alpha-key.png
+magick -background white color-key.png color-map.png \
+  -size 1600x24 xc:white -size 1600x2 xc:'#ccc' -size 1600x16 xc:white \
+  alpha-key.png alpha-map.png -append +repage -depth 8 \
+  doc/images/layers-mapq.png
+```
+
+The committed PNGs went through `pngquant --quality=80-98 --strip` as well.
+
 ## Sample output
 
 Everything below lives in [tubemap-cli-samples/](tubemap-cli-samples/), SVG
