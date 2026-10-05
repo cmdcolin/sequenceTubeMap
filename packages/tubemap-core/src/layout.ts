@@ -210,54 +210,33 @@ function emptyState(config: LayoutConfig): LayoutState {
   }
 }
 
-// placeTubeMap(layoutTopology(...), options), placing the reads once when the
-// filters keep them all. Undefined when nothing visible is left to draw.
+// placeTubeMap(layoutTopology(...), options). Undefined when nothing visible
+// is left to draw.
 export function layoutTubeMap(
   inputNodes: readonly InputNode[],
   inputTracks: readonly InputTrack[],
   inputReads: readonly InputTrack[] = [],
   options: LayoutOptions = {},
 ): TubeMapLayout | undefined {
-  const measured = measureTopology(inputNodes, inputTracks, inputReads, options)
-  if (measured === undefined) {
-    return undefined
-  }
-  const { topology, everything } = measured
-  return selectReads(topology, options).length === topology.reads.length
-    ? everything
-    : placeTubeMap(topology, options)
+  const topology = layoutTopology(inputNodes, inputTracks, inputReads, options)
+  return topology && placeTubeMap(topology, options)
 }
+
+// Each topology's placement of every track and read, which fixed its x
+const measurements = new WeakMap<TubeMapTopology, TubeMapLayout>()
 
 // Merge, order and orient the nodes under the visible `inputTracks` and, when
 // `showReads`, every primary alignment in `inputReads`, then size them and
 // fix their x positions. Undefined when nothing visible is left to draw.
 // Neither input is modified. Track 0 is the reference the layout straightens.
+// The x gaps between order slots make room for the tracks' turns and slopes,
+// so the topology takes its x positions from placing every track and read.
 export function layoutTopology(
   inputNodes: readonly InputNode[],
   inputTracks: readonly InputTrack[],
   inputReads: readonly InputTrack[] = [],
   options: TopologyOptions = {},
 ): TubeMapTopology | undefined {
-  return measureTopology(inputNodes, inputTracks, inputReads, options)?.topology
-}
-
-// Lay out the topology's haplotypes and the reads `options` keep at the
-// topology's x positions, stacking each read under the nodes it visits.
-export function placeTubeMap(
-  topology: TubeMapTopology,
-  options: PlacementOptions = {},
-): TubeMapLayout {
-  return place(topology, selectReads(topology, options), 'topology')
-}
-
-// The x gaps between order slots make room for the tracks' turns and slopes,
-// so the topology takes its x positions from placing every track and read.
-function measureTopology(
-  inputNodes: readonly InputNode[],
-  inputTracks: readonly InputTrack[],
-  inputReads: readonly InputTrack[],
-  options: TopologyOptions,
-): { topology: TubeMapTopology; everything: TubeMapLayout } | undefined {
   const topology = arrangeTopology(inputNodes, inputTracks, inputReads, options)
   if (topology === undefined) {
     return undefined
@@ -268,7 +247,23 @@ function measureTopology(
       topology.nodes[i]!.x = node.x
     }
   })
-  return { topology, everything }
+  measurements.set(topology, everything)
+  return topology
+}
+
+// Lay out the topology's haplotypes and the reads `options` keep at the
+// topology's x positions, stacking each read under the nodes it visits. When
+// the filters keep every read, this returns the placement layoutTopology
+// measured x from, the same object on every such call.
+export function placeTubeMap(
+  topology: TubeMapTopology,
+  options: PlacementOptions = {},
+): TubeMapLayout {
+  const reads = selectReads(topology, options)
+  const measured = measurements.get(topology)
+  return measured !== undefined && reads.length === topology.reads.length
+    ? measured
+    : place(topology, reads, 'topology')
 }
 
 function arrangeTopology(
