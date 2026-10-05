@@ -73,10 +73,10 @@ show — rather than the cropped figure.
 
 Every option in the app's View menu has a flag: `--compressed`, `--no-reads`,
 `--no-soft-clips`, `--no-merge-nodes`, `--node-labels`, `--transparent-nodes`,
-`--coarsened`, `--ignore-strand`, `--color-by-mapq`, `--alpha-by-mapq` and
-`--mapq N` — `--help` lists them, from the same table that reads them, so the
-two cannot drift apart. The mapping-quality flags only show up when the reads
-actually differ in mapping quality.
+`--coarsened`, `--banded-haplotypes`, `--ignore-strand`, `--color-by-mapq`,
+`--alpha-by-mapq` and `--mapq N` — `--help` lists them, from the same table that
+reads them, so the two cannot drift apart. The mapping-quality flags only show
+up when the reads actually differ in mapping quality.
 
 `--ignore-strand` is quiet on all nine bundled `--example` datasets, which is
 those datasets rather than the flag. What it moves in the normal view is reads
@@ -100,6 +100,11 @@ haplotype collapses into one band per node-to-node edge, the same way reads do.
 A graph with hundreds of haplotypes otherwise draws as one lane per haplotype —
 solid color soup at that count — so this is the flag to reach for there too; see
 [Hosted graphs](#hosted-graphs) below for a worked example.
+
+`--banded-haplotypes` bands the haplotypes that way with reads loaded too, and
+stacks the reads under the bands: one by one, or banded as well under
+`--coarsened`. The legend keys the haplotype bands by their share and the reads
+by whatever colors them.
 
 `--compressed` is the one to reach for whenever a figure comes out unreadably
 wide. Node width scales with sequence length, so any region spanning many bases

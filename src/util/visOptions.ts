@@ -36,6 +36,7 @@ export const VIS_OPTION_FLAGS = [
   'colorReadsByMappingQuality',
   'alphaReadsByMappingQuality',
   'coarsenedReadView',
+  'coarsenedHaplotypeView',
   'ignoreStrand',
 ] as const satisfies readonly VisOptionFlag[]
 
@@ -60,6 +61,7 @@ export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   alphaReadsByMappingQuality: false,
   mappingQualityCutoff: 0,
   coarsenedReadView: false,
+  coarsenedHaplotypeView: false,
   ignoreStrand: false,
 }
 
@@ -123,6 +125,7 @@ export function applyVisOptions(
   tubeMap.setShowReadsFlag(visOptions.showReads)
   tubeMap.setSoftClipsFlag(visOptions.showSoftClips)
   tubeMap.setCoarsenedReadViewFlag(visOptions.coarsenedReadView)
+  tubeMap.setCoarsenedHaplotypeViewFlag(visOptions.coarsenedHaplotypeView)
   tubeMap.setIgnoreStrandFlag(visOptions.ignoreStrand)
   tubeMap.setColorReadsByMappingQualityFlag(
     visOptions.colorReadsByMappingQuality,

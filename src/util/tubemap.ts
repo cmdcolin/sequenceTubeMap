@@ -33,6 +33,7 @@ import {
 import type {
   CoarsenedEdgeMeta,
   Coarsenings,
+  Layer,
   ColorableTrack,
   ImageBounds,
   InputNode,
@@ -120,6 +121,7 @@ interface TubeMapConfig {
   showReads: boolean
   showSoftClips: boolean
   coarsenedReadView: boolean
+  coarsenedHaplotypeView: boolean
   ignoreStrand: boolean
   colorReadsByMappingQuality: boolean
   alphaReadsByMappingQuality: boolean
@@ -250,6 +252,7 @@ const config: TubeMapConfig = {
   showReads: true,
   showSoftClips: true,
   coarsenedReadView: false,
+  coarsenedHaplotypeView: false,
   ignoreStrand: false,
   colorReadsByMappingQuality: false,
   alphaReadsByMappingQuality: false,
@@ -468,6 +471,25 @@ export function setShowReadsFlag(value: boolean): void {
 // instead of per-read ribbons.
 export function setCoarsenedReadViewFlag(value: boolean): void {
   config.coarsenedReadView = value
+}
+
+// Bands the haplotypes beside the reference even with reads on screen, which
+// then band only under the coarsened read view
+export function setCoarsenedHaplotypeViewFlag(value: boolean): void {
+  config.coarsenedHaplotypeView = value
+}
+
+// Unset leaves the layers to coarsenedReadView
+function layersFromConfig(): Layer[] | undefined {
+  return config.coarsenedHaplotypeView
+    ? [
+        { data: 'haplotypes', stat: 'coarsen' },
+        {
+          data: 'reads',
+          ...(config.coarsenedReadView ? { stat: 'coarsen' as const } : {}),
+        },
+      ]
+    : undefined
 }
 
 // Treat forward and reverse strands as equivalent. In normal mode this drops
@@ -785,6 +807,7 @@ function layOut(): TubeMapLayout | undefined {
     mergeNodes: config.mergeNodesFlag,
     showReads: config.showReads,
     coarsenedReadView: config.coarsenedReadView,
+    layers: layersFromConfig(),
     ignoreStrand: config.ignoreStrand,
     nodeWidthOption: config.nodeWidthOption,
     charWidth:

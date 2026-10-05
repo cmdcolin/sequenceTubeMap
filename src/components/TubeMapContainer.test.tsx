@@ -70,6 +70,7 @@ const VIS_OPTIONS: VisOptions = {
   colorSchemes: [],
   mappingQualityCutoff: 0,
   coarsenedReadView: false,
+  coarsenedHaplotypeView: false,
   ignoreStrand: false,
 }
 

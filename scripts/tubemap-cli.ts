@@ -74,6 +74,11 @@ const FLAG_OPTIONS: Record<
     value: true,
     help: 'one band per node-to-node transition, not per read',
   },
+  coarsenedHaplotypeView: {
+    flag: 'banded-haplotypes',
+    value: true,
+    help: 'band the haplotypes even with reads on screen',
+  },
   ignoreStrand: {
     flag: 'ignore-strand',
     value: true,

@@ -978,6 +978,102 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
   })
 })
 
+describe('tubemap.create — banded haplotypes with reads on screen', () => {
+  const nodes: InputNode[] = [
+    { name: '1', seq: 'AAAA' },
+    { name: '2', seq: 'CCCC' },
+    { name: '3', seq: 'GGGG' },
+    { name: '4', seq: 'TTTT' },
+  ]
+  const tracks: InputTrack[] = [
+    {
+      id: 0,
+      name: 'ref',
+      sequence: ['1', '2', '4'],
+      sourceTrackID: 0,
+      indexOfFirstBase: 0,
+    },
+    { id: 1, name: 'alt1', sequence: ['1', '3', '4'], sourceTrackID: 0 },
+    { id: 2, name: 'alt2', sequence: ['1', '3', '4'], sourceTrackID: 0 },
+  ]
+  const reads: InputTrack[] = [
+    { id: 3, name: 'r1', sequence: ['1', '2'] },
+    { id: 4, name: 'r2', sequence: ['1', '3', '4'] },
+  ].map(read => ({
+    ...read,
+    type: 'read' as const,
+    sourceTrackID: 1,
+    mapping_quality: 60,
+    finalNodeCoverLength: 2,
+  }))
+  const files = [
+    { trackType: 'graph' as const, trackFile: 'x.gbz.db' },
+    { trackType: 'read' as const, trackFile: 'x.gam' },
+  ]
+
+  afterEach(() => {
+    tubeMap.setMergeNodesFlag(true)
+    tubeMap.setCoarsenedHaplotypeViewFlag(false)
+    tubeMap.setCoarsenedReadViewFlag(false)
+    tubeMap.setColorReadsByMappingQualityFlag(false)
+  })
+
+  function draw(coarsenReads: boolean) {
+    setupSvg()
+    tubeMap.setMergeNodesFlag(false)
+    tubeMap.setCoarsenedHaplotypeViewFlag(true)
+    tubeMap.setCoarsenedReadViewFlag(coarsenReads)
+    const svg = render(nodes, tracks, reads)
+    const names = new Set(
+      [...svg.querySelectorAll('[trackName]')].map(el =>
+        el.getAttribute('trackName'),
+      ),
+    )
+    const coloring = tubeMap.getRenderedColoring()
+    const legend = legendSections({ tracks: files, ...coloring }).map(s =>
+      s.rows.map(r => r.label),
+    )
+    return { svg, names: [...names], coloring, legend }
+  }
+
+  it('draws the reads one by one under haplotype bands, and keys both', () => {
+    tubeMap.setColorReadsByMappingQualityFlag(true)
+    const { svg, names, coloring, legend } = draw(false)
+    expect(names.filter(name => name?.includes('→')).sort()).toEqual([
+      '2 haplotypes (100%): Node 1 → Node 3',
+      '2 haplotypes (100%): Node 3 → Node 4',
+    ])
+    expect(names).toEqual(expect.arrayContaining(['ref', 'r1', 'r2']))
+    expect(names).not.toContain('alt1')
+    expect(
+      svg
+        .querySelector('[trackName$="Node 1 → Node 3"]')!
+        .getAttribute('color'),
+    ).toBe(haplotypeShareColor({ count: 2, total: 2 }))
+    expect(new Set(coloring.drawn.map(t => t.mark))).toEqual(
+      new Set(['reference', 'haplotypeBand', 'read']),
+    )
+    expect(legend).toEqual([
+      ['Reference path ref', 'Bands, 1 to all 2 other haplotypes'],
+      ['Mapping quality 0–60'],
+    ])
+  })
+
+  it('bands both layers under ids and labels of their own', () => {
+    const { names, coloring, legend } = draw(true)
+    const bands = coloring.drawn.filter(t => t.id >= 1_000_000_000)
+    expect(new Set(bands.map(t => t.id)).size).toBe(bands.length)
+    expect(bands.filter(t => t.mark === 'readBand').length).toBe(3)
+    expect(bands.filter(t => t.mark === 'haplotypeBand').length).toBe(2)
+    expect(names.filter(name => name?.includes(' read'))).toHaveLength(3)
+    expect(names).not.toContain('r1')
+    expect(legend).toEqual([
+      ['Reference path ref', 'Bands, 1 to all 2 other haplotypes'],
+      ['Read bands'],
+    ])
+  })
+})
+
 describe('tubemap.subscribeRenderedColoring', () => {
   afterEach(() => {
     tubeMap.setIgnoreStrandFlag(false)

@@ -219,6 +219,34 @@ describe('legendSections', () => {
     ])
   })
 
+  it('keys banded haplotypes and the reads under them, each by its own scale', () => {
+    const band: DrawnTrack = {
+      mark: 'haplotypeBand',
+      source: 0,
+      id: 1_000_000_000,
+      reverse: false,
+      share: { count: 3, total: 7 },
+    }
+    const graphRows = [
+      'Reference path 17=#d9d9d9',
+      'Bands, 1 to all 7 other haplotypes=ramp',
+    ]
+    expect(
+      rowsFor(
+        GRAPH_AND_READS,
+        [reference, band, read(1, { mappingQuality: 60 })],
+        { colorReadsByMappingQuality: true },
+      ),
+    ).toEqual([graphRows, ['Mapping quality 0–60=ramp']])
+    expect(
+      rowsFor(GRAPH_AND_READS, [
+        reference,
+        band,
+        read(1_000_000_001, { mark: 'readBand', reverse: true }),
+      ]),
+    ).toEqual([graphRows, ['Reverse read bands=reds']])
+  })
+
   it('names the greys the renderer falls back to without an aux palette', () => {
     expect(
       legendSections({

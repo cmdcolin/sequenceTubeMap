@@ -132,8 +132,14 @@ vis=compressedView,coarsenedReadView,-showReads
 | --------------------------------------------------------- | ------- |
 | `removeRedundantNodes` `showReads` `showSoftClips`        | on      |
 | `compressedView` `coarsenedReadView` `ignoreStrand`       | off     |
+| `coarsenedHaplotypeView`                                  | off     |
 | `transparentNodes` `showNodeLabels`                       | off     |
 | `colorReadsByMappingQuality` `alphaReadsByMappingQuality` | off     |
+
+`coarsenedReadView` bands the reads, or the haplotypes beside the reference when
+no reads are loaded. `coarsenedHaplotypeView` bands those haplotypes whatever is
+loaded, and stacks the reads under them: one by one, or as bands too with
+`coarsenedReadView`.
 
 Only the settings that differ from the defaults go in a generated link, and any
 the URL leaves out fall back to the setting remembered from last time. A later

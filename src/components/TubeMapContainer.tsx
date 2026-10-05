@@ -87,13 +87,17 @@ export function graphNodeVisits(tracks: InputTrack[]): number {
   return tracks.reduce((sum, track) => sum + track.sequence.length, 0)
 }
 
-// The layout coarsens the haplotypes themselves only when there are no reads
-// for the coarsened view to collapse instead.
+// The layout bands the haplotypes when asked to outright, and under the
+// coarsened view when there are no reads for it to collapse instead.
 export function graphRenderLimit(
-  visOptions: Pick<VisOptions, 'showReads' | 'coarsenedReadView'>,
+  visOptions: Pick<
+    VisOptions,
+    'showReads' | 'coarsenedReadView' | 'coarsenedHaplotypeView'
+  >,
   readCount: number,
 ): number {
-  return visOptions.showReads && visOptions.coarsenedReadView && readCount === 0
+  return visOptions.coarsenedHaplotypeView ||
+    (visOptions.showReads && visOptions.coarsenedReadView && readCount === 0)
     ? COARSENED_GRAPH_RENDER_LIMIT
     : GRAPH_RENDER_LIMIT
 }

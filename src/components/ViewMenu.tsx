@@ -74,6 +74,14 @@ export function ViewMenu({
               helpText="Uses a logarithmic scale for node width instead of a linear one, so very long nodes don't visually dominate short ones. Sequence bases are not rendered in this mode."
             />
             <CheckboxMenuItem
+              label="Band haplotypes (Sankey)"
+              checked={visOptions.coarsenedHaplotypeView}
+              onToggle={() => {
+                toggleVisOptionFlag('coarsenedHaplotypeView')
+              }}
+              helpText="Aggregates the non-reference haplotypes into one band per node→node edge, shaded by the share of haplotypes that take it, while reads stay on screen beneath them. The coarsened view below still decides whether those reads draw one by one or as bands."
+            />
+            <CheckboxMenuItem
               label="Fully transparent nodes"
               checked={visOptions.transparentNodes}
               onToggle={() => {

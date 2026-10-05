@@ -632,11 +632,16 @@ describe('layoutTubeMap', () => {
       { id: 2, name: 'alt2', sequence: ['1', '3', '4'], sourceTrackID: 0 },
     ]
     const reads: InputTrack[] = [
-      { id: 10, name: 'r1', type: 'read', sequence: ['1', '2', '4'] },
-      { id: 11, name: 'r2', type: 'read', sequence: ['1', '3'] },
-      { id: 12, name: 'r3', type: 'read', sequence: ['-4', '-3'] },
-      { id: 13, name: 'r4', type: 'read', sequence: ['2', '4'] },
-    ].map(read => ({ ...read, sourceTrackID: 1, finalNodeCoverLength: 1 }))
+      { id: 10, name: 'r1', sequence: ['1', '2', '4'] },
+      { id: 11, name: 'r2', sequence: ['1', '3'] },
+      { id: 12, name: 'r3', sequence: ['-4', '-3'] },
+      { id: 13, name: 'r4', sequence: ['2', '4'] },
+    ].map(read => ({
+      ...read,
+      type: 'read' as const,
+      sourceTrackID: 1,
+      finalNodeCoverLength: 1,
+    }))
     const layered = (readStat?: 'coarsen') =>
       layoutTubeMap(nodes, threeWay, reads, {
         mergeNodes: false,
