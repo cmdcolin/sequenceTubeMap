@@ -295,6 +295,28 @@ describe('an HPRC slice with a companion haplotype index', () => {
     }
   })
 
+  it('names every haplotype on its own when asked for all of them', async () => {
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [
+        { trackFile: id, trackType: 'graph', haplotypeIndexFile: index },
+      ],
+      region: 'GRCh38#chr6:31500000-31501000',
+    }
+    const pathsOf = async (target: ViewTarget) =>
+      ((await api.getChunkedData(target, null)).graph as ConvertedGraph).path
+    const distinct = await pathsOf(viewTarget)
+    const all = await pathsOf({ ...viewTarget, allHaplotypes: true })
+    expect(all.length).toBe(
+      distinct.reduce((sum, path) => sum + (path.freq ?? 1), 0),
+    )
+    expect(all.length).toBeGreaterThan(distinct.length)
+    const names = all.map(p => p.name!)
+    expect(new Set(names).size).toBe(names.length)
+    expect(names).toContain('HG00438#1#JAHBCB010000040.1')
+    expect(names).toContain('HG00438#2#JAHBCA010000042.1')
+  })
+
   it('lists the indexed reference paths with fragment offsets and index lengths', async () => {
     const { pathInfo } = await api.getPathInfo(id, null, index)
     expect(pathInfo).toContainEqual({

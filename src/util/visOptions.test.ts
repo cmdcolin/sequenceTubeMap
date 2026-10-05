@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { dataOriginTypes } from '../enums.ts'
-import { exampleColorSchemes } from './visOptions.ts'
+import { exampleColorSchemes, fetchTargetFor } from './visOptions.ts'
 
 describe('exampleColorSchemes', () => {
   it('mutes the graph and keeps both read strands on the alignment examples', () => {
@@ -36,5 +36,19 @@ describe('exampleColorSchemes', () => {
     expect(exampleColorSchemes('not an example')[0]).toEqual(
       exampleColorSchemes(dataOriginTypes.EXAMPLE_1)[0],
     )
+  })
+})
+
+describe('fetchTargetFor', () => {
+  const target = { region: 'x:1-100', tracks: [] }
+
+  it('asks for every haplotype only under a haplotype facet', () => {
+    expect(fetchTargetFor(target, { facetBy: 'haplotype_sample' })).toEqual({
+      ...target,
+      allHaplotypes: true,
+    })
+    for (const facetBy of [null, 'read_group', 'sample_name'] as const) {
+      expect(fetchTargetFor(target, { facetBy })).toBe(target)
+    }
   })
 })

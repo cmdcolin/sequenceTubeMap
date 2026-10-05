@@ -7,7 +7,7 @@ import Select from '@mui/material/Select'
 import Typography from '@mui/material/Typography'
 import type { FacetBy } from '@gmod/tubemap-core'
 import type { ViewTarget, VisOptionFlag, VisOptions } from '../Types.ts'
-import { MAX_MAPPING_QUALITY_CUTOFF } from '../util/visOptions.ts'
+import { facetByFrom, MAX_MAPPING_QUALITY_CUTOFF } from '../util/visOptions.ts'
 import { AppBarMenu } from './AppBarMenu.tsx'
 import { CheckboxMenuItem } from './CheckboxMenuItem.tsx'
 import { HelpDialog } from './HelpDialog.tsx'
@@ -19,12 +19,6 @@ const MAPPING_QUALITY_VALUES = Array.from(
   { length: MAX_MAPPING_QUALITY_CUTOFF + 1 },
   (_, i) => i,
 )
-
-const FACET_CHOICES: Record<string, FacetBy | null> = {
-  none: null,
-  read_group: 'read_group',
-  sample_name: 'sample_name',
-}
 
 interface ViewMenuProps {
   legendVisible: boolean
@@ -106,6 +100,49 @@ export function ViewMenu({
               }}
               helpText="Displays the numeric node ID on each graph node."
             />
+            <Box
+              sx={{
+                px: 2,
+                py: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+              onKeyDown={e => {
+                e.stopPropagation()
+              }}
+            >
+              <Typography variant="body2" id="facetByLabel">
+                Facet by:
+              </Typography>
+              <HelpDialog title="Facet by">
+                Draws the graph once per group, stacked top to bottom under one
+                zoom. A read group or read sample panel holds every haplotype
+                and that group&apos;s reads. A haplotype sample panel holds the
+                reference and the haplotypes whose PanSN name
+                (sample#haplotype#contig) names that sample, with any other
+                haplotypes in a last panel and the reads in one of their own
+                below. Every panel shares node positions, so the same node lines
+                up down the stack.
+              </HelpDialog>
+              <Select
+                labelId="facetByLabel"
+                value={visOptions.facetBy ?? 'none'}
+                onChange={e => {
+                  handleFacetByChange(facetByFrom(e.target.value) ?? null)
+                }}
+                data-testid="facetBySelect"
+              >
+                <MenuItem value="none">none</MenuItem>
+                <MenuItem value="read_group" disabled={readsDisabled}>
+                  read group
+                </MenuItem>
+                <MenuItem value="sample_name" disabled={readsDisabled}>
+                  read sample
+                </MenuItem>
+                <MenuItem value="haplotype_sample">haplotype sample</MenuItem>
+              </Select>
+            </Box>
             <Divider />
             <ListSubheader>Reads</ListSubheader>
             <CheckboxMenuItem
@@ -195,41 +232,6 @@ export function ViewMenu({
                     {value}
                   </MenuItem>
                 ))}
-              </Select>
-            </Box>
-            <Box
-              sx={{
-                px: 2,
-                py: 0.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}
-              onKeyDown={e => {
-                e.stopPropagation()
-              }}
-            >
-              <Typography variant="body2" id="facetByLabel">
-                Facet reads by:
-              </Typography>
-              <HelpDialog title="Facet reads by">
-                Draws the graph once per read group or sample, stacked top to
-                bottom with each panel holding only that subset of the reads.
-                Every panel shares node positions, so the same node lines up
-                across panels and their reads compare at a glance.
-              </HelpDialog>
-              <Select
-                labelId="facetByLabel"
-                disabled={readsDisabled}
-                value={visOptions.facetBy ?? 'none'}
-                onChange={e => {
-                  handleFacetByChange(FACET_CHOICES[e.target.value] ?? null)
-                }}
-                data-testid="facetBySelect"
-              >
-                <MenuItem value="none">none</MenuItem>
-                <MenuItem value="read_group">read group</MenuItem>
-                <MenuItem value="sample_name">sample</MenuItem>
               </Select>
             </Box>
             <Divider />

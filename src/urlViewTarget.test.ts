@@ -465,20 +465,25 @@ describe('vis short form', () => {
     expect(visOf(params)).toEqual({ mappingQualityCutoff: 30 })
   })
 
-  it('reads the read facet from facet, ignoring a field it cannot split by', () => {
+  it('reads the facet from facet, ignoring a field it cannot split by', () => {
     expect(visOf('facet=read_group')).toEqual({ facetBy: 'read_group' })
     expect(visOf('facet=sample_name')).toEqual({ facetBy: 'sample_name' })
+    expect(visOf('facet=haplotype_sample')).toEqual({
+      facetBy: 'haplotype_sample',
+    })
     expect(visOf('facet=none')).toEqual({ facetBy: null })
     expect(visOf('facet=population')).toEqual({})
   })
 
-  it('round trips a read facet', () => {
-    const params = viewTargetToUrlParams(
-      { region: 'x:1-100', tracks: [] },
-      { ...DEFAULT_VIS_OPTIONS, facetBy: 'sample_name' },
-    )
-    expect(params).toContain('facet=sample_name')
-    expect(visOf(params)).toEqual({ facetBy: 'sample_name' })
+  it('round trips a facet', () => {
+    for (const facetBy of ['sample_name', 'haplotype_sample'] as const) {
+      const params = viewTargetToUrlParams(
+        { region: 'x:1-100', tracks: [] },
+        { ...DEFAULT_VIS_OPTIONS, facetBy },
+      )
+      expect(params).toContain(`facet=${facetBy}`)
+      expect(visOf(params)).toEqual({ facetBy })
+    }
   })
 })
 
