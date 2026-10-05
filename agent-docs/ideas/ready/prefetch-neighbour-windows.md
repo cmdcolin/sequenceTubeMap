@@ -1,3 +1,8 @@
+---
+name: prefetch-neighbour-windows
+description: Fetch the windows a shift left or right would land on in the background, so the shift skips the fetch; the redraw still re-lays out from scratch.
+---
+
 # Prefetch the neighbouring windows
 
 Shift left/right (`shiftRegion` in `src/components/HeaderForm.tsx`, half a
@@ -23,4 +28,4 @@ the shift itself instant without touching layout.
 ## What it does not fix
 
 The arrival still re-runs `layoutTubeMap` from scratch and resets the viewport.
-See [tiled-tubemap-layout.md](tiled-tubemap-layout.md) for that.
+See [tiled-tubemap-layout.md](../waiting-on-a-call/tiled-tubemap-layout.md) for that.

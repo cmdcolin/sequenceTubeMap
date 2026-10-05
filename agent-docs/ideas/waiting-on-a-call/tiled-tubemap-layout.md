@@ -1,3 +1,8 @@
+---
+name: tiled-tubemap-layout
+description: Why side scroll with lazy loading cannot tile the tube map layout, which depends on the whole window, and the plugin-side path that could: reference-pinned columns plus lane stability across re-cuts.
+---
+
 # Side scroll with lazy loading, and why the layout is the obstacle
 
 Surveyed 2026-09-27 against this app and
