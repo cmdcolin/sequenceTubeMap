@@ -35,9 +35,11 @@ done
 # companion as `haplotypeIndexFile`. micb-kir3dl1 has no .gbz here, so its
 # companion comes from the database.
 if command -v gbz-haplotype-index >/dev/null; then
-  gbz-haplotype-index --overwrite exampleData/hprc-chrM.gbz \
-    exampleData/hprc-chrM.gbz.db exampleData/hprc-chrM.haplotype-index.db
-  gbz-haplotype-index --overwrite --from-db exampleData/micb-kir3dl1.gbz.db \
+  gbz-haplotype-index --overwrite --anchor-spacing 131072 --page-size 4096 \
+    exampleData/hprc-chrM.gbz exampleData/hprc-chrM.gbz.db \
+    exampleData/hprc-chrM.haplotype-index.db
+  gbz-haplotype-index --overwrite --anchor-spacing 131072 --page-size 4096 \
+    --from-db exampleData/micb-kir3dl1.gbz.db \
     exampleData/micb-kir3dl1.haplotype-index.db
 fi
 

@@ -125,12 +125,13 @@ cores and yields a 7.9 GB companion. The bundled examples take seconds.
 the samples along each path are, so halving it roughly doubles the table and
 halves the `lf()` walk needed to name a path that missed every sample. Small
 graphs like the bundled examples are fine at the default; the published HPRC
-v2.1 index was built at 16384. `--anchor-spacing` (default 131072 bp) does the
-same for `HaplotypeAnchors`.
+v2.1 index was built at 16384. `--anchor-spacing` (default 32768 bp in 0.3.0)
+does the same for `HaplotypeAnchors`.
 
-gbz-base 3.0 reads the index only from a companion. A database built by an older
-`gbz-haplotype-index` with the tables inside it now reports `unknown#N` like any
-other; `--from-db` builds its companion without the GBZ. The bundled
+gbz-base 7 reads the index only from a companion, and only format 3, which
+`gbz-haplotype-index` 0.3 writes; it refuses any other. A database built by an
+older `gbz-haplotype-index` with the tables inside it now reports `unknown#N`
+like any other; `--from-db` builds its companion without the GBZ. The bundled
 `exampleData/hprc-chrM.gbz.db` (110 kB) and `exampleData/micb-kir3dl1.gbz.db`
 (an HPRC slice from the package's test data) each have a `.haplotype-index.db`
 beside them, which `scripts/rebuild-bundled-dbs.sh` regenerates.
