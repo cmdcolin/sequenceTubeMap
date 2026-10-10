@@ -124,6 +124,17 @@ describe('when a file is uploaded', () => {
     expect(view.region).toEqual([5, 5])
   })
 
+  it('says when no fragment of the path covers the region', async () => {
+    const viewTarget: ViewTarget = {
+      dataType: 'mounted files',
+      tracks: [{ trackFile: uploadName!, trackType: 'graph' }],
+      region: 'x:5000-5010',
+    }
+    await expect(api.getChunkedData(viewTarget, null)).rejects.toThrow(
+      /no fragment of path x covers 5000-5010/,
+    )
+  })
+
   it('can query the last base of the path', async () => {
     const { pathInfo } = await api.getPathInfo(uploadName!, null)
     const lastBase = pathInfo[0]!.length! - 1

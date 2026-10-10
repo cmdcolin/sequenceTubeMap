@@ -128,13 +128,14 @@ it('rejects an abandoned view with an AbortError and reads nothing more', async 
 it('reports a graph query aborted partway as an AbortError', async () => {
   const api = new GBZBaseAPI()
   const controller = new AbortController()
-  const query = GBZBase.prototype.getSubgraphForRange
-  vi.spyOn(GBZBase.prototype, 'getSubgraphForRange').mockImplementation(
-    function (this: GBZBase, ...args) {
-      controller.abort()
-      return query.apply(this, args)
-    },
-  )
+  const query = GBZBase.prototype.getSubgraphs
+  vi.spyOn(GBZBase.prototype, 'getSubgraphs').mockImplementation(function (
+    this: GBZBase,
+    ...args
+  ) {
+    controller.abort()
+    return query.apply(this, args)
+  })
 
   await expect(
     api.getChunkedData(readsView(), controller.signal),

@@ -14,11 +14,14 @@ import {
   GENERIC_SAMPLE,
   SCHEMA_VERSION,
   SchemaVersionError,
-  nodes as gbzNodes,
-  subgraphAroundNodes,
+  SubgraphLimitError,
 } from '@gmod/gbz-base'
-import type { HaplotypeOutput, PathName, Subgraph } from '@gmod/gbz-base'
-import { SubgraphLimitError } from '@gmod/gbz-base'
+import type {
+  GbzPath,
+  NodeHaplotypeOutput,
+  PathName,
+  Subgraph,
+} from '@gmod/gbz-base'
 
 import {
   isGbzDbFilename,
@@ -150,33 +153,87 @@ export function isUserFacingPath(name: string): boolean {
   return !name.startsWith('_') && !/^thread_\d+$/.test(name)
 }
 
-// Per-path node-id range from the ReferenceIndex samples. Approximate — the
-// index samples nodes, so a path can in principle traverse ids outside
-// MIN/MAX; for typical reference paths this is rare.
+// A fragment's length. gbz-base takes it from the companion index when there
+// is one, and otherwise walks the fragment.
+async function pathLength(db: GBZBase, path: GbzPath): Promise<number> {
+  const [fragment] = await db.getPathFragments({
+    path: {
+      sample: path.name.sample,
+      contig: path.name.contig,
+      haplotype: path.name.haplotype,
+    },
+    start: path.name.fragment,
+    end: path.name.fragment + 1,
+  })
+  return fragment === undefined ? 0 : fragment.end - fragment.start
+}
+
+// Per-path node-id range, from the nodes each fragment's subgraph holds. A
+// path past the node limit throws SubgraphLimitError.
 async function pathNodeRanges(
   db: GBZBase,
+  paths: GbzPath[],
+  nodeLimit: number,
   cancelSignal: AbortSignal | null,
 ): Promise<Map<number, NodeIdRange>> {
   const ranges = new Map<number, NodeIdRange>()
-  for await (const { values } of db.sqlite.scan('ReferenceIndex')) {
+  for (const path of paths) {
     cancelSignal?.throwIfAborted()
-    const [pathHandle, , nodeHandle] = values
-    if (typeof pathHandle === 'number' && typeof nodeHandle === 'number') {
-      const id = BigInt(gbzNodes.nodeId(nodeHandle))
-      const range = ranges.get(pathHandle)
-      if (!range) {
-        ranges.set(pathHandle, { min: id, max: id })
-      } else {
-        if (id < range.min) {
-          range.min = id
-        }
-        if (id > range.max) {
-          range.max = id
-        }
-      }
+    const start = path.name.fragment
+    const end = start + (await pathLength(db, path))
+    const ids = nodeIdsOf(
+      await db.subgraphInInterval({
+        path: {
+          sample: path.name.sample,
+          contig: path.name.contig,
+          haplotype: path.name.haplotype,
+        },
+        start,
+        end,
+        haplotypes: 'none',
+        context: 0,
+        limit: nodeLimit,
+        signal: cancelSignal ?? undefined,
+      }),
+    )
+    if (ids.length > 0) {
+      ranges.set(path.handle, {
+        min: BigInt(ids.reduce((a, b) => Math.min(a, b))),
+        max: BigInt(ids.reduce((a, b) => Math.max(a, b))),
+      })
     }
   }
   return ranges
+}
+
+function nodeIdsOf(subgraph: Subgraph): number[] {
+  return Array.from(subgraph.toCompactSubgraph().nodeIds)
+}
+
+// gbz-base refuses an id it does not have, so each id in a node range is
+// probed on its own.
+async function nodeExists(
+  db: GBZBase,
+  id: number,
+  signal: AbortSignal | null,
+): Promise<boolean> {
+  if (id < 1) {
+    return false
+  }
+  try {
+    await db.subgraphAroundNodes({
+      nodeIds: [id],
+      context: 0,
+      haplotypes: 'none',
+      signal: signal ?? undefined,
+    })
+    return true
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('does not exist')) {
+      return false
+    }
+    throw e
+  }
 }
 
 const READ_COUNT_MAX_BYTES = 32 * 1024 * 1024
@@ -235,12 +292,13 @@ function subgraphLimitMessage(region: string, e: SubgraphLimitError): string {
 // The server's node regions, cut the way `vg chunk` cuts them:
 // `node:first-last` is the nodes with ids in that range and everything within
 // 20 edges of them, and `node:id+steps` is node `id` and everything within
-// `steps` edges. gbz-base measures its own context in bases, so the steps are
-// walked here and gbz-base asked for those nodes with none added.
+// `steps` edges. gbz-base widens a query by bases, not edges, so each step
+// asks for the frontier with a one-base context, which adds the nodes one edge
+// away.
 async function nodeRegionSubgraph(
   db: GBZBase,
   region: Region,
-  haplotypes: HaplotypeOutput,
+  haplotypes: NodeHaplotypeOutput,
   signal: AbortSignal | null,
 ): Promise<Subgraph> {
   const first = region.start
@@ -251,13 +309,10 @@ async function nodeRegionSubgraph(
       `node:${first}-${last} spans more than ${MAX_NODE_REGION} node ids`,
     )
   }
-  await db.prefetchRecords(
-    gbzNodes.encodeNode(first, 'forward'),
-    gbzNodes.encodeNode(last, 'reverse'),
-  )
   let frontier: number[] = []
   for (let id = first; id <= last; id++) {
-    if (await db.getRecord(gbzNodes.encodeNode(id, 'forward'))) {
+    signal?.throwIfAborted()
+    if (await nodeExists(db, id, signal)) {
       frontier.push(id)
     }
   }
@@ -271,27 +326,28 @@ async function nodeRegionSubgraph(
   const reached = new Set(frontier)
   for (let step = 0; step < steps && frontier.length > 0; step++) {
     signal?.throwIfAborted()
+    const around = await db.subgraphAroundNodes({
+      nodeIds: frontier,
+      context: 1,
+      haplotypes: 'none',
+      signal: signal ?? undefined,
+    })
     const next: number[] = []
-    for (const id of frontier) {
-      for (const orientation of ['forward', 'reverse'] as const) {
-        const record = await db.getRecord(gbzNodes.encodeNode(id, orientation))
-        for (const successor of record?.successors() ?? []) {
-          const neighbor = gbzNodes.nodeId(successor)
-          if (!reached.has(neighbor)) {
-            if (reached.size >= MAX_NODE_REGION) {
-              throw new Error(
-                `more than ${MAX_NODE_REGION} nodes lie within ${steps} edges; ask for fewer steps`,
-              )
-            }
-            reached.add(neighbor)
-            next.push(neighbor)
-          }
+    for (const id of nodeIdsOf(around)) {
+      if (!reached.has(id)) {
+        if (reached.size >= MAX_NODE_REGION) {
+          throw new Error(
+            `more than ${MAX_NODE_REGION} nodes lie within ${steps} edges; ask for fewer steps`,
+          )
         }
+        reached.add(id)
+        next.push(id)
       }
     }
     frontier = next
   }
-  const subgraph = await subgraphAroundNodes(db, [...reached], {
+  const subgraph = await db.subgraphAroundNodes({
+    nodeIds: [...reached],
     context: 0,
     haplotypes,
     signal: signal ?? undefined,
@@ -511,7 +567,8 @@ export class GBZBaseAPI implements APIInterface {
       opened = (async () => {
         const source = this.byteSource(trackFile)
         try {
-          return await GBZBase.open(source, {
+          return await GBZBase.open({
+            source,
             ...(indexFile !== undefined && {
               haplotypeIndex: this.byteSource(indexFile),
             }),
@@ -609,16 +666,19 @@ export class GBZBaseAPI implements APIInterface {
         // The server's `vg chunk -p contig:start-end` includes `end`, while
         // gbz-base treats it as exclusive, so ask for one more base to keep
         // both backends showing the same sequence for the same region string.
-        subgraph = await db.getSubgraphForRange(
-          pathQueryFor(contig),
-          start,
-          end + 1,
-          {
-            haplotypes,
-            limit: this.subgraphNodeLimit,
-            signal: cancelSignal ?? undefined,
-          },
-        )
+        const window = { path: pathQueryFor(contig), start, end: end + 1 }
+        const [fragment] = await db.getPathFragments(window)
+        subgraph =
+          fragment !== undefined && fragment.start <= start
+            ? (
+                await db.getSubgraphs({
+                  ...window,
+                  haplotypes,
+                  limit: this.subgraphNodeLimit,
+                  signal: cancelSignal ?? undefined,
+                })
+              )[0]
+            : undefined
         if (!subgraph) {
           throw new Error(
             `no fragment of path ${contig} covers ${start}-${end}`,
@@ -833,7 +893,7 @@ export class GBZBaseAPI implements APIInterface {
       paths.map(async ({ path, name }) => ({
         name,
         start: path.name.fragment,
-        length: await db.pathLength(path.handle),
+        length: await pathLength(db, path),
         cyclic: false,
       })),
     )
@@ -907,13 +967,27 @@ export class GBZBaseAPI implements APIInterface {
       return null
     }
     const db = await this.openGraph(graphFile)
-    const ranges = await pathNodeRanges(db, cancelSignal)
-    const paths = (await db.paths())
-      .filter(p => p.isIndexed)
+    const indexed = (await db.paths()).filter(
+      p => p.isIndexed && isUserFacingPath(displayName(p.name)),
+    )
+    const ranges = await pathNodeRanges(
+      db,
+      indexed,
+      this.subgraphNodeLimit,
+      cancelSignal,
+    ).catch((e: unknown) => {
+      if (e instanceof SubgraphLimitError) {
+        return undefined
+      }
+      throw e
+    })
+    if (ranges === undefined) {
+      return null
+    }
+    const paths = indexed
       .map(p => ({ name: displayName(p.name), range: ranges.get(p.handle) }))
       .filter(
-        (p): p is { name: string; range: NodeIdRange } =>
-          p.range !== undefined && isUserFacingPath(p.name),
+        (p): p is { name: string; range: NodeIdRange } => p.range !== undefined,
       )
     if (paths.length === 0) {
       return null
