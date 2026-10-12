@@ -57,6 +57,40 @@ function copyExampleData() {
   }
 }
 
+// Vite's static server marks a `.gz` file `Content-Encoding: gzip`, so the
+// browser inflated it, but a `.bed.gz` is BGZF that the Tabix reader fetches
+// by byte range and inflates itself.
+function serveGzipAsBytes() {
+  const middleware = (req, res, next) => {
+    if (/\.gz$/i.test(new URL(req.url ?? '/', 'http://host').pathname)) {
+      const writeHead = res.writeHead.bind(res)
+      res.writeHead = (code, ...rest) => {
+        for (const headers of rest) {
+          if (
+            headers &&
+            typeof headers === 'object' &&
+            !Array.isArray(headers)
+          ) {
+            delete headers['Content-Encoding']
+          }
+        }
+        res.removeHeader('Content-Encoding')
+        return writeHead(code, ...rest)
+      }
+    }
+    next()
+  }
+  return {
+    name: 'serve-gzip-as-bytes',
+    configureServer(server) {
+      server.middlewares.use(middleware)
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(middleware)
+    },
+  }
+}
+
 export default defineConfig({
   base: './',
   build: {
@@ -79,6 +113,7 @@ export default defineConfig({
     // so the React Compiler has to be run as its own Babel pass.
     await babel({ presets: [reactCompilerPreset()] }),
     copyExampleData(),
+    serveGzipAsBytes(),
     startBackend(),
   ],
   server: {
