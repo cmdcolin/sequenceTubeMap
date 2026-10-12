@@ -8,14 +8,14 @@ import {
   parseWalkRow,
   walkCut,
   walkHeader,
-} from './walkRows.ts'
+} from './walkCut.ts'
 import type {
   WalkFragment,
   WalkHeader,
   WalkNode,
   WalkRow,
   WalkWindow,
-} from './walkRows.ts'
+} from './walkCut.ts'
 import type { PathInfo } from '../../Types.ts'
 import type { VgJson, VgNode, VgPath } from '../../util/tubemap.ts'
 
@@ -27,7 +27,7 @@ const CONTEXT_BP = 100
 const FOLLOW_ROUNDS = 3
 const FOLLOW_CHUNKS = 4
 
-export interface WalkFiles {
+export interface WalkFileHandles {
   walks: GenericFilehandle
   walksIndex: GenericFilehandle
   nodes: GenericFilehandle
@@ -36,12 +36,14 @@ export interface WalkFiles {
 
 export class WalkLimitError extends Error {}
 
-export class WalkTabix {
+// A walk file set read through its Tabix indexes: this class fetches the rows
+// under a window, and walkCut.ts makes the cut from them.
+export class WalkFiles {
   private walks: TabixIndexedFile
   private nodes: TabixIndexedFile
   private header: Promise<WalkHeader> | undefined
 
-  constructor(files: WalkFiles) {
+  constructor(files: WalkFileHandles) {
     this.walks = new TabixIndexedFile({
       filehandle: files.walks,
       tbiFilehandle: files.walksIndex,

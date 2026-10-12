@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import '../../config-client.js'
 import { isLocalGraphFilename, walkCompanions } from '../../common.ts'
 import { GBZBaseAPI } from '../GBZBaseAPI.ts'
-import { decodeSteps } from './walkRows.ts'
+import { decodeSteps } from './walkCut.ts'
 import type { ViewTarget } from '../../Types.ts'
 
 const WALKS = 'hprc-chrM.GRCh38.walks.bed.gz'

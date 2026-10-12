@@ -37,7 +37,7 @@ import type { Region } from '../common.ts'
 
 import { convertSchema, removeNodeSequencesInPlace } from './gbz/schema.ts'
 import type { ConvertedGraph } from './gbz/schema.ts'
-import { WalkLimitError, WalkTabix } from './tabix/WalkTabix.ts'
+import { WalkLimitError, WalkFiles } from './walks/WalkFiles.ts'
 import { pathQueryFor } from './gbz/pathQuery.ts'
 import { applyProgress } from './downloadProgress.ts'
 import type { ProgressListener } from './downloadProgress.ts'
@@ -382,7 +382,7 @@ export class GBZBaseAPI implements APIInterface {
   // against 0.7 MB from the index's own table.
   private haplotypeIndexes = new Map<string, string>()
   // One open walk file set per graph file, keyed the same way.
-  private walkGraphs = new Map<string, WalkTabix>()
+  private walkGraphs = new Map<string, WalkFiles>()
   // One seekable handle per read track file, keyed the same way.
   private trackSources = new Map<string, GenericFilehandle>()
   // Base URL to resolve relative trackFile paths against. Required because
@@ -627,7 +627,7 @@ export class GBZBaseAPI implements APIInterface {
   // A walk file, its index, and the node file and its index beside it: for
   // an upload, the files of those names dropped with it; for a URL, the URLs
   // of those names.
-  private openWalks(trackFile: string): WalkTabix {
+  private openWalks(trackFile: string): WalkFiles {
     const key = this.fileKey(trackFile)
     let opened = this.walkGraphs.get(key)
     if (!opened) {
@@ -644,7 +644,7 @@ export class GBZBaseAPI implements APIInterface {
         }
         return new BlobFile(blob)
       }
-      opened = new WalkTabix({
+      opened = new WalkFiles({
         walks: this.byteSource(trackFile),
         walksIndex: companion(names.walksIndex),
         nodes: companion(names.nodes),
