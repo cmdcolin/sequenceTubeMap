@@ -143,16 +143,16 @@ with each other and differ from the other samples' lanes in the same places:
 `--compressed` is the one to reach for whenever a figure comes out unreadably
 wide. Node width scales with sequence length, so any region spanning many bases
 lays out far wider than tall and the detail disappears; making width logarithmic
-pulls it back. snp1kg-BRCA1 at `17:1-1000` goes from 10046 units across to 1099
-at the same height, and it rescues a dense read pileup just as much as a graph
-with long nodes.
+pulls it back. snp1kg-BRCA1 at `17:1-1000` goes from 9839 units across to 892 at
+the same height, and it rescues a dense read pileup just as much as a graph with
+long nodes.
 
-Example 6 at natural node widths is 4221 units across
+Example 6 at natural node widths is 4074 units across
 ([SVG](tubemap-cli-samples/demo-example-6.svg)):
 
 ![Demo example 6](tubemap-cli-samples/demo-example-6.png)
 
-The same data with `--compressed` is 1725 across, and readable at the width a
+The same data with `--compressed` is 1578 across, and readable at the width a
 page actually gives it
 ([SVG](tubemap-cli-samples/demo-example-6-compressed.svg)):
 

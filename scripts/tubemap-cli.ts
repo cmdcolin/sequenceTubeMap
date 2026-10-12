@@ -144,8 +144,8 @@ reads are evenly subsampled the way the app's read-render limit does.
 --compressed is the flag to reach for whenever a figure comes out unreadably
 wide. Node width scales with sequence length, so any region spanning many bases
 lays out far wider than tall and the detail disappears; making width
-logarithmic pulls it back. snp1kg-BRCA1 at 17:1-1000 goes from 10122 units
-across to 1099, at the same height.
+logarithmic pulls it back. snp1kg-BRCA1 at 17:1-1000 goes from 9839 units
+across to 892, at the same height.
 `
 
 const TARGET_KINDS = ['graph', 'url', 'source', 'example'] as const

@@ -100,12 +100,16 @@ and opens the per-track visibility checklist as a dialog) — plus:
 
 ## What is unchanged
 
-The layout itself — node ordering, lane assignment, loop handling, read
-placement — is upstream's, ported to TypeScript rather than rewritten. So are
-the Express + `vg chunk` server, the tabix-indexed chunk support contributed by
-Jean Monlong, BED region navigation, and the example data. SVG download is
-upstream's too, but it now saves the whole map cropped to its content rather
-than the on-screen viewport (see
+The layout's passes — node ordering, lane assignment, loop handling, read
+placement — are upstream's, ported to TypeScript rather than rewritten. They now
+live in [@jbrowse/tubemap-core](https://github.com/GMOD/tubemap-core), whose
+[differences-from-upstream.md](https://github.com/GMOD/tubemap-core/blob/main/docs/differences-from-upstream.md)
+lists what it draws differently, the upstream bugs it fixes, and what it adds.
+
+The Express + `vg chunk` server, the tabix-indexed chunk support contributed by
+Jean Monlong, BED region navigation, and the example data are upstream's too.
+SVG download is upstream's too, but it now saves the whole map cropped to its
+content rather than the on-screen viewport (see
 [headless-rendering.md](headless-rendering.md)).
 
 ## Trade-offs
