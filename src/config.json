@@ -139,6 +139,22 @@
       "skipAutoLoad": true
     },
     {
+      "name": "HPRC v2.1 whole genome (gfa-to-tabix walks, URL-hosted)",
+      "tracks": [
+        {
+          "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f2.GRCh38.walks.bed.gz",
+          "trackType": "graph",
+          "trackColorSettings": {
+            "mainPalette": "plainColors",
+            "auxPalette": "lightColors"
+          }
+        }
+      ],
+      "region": "GRCh38#chr6:160620000-160620500",
+      "dataType": "built-in",
+      "skipAutoLoad": true
+    },
+    {
       "name": "cactus multiple reads",
       "tracks": [
         { "trackFile": "exampleData/cactus.vg.xg", "trackType": "graph" },

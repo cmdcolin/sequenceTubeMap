@@ -220,7 +220,18 @@ The cut matches the `.gbz.db` reader's: the reference over the region plus 100
 bp either side, and each haplotype through it. Where a haplotype leaves the
 reference near the edge, the walk reader follows it back to where it rejoins, so
 the walk-file cut can run a node or two wider. On the bundled chrM graph both
-readers name the same 44 haplotypes.
+readers name the same 44 haplotypes, and at HPRC v2.1's LPA region both
+return 344.
+
+HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
+(gfa-to-tabix walks, URL-hosted)** example reads:
+
+```json
+{
+  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f2.GRCh38.walks.bed.gz",
+  "trackType": "graph"
+}
+```
 
 ### Indexing reads for region queries
 
@@ -263,15 +274,16 @@ alone, since it is the only one it can open — `Discovered` is whatever
 ([server.md](server.md)). The in-browser entries, from `DATA_SOURCES` in
 `src/config.json`:
 
-| Example                                        | Graph                                | Haplotype names                                                                |
-| ---------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
-| snp1kg-BRCA1 (gbz-base)                        | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
-| cactus (gbz-base)                              | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
-| backward (gbz-base)                            | bundled, `fwd` and `rev` paths       | `_gbwt_ref` paths, no haplotypes                                               |
-| HPRC chrM (gbz-base, companion index)          | bundled, PanSN sample names          | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
-| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes) | bundled, an HPRC slice               | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
-| HPRC v2.1 whole genome (gbz-base, URL-hosted)  | hosted, 10 GB, read by range request | real, from the [companion index](#pointing-a-track-at-a-companion-index)       |
-| HPRC chrM (gfa-to-tabix walks)                 | bundled, the chrM graph's walk files | real, from the walk file                                                       |
+| Example                                                 | Graph                                 | Haplotype names                                                                |
+| ------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| snp1kg-BRCA1 (gbz-base)                                 | bundled, with a `.gam` read track     | `_gbwt_ref` paths, no haplotypes                                               |
+| cactus (gbz-base)                                       | bundled, with a `.gam` read track     | `_gbwt_ref` paths, no haplotypes                                               |
+| backward (gbz-base)                                     | bundled, `fwd` and `rev` paths        | `_gbwt_ref` paths, no haplotypes                                               |
+| HPRC chrM (gbz-base, companion index)                   | bundled, PanSN sample names           | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
+| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes)          | bundled, an HPRC slice                | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
+| HPRC v2.1 whole genome (gbz-base, URL-hosted)           | hosted, 10 GB, read by range request  | real, from the [companion index](#pointing-a-track-at-a-companion-index)       |
+| HPRC chrM (gfa-to-tabix walks)                          | bundled, the chrM graph's walk files  | real, from the walk file                                                       |
+| HPRC v2.1 whole genome (gfa-to-tabix walks, URL-hosted) | hosted, 1.2 GB, read by range request | real, from the walk file                                                       |
 
 Everything else in the menu — `snp1kg-BRCA1`, `vg "small" example`, `cactus`,
 `cactus multiple reads`, `Lancet example` — is an `.xg`/`.vg`/`.gbz` graph that
