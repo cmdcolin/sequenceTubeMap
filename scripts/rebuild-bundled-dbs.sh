@@ -2,7 +2,8 @@
 # Rebuild every `*.gbz.db` under exampleData/ from its `*.gbz` with upstream
 # gbz-base (`gbz-base construct`, or `gbz2db` on releases up to 0.5.1), then
 # write the companion haplotype indexes when gbz-haplotype-index is on PATH
-# (`cargo install gbz-haplotype-index`). See doc/data.md.
+# (`cargo install gbz-haplotype-index`), and the chrM walk files when vg and
+# gfa-to-tabix are (`cargo install gfa-to-tabix`). See doc/data.md.
 
 set -euo pipefail
 
@@ -41,6 +42,15 @@ if command -v gbz-haplotype-index >/dev/null; then
   gbz-haplotype-index --overwrite --anchor-spacing 131072 --page-size 4096 \
     --from-db exampleData/micb-kir3dl1.gbz.db \
     exampleData/micb-kir3dl1.haplotype-index.db
+fi
+
+# The chrM graph's gfa-to-tabix walk files, for the walk-file example
+if command -v vg >/dev/null && command -v gfa-to-tabix >/dev/null; then
+  gfa="$(mktemp --suffix .gfa)"
+  vg convert -f exampleData/hprc-chrM.gbz >"$gfa"
+  gfa-to-tabix "$gfa" --walks --refs GRCh38 --sequences \
+    -o exampleData/hprc-chrM
+  rm "$gfa"
 fi
 
 echo "Done. Re-run any built-in dataset that uses these files to confirm."

@@ -150,7 +150,54 @@ export function isEmpty(obj: object): boolean {
 // turn out not to be one. A URL is judged by its path, so a query string such
 // as a cache-buster or a signature doesn't hide the extension.
 export function isGbzDbFilename(name: string): boolean {
-  return /\.db$/i.test(urlPath(name))
+  return /\.db$/i.test(urlPath(name)) && !isHaplotypeIndexFilename(name)
+}
+
+// `gbz-haplotype-index` writes `<graph>.haplotype-index.db`, a companion to a
+// graph rather than a graph of its own.
+export function isHaplotypeIndexFilename(name: string): boolean {
+  return /\.haplotype-index\.db$/i.test(urlPath(name))
+}
+
+// `gfa-to-tabix --walks` writes `<prefix>.<sample>.walks.bed.gz`, with
+// `.nodes.bed.gz` and `.links.bed.gz` beside it, each with a `.tbi`.
+export const WALKS_SUFFIX = '.walks.bed.gz'
+
+export function isWalksFilename(name: string): boolean {
+  return /\.walks\.bed\.gz$/i.test(urlPath(name))
+}
+
+// The files the in-browser reader opens beside a walk file: its index, and
+// the node file with its index.
+export function walkCompanions(walksName: string): {
+  walksIndex: string
+  nodes: string
+  nodesIndex: string
+} {
+  const at = walksName.toLowerCase().lastIndexOf(WALKS_SUFFIX)
+  const nodes = `${walksName.slice(0, at)}.nodes.bed.gz${walksName.slice(at + WALKS_SUFFIX.length)}`
+  return {
+    walksIndex: withPathSuffix(walksName, '.tbi'),
+    nodes,
+    nodesIndex: withPathSuffix(nodes, '.tbi'),
+  }
+}
+
+// `name` with `suffix` added to its path, so a URL's query string such as a
+// cache-buster stays at the end instead of swallowing it.
+export function withPathSuffix(name: string, suffix: string): string {
+  try {
+    const url = new URL(name)
+    url.pathname += suffix
+    return url.href
+  } catch {
+    return name + suffix
+  }
+}
+
+// Whether the in-browser reader opens this graph file
+export function isLocalGraphFilename(name: string): boolean {
+  return isGbzDbFilename(name) || isWalksFilename(name)
 }
 
 // The path of an absolute URL, or `name` itself for anything else: a relative
@@ -167,5 +214,5 @@ function urlPath(name: string): string {
 // entries that would silently fail to parse.
 export function isLocalCompatibleDataSource(ds: ViewTarget): boolean {
   const trackFile = ds.tracks.find(t => t.trackType === 'graph')?.trackFile
-  return trackFile !== undefined && isGbzDbFilename(trackFile)
+  return trackFile !== undefined && isLocalGraphFilename(trackFile)
 }

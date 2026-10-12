@@ -24,9 +24,12 @@ const SERVER_FORMATS = (
 const descriptions: Record<APIMode, ReactNode> = {
   local: (
     <>
-      The in-browser reader runs in WebAssembly, so files stay on your machine.
-      It reads <code>.gbz.db</code> graphs and sorted <code>.gam</code> reads
-      with their <code>.gam.gai</code> index.{' '}
+      The in-browser reader keeps files on your machine. It reads{' '}
+      <code>.gbz.db</code> graphs with an optional{' '}
+      <code>.haplotype-index.db</code>, <code>gfa-to-tabix --walks</code> sets (
+      <code>.walks.bed.gz</code>, <code>.nodes.bed.gz</code> and each{' '}
+      <code>.tbi</code>), and sorted <code>.gam</code> reads with their{' '}
+      <code>.gam.gai</code> index.{' '}
       <a
         href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md"
         target="_blank"

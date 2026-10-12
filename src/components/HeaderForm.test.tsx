@@ -131,7 +131,9 @@ it('groups the datasets menu by the backend that reads each example', async () =
   await userEvent.click(screen.getByTestId('examplesMenuButton'))
   const items = screen.getAllByRole('menuitem').map(item => item.textContent)
 
-  expect(screen.getByText('In-browser (gbz-base .gbz.db)')).toBeVisible()
+  expect(
+    screen.getByText('In-browser (.gbz.db, gfa-to-tabix walks)'),
+  ).toBeVisible()
   expect(screen.getByText('Needs a vg server (.xg, .vg, .gbz)')).toBeVisible()
   expect(items.indexOf('snp1kg-BRCA1 (gbz-base)')).toBeLessThan(
     items.indexOf('cactus'),
@@ -144,7 +146,9 @@ it('labels the in-browser group when it is the only one', async () => {
   renderForm({ api: fakeAPI({ mode: 'local' }) })
   await userEvent.click(screen.getByTestId('examplesMenuButton'))
 
-  expect(screen.getByText('In-browser (gbz-base .gbz.db)')).toBeVisible()
+  expect(
+    screen.getByText('In-browser (.gbz.db, gfa-to-tabix walks)'),
+  ).toBeVisible()
   expect(
     screen.queryByText('Needs a vg server (.xg, .vg, .gbz)'),
   ).not.toBeInTheDocument()

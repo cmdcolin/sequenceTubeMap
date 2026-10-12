@@ -23,7 +23,8 @@ export function ExamplesMenu({
 }: ExamplesMenuProps) {
   // Which backend an example needs is the first thing about it a reader wants,
   // and the name alone cannot say it, so the menu groups by that: a `.gbz.db`
-  // example is read in the browser, anything else is chunked by a vg server.
+  // or walk-file example is read in the browser, anything else is chunked by
+  // a vg server.
   // Each group that has entries is labelled, including when it is the only
   // one — in local mode HeaderForm has filtered the server examples out, and
   // the heading is then what says why the list is short.
@@ -51,7 +52,7 @@ export function ExamplesMenu({
           <>
             {inBrowser.length > 0 && (
               <ListSubheader key="inBrowserHeading">
-                In-browser (gbz-base .gbz.db)
+                In-browser (.gbz.db, gfa-to-tabix walks)
               </ListSubheader>
             )}
             {inBrowser.map(item)}

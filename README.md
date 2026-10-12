@@ -2,7 +2,8 @@
 
 Fork of [vgteam/sequenceTubeMap](https://github.com/vgteam/sequenceTubeMap):
 pangenome graphs and reads drawn as tube maps, in the browser. Adds in-browser
-`.gbz.db` reading, uploads, and a modernized React/TypeScript UI.
+reading of `.gbz.db` and [gfa-to-tabix](https://github.com/GMOD/gfa-to-tabix)
+walk files, uploads, and a modernized React/TypeScript UI.
 
 Live demo: https://cmdcolin.github.io/sequenceTubeMap/
 
@@ -67,16 +68,16 @@ a separate package with no DOM or d3, so other apps can draw it their own way.
 
 Use **File → Open…**, or pick a dataset from the **Examples** menu.
 
-|                             | Where the work happens  | Size limit    | Setup needed                  |
-| --------------------------- | ----------------------- | ------------- | ----------------------------- |
-| **vgteam server** (default) | `api.tubemap.graphs.vg` | 5 MB per file | none                          |
-| **In-browser**              | your browser            | none          | one-time `.gbz.db` conversion |
-| **Self-hosted server**      | your machine            | none          | Docker or a local checkout    |
+|                             | Where the work happens  | Size limit    | Setup needed                      |
+| --------------------------- | ----------------------- | ------------- | --------------------------------- |
+| **vgteam server** (default) | `api.tubemap.graphs.vg` | 5 MB per file | none                              |
+| **In-browser**              | your browser            | none          | `.gbz.db` or walk-file conversion |
+| **Self-hosted server**      | your machine            | none          | Docker or a local checkout        |
 
 Servers take `.xg`, `.vg` and `.gbz` graphs and `.gam` reads directly.
-In-browser mode needs a `.gbz.db`; it reads a hosted one by range request, so a
-whole-pangenome graph browses with no download. Details:
-[doc/data.md](doc/data.md).
+In-browser mode needs a `.gbz.db` or a `gfa-to-tabix --walks` file set; it reads
+a hosted one by range request, so a whole-pangenome graph browses with no
+download. Details: [doc/data.md](doc/data.md).
 
 ## Reads over a graph
 
@@ -110,9 +111,9 @@ viewer.
 
 ## Headless rendering
 
-`pnpm tubemap-cli` renders your own `.gbz.db` and reads, or any link or bundled
-source, to SVG, no browser — made every figure here but the app screenshot.
-[Details](doc/headless-rendering.md), and a
+`pnpm tubemap-cli` renders your own `.gbz.db` or walk file and reads, or any
+link or bundled source, to SVG, no browser — made every figure here but the app
+screenshot. [Details](doc/headless-rendering.md), and a
 [gallery](doc/headless-rendering.md#gallery) of banded haplotypes and read
 encodings.
 

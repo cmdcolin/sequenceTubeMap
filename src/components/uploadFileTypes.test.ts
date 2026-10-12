@@ -9,6 +9,7 @@ import {
   detectType,
   isIndexSibling,
   isLocallyAccepted,
+  pairHaplotypeIndexes,
 } from './uploadFileTypes.ts'
 
 describe('detectType', () => {
@@ -66,18 +67,70 @@ describe('isIndexSibling', () => {
 })
 
 describe('isLocallyAccepted', () => {
-  it('accepts the WASM-supported set', () => {
+  it('accepts what the in-browser reader opens', () => {
     expect(isLocallyAccepted('graph.gbz.db')).toBe(true)
     expect(isLocallyAccepted('graph.db')).toBe(true)
+    expect(isLocallyAccepted('graph.haplotype-index.db')).toBe(true)
     expect(isLocallyAccepted('reads.gam')).toBe(true)
     expect(isLocallyAccepted('reads.gam.gai')).toBe(true)
+    for (const kind of ['walks', 'nodes', 'links']) {
+      expect(isLocallyAccepted(`hprc.GRCh38.${kind}.bed.gz`)).toBe(true)
+      expect(isLocallyAccepted(`hprc.GRCh38.${kind}.bed.gz.tbi`)).toBe(true)
+    }
   })
 
-  it('rejects formats the WASM API cannot read', () => {
+  it('rejects formats the in-browser reader cannot read', () => {
     expect(isLocallyAccepted('graph.xg')).toBe(false)
     expect(isLocallyAccepted('graph.vg')).toBe(false)
     expect(isLocallyAccepted('reads.gaf')).toBe(false)
     expect(isLocallyAccepted('h.gbwt')).toBe(false)
+  })
+})
+
+describe('gfa-to-tabix walk files', () => {
+  it('stage the walk file as a graph track and the rest beside it', () => {
+    expect(detectType('hprc.GRCh38.walks.bed.gz')).toBe('graph')
+    expect(isIndexSibling('hprc.GRCh38.walks.bed.gz')).toBe(false)
+    for (const name of [
+      'hprc.GRCh38.nodes.bed.gz',
+      'hprc.GRCh38.links.bed.gz',
+      'hprc.GRCh38.walks.bed.gz.tbi',
+    ]) {
+      expect(detectType(name)).not.toBeNull()
+      expect(isIndexSibling(name)).toBe(true)
+    }
+  })
+
+  it('are not offered to a server, which cannot read them', () => {
+    expect(SERVER_ACCEPT.split(',')).not.toContain('.walks.bed.gz')
+  })
+})
+
+describe('pairHaplotypeIndexes', () => {
+  it('stages a companion haplotype index beside its graph', () => {
+    expect(detectType('graph.haplotype-index.db')).toBe('graph')
+    expect(isIndexSibling('graph.haplotype-index.db')).toBe(true)
+  })
+
+  it('pairs each graph with the index of its name', () => {
+    expect(
+      pairHaplotypeIndexes(
+        ['b.gbz.db', 'a.gbz.db', 'c.db'],
+        ['a.haplotype-index.db', 'b.haplotype-index.db'],
+      ),
+    ).toEqual([1, 0, undefined])
+  })
+
+  it('pairs a lone index with a lone graph whatever their names', () => {
+    expect(
+      pairHaplotypeIndexes(['g.gbz.db'], ['other.haplotype-index.db']),
+    ).toEqual([0])
+    expect(
+      pairHaplotypeIndexes(
+        ['g.gbz.db', 'h.gbz.db'],
+        ['other.haplotype-index.db'],
+      ),
+    ).toEqual([undefined, undefined])
   })
 })
 

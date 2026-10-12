@@ -181,7 +181,7 @@ export interface VgPath {
 
 export interface VgNode {
   id: number | string
-  sequence: string
+  sequence?: string
   sequenceLength?: number
 }
 
@@ -2268,7 +2268,7 @@ function nodeRightClick(this: SVGElement, event: MouseEvent, node: Node): void {
 export interface ExtractedVgNode {
   name: string
   sequenceLength: number
-  seq: string
+  seq?: string
 }
 
 export function vgExtractNodes(
@@ -2280,7 +2280,7 @@ export function vgExtractNodes(
     const id = `${node.id}`
     result.push({
       name: nameMap[id] ?? id,
-      sequenceLength: node.sequenceLength ?? node.sequence.length,
+      sequenceLength: node.sequenceLength ?? node.sequence?.length ?? 0,
       seq: node.sequence,
     })
   })

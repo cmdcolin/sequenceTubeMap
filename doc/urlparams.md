@@ -65,12 +65,12 @@ Each entry is `type:path`, where `path` is relative to the server root or any
 
 The `type:` prefix is optional — omit it and the extension decides:
 
-| Type          | Extensions                                     |
-| ------------- | ---------------------------------------------- |
-| `graph`       | `.xg` `.vg` `.hg` `.pg` `.gbz` `.gbz.db` `.db` |
-| `read`        | `.gam` `.gaf` `.gaf.gz`                        |
-| `haplotype`   | `.gbwt`                                        |
-| `translation` | `.tsv` `.trans`                                |
+| Type          | Extensions                                                     |
+| ------------- | -------------------------------------------------------------- |
+| `graph`       | `.xg` `.vg` `.hg` `.pg` `.gbz` `.gbz.db` `.db` `.walks.bed.gz` |
+| `read`        | `.gam` `.gaf` `.gaf.gz`                                        |
+| `haplotype`   | `.gbwt`                                                        |
+| `translation` | `.tsv` `.trans`                                                |
 
 A `.gbz` carries a graph and maybe haplotypes, so it reads as a `graph` unless
 the link says `haplotype:` outright. Only a known type counts as a prefix, so

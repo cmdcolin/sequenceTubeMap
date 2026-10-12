@@ -50,19 +50,15 @@ export type ConvertedGraph = VgJson & {
  */
 export function removeNodeSequencesInPlace(graph: ConvertedGraph): void {
   for (const node of graph.node) {
-    // VgNode declares `sequence` as required because the tube map's own
-    // loader always supplies it; the server's removeSequences response and
-    // this one leave it off, so write through a view that says it's optional.
-    const stripped: { sequence?: string; sequenceLength?: number } = node
-    stripped.sequenceLength = node.sequence.length
-    delete stripped.sequence
+    node.sequenceLength ??= node.sequence?.length ?? 0
+    delete node.sequence
   }
 }
 
 export function convertSchema(inGraph: GbzGraph): ConvertedGraph {
   const nodeLength = new Map<number | string, number>()
   for (const node of inGraph.nodes) {
-    nodeLength.set(node.id, node.sequence.length)
+    nodeLength.set(node.id, node.sequence?.length ?? 0)
   }
 
   const edge = inGraph.edges.map(e => ({

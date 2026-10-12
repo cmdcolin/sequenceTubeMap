@@ -40,7 +40,10 @@ const TRACK_TYPE_EXTENSIONS: readonly (readonly [
   FileType,
   readonly string[],
 ])[] = [
-  ['graph', ['.xg', '.vg', '.hg', '.pg', '.gbz.db', '.gbz', '.db']],
+  [
+    'graph',
+    ['.xg', '.vg', '.hg', '.pg', '.gbz.db', '.gbz', '.db', '.walks.bed.gz'],
+  ],
   ['read', ['.gam', '.gaf.gz', '.gaf']],
   ['haplotype', ['.gbwt']],
   ['translation', ['.tsv', '.trans']],

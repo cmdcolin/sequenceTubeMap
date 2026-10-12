@@ -263,7 +263,7 @@ it('links a hosted graph to BandageJS from the View menu', async () => {
 
   expect(Object.fromEntries(new URL(href!).searchParams)).toMatchObject({
     gbz: expect.stringMatching(/hprc-v2\.1-mc-grch38\.gbz\.db$/),
-    index: expect.stringMatching(/haplotype-index\.anchored\.db$/),
+    index: expect.stringMatching(/haplotype-index\.f3\.db$/),
     loc: 'chr20:48000600-48001000',
     ref: 'GRCh38',
   })

@@ -2,7 +2,11 @@ import { useRef, useState } from 'react'
 import type { DragEvent } from 'react'
 import Button from '@mui/material/Button'
 import { config } from '../config-global.mjs'
-import { defaultTrackColors } from '../common.ts'
+import {
+  defaultTrackColors,
+  isGbzDbFilename,
+  isHaplotypeIndexFilename,
+} from '../common.ts'
 import { errorMessage } from '../util/error.ts'
 import type { FileType, Track } from '../Types.ts'
 import {
@@ -14,6 +18,7 @@ import {
   detectType,
   isIndexSibling,
   isLocallyAccepted,
+  pairHaplotypeIndexes,
 } from './uploadFileTypes.ts'
 import { UploadModeToggle } from './UploadModeToggle.tsx'
 import { StagedFileList, type StagedFile } from './StagedFileList.tsx'
@@ -56,7 +61,7 @@ function screenFiles(files: File[], isLocal: boolean) {
   const extRejected = files.length - extOk.length
   if (extRejected > 0) {
     reasons.push(
-      `${extRejected} skipped — browser mode only accepts .gbz.db / .gam / .gai`,
+      `${extRejected} skipped — browser mode only accepts .gbz.db, gfa-to-tabix .walks.bed.gz sets and .gam reads`,
     )
   }
   const sizeRejected = extOk.length - accepted.length
@@ -122,6 +127,7 @@ export const UploadPanel = ({
     const batch = String(nextUploadBatch++)
     try {
       const tracks: Track[] = []
+      const haplotypeIndexes: { name: string; id: string }[] = []
       for (const { file, type, isIndex } of files) {
         if (!type) {
           continue
@@ -133,7 +139,9 @@ export const UploadPanel = ({
           continue
         }
         const uploadedName = await handleFileUpload(type, file, batch)
-        if (uploadedName !== undefined && !isIndex) {
+        if (uploadedName !== undefined && isHaplotypeIndexFilename(file.name)) {
+          haplotypeIndexes.push({ name: file.name, id: uploadedName })
+        } else if (uploadedName !== undefined && !isIndex) {
           tracks.push({
             trackFile: uploadedName,
             trackDisplayName: file.name,
@@ -142,6 +150,18 @@ export const UploadPanel = ({
           })
         }
       }
+      const graphs = tracks.filter(
+        t =>
+          t.trackType === 'graph' && isGbzDbFilename(t.trackDisplayName ?? ''),
+      )
+      pairHaplotypeIndexes(
+        graphs.map(t => t.trackDisplayName ?? ''),
+        haplotypeIndexes.map(i => i.name),
+      ).forEach((index, i) => {
+        if (index !== undefined) {
+          graphs[i]!.haplotypeIndexFile = haplotypeIndexes[index]!.id
+        }
+      })
       if (tracks.length === 0) {
         setError('No files could be uploaded. Check file types.')
         setUploading(false)
@@ -215,7 +235,7 @@ export const UploadPanel = ({
         </div>
         <div style={{ fontSize: 11, marginTop: 4, color: '#888' }}>
           {isLocal
-            ? 'Graph: .gbz.db   •   Reads: .sorted.gam + .sorted.gam.gai'
+            ? 'Graph: .gbz.db (+ .haplotype-index.db), or .walks.bed.gz + .nodes.bed.gz with their .tbi   •   Reads: .sorted.gam + .sorted.gam.gai'
             : `Graph: ${GRAPH_EXTS.join(' ')}   •   Reads: ${READ_EXTS.join(' ')}   •   Index: ${INDEX_EXTS.join(' ')} (ignored)`}
         </div>
       </div>

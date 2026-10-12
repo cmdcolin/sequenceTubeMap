@@ -1,9 +1,11 @@
 /**
- * gbz-base-backed API implementation. Designed to run in a worker efficiently.
+ * The in-browser API implementation. Designed to run in a worker efficiently.
  *
  * Reads `.gbz.db` files through `@gmod/gbz-base`, a pure TypeScript reader
  * that fetches only the SQLite pages a query touches, so a URL-hosted
  * database is queried by HTTP range requests instead of being downloaded.
+ * Reads `gfa-to-tabix --walks` files the same way, through their Tabix
+ * indexes.
  */
 
 import '../config-client.js'
@@ -25,12 +27,17 @@ import type {
 
 import {
   isGbzDbFilename,
+  isWalksFilename,
   parseRegion,
   convertRegionToRangeRegion,
+  walkCompanions,
+  withPathSuffix,
 } from '../common.ts'
 import type { Region } from '../common.ts'
 
 import { convertSchema, removeNodeSequencesInPlace } from './gbz/schema.ts'
+import type { ConvertedGraph } from './gbz/schema.ts'
+import { WalkLimitError, WalkTabix } from './tabix/WalkTabix.ts'
 import { pathQueryFor } from './gbz/pathQuery.ts'
 import { applyProgress } from './downloadProgress.ts'
 import type { ProgressListener } from './downloadProgress.ts'
@@ -243,20 +250,6 @@ const READ_COUNT_MAX_BYTES = 32 * 1024 * 1024
 // reports at most this often, then once more when it ends.
 const PROGRESS_INTERVAL_MS = 100
 
-// The URL of the file beside `url` whose name adds `suffix`. The suffix goes
-// on the path, so a query string such as a cache-buster stays at the end
-// instead of swallowing it.
-function siblingUrl(url: string, suffix: string): string {
-  let sibling: URL
-  try {
-    sibling = new URL(url)
-  } catch {
-    return url + suffix
-  }
-  sibling.pathname += suffix
-  return sibling.href
-}
-
 async function isGzip(blob: Blob): Promise<boolean> {
   const [first, second] = new Uint8Array(await blob.slice(0, 2).arrayBuffer())
   return first === 0x1f && second === 0x8b
@@ -388,6 +381,8 @@ export class GBZBaseAPI implements APIInterface {
   // the graph — 39 MB of range requests over HPRC v2.1's 292 indexed paths,
   // against 0.7 MB from the index's own table.
   private haplotypeIndexes = new Map<string, string>()
+  // One open walk file set per graph file, keyed the same way.
+  private walkGraphs = new Map<string, WalkTabix>()
   // One seekable handle per read track file, keyed the same way.
   private trackSources = new Map<string, GenericFilehandle>()
   // Base URL to resolve relative trackFile paths against. Required because
@@ -588,7 +583,7 @@ export class GBZBaseAPI implements APIInterface {
                 : ` with companion haplotype index "${indexFile}"`
             throw new Error(
               `Could not open "${trackFile}"${withIndex} as a gbz-base database: ${errorMessage(e)}\n` +
-                'The in-browser backend reads .gbz.db files; .vg, .xg and .gbz are not supported.',
+                'The in-browser backend reads .gbz.db and gfa-to-tabix .walks.bed.gz files; .vg, .xg and .gbz are not supported.',
               { cause: e },
             )
           }
@@ -615,11 +610,82 @@ export class GBZBaseAPI implements APIInterface {
 
   // For uploaded files `graphFile` is a numeric registry id like "0", so the
   // extension check has to look at the original filename the registry kept.
+  private fileName(trackFile: string): string {
+    return isUploadId(trackFile)
+      ? (this.registry.getName(trackFile) ?? '')
+      : this.resolveUrl(trackFile)
+  }
+
   private isGbzDb(graphFile: string): boolean {
-    const checkName = isUploadId(graphFile)
-      ? this.registry.getName(graphFile)
-      : this.resolveUrl(graphFile)
-    return checkName === null ? false : isGbzDbFilename(checkName)
+    return isGbzDbFilename(this.fileName(graphFile))
+  }
+
+  private isWalks(graphFile: string): boolean {
+    return isWalksFilename(this.fileName(graphFile))
+  }
+
+  // A walk file, its index, and the node file and its index beside it: for
+  // an upload, the files of those names dropped with it; for a URL, the URLs
+  // of those names.
+  private openWalks(trackFile: string): WalkTabix {
+    const key = this.fileKey(trackFile)
+    let opened = this.walkGraphs.get(key)
+    if (!opened) {
+      const names = walkCompanions(this.fileName(trackFile))
+      const companion = (name: string) => {
+        if (!isUploadId(trackFile)) {
+          return new RemoteFile(name)
+        }
+        const blob = this.registry.related(trackFile, name)
+        if (!blob) {
+          throw new Error(
+            `${this.fileName(trackFile)} needs ${name} beside it; drop it in with the walk file, along with each file's .tbi`,
+          )
+        }
+        return new BlobFile(blob)
+      }
+      opened = new WalkTabix({
+        walks: this.byteSource(trackFile),
+        walksIndex: companion(names.walksIndex),
+        nodes: companion(names.nodes),
+        nodesIndex: companion(names.nodesIndex),
+      })
+      this.walkGraphs.set(key, opened)
+    }
+    return opened
+  }
+
+  private async walkGraph(
+    graphFile: string,
+    region: string,
+    allHaplotypes: boolean,
+    cancelSignal: AbortSignal | null,
+  ) {
+    const parsed = parseRegion(region)
+    if (parsed.contig === 'node') {
+      throw new Error(
+        'A gfa-to-tabix walk file is indexed by reference position, so it takes a region like GRCh38#chr20:1000-2000, not a node region',
+      )
+    }
+    const { contig, start, end } = convertRegionToRangeRegion(parsed)
+    const walks = this.openWalks(graphFile)
+    const signal = cancelSignal ?? undefined
+    try {
+      const anchor = await walks.anchorFor(contig, signal)
+      return await walks.subgraph(anchor, start, end + 1, {
+        distinct: !allHaplotypes,
+        nodeLimit: this.subgraphNodeLimit,
+        signal,
+      })
+    } catch (e) {
+      if (isAbortError(e) || e instanceof WalkLimitError) {
+        throw e
+      }
+      throw new Error(
+        `Failed to read "${this.fileName(graphFile)}" at ${region}: ${errorMessage(e)}`,
+        { cause: e },
+      )
+    }
   }
 
   /////////
@@ -636,6 +702,18 @@ export class GBZBaseAPI implements APIInterface {
     const graphFile = graphTrack?.trackFile
     if (!graphFile) {
       throw new Error('No graph track selected')
+    }
+    if (this.isWalks(graphFile)) {
+      const graph = await this.walkGraph(
+        graphFile,
+        viewTarget.region,
+        viewTarget.allHaplotypes === true,
+        cancelSignal,
+      )
+      const { start, end } = convertRegionToRangeRegion(
+        parseRegion(viewTarget.region),
+      )
+      return await this.withReads(graph, [start, end], viewTarget, cancelSignal)
     }
     this.noteHaplotypeIndex(graphFile, graphTrack.haplotypeIndexFile)
 
@@ -708,7 +786,16 @@ export class GBZBaseAPI implements APIInterface {
       )
     }
 
-    const nodes = subgraphNodes(result.node)
+    return await this.withReads(result, region, viewTarget, cancelSignal)
+  }
+
+  private async withReads(
+    graph: ConvertedGraph,
+    region: InputRegion,
+    viewTarget: ViewTarget,
+    cancelSignal: AbortSignal | null,
+  ): Promise<ChunkedDataResponse> {
+    const nodes = subgraphNodes(graph.node)
     const gam = await Promise.all(
       viewTarget.tracks
         .filter(t => t.trackType === 'read')
@@ -720,10 +807,10 @@ export class GBZBaseAPI implements APIInterface {
     )
 
     if (viewTarget.removeSequences) {
-      removeNodeSequencesInPlace(result)
+      removeNodeSequencesInPlace(graph)
     }
 
-    return { graph: result, gam, region, coloredNodes: [] }
+    return { graph, gam, region, coloredNodes: [] }
   }
 
   // Try to resolve a sibling file at `trackFile + suffix` (e.g. ".gai").
@@ -744,7 +831,7 @@ export class GBZBaseAPI implements APIInterface {
     if (isUploadId(trackFile)) {
       return this.registry.sibling(trackFile, suffix)
     }
-    const sibling = siblingUrl(this.resolveUrl(trackFile), suffix)
+    const sibling = withPathSuffix(this.resolveUrl(trackFile), suffix)
     if (this.missingSiblings.has(sibling)) {
       return null
     }
@@ -877,6 +964,13 @@ export class GBZBaseAPI implements APIInterface {
     cancelSignal: AbortSignal | null,
     haplotypeIndexFile?: string,
   ): Promise<{ pathInfo: PathInfo[] }> {
+    if (this.isWalks(graphFile)) {
+      return {
+        pathInfo: await this.openWalks(graphFile).pathInfo(
+          cancelSignal ?? undefined,
+        ),
+      }
+    }
     // Files this backend can't read at all aren't an error — the picker asks
     // about every selected graph, including .gbz/.xg served for the vg server.
     if (!this.isGbzDb(graphFile)) {

@@ -282,6 +282,12 @@ describe('tracks short form', () => {
     ])
   })
 
+  it('reads a gfa-to-tabix walk file as a graph', () => {
+    expect(parse('tracks=https://h/hprc.GRCh38.walks.bed.gz')?.tracks).toEqual([
+      { trackType: 'graph', trackFile: 'https://h/hprc.GRCh38.walks.bed.gz' },
+    ])
+  })
+
   it('reads a .gbz as a graph unless the link says otherwise', () => {
     expect(parse('tracks=a.gbz')?.tracks[0]?.trackType).toBe('graph')
     expect(parse('tracks=haplotype:a.gbz')?.tracks[0]?.trackType).toBe(

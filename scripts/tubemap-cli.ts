@@ -3,7 +3,8 @@
 // uses, and emits the resulting SVG.
 //
 // Four ways to say what to draw:
-//   - --graph <file>      render your own .gbz.db, with --reads and --region
+//   - --graph <file>      render your own .gbz.db or .walks.bed.gz, with
+//                         --reads and --region
 //   - --url <link>        render the view a shared app link describes
 //   - --source <name>     render a built-in source from src/config.json
 //                         (e.g. "snp1kg-BRCA1 (gbz-base)")
@@ -105,7 +106,7 @@ function flagHelp(): string {
   }).join('')
 }
 
-const USAGE = `tubemap-cli --graph <file.gbz.db> --region X:S-E
+const USAGE = `tubemap-cli --graph <file.gbz.db | file.walks.bed.gz> --region X:S-E
              [--haplotype-index <file>] [--reads <file.gam>]...
 tubemap-cli [--url <link> | --source <config name> | --example 1..9]
              [--region X:S-E]
@@ -116,7 +117,9 @@ Either form also takes
 
 --graph draws your own files. Each is a local path, relative to the working
 directory, or an http(s) URL read by range requests. --haplotype-index names
-the graph's companion haplotype index, and --reads can be given more than once.
+a .gbz.db's companion haplotype index, and --reads can be given more than once.
+A gfa-to-tabix .walks.bed.gz needs its .nodes.bed.gz and each file's .tbi
+beside it.
 
 --url takes a link the app itself produced (its Copy link button, or the
 address bar), and draws what that link describes. --region and the view options
@@ -395,6 +398,7 @@ async function fileFromPath(localPath: string): Promise<File> {
 async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
   const { SIBLING_INDEX_SUFFIXES } =
     await import('../src/api/local/fileRegistry.ts')
+  const { isWalksFilename, walkCompanions } = await import('../src/common.ts')
   const staged: Tracks = []
   for (const track of tracks) {
     // A companion haplotype index is staged the same way, since the API reads
@@ -417,13 +421,12 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
         await fileFromPath(localPath),
         null,
       )
-      for (const suffix of SIBLING_INDEX_SUFFIXES) {
-        if (existsSync(localPath + suffix)) {
-          await api.putFile(
-            track.trackType,
-            await fileFromPath(localPath + suffix),
-            null,
-          )
+      const siblings = isWalksFilename(localPath)
+        ? Object.values(walkCompanions(localPath))
+        : SIBLING_INDEX_SUFFIXES.map(suffix => localPath + suffix)
+      for (const sibling of siblings) {
+        if (existsSync(sibling)) {
+          await api.putFile(track.trackType, await fileFromPath(sibling), null)
         }
       }
       // The browser names an upload after the file the user picked, since the
@@ -460,7 +463,7 @@ async function prepareViewTarget(
   const { isLocalCompatibleDataSource } = await import('../src/common.ts')
   if (!isLocalCompatibleDataSource(target)) {
     throw new Error(
-      `${describe} has no .gbz.db graph; this renderer uses the in-browser backend, which cannot read .vg/.xg/.gbz`,
+      `${describe} has no .gbz.db or .walks.bed.gz graph; this renderer uses the in-browser backend, which cannot read .vg/.xg/.gbz`,
     )
   }
   const region = regionOverride ?? target.region

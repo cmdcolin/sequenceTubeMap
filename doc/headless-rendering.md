@@ -9,6 +9,10 @@ a paper without a browser screenshot.
 pnpm tubemap-cli --graph my.gbz.db --reads my.gam --region chr1:1-500 \
                  --out mine.svg
 
+# a gfa-to-tabix walk file, with its .nodes.bed.gz and .tbi files beside it
+pnpm tubemap-cli --graph exampleData/hprc-chrM.GRCh38.walks.bed.gz \
+                 --region 'GRCh38#chrM:1-200' --out chrM.svg
+
 # whatever a link from the app describes
 pnpm tubemap-cli --url 'https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000' \
                  --out brca1.svg
@@ -30,11 +34,12 @@ even though the Vite build accepts them.
 
 ## Your own files
 
-`--graph` takes a `.gbz.db`, local or a URL, and `--region` says where in it to
-look. `--reads` adds a GAM read track and can be repeated; a
-[`.gai` index](data.md#indexing-reads-for-region-queries) beside the GAM is
-picked up, so only the blocks the region touches are read. `--haplotype-index`
-names the graph's
+`--graph` takes a `.gbz.db` or a
+[gfa-to-tabix walk file](data.md#reading-gfa-to-tabix-walk-files), local or a
+URL, and `--region` says where in it to look. `--reads` adds a GAM read track
+and can be repeated; a [`.gai` index](data.md#indexing-reads-for-region-queries)
+beside the GAM is picked up, so only the blocks the region touches are read.
+`--haplotype-index` names the graph's
 [companion index](data.md#pointing-a-track-at-a-companion-index), which is where
 haplotypes get their real names. Local paths resolve against the working
 directory.
@@ -52,10 +57,10 @@ settings the link carries are the ones the app would have shown
 override it, so a link is a starting point rather than the whole command.
 
 Two things a link does not carry into a headless render. Its data has to be
-readable by the in-browser backend, which means a `.gbz.db` graph — a link to a
-`.vg`/`.xg`/`.gbz` source is refused rather than half-drawn. And the browser
-subsamples reads where the CLI does not, so a dense region draws every read here
-unless `--read-limit` says otherwise.
+readable by the in-browser backend, which means a `.gbz.db` or walk-file graph —
+a link to a `.vg`/`.xg`/`.gbz` source is refused rather than half-drawn. And the
+browser subsamples reads where the CLI does not, so a dense region draws every
+read here unless `--read-limit` says otherwise.
 
 ## Sizing
 
