@@ -67,6 +67,18 @@ describe('bandageJsUrl', () => {
     })
   })
 
+  it('links a walk file set, naming its reference only where the region does', () => {
+    const walks = 'https://h/hprc.GRCh38.walks.bed.gz'
+    expect(
+      params(
+        bandageJsUrl(view('GRCh38#0#chr6:1-100', { trackFile: walks }), PAGE),
+      ),
+    ).toMatchObject({ gbz: walks, loc: 'chr6:1-100', ref: 'GRCh38' })
+    expect(
+      params(bandageJsUrl(view('chr6:1-100', { trackFile: walks }), PAGE)),
+    ).not.toHaveProperty('ref')
+  })
+
   it('has no link for a file BandageJS cannot fetch or read', () => {
     const region = 'GRCh38#chr6:1-100'
 

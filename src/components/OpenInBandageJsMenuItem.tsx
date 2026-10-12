@@ -29,7 +29,9 @@ export function OpenInBandageJsMenuItem({
       <ListItemText
         primary="Open in BandageJS"
         secondary={
-          url === undefined ? 'Needs a hosted .gbz.db graph' : undefined
+          url === undefined
+            ? 'Needs a hosted .gbz.db or walk-file graph'
+            : undefined
         }
       />
     </MenuItem>
