@@ -30,7 +30,6 @@ import {
   isWalksFilename,
   parseRegion,
   convertRegionToRangeRegion,
-  walkCompanions,
   withPathSuffix,
 } from '../common.ts'
 import type { Region } from '../common.ts'
@@ -624,32 +623,26 @@ export class GBZBaseAPI implements APIInterface {
     return isWalksFilename(this.fileName(graphFile))
   }
 
-  // A walk file, its index, and the node file and its index beside it: for
-  // an upload, the files of those names dropped with it; for a URL, the URLs
-  // of those names.
+  // A walk file and its index beside it: for an upload, the index dropped
+  // with it; for a URL, the URL with `.tbi` added
   private openWalks(trackFile: string): WalkFiles {
     const key = this.fileKey(trackFile)
     let opened = this.walkGraphs.get(key)
     if (!opened) {
-      const names = walkCompanions(this.fileName(trackFile))
-      const companion = (name: string) => {
-        if (!isUploadId(trackFile)) {
-          return new RemoteFile(name)
-        }
-        const blob = this.registry.related(trackFile, name)
-        if (!blob) {
-          throw new Error(
-            `${this.fileName(trackFile)} needs ${name} beside it; drop it in with the walk file, along with each file's .tbi`,
-          )
-        }
-        return new BlobFile(blob)
+      const blob = isUploadId(trackFile)
+        ? this.registry.sibling(trackFile, '.tbi')
+        : undefined
+      if (blob === null) {
+        throw new Error(
+          `${this.fileName(trackFile)} needs its .tbi; drop it in with the walk file`,
+        )
       }
-      opened = new WalkFiles({
-        walks: this.byteSource(trackFile),
-        walksIndex: companion(names.walksIndex),
-        nodes: companion(names.nodes),
-        nodesIndex: companion(names.nodesIndex),
-      })
+      opened = new WalkFiles(
+        this.byteSource(trackFile),
+        blob
+          ? new BlobFile(blob)
+          : new RemoteFile(withPathSuffix(this.resolveUrl(trackFile), '.tbi')),
+      )
       this.walkGraphs.set(key, opened)
     }
     return opened
@@ -668,8 +661,8 @@ export class GBZBaseAPI implements APIInterface {
       )
     }
     const { contig, start, end } = convertRegionToRangeRegion(parsed)
-    const walks = this.openWalks(graphFile)
     const signal = cancelSignal ?? undefined
+    const walks = this.openWalks(graphFile)
     try {
       const anchor = await walks.anchorFor(contig, signal)
       return await walks.subgraph(anchor, start, end + 1, {

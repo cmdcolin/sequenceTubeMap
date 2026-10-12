@@ -170,16 +170,6 @@ describe('UploadRegistry', () => {
     reg.add({ name: 'x.gaf.gz.tbi', blob: blobOfText('t') })
     expect(reg.sibling(gaf.id, '.tbi')).not.toBeNull()
   })
-
-  it("finds a walk file's node file by name, and keeps it off the track list", async () => {
-    const reg = new UploadRegistry()
-    const walks = reg.add({ name: 'h.walks.bed.gz', blob: blobOfText('w') })
-    const nodes = reg.add({ name: 'h.nodes.bed.gz', blob: blobOfText('n') })
-    expect(walks.isSibling).toBe(false)
-    expect(nodes.isSibling).toBe(true)
-    expect(await blobText(reg.related(walks.id, 'h.nodes.bed.gz')!)).toBe('n')
-    expect(reg.related(walks.id, 'other.nodes.bed.gz')).toBeNull()
-  })
 })
 
 async function blobText(b: Blob): Promise<string> {

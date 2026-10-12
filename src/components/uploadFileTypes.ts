@@ -1,10 +1,9 @@
 import type { FileType } from '../Types.ts'
 
 export const GRAPH_EXTS = ['.xg', '.vg', '.hg', '.pg', '.gbz', '.gbz.db', '.db']
-// Graph files only the in-browser reader opens, and the files that go with a
-// graph there rather than being tracks: a companion haplotype index, and a
-// walk file's node and link files and the .tbi of each
-const LOCAL_GRAPH_EXTS = ['.walks.bed.gz', '.nodes.bed.gz', '.links.bed.gz']
+// A graph file only the in-browser reader opens, and a file that goes with a
+// graph there rather than being a track: a companion haplotype index
+const LOCAL_GRAPH_EXTS = ['.walks.bed.gz']
 // Upload only. A .gaf/.gaf.gz can be a read track when it is mounted in the
 // server's data directory already sorted and tabix-indexed, but the upload
 // route has no way to produce that index, so offering it here only produced a
@@ -15,17 +14,11 @@ export const HAPLOTYPE_EXTS = ['.gbwt']
 // In server mode the server creates these itself so they're silently skipped;
 // in local mode they're stored alongside the .gam for sibling lookup.
 export const INDEX_EXTS = ['.gai', '.tbi']
-const LOCAL_COMPANION_EXTS = [
-  '.haplotype-index.db',
-  '.nodes.bed.gz',
-  '.links.bed.gz',
-]
+const LOCAL_COMPANION_EXTS = ['.haplotype-index.db']
 export const LOCAL_EXTS = [
   '.gbz.db',
   '.db',
   '.walks.bed.gz',
-  '.nodes.bed.gz',
-  '.links.bed.gz',
   '.tbi',
   '.gam',
   '.gai',

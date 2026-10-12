@@ -26,10 +26,9 @@ const descriptions: Record<APIMode, ReactNode> = {
     <>
       The in-browser reader keeps files on your machine. It reads{' '}
       <code>.gbz.db</code> graphs with an optional{' '}
-      <code>.haplotype-index.db</code>, <code>gfa-to-tabix --walks</code> sets (
-      <code>.walks.bed.gz</code>, <code>.nodes.bed.gz</code> and each{' '}
-      <code>.tbi</code>), and sorted <code>.gam</code> reads with their{' '}
-      <code>.gam.gai</code> index.{' '}
+      <code>.haplotype-index.db</code>, <code>gfa-to-tabix --walks</code> files
+      (<code>.walks.bed.gz</code> with its <code>.tbi</code>), and sorted{' '}
+      <code>.gam</code> reads with their <code>.gam.gai</code> index.{' '}
       <a
         href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md"
         target="_blank"

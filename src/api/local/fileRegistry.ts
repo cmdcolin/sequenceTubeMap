@@ -5,16 +5,11 @@
 // Kept separate from GBZBaseAPI so the pairing logic is exercisable in tests
 // without opening a database.
 
-// Suffixes of files that ride alongside another file: an index, a walk
-// file's node and link files, or a graph's companion haplotype index. The
-// registry stores them but never registers them as tracks of their own.
+// Suffixes of files that ride alongside another file: an index, or a graph's
+// companion haplotype index. The registry stores them but never registers
+// them as tracks of their own.
 export const SIBLING_INDEX_SUFFIXES = ['.gai', '.tbi', '.csi']
-const COMPANION_SUFFIXES = [
-  ...SIBLING_INDEX_SUFFIXES,
-  '.nodes.bed.gz',
-  '.links.bed.gz',
-  '.haplotype-index.db',
-]
+const COMPANION_SUFFIXES = [...SIBLING_INDEX_SUFFIXES, '.haplotype-index.db']
 
 export function isSiblingIndex(name: string): boolean {
   const lower = name.toLowerCase()
@@ -80,13 +75,6 @@ export class UploadRegistry {
   // when no other batch-less upload of either name lies between them, and
   // each upload takes the first such index after it before one before it.
   sibling(id: string, suffix: string): Blob | null {
-    const name = this.getName(id)
-    return name === null ? null : this.related(id, name + suffix)
-  }
-
-  // The upload named `siblingName` that goes with upload `id`, paired as
-  // `sibling` pairs an index
-  related(id: string, siblingName: string): Blob | null {
     const upload = this.uploads[parseInt(id, 10)]
     if (!upload?.name) {
       return null
@@ -94,6 +82,7 @@ export class UploadRegistry {
     const peers = this.uploads.filter(u => u.batch === upload.batch)
     const at = peers.indexOf(upload)
     const name = upload.name
+    const siblingName = name + suffix
     for (let i = at + 1; i < peers.length; i++) {
       if (peers[i]!.name === name) {
         break

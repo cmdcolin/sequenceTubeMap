@@ -159,28 +159,10 @@ export function isHaplotypeIndexFilename(name: string): boolean {
   return /\.haplotype-index\.db$/i.test(urlPath(name))
 }
 
-// `gfa-to-tabix --walks` writes `<prefix>.<sample>.walks.bed.gz`, with
-// `.nodes.bed.gz` and `.links.bed.gz` beside it, each with a `.tbi`.
-export const WALKS_SUFFIX = '.walks.bed.gz'
-
+// `gfa-to-tabix --walks` writes `<prefix>.<sample>.walks.bed.gz` and its
+// `.tbi`, one walk file per reference sample.
 export function isWalksFilename(name: string): boolean {
   return /\.walks\.bed\.gz$/i.test(urlPath(name))
-}
-
-// The files the in-browser reader opens beside a walk file: its index, and
-// the node file with its index.
-export function walkCompanions(walksName: string): {
-  walksIndex: string
-  nodes: string
-  nodesIndex: string
-} {
-  const at = walksName.toLowerCase().lastIndexOf(WALKS_SUFFIX)
-  const nodes = `${walksName.slice(0, at)}.nodes.bed.gz${walksName.slice(at + WALKS_SUFFIX.length)}`
-  return {
-    walksIndex: withPathSuffix(walksName, '.tbi'),
-    nodes,
-    nodesIndex: withPathSuffix(nodes, '.tbi'),
-  }
 }
 
 // `name` with `suffix` added to its path, so a URL's query string such as a

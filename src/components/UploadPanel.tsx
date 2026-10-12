@@ -235,7 +235,7 @@ export const UploadPanel = ({
         </div>
         <div style={{ fontSize: 11, marginTop: 4, color: '#888' }}>
           {isLocal
-            ? 'Graph: .gbz.db (+ .haplotype-index.db), or .walks.bed.gz + .nodes.bed.gz with their .tbi   •   Reads: .sorted.gam + .sorted.gam.gai'
+            ? 'Graph: .gbz.db (+ .haplotype-index.db), or .walks.bed.gz + .tbi   •   Reads: .sorted.gam + .sorted.gam.gai'
             : `Graph: ${GRAPH_EXTS.join(' ')}   •   Reads: ${READ_EXTS.join(' ')}   •   Index: ${INDEX_EXTS.join(' ')} (ignored)`}
         </div>
       </div>

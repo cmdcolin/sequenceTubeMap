@@ -23,6 +23,9 @@ importers:
       '@gmod/tabix':
         specifier: ^3.10.1
         version: 3.10.1
+      '@jbrowse/graph-walks':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@jbrowse/tubemap-core':
         specifier: ^1.1.0
         version: 1.1.0
@@ -479,6 +482,10 @@ packages:
 
   '@gmod/tabix@3.10.1':
     resolution: {integrity: sha512-bynf5MGr50O6Re2asEbt3kEfULUhXb2J87dqFK/78xXfJIWWrKfuQCA+ADSp3QJtdODvTf7ftWiTnc8yLQ0Yrw==}
+
+  '@jbrowse/graph-walks@1.0.0':
+    resolution: {integrity: sha512-/4nfD2RYQkspOC038UmRagYl5keL26J+Ijngqvi9P3PH/DCe3dBYberxH1BcHgNk6G3wOAtsVNK1A3SnvDRKUQ==}
+    engines: {node: '>=20'}
 
   '@jbrowse/quick-lru@8.0.0':
     resolution: {integrity: sha512-zToC0THd94TGr4cWMp9eOCRB8eeN004ncajZzVOoM8WEWV90YMTX5SX9zY6Nk1hhY7ASKWnfOmguXt7SoXaLzw==}
@@ -2872,6 +2879,8 @@ snapshots:
       '@gmod/shared-read-cache': 2.0.0
       '@jbrowse/quick-lru': 8.0.0
       generic-filehandle2: 2.5.0
+
+  '@jbrowse/graph-walks@1.0.0': {}
 
   '@jbrowse/quick-lru@8.0.0': {}
 

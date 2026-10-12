@@ -1,80 +1,48 @@
 import { TabixIndexedFile } from '@gmod/tabix'
+import { WalkReader } from '@jbrowse/graph-walks'
+import type { GraphTables } from '@jbrowse/graph-walks'
 import type { GenericFilehandle } from 'generic-filehandle2'
 
-import {
-  chunkQueryStart,
-  joinPieces,
-  parseNodeRow,
-  parseWalkRow,
-  walkCut,
-  walkHeader,
-} from './walkCut.ts'
-import type {
-  WalkFragment,
-  WalkHeader,
-  WalkNode,
-  WalkRow,
-  WalkWindow,
-} from './walkCut.ts'
 import type { PathInfo } from '../../Types.ts'
 import type { VgJson, VgNode, VgPath } from '../../util/tubemap.ts'
 
 // gbz-base's default, so both backends cut the same reference for a region
 const CONTEXT_BP = 100
 
-// A walk cut off at the edge of the rows goes on in the chunk its row names,
-// which a cut reads out to in this many rounds, at most this many chunks away
-const FOLLOW_ROUNDS = 3
-const FOLLOW_CHUNKS = 4
-
-export interface WalkFileHandles {
-  walks: GenericFilehandle
-  walksIndex: GenericFilehandle
-  nodes: GenericFilehandle
-  nodesIndex: GenericFilehandle
-}
-
 export class WalkLimitError extends Error {}
 
-// A walk file set read through its Tabix indexes: this class fetches the rows
-// under a window, and walkCut.ts makes the cut from them.
+interface VgEdge {
+  from: string
+  to: string
+  from_start: boolean
+  to_end: boolean
+}
+
+// A gfa-to-tabix walk file: @jbrowse/graph-walks reads and cuts it, and
+// this class names its sequences the way the region box does and turns a cut
+// into the vg JSON the tube map draws.
 export class WalkFiles {
   private walks: TabixIndexedFile
-  private nodes: TabixIndexedFile
-  private header: Promise<WalkHeader> | undefined
+  private reader: WalkReader
 
-  constructor(files: WalkFileHandles) {
+  constructor(walks: GenericFilehandle, index: GenericFilehandle) {
     this.walks = new TabixIndexedFile({
-      filehandle: files.walks,
-      tbiFilehandle: files.walksIndex,
+      filehandle: walks,
+      tbiFilehandle: index,
     })
-    this.nodes = new TabixIndexedFile({
-      filehandle: files.nodes,
-      tbiFilehandle: files.nodesIndex,
-    })
-  }
-
-  private getHeader(signal?: AbortSignal): Promise<WalkHeader> {
-    this.header ??= this.walks
-      .getHeaderLines({ signal })
-      .then(walkHeader)
-      .catch((e: unknown) => {
-        this.header = undefined
-        throw e
-      })
-    return this.header
+    this.reader = new WalkReader(this.walks)
   }
 
   // The anchor sequence a region's contig names. Walk files name it in full
   // PanSN, `GRCh38#0#chr20`, and the region box also takes the forms the
   // gbz-base backend does: `GRCh38#chr20` and plain `chr20`.
   async anchorFor(contig: string, signal?: AbortSignal): Promise<string> {
-    const names = await this.walks.getReferenceSequenceNames({ signal })
+    const names = await this.reader.referenceSequences({ signal })
     if (names.includes(contig)) {
       return contig
     }
     const parts = contig.split('#')
-    const { references } = await this.getHeader(signal)
+    const { references } = await this.reader.header({ signal })
     const candidates =
       parts.length === 2
         ? [`${parts[0]}#0#${parts[1]}`]
@@ -91,42 +59,40 @@ export class WalkFiles {
   }
 
   // One entry per reference sequence. Its length is where its last node
-  // ends, from the rows of the chunks the index says it spans.
+  // ends, from a cut of the reference alone over the last chunk the index
+  // says it has rows in.
   async pathInfo(signal?: AbortSignal): Promise<PathInfo[]> {
-    const header = await this.getHeader(signal)
-    const names = await this.walks.getReferenceSequenceNames({ signal })
+    const { chunk } = await this.reader.header({ signal })
+    const names = await this.reader.referenceSequences({ signal })
     return await Promise.all(
       names.map(async name => {
-        const span = await this.lastChunkStart(name, header, signal)
+        const start = await this.lastChunkStart(name, chunk, signal)
+        const { graph } = await this.reader.cut(
+          name,
+          { start, end: start + chunk },
+          { signal, context: 0, links: false, keep: walk => walk === name },
+        )
         let length = 0
-        await this.nodes.getLines(name, span, Number.MAX_SAFE_INTEGER, {
-          signal,
-          lineCallback: line => {
-            const [, node] = parseNodeRow(line, {
-              refName: '',
-              start: 0,
-              end: 0,
-            })
-            if (node.rank === 0 && node.refName === name) {
-              length = Math.max(length, node.end)
-            }
-          },
-        })
+        for (const node of graph.nodes.values()) {
+          if (node.rank === 0 && node.refName === name) {
+            length = Math.max(length, node.end)
+          }
+        }
         return { name, length, cyclic: false }
       }),
     )
   }
 
-  // The start of the last chunk with rows, found from the index alone: every
-  // chunk the reference passes through files its nodes there, so the chunks
-  // with rows run unbroken from the first.
+  // The start of the last chunk with rows, found from the index alone: the
+  // reference's walk has a row in every chunk it passes, so the chunks with
+  // rows run unbroken from the first.
   private async lastChunkStart(
     name: string,
-    { chunk }: WalkHeader,
+    chunk: number,
     signal?: AbortSignal,
   ): Promise<number> {
     const hasRows = async (k: number) =>
-      (await this.nodes.bytesForRegions(
+      (await this.walks.bytesForRegions(
         [{ refName: name, start: k * chunk, end: k * chunk + 1 }],
         { signal },
       )) > 0
@@ -159,144 +125,89 @@ export class WalkFiles {
     end: number,
     opts: { distinct: boolean; nodeLimit: number; signal?: AbortSignal },
   ): Promise<VgJson & { edge: VgEdge[] }> {
-    const { signal } = opts
-    const header = await this.getHeader(signal)
-    const { chunk } = header
-    const window: WalkWindow = {
-      refName: anchor,
-      start: Math.max(0, start - CONTEXT_BP),
-      end: end + CONTEXT_BP,
+    const { graph, kept, fragments } = await this.reader.cut(
+      anchor,
+      { start, end },
+      {
+        signal: opts.signal,
+        context: CONTEXT_BP,
+        links: false,
+        sequences: true,
+      },
+    )
+    if (kept.size > opts.nodeLimit) {
+      throw new WalkLimitError(
+        `${anchor}:${start}-${end} takes in more than ${opts.nodeLimit.toLocaleString()} graph nodes, the most the browser reads for one view.`,
+      )
     }
-    const rows: WalkRow[] = []
-    const nodes = new Map<number, WalkNode>()
-    const read = (from: number, to: number) =>
-      Promise.all([
-        this.walks.getLines(anchor, from, to, {
-          signal,
-          lineCallback: line => {
-            rows.push(parseWalkRow(line))
-          },
-        }),
-        this.nodes.getLines(anchor, from, to, {
-          signal,
-          lineCallback: line => {
-            const [id, node] = parseNodeRow(line, window)
-            if (!nodes.has(id)) {
-              if (nodes.size >= opts.nodeLimit) {
-                throw new WalkLimitError(
-                  `${anchor}:${start}-${end} takes in more than ${opts.nodeLimit.toLocaleString()} graph nodes, the most the browser reads for one view.`,
-                )
-              }
-              nodes.set(id, node)
-            }
-          },
-        }),
-      ])
-
-    let first = chunkQueryStart(window.start, header)
-    let last = Math.floor((window.end - 1) / chunk) * chunk
-    await read(first, window.end)
-    let cut = walkCut(joinPieces(rows), nodes, anchor)
-    const [lo, hi] = [
-      first - FOLLOW_CHUNKS * chunk,
-      last + FOLLOW_CHUNKS * chunk,
-    ]
-    for (let round = 0; round < FOLLOW_ROUNDS; round++) {
-      const starts = cut.open
-        .filter(c => c.refName === anchor && c.start >= lo && c.start <= hi)
-        .map(c => c.start)
-      const spans = [
-        { from: Math.min(first, ...starts), to: first },
-        { from: last + chunk, to: Math.max(last, ...starts) + 1 },
-      ].filter(span => span.to > span.from)
-      if (spans.length === 0) {
-        break
-      }
-      first = Math.min(first, ...starts)
-      last = Math.max(last, ...starts)
-      await Promise.all(spans.map(({ from, to }) => read(from, to)))
-      cut = walkCut(joinPieces(rows), nodes, anchor)
-    }
-    return vgJson(cut.kept, nodes, cut.fragments, anchor, opts.distinct)
+    return vgJson(graph.tables(kept, fragments), graph.sequences, opts.distinct)
   }
-}
-
-interface VgEdge {
-  from: string
-  to: string
-  from_start: boolean
-  to_end: boolean
 }
 
 function vgJson(
-  kept: Set<number>,
-  nodes: Map<number, WalkNode>,
-  fragments: WalkFragment[],
-  anchor: string,
+  { nodes, walks }: GraphTables,
+  sequences: Map<number, string>,
   distinct: boolean,
 ): VgJson & { edge: VgEdge[] } {
-  const node: VgNode[] = []
-  for (const id of kept) {
-    const n = nodes.get(id)
-    if (n) {
-      node.push({
-        id: String(id),
-        sequence: n.sequence,
-        sequenceLength: n.end - n.start,
-      })
-    }
-  }
-  const lengthOf = (id: number) => {
-    const n = nodes.get(id)
-    return n === undefined ? 0 : n.end - n.start
-  }
+  const node: VgNode[] = nodes.names.flatMap((name, i) =>
+    i < nodes.lengths.length
+      ? [
+          {
+            id: name,
+            sequence: sequences.get(Number(name)),
+            sequenceLength: nodes.lengths[i]!,
+          },
+        ]
+      : [],
+  )
 
   const edges = new Map<string, VgEdge>()
-  for (const { ids, rev } of fragments) {
-    for (let i = 1; i < ids.length; i++) {
-      const edge = {
-        from: String(ids[i - 1]),
-        to: String(ids[i]),
-        from_start: rev[i - 1] === 1,
-        to_end: rev[i] === 1,
-      }
-      edges.set(`${edge.from}${edge.from_start}${edge.to}${edge.to_end}`, edge)
-    }
-  }
-
-  const ordered = [...fragments].sort(
-    (a, b) =>
-      Number(b.name === anchor) - Number(a.name === anchor) ||
-      (a.name < b.name ? -1 : a.name > b.name ? 1 : a.hapStart - b.hapStart),
-  )
-  const groups = new Map<string, { fragment: WalkFragment; freq: number }>()
   const path: VgPath[] = []
-  const toPath = (f: WalkFragment): VgPath => ({
-    name: f.name,
-    indexOfFirstBase: f.hapStart,
-    mapping: Array.from(f.ids, (id, i) => {
-      const length = lengthOf(id)
-      return {
-        position: { node_id: String(id), is_reverse: f.rev[i] === 1 },
+  const groups = new Map<string, VgPath & { freq: number }>()
+  for (let p = 0; p < walks.names.length; p++) {
+    const from = walks.offsets[p]!
+    const to = walks.offsets[p + 1]!
+    const steps: string[] = []
+    const mapping = []
+    for (let s = from; s < to; s++) {
+      const i = walks.steps[s]!
+      const reverse = walks.reversed[s] === 1
+      const length = nodes.lengths[i] ?? 0
+      steps.push(`${i}${reverse ? '-' : '+'}`)
+      mapping.push({
+        position: { node_id: nodes.names[i]!, is_reverse: reverse },
         edit: [{ from_length: length, to_length: length }],
+      })
+      if (s > from) {
+        const edge = {
+          from: nodes.names[walks.steps[s - 1]!]!,
+          to: nodes.names[i]!,
+          from_start: walks.reversed[s - 1] === 1,
+          to_end: reverse,
+        }
+        edges.set(
+          `${edge.from}${edge.from_start}${edge.to}${edge.to_end}`,
+          edge,
+        )
       }
-    }),
-  })
-  for (const f of ordered) {
+    }
+    const walk: VgPath = {
+      name: walks.names[p],
+      indexOfFirstBase: walks.starts[p],
+      mapping,
+    }
     if (!distinct) {
-      path.push(toPath(f))
+      path.push(walk)
       continue
     }
-    const key = `${f.ids.join(',')}|${f.rev.join('')}`
+    const key = steps.join(',')
     const group = groups.get(key)
     if (group) {
       group.freq++
     } else {
-      groups.set(key, { fragment: f, freq: 1 })
+      groups.set(key, { ...walk, freq: 1 })
     }
   }
-  for (const { fragment, freq } of groups.values()) {
-    path.push({ ...toPath(fragment), freq })
-  }
+  path.push(...groups.values())
   return { node, edge: [...edges.values()], path }
 }

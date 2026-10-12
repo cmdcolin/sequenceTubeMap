@@ -66,12 +66,11 @@ formats, and fetches only the parts of the file a region needs:
 | Track | Formats                                                          |
 | ----- | ---------------------------------------------------------------- |
 | Graph | `.gbz.db` or `.db`, with an optional `.haplotype-index.db`       |
-| Graph | `.walks.bed.gz` + `.nodes.bed.gz`, each with its `.tbi`          |
+| Graph | `.walks.bed.gz` with its `.tbi`                                  |
 | Reads | `.gam` (unsorted) or `.sorted.gam` + `.sorted.gam.gai` (indexed) |
 
 Drop a graph's companion files in with it: the upload dialog pairs
-`graph.haplotype-index.db` with `graph.gbz.db`, and a walk file with the node
-file and indexes of the same prefix.
+`graph.haplotype-index.db` with `graph.gbz.db`, and a walk file with its `.tbi`.
 
 ### Converting a graph to `.gbz.db`
 
@@ -190,24 +189,26 @@ it.
 ### Reading gfa-to-tabix walk files
 
 `gfa-to-tabix --walks` cuts every haplotype's path into pieces filed by
-reference position, so the browser reads a region with a few range requests and
-names every haplotype `sample#haplotype#contig` without a companion index. The
-JBrowse graph track reads the same files.
+reference position, one walk file per reference sample, so the browser reads a
+region with a few range requests and names every haplotype
+`sample#haplotype#contig` without a companion index. The JBrowse graph track and
+BandageJS read the same files, all through
+[@jbrowse/graph-walks](https://github.com/GMOD/graph-walks).
 
 ```bash
-cargo install gfa-to-tabix
+cargo install gfa-to-tabix   # 1.0 or later
 vg convert -f graph.gbz > graph.gfa          # or any base-level GFA with W/P lines
 gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 ```
 
-- The command writes `graph.GRCh38.walks.bed.gz`, `.nodes.bed.gz` and
-  `.links.bed.gz`, each with a `.tbi`. The tube map reads the walk file and the
-  node file
-- `--sequences` adds each node's bases, which the tube map shows as node labels.
+- The command writes `graph.GRCh38.walks.bed.gz` and its `.tbi`. Give the walk
+  file as the graph track, with its `.tbi` dropped in beside it or at the same
+  URL plus `.tbi`
+- The reader takes walk format 2, which gfa-to-tabix writes from 1.0. A file
+  from 0.12 or earlier is format 1, and the reader asks for a rebuild
+- `--sequences` adds the nodes' bases, which the tube map shows as node labels.
   Without it, nodes draw at the right width with no bases
-- Give the walk file as the graph track; the reader finds the others by name
-  beside it, as files dropped in together or as URLs in the same directory
-- `--refs` takes several samples and writes a file set for each. A set takes
+- `--refs` takes several samples and writes a file for each. A file takes
   regions on the sample it was written for: `GRCh38#chr20:1000-2000`,
   `GRCh38#0#chr20:1000-2000`, or plain `chr20:1000-2000`
 - A walk file takes no node region (`node:42-55`), since gfa-to-tabix indexes it
@@ -219,21 +220,7 @@ The cut matches the `.gbz.db` reader's: the reference over the region plus 100
 bp either side, and each haplotype through it. Where a haplotype leaves the
 reference near the edge, the walk reader follows it back to where it rejoins, so
 the walk-file cut can run a node or two wider. On the bundled chrM graph both
-readers name the same 44 haplotypes, and at HPRC v2.1's LPA region both
-return 344.
-
-HPRC release 2.1 has a hosted walk-file set, which the **HPRC v2.1 whole genome
-(gfa-to-tabix walks, URL-hosted)** example reads:
-
-```json
-{
-  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38.GRCh38.walks.bed.gz",
-  "trackType": "graph"
-}
-```
-
-At `GRCh38#chr6:160620000-160620500` it reads 344 haplotypes in about 1.4 s from
-a cold start, against 4.9 s for the `.gbz.db` with its companion index.
+readers name the same 44 haplotypes.
 
 ### Indexing reads for region queries
 
@@ -276,16 +263,15 @@ alone, since it is the only one it can open — `Discovered` is whatever
 ([server.md](server.md)). The in-browser entries, from `DATA_SOURCES` in
 `src/config.json`:
 
-| Example                                                 | Graph                                | Haplotype names                                                                |
-| ------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
-| snp1kg-BRCA1 (gbz-base)                                 | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
-| cactus (gbz-base)                                       | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
-| backward (gbz-base)                                     | bundled, `fwd` and `rev` paths       | `_gbwt_ref` paths, no haplotypes                                               |
-| HPRC chrM (gbz-base, companion index)                   | bundled, PanSN sample names          | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
-| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes)          | bundled, an HPRC slice               | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
-| HPRC v2.1 whole genome (gbz-base, URL-hosted)           | hosted, 10 GB, read by range request | real, from the [companion index](#pointing-a-track-at-a-companion-index)       |
-| HPRC chrM (gfa-to-tabix walks)                          | bundled, the chrM graph's walk files | real, from the walk file                                                       |
-| HPRC v2.1 whole genome (gfa-to-tabix walks, URL-hosted) | hosted, 6 GB, read by range request  | real, from the walk file                                                       |
+| Example                                        | Graph                                | Haplotype names                                                                |
+| ---------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
+| snp1kg-BRCA1 (gbz-base)                        | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
+| cactus (gbz-base)                              | bundled, with a `.gam` read track    | `_gbwt_ref` paths, no haplotypes                                               |
+| backward (gbz-base)                            | bundled, `fwd` and `rev` paths       | `_gbwt_ref` paths, no haplotypes                                               |
+| HPRC chrM (gbz-base, companion index)          | bundled, PanSN sample names          | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
+| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes) | bundled, an HPRC slice               | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
+| HPRC v2.1 whole genome (gbz-base, URL-hosted)  | hosted, 10 GB, read by range request | real, from the [companion index](#pointing-a-track-at-a-companion-index)       |
+| HPRC chrM (gfa-to-tabix walks)                 | bundled, the chrM graph's walk files | real, from the walk file                                                       |
 
 Everything else in the menu — `snp1kg-BRCA1`, `vg "small" example`, `cactus`,
 `cactus multiple reads`, `Lancet example` — is an `.xg`/`.vg`/`.gbz` graph that

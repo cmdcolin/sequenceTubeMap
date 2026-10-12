@@ -75,8 +75,8 @@ Use **File → Open…**, or pick a dataset from the **Examples** menu.
 | **Self-hosted server**      | your machine            | none          | Docker or a local checkout        |
 
 Servers take `.xg`, `.vg` and `.gbz` graphs and `.gam` reads directly.
-In-browser mode needs a `.gbz.db` or a `gfa-to-tabix --walks` file set; it reads
-a hosted one by range request, so a whole-pangenome graph browses with no
+In-browser mode needs a `.gbz.db` or a `gfa-to-tabix --walks` file; it reads a
+hosted one by range request, so a whole-pangenome graph browses with no
 download. Details: [doc/data.md](doc/data.md).
 
 ## Reads over a graph

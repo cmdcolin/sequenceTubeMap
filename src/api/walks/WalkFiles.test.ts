@@ -1,16 +1,11 @@
 import { readFileSync } from 'node:fs'
 import '../../config-client.js'
-import { isLocalGraphFilename, walkCompanions } from '../../common.ts'
+import { isLocalGraphFilename } from '../../common.ts'
 import { GBZBaseAPI } from '../GBZBaseAPI.ts'
-import { decodeSteps } from './walkCut.ts'
 import type { ViewTarget } from '../../Types.ts'
 
 const WALKS = 'hprc-chrM.GRCh38.walks.bed.gz'
-const SIBLINGS = [
-  'hprc-chrM.GRCh38.walks.bed.gz.tbi',
-  'hprc-chrM.GRCh38.nodes.bed.gz',
-  'hprc-chrM.GRCh38.nodes.bed.gz.tbi',
-]
+const SIBLINGS = ['hprc-chrM.GRCh38.walks.bed.gz.tbi']
 
 function upload(api: GBZBaseAPI, name: string, batch?: string) {
   return api.putFile(
@@ -40,31 +35,13 @@ function view(trackFile: string, region: string, extra = {}): ViewTarget {
 const total = (paths: { freq?: number }[]) =>
   paths.reduce((sum, p) => sum + (p.freq ?? 1), 0)
 
-describe('walkCompanions', () => {
-  it('names the files beside a walk file, keeping a URL query at the end', () => {
-    expect(walkCompanions('https://h/x.GRCh38.walks.bed.gz?sig=a')).toEqual({
-      walksIndex: 'https://h/x.GRCh38.walks.bed.gz.tbi?sig=a',
-      nodes: 'https://h/x.GRCh38.nodes.bed.gz?sig=a',
-      nodesIndex: 'https://h/x.GRCh38.nodes.bed.gz.tbi?sig=a',
-    })
-  })
-
+describe('isLocalGraphFilename', () => {
   it('tells a graph from its companion haplotype index', () => {
     expect(isLocalGraphFilename('https://h/x.GRCh38.walks.bed.gz?sig=a')).toBe(
       true,
     )
     expect(isLocalGraphFilename('g.gbz.db')).toBe(true)
     expect(isLocalGraphFilename('g.haplotype-index.db')).toBe(false)
-  })
-})
-
-describe('decodeSteps', () => {
-  it('reads node-id deltas with the strand in the low bit', () => {
-    const ids = new Int32Array(3)
-    const rev = new Uint8Array(3)
-    decodeSteps('20,3,-4', ids, rev, 0)
-    expect([...ids]).toEqual([10, 11, 9])
-    expect([...rev]).toEqual([0, 1, 0])
   })
 })
 
@@ -175,11 +152,10 @@ describe('a gfa-to-tabix walk file set', () => {
   })
 })
 
-it('names the file a walk file is missing', async () => {
+it('asks for the index of a walk file dropped without it', async () => {
   const api = new GBZBaseAPI()
   const id = await upload(api, WALKS, 'alone')
-  await upload(api, `${WALKS}.tbi`, 'alone')
   await expect(
     api.getChunkedData(view(id, 'chrM:0-100'), null),
-  ).rejects.toThrow(/needs hprc-chrM\.GRCh38\.nodes\.bed\.gz beside it/)
+  ).rejects.toThrow(/hprc-chrM\.GRCh38\.walks\.bed\.gz needs its \.tbi/)
 })

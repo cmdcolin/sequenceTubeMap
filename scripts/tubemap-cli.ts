@@ -118,8 +118,7 @@ Either form also takes
 --graph draws your own files. Each is a local path, relative to the working
 directory, or an http(s) URL read by range requests. --haplotype-index names
 a .gbz.db's companion haplotype index, and --reads can be given more than once.
-A gfa-to-tabix .walks.bed.gz needs its .nodes.bed.gz and each file's .tbi
-beside it.
+A gfa-to-tabix .walks.bed.gz needs its .tbi beside it.
 
 --url takes a link the app itself produced (its Copy link button, or the
 address bar), and draws what that link describes. --region and the view options
@@ -398,7 +397,6 @@ async function fileFromPath(localPath: string): Promise<File> {
 async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
   const { SIBLING_INDEX_SUFFIXES } =
     await import('../src/api/local/fileRegistry.ts')
-  const { isWalksFilename, walkCompanions } = await import('../src/common.ts')
   const staged: Tracks = []
   for (const track of tracks) {
     // A companion haplotype index is staged the same way, since the API reads
@@ -421,10 +419,9 @@ async function stageTracks(api: GBZBaseAPI, tracks: Tracks): Promise<Tracks> {
         await fileFromPath(localPath),
         null,
       )
-      const siblings = isWalksFilename(localPath)
-        ? Object.values(walkCompanions(localPath))
-        : SIBLING_INDEX_SUFFIXES.map(suffix => localPath + suffix)
-      for (const sibling of siblings) {
+      for (const sibling of SIBLING_INDEX_SUFFIXES.map(
+        suffix => localPath + suffix,
+      )) {
         if (existsSync(sibling)) {
           await api.putFile(track.trackType, await fileFromPath(sibling), null)
         }
