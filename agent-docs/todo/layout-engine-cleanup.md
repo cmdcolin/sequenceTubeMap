@@ -11,8 +11,10 @@ metadata:
 # The layout engine
 
 The layout code lives in
-[GMOD/tubemap-core](https://github.com/GMOD/tubemap-core); the goldens stay here
-in `src/util/layout-golden/`. Work on both through a
+[GMOD/tubemap-core](https://github.com/GMOD/tubemap-core). Two golden sets pin
+it: tubemap-core's `test/layout-golden/`, built from the viewer's layout inputs
+dumped to `test/fixtures/`, and the viewer's own `src/util/layout-golden/`,
+built through its data pipeline. Work on both through a
 [linked local clone](../../doc/development.md#developing-against-a-local-tubemap-core).
 
 The layout keeps `nodes` typed `LayoutNode[]` rather than

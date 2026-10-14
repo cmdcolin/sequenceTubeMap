@@ -94,9 +94,9 @@ limitation, not a bug.
   alone, and a second database opened without the index would walk every path to
   its end — slow in exactly the place a user waits.
 
-That is the whole surface. In particular the app does **not** use
-`subgraphForHaplotypes`, so the `HaplotypeAnchors` table — which makes a query
-for a chosen set of haplotypes cost only that set — goes unexercised here. It
+That is the whole surface. In particular the app never passes `keep` to
+`subgraphInInterval`, so the `HaplotypeAnchors` table — which makes a query for
+a chosen set of haplotypes cost only that set — goes unexercised here. It
 matters for consumers that draw one lane per selected haplotype, such as JBrowse
 2; the tube map always draws them all.
 
