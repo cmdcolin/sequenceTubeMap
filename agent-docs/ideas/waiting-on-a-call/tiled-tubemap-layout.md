@@ -47,7 +47,13 @@ reorder and re-lane the graph anywhere, and x is in layout-order space, not bp.
    the previous cut's result for the nodes both cuts share, so a re-cut is a
    perturbation rather than a fresh solve.
 
-## Open check in the plugin
+## The plugin's coarse tier at whole-chromosome zoom
 
-The coarse tier has no bp cap; only the fine tier has the 5 Mb one. Confirm a
-whole-chromosome zoom-out on a dense graph is safe there.
+The coarse tier has no bp cap; only the fine tier has the 5 Mb one. The fold
+size bounds it instead: on HPRC's `fold10000` pair a whole-chr1 cut is 3,573
+segments and 5,063 links, and every hosted coarse pair (HPRC, mouse, bovine,
+Arabidopsis) is under 1 MB compressed for the whole genome (2026-10-14).
+
+The plugin's 20k `maxGraphNodes` check skips layouts that draw no nodes, tube
+maps and walk rows included, and the coarse fetch has no byte budget. A pair
+folded much finer than 10 kb would reach a tube map unchecked.
