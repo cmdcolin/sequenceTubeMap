@@ -5,7 +5,7 @@ metadata:
   category: ready
   area: encodings
   first_move: "Per-region facets: turn src/util/tubemap.ts's module state into an instance so separate layouts can share one zoom and legend."
-  order: 4
+  order: 3
 ---
 
 # Encodings as a grammar of graphics

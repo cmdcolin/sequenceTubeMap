@@ -5,7 +5,7 @@ metadata:
   category: ready
   area: layout
   first_move: "In tubemap-core, choose a deliberate draw order to replace the non-transitive compareTrackByInitialOrdering and review the 60 changed goldens."
-  order: 3
+  order: 2
 ---
 
 # The layout engine
