@@ -46,8 +46,6 @@ list.
 
 ## Open gaps
 
-- Node outline ids repeat across panels, so `#id` selectors find the first
-  panel's.
 - The app's read render limit subsamples before faceting, so panel read counts
   are of the subsample.
 - Banding reads from two files merges their crossings of an edge into one band

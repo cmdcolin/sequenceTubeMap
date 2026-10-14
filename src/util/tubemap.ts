@@ -1280,7 +1280,7 @@ function drawNodes(dNodes: Node[], groupNode: SvgGroupSelection): void {
     .data(dNodes)
     .enter()
     .append('path')
-    .attr('id', d => d.name)
+    .attr('data-node', d => d.name)
     .attr('d', d => d.d ?? null)
     .on('mouseover', nodeMouseOver)
     .on('mouseout', nodeMouseOut)

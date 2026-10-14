@@ -117,10 +117,10 @@ describe('tubemap.create — structural details', () => {
     tubeMap.setMergeNodesFlag(false)
     try {
       const svg = render(nodes, tracks)
-      const nodePaths = svg.querySelectorAll('g.node path[id]')
+      const nodePaths = svg.querySelectorAll('g.node path[data-node]')
       expect(nodePaths.length).toBe(nodes.length)
       // Every node is drawn exactly once, under its own name.
-      const drawnNames = Array.from(nodePaths, p => p.getAttribute('id'))
+      const drawnNames = Array.from(nodePaths, p => p.getAttribute('data-node'))
       expect(new Set(drawnNames).size).toBe(nodes.length)
       expect(new Set(drawnNames)).toEqual(new Set(nodes.map(n => n.name)))
     } finally {
@@ -134,11 +134,11 @@ describe('tubemap.create — structural details', () => {
     try {
       const svg = render(nodes, tracks)
       const startX = new Map<string, number>()
-      for (const path of svg.querySelectorAll('g.node path[id]')) {
-        const id = path.getAttribute('id')
+      for (const path of svg.querySelectorAll('g.node path[data-node]')) {
+        const name = path.getAttribute('data-node')
         const match = /M (-?[\d.]+)/.exec(path.getAttribute('d') ?? '')
-        if (id !== null && match?.[1] !== undefined) {
-          startX.set(id, Number(match[1]))
+        if (name !== null && match?.[1] !== undefined) {
+          startX.set(name, Number(match[1]))
         }
       }
       // Example 1's reference path visits every node forward, so its nodes
@@ -548,7 +548,7 @@ describe('tubemap.create — node click pops info dialog', () => {
     const { nodes, tracks } = dataForExample('1')
     render(nodes, tracks)
 
-    const nodePath = document.querySelector('g.node path[id]')
+    const nodePath = document.querySelector('g.node path[data-node]')
     expect(nodePath).not.toBeNull()
     nodePath?.dispatchEvent(
       new MouseEvent('click', { bubbles: true, cancelable: true }),
@@ -899,7 +899,7 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
     tubeMap.setInfoCallback(onInfo)
     trackNames(tracks)
     document
-      .querySelector('g.node path[id="2"]')!
+      .querySelector('g.node path[data-node="2"]')!
       .dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(onInfo.mock.calls[0]?.[0].map(([label]) => label)).toEqual([
       'Node ID:',
@@ -1137,7 +1137,9 @@ describe('tubemap.create — facets', () => {
     expect(offset(groups[0]!)).toBe(0)
     expect(offset(groups[1]!)).toBeGreaterThan(0)
     const nodeOutlines = (g: SVGGElement) =>
-      [...g.querySelectorAll('g.node path')].map(p => p.getAttribute('id'))
+      [...g.querySelectorAll('g.node path')].map(p =>
+        p.getAttribute('data-node'),
+      )
     expect(nodeOutlines(groups[0]!)).toEqual(nodeOutlines(groups[1]!))
     const referenceXs = (g: SVGGElement) =>
       [...g.querySelectorAll('rect[trackID="0"]')].map(r => r.getAttribute('x'))
@@ -1184,7 +1186,7 @@ describe('tubemap.create — facets', () => {
     const svg = draw('read_group')
     const alignedReads = (g: SVGGElement) => {
       onInfo.mockClear()
-      g.querySelector('g.node path[id="1"]')!.dispatchEvent(
+      g.querySelector('g.node path[data-node="1"]')!.dispatchEvent(
         new MouseEvent('click', { bubbles: true }),
       )
       return onInfo.mock.calls[0]?.[0].find(
@@ -1202,7 +1204,7 @@ describe('tubemap.create — facets', () => {
     const svg = draw('read_group')
     const menuReads = (g: SVGGElement) => {
       onMenu.mockClear()
-      g.querySelector('g.node path[id="1"]')!.dispatchEvent(
+      g.querySelector('g.node path[data-node="1"]')!.dispatchEvent(
         new MouseEvent('contextmenu', { bubbles: true }),
       )
       return onMenu.mock.calls[0]?.[0]?.readNames
@@ -1276,7 +1278,7 @@ describe('tubemap.create — facets', () => {
       const groups = facetGroups(drawSamples(true))
       const menuReads = (g: SVGGElement) => {
         onMenu.mockClear()
-        g.querySelector('g.node path[id="1"]')!.dispatchEvent(
+        g.querySelector('g.node path[data-node="1"]')!.dispatchEvent(
           new MouseEvent('contextmenu', { bubbles: true }),
         )
         return onMenu.mock.calls[0]?.[0]?.readNames
