@@ -78,18 +78,7 @@ function debugLog(...args: unknown[]): void {
   }
 }
 
-export type {
-  IncomingReadKey,
-  InputNode,
-  InputTrack,
-  Mismatch,
-} from '@jbrowse/tubemap-core'
-export {
-  compareIncomingReadKeys,
-  fillUnassignedOrders,
-  reverseMismatches,
-  UNREACHABLE_ORDER,
-} from '@jbrowse/tubemap-core'
+export type { InputNode, InputTrack, Mismatch } from '@jbrowse/tubemap-core'
 
 export type InputRegion = (number | null)[]
 
