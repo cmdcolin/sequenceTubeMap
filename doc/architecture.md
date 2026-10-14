@@ -76,29 +76,35 @@ limitation, not a bug.
 
 ### What the app asks of gbz-base
 
-`GBZBaseAPI` uses a deliberately small slice of the reader:
+`GBZBaseAPI` uses a small slice of the reader:
 
-- `GBZBase.open(source, { haplotypeIndex })` once per graph, cached for the
-  session. The second source is the optional companion index described in
+- `GBZBase.open({ source, haplotypeIndex })` once per graph, cached for the
+  session. `haplotypeIndex` is the optional companion index described in
   [data.md](data.md#naming-haplotypes-optional).
-- `db.getSubgraphForRange(pathQuery, start, end + 1, { haplotypes: 'distinct', signal })`
-  for every view. `distinct` means the app always wants _every_ haplotype
-  through the window, never a chosen subset. The `+ 1` is the coordinate
-  convention: the server's `vg chunk -p contig:start-end` includes `end`,
-  gbz-base treats it as exclusive, and the Region field means the same thing
-  whichever backend answers it.
+- `db.getPathFragments({ path, start, end: end + 1 })`, then
+  `db.getSubgraphs({ path, start, end: end + 1, haplotypes, limit, signal })`
+  for a path region. The app throws on a window no fragment covers. `haplotypes`
+  is `distinct`, or `all` when the view asks for every copy; either way the app
+  wants every haplotype through the window, never a chosen subset. The `+ 1` is
+  the coordinate convention: the server's `vg chunk -p contig:start-end`
+  includes `end`, gbz-base treats it as exclusive, and the Region field means
+  the same thing whichever backend answers it.
+- `db.subgraphAroundNodes({ nodeIds, context, haplotypes: 'none' })` for `node:`
+  regions, one edge per step from the nodes that exist.
 - `subgraph.toSubgraphJson({ names: db.hasHaplotypeIndex ? 'resolved' : 'anonymous' })`,
   converted to vg-style JSON in `src/api/gbz/schema.ts`.
 - `db.paths()` for the "Paths in this graph" panel. `getPathInfo` takes the
   companion index as well as the graph, because the panel asks by filename
   alone, and a second database opened without the index would walk every path to
   its end — slow in exactly the place a user waits.
+- `db.subgraphInInterval({ path, start, end, haplotypes: 'none', context: 0 })`
+  over each indexed path, for the node-id ranges behind the paths panel's
+  per-path read counts on an uploaded read file.
 
-That is the whole surface. In particular the app never passes `keep` to
-`subgraphInInterval`, so the `HaplotypeAnchors` table — which makes a query for
-a chosen set of haplotypes cost only that set — goes unexercised here. It
-matters for consumers that draw one lane per selected haplotype, such as JBrowse
-2; the tube map always draws them all.
+The app never passes `keep` to `subgraphInInterval`, so the `HaplotypeAnchors`
+table — which makes a query for a chosen set of haplotypes cost only that set —
+goes unexercised here. It matters for consumers that draw one lane per selected
+haplotype, such as JBrowse 2; the tube map always draws them all.
 
 The package comes from npm (`@gmod/gbz-base`); `pnpm-workspace.yaml` lists it,
 like `@jbrowse/tubemap-core`, under `minimumReleaseAgeExclude` so a fresh
