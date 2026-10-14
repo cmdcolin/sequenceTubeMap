@@ -56,8 +56,6 @@ list.
 - A stack of hundreds of panels draws every one; nothing pages or filters the
   samples.
 - Read-group coloring has no CLI or URL surface, so no figure shows it.
-- `doc/images/layers-mapq.png` is the weakest gallery image: the legend overlaps
-  the crop and the point takes a moment to see. Redo it or cut it.
 
 ## What remains
 

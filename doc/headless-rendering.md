@@ -308,10 +308,10 @@ sources render the same way with no network at all.
 
 ## Gallery
 
-The figures below show banded layers and read encodings on the small HPRC graphs
-and GAMs in `exampleData/visualization_examples/`. Each block regenerates its
-figure from the repo root, after setting `d=exampleData/visualization_examples`;
-the SVGs it leaves behind are scratch.
+The figures below show banded layers on the small HPRC graphs and GAMs in
+`exampleData/visualization_examples/`. Each block regenerates its figure from
+the repo root, after setting `d=exampleData/visualization_examples`; the SVGs it
+leaves behind are scratch.
 
 `--banded-haplotypes` folds the 19 non-reference haplotypes into orange bands
 shaded by their share, so each SNP's population split sits right above one
@@ -368,34 +368,6 @@ title 'Per read: 1,076 reads' > t1.png
 title 'With --coarsened: 6 bands, one per edge' > t2.png
 magick t1.png reads.png -size 1200x2 xc:'#ccc' t2.png bands.png -append \
   +repage -depth 8 doc/images/layers-reads-vs-bands.png
-```
-
-Mapping quality says how far to trust the HCC1395 tumor reads that skip the
-middle node below. Colored by it (top), the poorly mapped reads cluster among
-them rather than scattering through the pileup; `--alpha-by-mapq` (bottom) keeps
-the strand colors and fades the same reads. Both panels crop to the bottom of
-the pileup, where that band runs, and enlarge the legend so it reads at page
-width.
-
-![Reads colored and faded by mapping quality](images/layers-mapq.png)
-
-```bash
-for enc in color alpha; do
-  pnpm tubemap-cli --graph $d/chr7_124051614_124054114__HCC1395.giraffe.gbz.db \
-    --reads $d/Tumor_HCC1395.chr7_124051614_124054114.sorted.gam \
-    --region ref0:1700-1800 --compressed --$enc-by-mapq --legend --out $enc.svg
-  rsvg-convert -w 1600 $enc.svg | magick - -background white -flatten \
-    -gravity south -crop 1600x331+0+0 +repage $enc-map.png
-done
-# the legend is 112 units tall on color.svg and 144 on alpha.svg
-rsvg-convert -z 1.4 color.svg | magick - -background white -flatten \
-  -crop 588x158+0+0 +repage color-key.png
-rsvg-convert -z 1.4 alpha.svg | magick - -background white -flatten \
-  -crop 588x203+0+0 +repage alpha-key.png
-magick -background white color-key.png color-map.png \
-  -size 1600x24 xc:white -size 1600x2 xc:'#ccc' -size 1600x16 xc:white \
-  alpha-key.png alpha-map.png -append +repage -depth 8 \
-  doc/images/layers-mapq.png
 ```
 
 The committed PNGs went through `pngquant --quality=80-98 --strip` as well.
