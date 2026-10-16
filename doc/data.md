@@ -204,8 +204,8 @@ gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 - The command writes `graph.GRCh38.walks.bed.gz` and its `.tbi`. Give the walk
   file as the graph track, with its `.tbi` dropped in beside it or at the same
   URL plus `.tbi`
-- The reader takes walk format 2, which gfa-to-tabix writes from 1.0. A file
-  from 0.12 or earlier is format 1, and the reader asks for a rebuild
+- The reader takes walk format 3, which gfa-to-tabix writes from 1.1, and asks
+  for a rebuild of an older file
 - `--sequences` adds the nodes' bases, which the tube map shows as node labels.
   Without it, nodes draw at the right width with no bases
 - `--refs` takes several samples and writes a file for each. A file takes
@@ -228,7 +228,7 @@ HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
 
 ```json
 {
-  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f2.GRCh38.walks.bed.gz",
+  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f3.GRCh38.walks.bed.gz",
   "trackType": "graph"
 }
 ```
