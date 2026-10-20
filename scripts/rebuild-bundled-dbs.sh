@@ -45,7 +45,7 @@ if command -v gbz-haplotype-index >/dev/null; then
 fi
 
 # The chrM graph's gfa-to-tabix walk file, for the walk-file example; walk
-# format 3 needs gfa-to-tabix 1.1 or later
+# format 4 needs gfa-to-tabix 1.2 or later
 if command -v vg >/dev/null && command -v gfa-to-tabix >/dev/null; then
   gfa="$(mktemp --suffix .gfa)"
   vg convert -f exampleData/hprc-chrM.gbz >"$gfa"

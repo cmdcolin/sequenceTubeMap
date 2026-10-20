@@ -196,7 +196,7 @@ BandageJS read the same files, all through
 [@jbrowse/graph-walks](https://github.com/GMOD/graph-walks).
 
 ```bash
-cargo install gfa-to-tabix   # 1.0 or later
+cargo install gfa-to-tabix   # 1.2 or later
 vg convert -f graph.gbz > graph.gfa          # or any base-level GFA with W/P lines
 gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 ```
@@ -204,7 +204,7 @@ gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 - The command writes `graph.GRCh38.walks.bed.gz` and its `.tbi`. Give the walk
   file as the graph track, with its `.tbi` dropped in beside it or at the same
   URL plus `.tbi`
-- The reader takes walk format 3, which gfa-to-tabix writes from 1.1, and asks
+- The reader takes walk format 4, which gfa-to-tabix writes from 1.2, and asks
   for a rebuild of an older file
 - `--sequences` adds the nodes' bases, which the tube map shows as node labels.
   Without it, nodes draw at the right width with no bases
@@ -228,7 +228,7 @@ HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
 
 ```json
 {
-  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f3.GRCh38.walks.bed.gz",
+  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f4.GRCh38.walks.bed.gz",
   "trackType": "graph"
 }
 ```

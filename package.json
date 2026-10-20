@@ -10,7 +10,7 @@
     "@gmod/bgzf-filehandle": "^6.8.0",
     "@gmod/gbz-base": "^7.4.1",
     "@gmod/tabix": "^3.11.0",
-    "@jbrowse/graph-walks": "^2.0.0",
+    "@jbrowse/graph-walks": "^3.0.0",
     "@jbrowse/tubemap-core": "^2.0.1",
     "@mui/material": "^9.5.0",
     "comlink": "^4.4.2",
