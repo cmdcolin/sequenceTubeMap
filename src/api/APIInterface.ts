@@ -1,4 +1,5 @@
 import type {
+  AbridgedWalk,
   FileType,
   FilenamesResponse,
   PathInfo,
@@ -15,6 +16,7 @@ export interface ChunkedDataResponse {
   nameMap?: Record<string, string>
   region?: InputRegion
   coloredNodes?: string[]
+  abridged?: AbridgedWalk[]
 }
 
 // Contract implemented by LocalAPI and ServerAPI. All methods take an optional

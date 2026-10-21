@@ -650,8 +650,7 @@ export class GBZBaseAPI implements APIInterface {
 
   private async walkGraph(
     graphFile: string,
-    region: string,
-    allHaplotypes: boolean,
+    { region, allHaplotypes, expand }: ViewTarget,
     cancelSignal: AbortSignal | null,
   ) {
     const parsed = parseRegion(region)
@@ -666,8 +665,9 @@ export class GBZBaseAPI implements APIInterface {
     try {
       const anchor = await walks.anchorFor(contig, signal)
       return await walks.subgraph(anchor, start, end + 1, {
-        distinct: !allHaplotypes,
+        distinct: allHaplotypes !== true,
         nodeLimit: this.subgraphNodeLimit,
+        expand,
         signal,
       })
     } catch (e) {
@@ -697,16 +697,23 @@ export class GBZBaseAPI implements APIInterface {
       throw new Error('No graph track selected')
     }
     if (this.isWalks(graphFile)) {
-      const graph = await this.walkGraph(
+      const { graph, abridged } = await this.walkGraph(
         graphFile,
-        viewTarget.region,
-        viewTarget.allHaplotypes === true,
+        viewTarget,
         cancelSignal,
       )
       const { start, end } = convertRegionToRangeRegion(
         parseRegion(viewTarget.region),
       )
-      return await this.withReads(graph, [start, end], viewTarget, cancelSignal)
+      return {
+        ...(await this.withReads(
+          graph,
+          [start, end],
+          viewTarget,
+          cancelSignal,
+        )),
+        abridged,
+      }
     }
     this.noteHaplotypeIndex(graphFile, graphTrack.haplotypeIndexFile)
 

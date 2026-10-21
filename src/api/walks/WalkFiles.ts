@@ -3,7 +3,7 @@ import { WalkReader } from '@jbrowse/graph-walks'
 import type { GraphTables } from '@jbrowse/graph-walks'
 import type { GenericFilehandle } from 'generic-filehandle2'
 
-import type { PathInfo } from '../../Types.ts'
+import type { AbridgedWalk, PathInfo } from '../../Types.ts'
 import type { VgJson, VgNode, VgPath } from '../../util/tubemap.ts'
 
 // gbz-base's default, so both backends cut the same reference for a region
@@ -117,14 +117,22 @@ export class WalkFiles {
    * The graph under `start`-`end` of reference sequence `anchor`, with
    * `CONTEXT_BP` either side: the nodes the cut keeps and each walk through
    * them, in the vg JSON the tube map draws. `distinct` merges walks that take
-   * the same steps into one path whose `freq` counts them.
+   * the same steps into one path whose `freq` counts them. A walk abridged in
+   * the window comes back in `abridged` rather than as a path, unless
+   * `expand` names it.
    */
   async subgraph(
     anchor: string,
     start: number,
     end: number,
-    opts: { distinct: boolean; nodeLimit: number; signal?: AbortSignal },
-  ): Promise<VgJson & { edge: VgEdge[] }> {
+    opts: {
+      distinct: boolean
+      nodeLimit: number
+      expand?: string[]
+      signal?: AbortSignal
+    },
+  ): Promise<{ graph: VgJson & { edge: VgEdge[] }; abridged: AbridgedWalk[] }> {
+    const expand = new Set(opts.expand)
     const { graph, kept, fragments } = await this.reader.cut(
       anchor,
       { start, end },
@@ -133,6 +141,7 @@ export class WalkFiles {
         context: CONTEXT_BP,
         links: false,
         sequences: true,
+        expand: name => expand.has(name),
       },
     )
     if (kept.size > opts.nodeLimit) {
@@ -148,7 +157,7 @@ function vgJson(
   { nodes, walks }: GraphTables,
   sequences: Map<number, string>,
   distinct: boolean,
-): VgJson & { edge: VgEdge[] } {
+): { graph: VgJson & { edge: VgEdge[] }; abridged: AbridgedWalk[] } {
   const node: VgNode[] = nodes.names.flatMap((name, i) =>
     i < nodes.lengths.length
       ? [
@@ -164,7 +173,17 @@ function vgJson(
   const edges = new Map<string, VgEdge>()
   const path: VgPath[] = []
   const groups = new Map<string, VgPath & { freq: number }>()
+  const abridged = new Map<string, AbridgedWalk>()
   for (let p = 0; p < walks.names.length; p++) {
+    const name = walks.names[p]!
+    const abridgedSteps = walks.abridgedSteps?.[p] ?? Number.NaN
+    if (!Number.isNaN(abridgedSteps)) {
+      const walk = abridged.get(name) ?? { name, steps: 0, bp: 0 }
+      walk.steps += abridgedSteps
+      walk.bp += walks.abridgedBp![p]!
+      abridged.set(name, walk)
+      continue
+    }
     const from = walks.offsets[p]!
     const to = walks.offsets[p + 1]!
     const steps: string[] = []
@@ -192,7 +211,7 @@ function vgJson(
       }
     }
     const walk: VgPath = {
-      name: walks.names[p],
+      name,
       indexOfFirstBase: walks.starts[p],
       mapping,
     }
@@ -209,5 +228,8 @@ function vgJson(
     }
   }
   path.push(...groups.values())
-  return { node, edge: [...edges.values()], path }
+  return {
+    graph: { node, edge: [...edges.values()], path },
+    abridged: [...abridged.values()],
+  }
 }

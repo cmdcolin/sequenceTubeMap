@@ -159,3 +159,60 @@ it('asks for the index of a walk file dropped without it', async () => {
     api.getChunkedData(view(id, 'chrM:0-100'), null),
   ).rejects.toThrow(/hprc-chrM\.GRCh38\.walks\.bed\.gz needs its \.tbi/)
 })
+
+describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
+  const api = new GBZBaseAPI()
+  const region = 'K12#1#chr:1004500-1004961'
+  let abridged: string
+  let full: string
+
+  beforeAll(async () => {
+    full = await upload(api, 'ecoli_pggb.K12.walks.bed.gz', 'full')
+    await upload(api, 'ecoli_pggb.K12.walks.bed.gz.tbi', 'full')
+    abridged = await upload(api, 'ecoli_pggb_abridged.K12.walks.bed.gz', 'ab')
+    await upload(api, 'ecoli_pggb_abridged.K12.walks.bed.gz.tbi', 'ab')
+  })
+
+  const cut = (file: string, extra = {}) =>
+    api.getChunkedData(
+      view(file, region, { allHaplotypes: true, ...extra }),
+      null,
+    )
+
+  const pathOf = (response: Awaited<ReturnType<typeof cut>>, name: string) =>
+    response.graph!.path.find(p => p.name === name)
+
+  it('lists each abridged walk with its counts rather than drawing a stand-in', async () => {
+    const response = await cut(abridged)
+    expect(response.graph!.path.map(p => p.name)).toEqual([
+      'K12#1#chr',
+      'CFT073#1#chr',
+      'NCTC86#1#chr',
+    ])
+    expect(response.abridged).toEqual([
+      { name: 'IAI39#1#chr', steps: 35, bp: 460 },
+      { name: 'Sakai#1#chr', steps: 35, bp: 460 },
+    ])
+  })
+
+  it('merges no abridged walks into one distinct path', async () => {
+    const { graph } = await api.getChunkedData(view(abridged, region), null)
+    expect(total(graph!.path)).toBe(3)
+  })
+
+  it('reads a walk the view expands in full, as the unabridged file holds it', async () => {
+    const expanded = await cut(abridged, { expand: ['IAI39#1#chr'] })
+    const unabridged = await cut(full)
+    expect(expanded.abridged).toEqual([
+      { name: 'Sakai#1#chr', steps: 35, bp: 460 },
+    ])
+    expect(pathOf(expanded, 'IAI39#1#chr')!.mapping).toHaveLength(35)
+    expect(pathOf(expanded, 'IAI39#1#chr')).toEqual(
+      pathOf(unabridged, 'IAI39#1#chr'),
+    )
+  })
+
+  it('abridges nothing in a file written without a budget', async () => {
+    expect((await cut(full)).abridged).toEqual([])
+  })
+})

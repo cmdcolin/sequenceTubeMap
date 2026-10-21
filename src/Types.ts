@@ -55,6 +55,9 @@ export interface ViewTarget {
   // Keep every haplotype rather than one walk per distinct traversal, so each
   // walk keeps its own name. gbz-base honors it; the server ignores it.
   allHaplotypes?: boolean
+  // Abridged walks to read in full, by `sample#haplotype#contig`. Only a walk
+  // file abridges walks, and only the in-browser backend reads one.
+  expand?: string[]
 
   // Non-essential to server, used for examples.
   name?: string
@@ -65,6 +68,15 @@ export interface ViewTarget {
   // Set true in config for data sources whose default region is large enough
   // that auto-loading on menu selection would be slow.
   skipAutoLoad?: boolean
+}
+
+// A walk that gfa-to-tabix abridged in a costly chunk, such as a satellite
+// array: the cut leaves out its `steps` there, which span `bp`, until a view
+// names it in `expand`.
+export interface AbridgedWalk {
+  name: string
+  steps: number
+  bp: number
 }
 
 // Per-region data stored as parallel arrays keyed by a region index.
