@@ -182,7 +182,7 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
   const pathOf = (response: Awaited<ReturnType<typeof cut>>, name: string) =>
     response.graph!.path.find(p => p.name === name)
 
-  it('lists each abridged walk with its counts rather than drawing a stand-in', async () => {
+  it('lists each abridged walk with its counts, apart from the paths', async () => {
     const response = await cut(abridged)
     expect(response.graph!.path.map(p => p.name)).toEqual([
       'K12#1#chr',

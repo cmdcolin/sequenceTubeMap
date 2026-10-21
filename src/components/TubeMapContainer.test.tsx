@@ -477,11 +477,28 @@ describe('TubeMapContainer', () => {
       expect(onExpandedChange).toHaveBeenCalledWith(['B#2#c'])
     })
 
-    it('says nothing for a cut that abridged nothing', () => {
+    it('shows no bar for a cut that abridged nothing', () => {
       renderContainer({ data: makeData(0) })
 
       expect(screen.queryByText(/Abridged walks/)).not.toBeInTheDocument()
       expect(screen.queryByText(/Read in full/)).not.toBeInTheDocument()
+    })
+
+    it('shows the first few of many, and the rest on request', async () => {
+      const many = Array.from({ length: 300 }, (_, i) => ({
+        name: `S${i}#1#chr6`,
+        steps: 10,
+        bp: 100,
+      }))
+      renderContainer({ data: { ...makeData(0), abridged: many } })
+
+      expect(
+        screen.getAllByRole('button', { name: /off reference/ }),
+      ).toHaveLength(8)
+      await userEvent.click(screen.getByRole('button', { name: '+292 more…' }))
+      expect(
+        screen.getAllByRole('button', { name: /off reference/ }),
+      ).toHaveLength(300)
     })
 
     it('counts a short stretch in steps and bp', () => {

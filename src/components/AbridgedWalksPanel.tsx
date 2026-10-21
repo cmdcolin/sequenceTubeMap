@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { AbridgedWalk } from '../Types.ts'
 
@@ -36,6 +37,9 @@ const REMOVE_STYLE: CSSProperties = {
   color: '#666',
 }
 
+// A satellite array can abridge hundreds of walks in one window
+const SHOWN_AT_FIRST = 8
+
 const twoDigits = (n: number) =>
   Number(n.toPrecision(2)).toLocaleString('en-US')
 
@@ -50,7 +54,7 @@ function scaled(n: number, unit: string, kilo: string, mega: string) {
 // `sample#haplotype`, which says which walk it is within one contig's window
 const shortName = (name: string) => name.split('#').slice(0, 2).join('#')
 
-// As ADR 0004 of gfa-to-tabix words it: `HG00097#1: 140 k steps, 2.1 Mb off
+// The label in gfa-to-tabix's ADR 0004: `HG00097#1: 140 k steps, 2.1 Mb off
 // reference`
 export function abridgedLabel({ name, steps, bp }: AbridgedWalk): string {
   return `${shortName(name)}: ${scaled(steps, 'steps', 'k steps', 'M steps')}, ${scaled(bp, 'bp', 'kb', 'Mb')} off reference`
@@ -69,6 +73,8 @@ function AbridgedWalksPanel({
   expanded,
   onExpandedChange,
 }: AbridgedWalksPanelProps) {
+  const [showAll, setShowAll] = useState(false)
+  const shown = showAll ? abridged : abridged.slice(0, SHOWN_AT_FIRST)
   return (
     <div style={PANEL_STYLE}>
       {abridged.length > 0 ? (
@@ -76,7 +82,7 @@ function AbridgedWalksPanel({
           <span title="The walk file moved these walks' costliest stretch to detail records, which a window doesn't read.">
             Abridged walks, not drawn:
           </span>
-          {abridged.map(walk => (
+          {shown.map(walk => (
             <button
               key={walk.name}
               type="button"
@@ -89,6 +95,16 @@ function AbridgedWalksPanel({
               {abridgedLabel(walk)}
             </button>
           ))}
+          {shown.length < abridged.length ? (
+            <button
+              type="button"
+              onClick={() => {
+                setShowAll(true)
+              }}
+            >
+              +{abridged.length - shown.length} more…
+            </button>
+          ) : null}
         </div>
       ) : null}
       {expanded.length > 0 ? (

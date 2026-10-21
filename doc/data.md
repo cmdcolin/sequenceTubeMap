@@ -204,8 +204,8 @@ gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 - The command writes `graph.GRCh38.walks.bed.gz` and its `.tbi`. Give the walk
   file as the graph track, with its `.tbi` dropped in beside it or at the same
   URL plus `.tbi`
-- The reader takes walk format 4, which gfa-to-tabix writes from 1.2, and asks
-  for a rebuild of an older file
+- The reader takes walk formats 4 and 5, which gfa-to-tabix writes from 1.2 and
+  1.4, and asks for a rebuild of an older file
 - `--sequences` adds the nodes' bases, which the tube map shows as node labels.
   Without it, nodes draw at the right width with no bases
 - `--refs` takes several samples and writes a file for each. A file takes
@@ -232,6 +232,25 @@ HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
   "trackType": "graph"
 }
 ```
+
+#### Abridged walks
+
+gfa-to-tabix 1.4 gives each chunk a cost budget. In a chunk over it, usually a
+satellite array, the writer moves the costliest walks' steps to detail records
+that a window doesn't read
+([ADR 0004](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/adr/0004-abridged-detours.md)).
+
+- A bar over the tube map lists each abridged walk as a block, such as
+  `HG00133#1: 12 k steps, 170 kb off reference`, and the map leaves it out
+- Clicking a block reads that walk in full and redraws. Double-clicking a walk
+  to follow it does the same when the window abridged it
+- A walk read in full stays so for every region of that file, until its × under
+  **Read in full** abridges it again
+- The node limit and the draw limit apply to the cut with the walk in full
+
+At HPRC v2.1's LPA KIV-2 array, `GRCh38#chr6:160614798-160647758`, the window
+abridges 291 walks. Read in full, HG00133#1 runs 150 kb through the array, and
+HG00133#2 166 kb.
 
 ### Indexing reads for region queries
 
