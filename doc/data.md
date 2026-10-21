@@ -220,8 +220,10 @@ The cut matches the `.gbz.db` reader's: the reference over the region plus 100
 bp either side, and each haplotype through it. Where a haplotype leaves the
 reference near the edge, the walk reader follows it back to where it rejoins, so
 the walk-file cut can run a node or two wider. On the bundled chrM graph both
-readers name the same 44 haplotypes, and at HPRC v2.1's LPA region both
-return 344.
+readers name the same 44 haplotypes. At the LPA region of the HPRC v2.1
+examples, `GRCh38#chr6:160620000-160620500`, both cover the same 344 haplotypes.
+The walk file draws 265 of them and lists the other 79 as
+[abridged](#abridged-walks) until they are read in full.
 
 HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
 (gfa-to-tabix walks, URL-hosted)** example reads:
