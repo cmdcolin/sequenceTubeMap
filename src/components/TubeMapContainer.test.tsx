@@ -22,6 +22,7 @@ interface NodeMenu {
 interface CapturedMenus {
   read?: (menu: ReadMenu | null) => void
   node?: (menu: NodeMenu | null) => void
+  follow?: (name: string) => void
 }
 
 // The tube map hands the container its context menus through module-level
@@ -43,7 +44,7 @@ vi.mock('./TubeMap.tsx', () => ({
   },
 }))
 
-// The container only reaches for these four, and a full replacement keeps the
+// The container only reaches for these, and a full replacement keeps the
 // 5,000-line drawing module out of the test.
 vi.mock('../util/tubemap.ts', () => ({
   setInfoCallback: () => {},
@@ -52,6 +53,9 @@ vi.mock('../util/tubemap.ts', () => ({
   },
   setNodeContextMenuCallback: (cb: (menu: NodeMenu | null) => void) => {
     mocks.menus.node = cb
+  },
+  setTrackFollowCallback: (cb: (name: string) => void) => {
+    mocks.menus.follow = cb
   },
   getReadNamesThroughNodes: () => ['read1', 'read2'],
   subscribeRenderedColoring: () => () => {},
@@ -96,6 +100,7 @@ function makeData(readCount: number, tracks: InputTrack[] = []): TubeMapData {
     reads: Array.from({ length: readCount }, (_, i) => makeRead(i)),
     region: undefined,
     coloredNodes: undefined,
+    abridged: [],
   }
 }
 
@@ -122,6 +127,8 @@ interface RenderOptions {
   onCoarsen?: () => void
   legendVisible?: boolean
   largeRegion?: { spanBp: number; onLoadAnyway: () => void }
+  expanded?: string[]
+  onExpandedChange?: (names: string[]) => void
 }
 
 function renderContainer(options: RenderOptions = {}) {
@@ -141,6 +148,8 @@ function renderContainer(options: RenderOptions = {}) {
     legendTracks: (options.viewTarget ?? VIEW_TARGET).tracks,
     onLegendClose: () => {},
     onCoarsen: options.onCoarsen ?? (() => {}),
+    expanded: options.expanded ?? [],
+    onExpandedChange: options.onExpandedChange ?? (() => {}),
   }
   const result = render(<TubeMapContainer {...props} />)
   return {
@@ -418,5 +427,74 @@ describe('TubeMapContainer', () => {
       screen.queryByTestId('tubeMapLoadingOverlay'),
     ).not.toBeInTheDocument()
     expect(document.getElementById('loader')).not.toBeNull()
+  })
+
+  describe('abridged walks', () => {
+    const abridged = [{ name: 'HG00097#1#chr6', steps: 140_321, bp: 2_093_000 }]
+    const data = { ...makeData(0, [makeWalk(1, 3)]), abridged }
+
+    it('labels each one as a block that reads it in full', async () => {
+      const onExpandedChange = vi.fn()
+      renderContainer({ data, expanded: ['NA1#2#chr6'], onExpandedChange })
+
+      await userEvent.click(
+        screen.getByRole('button', {
+          name: 'HG00097#1: 140 k steps, 2.1 Mb off reference',
+        }),
+      )
+      expect(onExpandedChange).toHaveBeenCalledWith([
+        'NA1#2#chr6',
+        'HG00097#1#chr6',
+      ])
+    })
+
+    it('reads one in full when the user follows it, and leaves the rest', () => {
+      const onExpandedChange = vi.fn()
+      renderContainer({ data, onExpandedChange })
+
+      act(() => {
+        mocks.menus.follow!('hap1')
+      })
+      expect(onExpandedChange).not.toHaveBeenCalled()
+      act(() => {
+        mocks.menus.follow!('HG00097#1#chr6')
+      })
+      expect(onExpandedChange).toHaveBeenCalledWith(['HG00097#1#chr6'])
+    })
+
+    it('lists the walks read in full, each of which can be abridged again', async () => {
+      const onExpandedChange = vi.fn()
+      renderContainer({
+        data: makeData(0),
+        expanded: ['A#1#c', 'B#2#c'],
+        onExpandedChange,
+      })
+
+      expect(screen.queryByText(/Abridged walks/)).not.toBeInTheDocument()
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Abridge A#1#c again' }),
+      )
+      expect(onExpandedChange).toHaveBeenCalledWith(['B#2#c'])
+    })
+
+    it('says nothing for a cut that abridged nothing', () => {
+      renderContainer({ data: makeData(0) })
+
+      expect(screen.queryByText(/Abridged walks/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Read in full/)).not.toBeInTheDocument()
+    })
+
+    it('counts a short stretch in steps and bp', () => {
+      renderContainer({
+        data: {
+          ...makeData(0),
+          abridged: [{ name: 'IAI39#1#chr', steps: 35, bp: 460 }],
+        },
+      })
+
+      expect(
+        screen.getByText('IAI39#1: 35 steps, 460 bp off reference'),
+      ).toBeInTheDocument()
+    })
   })
 })

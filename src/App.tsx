@@ -230,6 +230,17 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   const [confirmedWideView, setConfirmedWideView] = useState<ViewTarget | null>(
     null,
   )
+  // The abridged walks the user asked to read in full, which hold for every
+  // region of the graph file they were asked on
+  const [expandedWalks, setExpandedWalks] = useState<{
+    graphFile?: string
+    names: string[]
+  }>({ names: [] })
+  const graphFile = viewTarget.tracks.find(
+    t => t.trackType === 'graph',
+  )?.trackFile
+  const expand =
+    expandedWalks.graphFile === graphFile ? expandedWalks.names : []
   const spanBp = viewSpanBp(viewTarget)
   const holdingWideRegion =
     dataOrigin === dataOriginTypes.API &&
@@ -251,7 +262,10 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
         : [
             'tubeMap.api',
             apiInterface.mode,
-            fetchTargetFor(viewTarget, visOptions),
+            fetchTargetFor(
+              expand.length > 0 ? { ...viewTarget, expand } : viewTarget,
+              visOptions,
+            ),
           ]
       : ['tubeMap.example', dataOrigin]
 
@@ -478,6 +492,10 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
               showReads: true,
               coarsenedReadView: true,
             })
+          }}
+          expanded={expand}
+          onExpandedChange={names => {
+            setExpandedWalks({ graphFile, names })
           }}
         />
       </div>

@@ -1,4 +1,9 @@
-import { useState, useEffect, useSyncExternalStore } from 'react'
+import {
+  useState,
+  useEffect,
+  useEffectEvent,
+  useSyncExternalStore,
+} from 'react'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -11,6 +16,7 @@ import NodeContextMenu from './NodeContextMenu.tsx'
 import PendingPanel from './PendingPanel.tsx'
 import DownloadProgressPanel from './DownloadProgressPanel.tsx'
 import ReadGroupsPanel, { type ReadGroup } from './ReadGroupsPanel.tsx'
+import AbridgedWalksPanel from './AbridgedWalksPanel.tsx'
 import Legend from './Legend.tsx'
 import type { TubeMapData } from './tubeMapData.ts'
 import type { InputTrack } from '../util/tubemap.ts'
@@ -329,6 +335,9 @@ interface TubeMapContainerProps {
   // Switches on the coarsened view, offered when a region is too big to draw
   // without it
   onCoarsen: () => void
+  // The abridged walks App asks the walk file to read in full
+  expanded: string[]
+  onExpandedChange: (names: string[]) => void
 }
 
 function TubeMapContainer({
@@ -346,6 +355,8 @@ function TubeMapContainer({
   legendTracks,
   onLegendClose,
   onCoarsen,
+  expanded,
+  onExpandedChange,
 }: TubeMapContainerProps) {
   const [infoDialogContent, setInfoDialogContent] = useState<
     InfoAttribute[] | undefined
@@ -374,7 +385,14 @@ function TubeMapContainer({
   )
   // Set by "Draw anyway" on the size notice, for this view only.
   const [drawLargeGraph, setDrawLargeGraph] = useState(false)
-  const { nodes, tracks, reads, region, coloredNodes } = data ?? {}
+  const {
+    nodes,
+    tracks,
+    reads,
+    region,
+    coloredNodes,
+    abridged = [],
+  } = data ?? {}
 
   // Everything the user staged for the region they were looking at (read
   // groups, the pending read/node sets, the read filter and the render cap)
@@ -403,6 +421,13 @@ function TubeMapContainer({
     setDrawLargeGraph(false)
   }
 
+  // A walk the user follows is worth its detail records
+  const followWalk = useEffectEvent((name: string) => {
+    if (abridged.some(walk => walk.name === name)) {
+      onExpandedChange([...expanded, name])
+    }
+  })
+
   const changeReadRenderLimit = (limit: number | null) => {
     setReadRenderLimit(limit)
     onReadRenderLimitChange(limit)
@@ -417,6 +442,9 @@ function TubeMapContainer({
     })
     tubeMap.setNodeContextMenuCallback((menu: NodeContextMenuState | null) => {
       setNodeContextMenu(menu)
+    })
+    tubeMap.setTrackFollowCallback(name => {
+      followWalk(name)
     })
   }, [])
 
@@ -706,6 +734,13 @@ function TubeMapContainer({
           onRecolorOther={color => {
             setOtherReadsColor(color)
           }}
+        />
+      ) : null}
+      {abridged.length > 0 || expanded.length > 0 ? (
+        <AbridgedWalksPanel
+          abridged={abridged}
+          expanded={expanded}
+          onExpandedChange={onExpandedChange}
         />
       ) : null}
       {focusReadNames ? (

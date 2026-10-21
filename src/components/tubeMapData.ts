@@ -10,7 +10,7 @@ import type {
 import type { APIInterface, ChunkedDataResponse } from '../api/APIInterface.ts'
 import { dataOriginTypes } from '../enums.ts'
 import { errorMessage, isAbortError } from '../util/error.ts'
-import type { Tracks, ViewTarget } from '../Types.ts'
+import type { AbridgedWalk, Tracks, ViewTarget } from '../Types.ts'
 
 // demo-data.js types are inferred from JS literals; keep this loose so the
 // module-level shape (which includes a few extra JS-only fields) is
@@ -51,6 +51,7 @@ export interface TubeMapData {
   reads: InputTrack[]
   region: InputRegion | undefined
   coloredNodes: string[] | undefined
+  abridged: AbridgedWalk[]
 }
 
 // Turn one API response into tube map inputs. The track list says which
@@ -101,6 +102,7 @@ export function parseChunkedData(
     reads: readsPerTrack.flat(),
     region: json.region,
     coloredNodes: json.coloredNodes,
+    abridged: json.abridged ?? [],
   }
 }
 
@@ -224,6 +226,7 @@ export async function fetchTubeMapData(
     reads: result.reads,
     region: undefined,
     coloredNodes: undefined,
+    abridged: [],
   }
 }
 

@@ -806,3 +806,66 @@ describe('leaving a view before it loads', () => {
     expect(calls).toBe(1)
   })
 })
+
+describe('abridged walks', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/')
+  })
+
+  const graph = {
+    node: [{ id: 1, sequence: 'ACGT', sequenceLength: 4 }],
+    path: [
+      {
+        name: 'ref',
+        mapping: [
+          {
+            position: { node_id: 1 },
+            edit: [{ from_length: 4, to_length: 4 }],
+          },
+        ],
+      },
+    ],
+  }
+
+  it('asks for a walk in full once its block is clicked, for every region until abridged again', async () => {
+    const asked: (string[] | undefined)[] = []
+    renderApp(
+      fakeAPI({
+        getChunkedData: async target => {
+          asked.push(target.expand)
+          return {
+            graph,
+            abridged: target.expand
+              ? []
+              : [{ name: 'HG00097#1#chr6', steps: 35, bp: 460 }],
+          }
+        },
+      }),
+    )
+
+    await userEvent.click(
+      await screen.findByRole('button', {
+        name: 'HG00097#1: 35 steps, 460 bp off reference',
+      }),
+    )
+    await waitFor(() => {
+      expect(asked).toEqual([undefined, ['HG00097#1#chr6']])
+    })
+
+    await userEvent.clear(getRegionInput())
+    await userEvent.type(getRegionInput(), '17:1-200')
+    await userEvent.click(screen.getByRole('button', { name: 'Go' }))
+    await waitFor(() => {
+      expect(asked).toHaveLength(3)
+    })
+    expect(asked[2]).toEqual(['HG00097#1#chr6'])
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Abridge HG00097#1#chr6 again' }),
+    )
+    await waitFor(() => {
+      expect(asked).toHaveLength(4)
+    })
+    expect(asked[3]).toBeUndefined()
+  })
+})

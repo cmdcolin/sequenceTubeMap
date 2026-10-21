@@ -126,6 +126,7 @@ interface TubeMapConfig {
   showInfoCallback: (info: InfoAttribute[]) => void
   readContextMenuCallback: (menu: ReadContextMenuState | null) => void
   nodeContextMenuCallback: (menu: NodeContextMenuState | null) => void
+  trackFollowCallback: (name: string) => void
   focusReadNames: string[] | null
   facetBy: FacetBy | null
   readGroups: ReadGroup[]
@@ -259,6 +260,7 @@ const config: TubeMapConfig = {
   },
   readContextMenuCallback: function () {},
   nodeContextMenuCallback: function () {},
+  trackFollowCallback: function () {},
   coloredNodes: [],
   focusReadNames: null,
   facetBy: null,
@@ -550,6 +552,14 @@ export function setNodeContextMenuCallback(
   newCallback: (menu: NodeContextMenuState | null) => void,
 ): void {
   config.nodeContextMenuCallback = newCallback
+}
+
+// Set the callback fired with a track's name when the user double-clicks it
+// to follow it
+export function setTrackFollowCallback(
+  newCallback: (name: string) => void,
+): void {
+  config.trackFollowCallback = newCallback
 }
 
 // Collect the names of all reads (from the unfiltered input) that traverse a
@@ -2164,15 +2174,17 @@ function nodeMouseOut(this: SVGElement): void {
   d3.select(this).style('stroke-width', '2px')
 }
 
-// Move clicked track to first position
+// Move clicked track to first position, so the layout follows it
 function trackDoubleClick(this: SVGElement): void {
   const trackID = Number(d3.select(this).attr('trackID'))
   const index = inputTracks.findIndex(track => track.id === trackID)
   // Reads and bands aren't input tracks
   if (index === -1) return
   debugLog(`moving index: ${index}`)
+  const { name } = inputTracks[index]!
   moveTrackToFirstPosition(index)
   relayout()
+  if (name !== undefined) config.trackFollowCallback(name)
 }
 
 // The nodes a path visits, as >1>2<3>4 with < for a reverse visit
