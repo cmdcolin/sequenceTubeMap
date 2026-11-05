@@ -212,6 +212,13 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
     )
   })
 
+  it('lists a reference sequence that starts past 0 with where it ends', async () => {
+    const { pathInfo } = await api.getPathInfo(full, null)
+    expect(pathInfo).toEqual([
+      { name: 'K12#1#chr', length: 1004961, cyclic: false },
+    ])
+  })
+
   it('abridges nothing in a file written without a budget', async () => {
     expect((await cut(full)).abridged).toEqual([])
   })

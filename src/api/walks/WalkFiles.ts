@@ -9,6 +9,9 @@ import type { VgJson, VgNode, VgPath } from '../../util/tubemap.ts'
 // gbz-base's default, so both backends cut the same reference for a region
 const CONTEXT_BP = 100
 
+// The bp a .tbi's linear index locates rows to, 2 ** its min_shift of 14
+const TBI_WINDOW = 16_384
+
 interface VgEdge {
   from: string
   to: string
@@ -57,16 +60,17 @@ export class WalkFiles {
   }
 
   // One entry per reference sequence. Its length is where its last node
-  // ends, from the reference's rows in the last chunk the index says it has
+  // ends, from the reference's rows in the last stretch the index says it has
   // rows in.
   async pathInfo(signal?: AbortSignal): Promise<PathInfo[]> {
     const { chunk } = await this.reader.header({ signal })
     const names = await this.reader.referenceSequences({ signal })
+    const step = Math.max(chunk, TBI_WINDOW)
     return await Promise.all(
       names.map(async name => {
-        const start = await this.lastChunkStart(name, chunk, signal)
+        const start = await this.lastRowsStart(name, step, signal)
         const rows: string[][] = []
-        await this.walks.getLines(name, start, start + 1, {
+        await this.walks.getLines(name, start, start + step, {
           signal,
           lineCallback: line => {
             rows.push(line.split('\t'))
@@ -83,34 +87,36 @@ export class WalkFiles {
     )
   }
 
-  // The start of the last chunk with rows, found from the index alone: the
-  // reference's walk has a row in every chunk it passes, so the chunks with
-  // rows run unbroken from the first.
-  private async lastChunkStart(
+  // The start of the last `step` with rows, found from the index alone by
+  // whether any rows lie at or past a step's start, which holds for the steps
+  // up to the last wherever the sequence's rows begin. A step is at least a
+  // .tbi's window, so the index tells one step's rows from the next's.
+  private async lastRowsStart(
     name: string,
-    chunk: number,
+    step: number,
     signal?: AbortSignal,
   ): Promise<number> {
-    const hasRows = async (k: number) =>
+    const { maxRefLength } = await this.walks.getMetadata({ signal })
+    const rowsFrom = async (k: number) =>
       (await this.walks.bytesForRegions(
-        [{ refName: name, start: k * chunk, end: k * chunk + 1 }],
+        [{ refName: name, start: k * step, end: maxRefLength }],
         { signal },
       )) > 0
     let lo = 0
     let hi = 1
-    while (await hasRows(hi)) {
+    while (await rowsFrom(hi)) {
       lo = hi
       hi *= 2
     }
     while (hi - lo > 1) {
       const mid = Math.floor((lo + hi) / 2)
-      if (await hasRows(mid)) {
+      if (await rowsFrom(mid)) {
         lo = mid
       } else {
         hi = mid
       }
     }
-    return lo * chunk
+    return lo * step
   }
 
   /**
