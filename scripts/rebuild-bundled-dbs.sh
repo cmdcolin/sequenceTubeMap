@@ -61,7 +61,7 @@ if command -v gfa-to-tabix >/dev/null; then
     -o exampleData/ecoli_pggb
   gfa-to-tabix exampleData/ecoli_pggb_subgraph.gfa --walks --refs K12 \
     --abridge-steps 20 -o exampleData/ecoli_pggb_abridged
-  gfa-to-tabix exampleData/departures.gfa --walks --refs R --sequences \
+  gfa-to-tabix exampleData/departures.gfa --walks --refs R --sequences --chunk 100 \
     -o exampleData/departures
 fi
 
