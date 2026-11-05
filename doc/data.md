@@ -196,7 +196,7 @@ BandageJS read the same files, all through
 [@jbrowse/graph-walks](https://github.com/GMOD/graph-walks).
 
 ```bash
-cargo install gfa-to-tabix   # 1.2 or later
+cargo install gfa-to-tabix   # 3.0 or later
 vg convert -f graph.gbz > graph.gfa          # or any base-level GFA with W/P lines
 gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 ```
@@ -204,8 +204,8 @@ gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 - The command writes `graph.GRCh38.walks.bed.gz` and its `.tbi`. Give the walk
   file as the graph track, with its `.tbi` dropped in beside it or at the same
   URL plus `.tbi`
-- The reader takes walk formats 4 and 5, which gfa-to-tabix writes from 1.2 and
-  1.4, and asks for a rebuild of an older file
+- The reader takes walk format 6, which gfa-to-tabix writes from 3.0, and asks
+  for a rebuild of an older file
 - `--sequences` adds the nodes' bases, which the tube map shows as node labels.
   Without it, nodes draw at the right width with no bases
 - `--refs` takes several samples and writes a file for each. A file takes
@@ -217,30 +217,37 @@ gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
   alignments to that GBZ use, and a `.gam` read track draws over the walk file
 
 The cut matches the `.gbz.db` reader's: the reference over the region plus 100
-bp either side, and each haplotype through it. Where a haplotype leaves the
-reference near the edge, the walk reader follows it back to where it rejoins, so
-the walk-file cut can run a node or two wider. On the bundled chrM graph both
-readers name the same 44 haplotypes. At the LPA region of the HPRC v2.1
-examples, `GRCh38#chr6:160620000-160620500`, both cover the same 344 haplotypes.
-The walk file draws 265 of them and lists the other 79 as
-[abridged](#abridged-walks) until they are read in full.
+bp either side, and each haplotype from its first step there to its last. Where
+a haplotype leaves the reference at the edge for sequence of its own, and the
+cut holds all of it, up to 65,536 bp, its walk runs on through those nodes, so
+the walk-file cut can run a node or two wider. Two of a contig's W lines that
+meet with none of its sequence missing between them draw as one walk. A walk
+stops at the edge where the cut holds only part of that sequence, or the graph
+lacks some of it. On the bundled chrM graph both readers name the same 44
+haplotypes. A walk file can also list a haplotype as [abridged](#abridged-walks)
+until it is read in full.
+
+A window past graph-walks' budgets, 4,000,000 steps or 8 MB of walk rows, or the
+node limit is refused, with the width that would fit where one does. One whose
+departure records come to more than 2 MB, usually at a collapsed repeat, is
+refused at any width.
 
 HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
 (gfa-to-tabix walks, URL-hosted)** example reads:
 
 ```json
 {
-  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f5.GRCh38.walks.bed.gz",
+  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f6.GRCh38.walks.bed.gz",
   "trackType": "graph"
 }
 ```
 
 #### Abridged walks
 
-gfa-to-tabix 1.4 gives each chunk a cost budget. In a chunk over it, usually a
+gfa-to-tabix gives each chunk a cost budget. In a chunk over it, usually a
 satellite array, the writer moves the costliest walks' steps to detail records
 that a window doesn't read
-([ADR 0004](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/adr/0004-abridged-detours.md)).
+([walks-format.md](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/walks-format.md#abridged-chunks)).
 
 - A bar over the tube map lists each abridged walk as a block, such as
   `HG00133#1: 12 k steps, 170 kb off reference`, and the map leaves it out
@@ -250,9 +257,8 @@ that a window doesn't read
   **Read in full** abridges it again
 - The node limit and the draw limit apply to the cut with the walk in full
 
-At HPRC v2.1's LPA KIV-2 array, `GRCh38#chr6:160614798-160647758`, the window
-abridges 291 walks. Read in full, HG00133#1 runs 150 kb through the array, and
-HG00133#2 166 kb.
+At HPRC v2.1's LPA KIV-2 array, `GRCh38#chr6:160614798-160647758`, read in full,
+HG00133#1 runs 150 kb through the array, and HG00133#2 166 kb.
 
 ### Indexing reads for region queries
 

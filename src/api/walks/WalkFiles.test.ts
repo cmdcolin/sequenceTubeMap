@@ -216,3 +216,75 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
     expect((await cut(full)).abridged).toEqual([])
   })
 })
+
+describe('a walk file whose haplotypes depart from the reference at the edge of the drawn stretch', () => {
+  const api = new GBZBaseAPI()
+  let file: string
+
+  beforeAll(async () => {
+    file = await upload(api, 'departures.R.walks.bed.gz', 'departures')
+    await upload(api, 'departures.R.walks.bed.gz.tbi', 'departures')
+  })
+
+  const walksOf = async (region: string, name: string) => {
+    const { graph } = await api.getChunkedData(
+      view(file, region, { allHaplotypes: true }),
+      null,
+    )
+    return graph!.path
+      .filter(p => p.name === name)
+      .map(p => ({
+        start: p.indexOfFirstBase,
+        nodes: p.mapping.map(m => m.position?.node_id),
+      }))
+  }
+
+  it('runs a walk on through the sequence of its own it leaves the stretch into', async () => {
+    expect(await walksOf('R#0#chr:0-150', 'H#1#h')).toEqual([
+      { start: 0, nodes: ['1', '2', '3', '9', '10'] },
+    ])
+  })
+
+  it('starts a walk with the sequence of its own it comes onto the stretch from', async () => {
+    expect(await walksOf('R#0#chr:450-600', 'H#1#h')).toEqual([
+      { start: 300, nodes: ['9', '10', '4', '5', '6'] },
+    ])
+  })
+
+  it('joins two W lines whose departure the cut holds every own step of', async () => {
+    expect(await walksOf('R#0#chr:0-150', 'J#1#j')).toEqual([
+      { start: 0, nodes: ['1', '2', '11', '12', '3'] },
+    ])
+  })
+
+  it('keeps two W lines apart where the graph lacks 10 bp between them', async () => {
+    expect(await walksOf('R#0#chr:0-150', 'K#1#k')).toEqual([
+      { start: 0, nodes: ['1', '2'] },
+      { start: 310, nodes: ['3'] },
+    ])
+  })
+
+  it('lists the reference sequence with its length', async () => {
+    const { pathInfo } = await api.getPathInfo(file, null)
+    expect(pathInfo).toEqual([{ name: 'R#0#chr', length: 600, cyclic: false }])
+  })
+
+  it('says how wide a region fits under the node limit, offering no haplotype choice', async () => {
+    const limited = new GBZBaseAPI(5)
+    const id = await upload(limited, 'departures.R.walks.bed.gz', 'limited')
+    await upload(limited, 'departures.R.walks.bed.gz.tbi', 'limited')
+    const refusal = limited.getChunkedData(view(id, 'R#0#chr:0-150'), null)
+    await expect(refusal).rejects.toThrow(
+      /^R#0#chr:0-150 takes in more of the graph than the browser reads for one view\. A region of about [\d,]+ bp would fit\.$/,
+    )
+  })
+})
+
+it('asks for a rebuild of a format 5 walk file', async () => {
+  const api = new GBZBaseAPI()
+  const id = await upload(api, 'format5.K12.walks.bed.gz', 'format5')
+  await upload(api, 'format5.K12.walks.bed.gz.tbi', 'format5')
+  await expect(
+    api.getChunkedData(view(id, 'K12#1#chr:1004500-1004961'), null),
+  ).rejects.toThrow(/format 5; .* rebuild it with gfa-to-tabix 3\.0 or later/)
+})

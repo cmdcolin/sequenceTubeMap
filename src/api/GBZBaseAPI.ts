@@ -18,6 +18,7 @@ import {
   SchemaVersionError,
   SubgraphLimitError,
 } from '@gmod/gbz-base'
+import { DepartureReadError, RegionTooLargeError } from '@jbrowse/graph-walks'
 import type {
   GbzPath,
   NodeHaplotypeOutput,
@@ -36,7 +37,7 @@ import type { Region } from '../common.ts'
 
 import { convertSchema, removeNodeSequencesInPlace } from './gbz/schema.ts'
 import type { ConvertedGraph } from './gbz/schema.ts'
-import { WalkLimitError, WalkFiles } from './walks/WalkFiles.ts'
+import { WalkFiles } from './walks/WalkFiles.ts'
 import { pathQueryFor } from './gbz/pathQuery.ts'
 import { applyProgress } from './downloadProgress.ts'
 import type { ProgressListener } from './downloadProgress.ts'
@@ -279,6 +280,15 @@ function subgraphLimitMessage(region: string, e: SubgraphLimitError): string {
       ? ` A region of about ${Math.floor(e.walkedBp * 0.8).toLocaleString()} bp would fit.`
       : ''
   return `${region} takes in more than ${e.limit.toLocaleString()} graph nodes, the most the browser reads for one view.${fits}`
+}
+
+// graph-walks' notice for a walk-file cut past the node limit or one of its
+// budgets, worded as the gbz-base notice is: graph-walks' own words offer
+// fewer haplotypes, which the tube map has no way to choose
+function walkLimitMessage(region: string, e: RegionTooLargeError): string {
+  return e.zoomHelps
+    ? `${region} takes in more of the graph than the browser reads for one view. A region of about ${e.fitsBp.toLocaleString()} bp would fit.`
+    : `${region}: ${e.message}`
 }
 
 // The server's node regions, cut the way `vg chunk` cuts them:
@@ -671,13 +681,16 @@ export class GBZBaseAPI implements APIInterface {
         signal,
       })
     } catch (e) {
-      if (isAbortError(e) || e instanceof WalkLimitError) {
-        throw e
-      }
-      throw new Error(
-        `Failed to read "${this.fileName(graphFile)}" at ${region}: ${errorMessage(e)}`,
-        { cause: e },
-      )
+      throw isAbortError(e)
+        ? e
+        : e instanceof RegionTooLargeError
+          ? new Error(walkLimitMessage(region, e), { cause: e })
+          : e instanceof DepartureReadError
+            ? new Error(`${region}: ${e.message}`, { cause: e })
+            : new Error(
+                `Failed to read "${this.fileName(graphFile)}" at ${region}: ${errorMessage(e)}`,
+                { cause: e },
+              )
     }
   }
 

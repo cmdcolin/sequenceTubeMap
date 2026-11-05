@@ -1,5 +1,5 @@
 import { TabixIndexedFile } from '@gmod/tabix'
-import { WalkReader } from '@jbrowse/graph-walks'
+import { WalkReader, referenceNodes } from '@jbrowse/graph-walks'
 import type { GraphTables } from '@jbrowse/graph-walks'
 import type { GenericFilehandle } from 'generic-filehandle2'
 
@@ -8,8 +8,6 @@ import type { VgJson, VgNode, VgPath } from '../../util/tubemap.ts'
 
 // gbz-base's default, so both backends cut the same reference for a region
 const CONTEXT_BP = 100
-
-export class WalkLimitError extends Error {}
 
 interface VgEdge {
   from: string
@@ -59,25 +57,27 @@ export class WalkFiles {
   }
 
   // One entry per reference sequence. Its length is where its last node
-  // ends, from a cut of the reference alone over the last chunk the index
-  // says it has rows in.
+  // ends, from the reference's rows in the last chunk the index says it has
+  // rows in.
   async pathInfo(signal?: AbortSignal): Promise<PathInfo[]> {
     const { chunk } = await this.reader.header({ signal })
     const names = await this.reader.referenceSequences({ signal })
     return await Promise.all(
       names.map(async name => {
         const start = await this.lastChunkStart(name, chunk, signal)
-        const { graph } = await this.reader.cut(
-          name,
-          { start, end: start + chunk },
-          { signal, context: 0, links: false, keep: walk => walk === name },
+        const rows: string[][] = []
+        await this.walks.getLines(name, start, start + 1, {
+          signal,
+          lineCallback: line => {
+            rows.push(line.split('\t'))
+          },
+        })
+        const length = Math.max(
+          0,
+          ...referenceNodes(rows)
+            .filter(node => node.refName === name)
+            .map(node => node.end),
         )
-        let length = 0
-        for (const node of graph.nodes.values()) {
-          if (node.rank === 0 && node.refName === name) {
-            length = Math.max(length, node.end)
-          }
-        }
         return { name, length, cyclic: false }
       }),
     )
@@ -119,7 +119,9 @@ export class WalkFiles {
    * them, in the vg JSON the tube map draws. `distinct` merges walks that take
    * the same steps into one path whose `freq` counts them. A walk abridged in
    * the window comes back in `abridged` rather than as a path, unless
-   * `expand` names it.
+   * `expand` names it. A cut past `nodeLimit` nodes or graph-walks' budgets
+   * throws its RegionTooLargeError, and one whose departure read is past its
+   * budget a DepartureReadError.
    */
   async subgraph(
     anchor: string,
@@ -133,7 +135,7 @@ export class WalkFiles {
     },
   ): Promise<{ graph: VgJson & { edge: VgEdge[] }; abridged: AbridgedWalk[] }> {
     const expand = new Set(opts.expand)
-    const { graph, kept, fragments } = await this.reader.cut(
+    const { graph, kept, fragments, departures } = await this.reader.cut(
       anchor,
       { start, end },
       {
@@ -141,23 +143,118 @@ export class WalkFiles {
         context: CONTEXT_BP,
         links: false,
         sequences: true,
+        nodeLimit: opts.nodeLimit,
         expand: name => expand.has(name),
       },
     )
-    if (kept.size > opts.nodeLimit) {
-      throw new WalkLimitError(
-        `${anchor}:${start}-${end} takes in more than ${opts.nodeLimit.toLocaleString()} graph nodes, the most the browser reads for one view.`,
-      )
-    }
-    return vgJson(graph.tables(kept, fragments), graph.sequences, opts.distinct)
+    return vgJson(
+      graph.tables(kept, fragments, departures),
+      graph.sequences,
+      opts.distinct,
+    )
   }
 }
 
+interface DrawnWalk {
+  name: string
+  start: number
+  steps: number[]
+  reversed: boolean[]
+}
+
+// Each walk the tube map draws, from the walks the cut keeps. A walk leaving
+// the drawn stretch into sequence of its own goes on through it, and one
+// coming back from it starts there, where the cut holds all of that
+// departure's own steps; two fragments one such departure joins are one walk.
+// The tube map draws only the nodes a walk visits, so without this the
+// departure's own nodes, which the cut keeps, would not be drawn.
+function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
+  const key = (name: string, bp: number) => `${name}\t${bp}`
+  const ownSteps = (k: number) => {
+    const from = departures.offsets[k]!
+    const to = departures.offsets[k + 1]!
+    return {
+      steps: [...departures.steps.subarray(from, to)],
+      reversed: [...departures.reversed.subarray(from, to)].map(r => r === 1),
+    }
+  }
+  const leaving = new Map<string, number>()
+  const rejoining = new Map<string, number>()
+  for (let k = 0; k < departures.names.length; k++) {
+    const { steps } = ownSteps(k)
+    const ownBp = departures.ownBp[k]!
+    const heldBp = steps.reduce(
+      (bp, i) => bp + (nodes.lengths[i] ?? Number.NaN),
+      0,
+    )
+    if (heldBp === ownBp) {
+      const name = departures.names[k]!
+      const hapStart = departures.hapStarts[k]!
+      leaving.set(key(name, hapStart), k)
+      rejoining.set(key(name, hapStart + ownBp), k)
+    }
+  }
+  const isAbridged = (p: number) =>
+    !Number.isNaN(walks.abridgedSteps?.[p] ?? Number.NaN)
+  const startingAt = new Map<string, number>()
+  for (let p = 0; p < walks.names.length; p++) {
+    if (!isAbridged(p)) {
+      startingAt.set(key(walks.names[p]!, walks.starts[p]!), p)
+    }
+  }
+  const stepsOf = (p: number) => {
+    const from = walks.offsets[p]!
+    const to = walks.offsets[p + 1]!
+    return {
+      steps: [...walks.steps.subarray(from, to)],
+      reversed: [...walks.reversed.subarray(from, to)].map(r => r === 1),
+    }
+  }
+  const joined = new Set<number>()
+  const drawn: DrawnWalk[] = []
+  for (let p = 0; p < walks.names.length; p++) {
+    if (!isAbridged(p) && !joined.has(p)) {
+      const name = walks.names[p]!
+      const walk: DrawnWalk = { name, start: walks.starts[p]!, ...stepsOf(p) }
+      const before = rejoining.get(key(name, walk.start))
+      if (before !== undefined) {
+        const own = ownSteps(before)
+        walk.steps.unshift(...own.steps)
+        walk.reversed.unshift(...own.reversed)
+        walk.start = departures.hapStarts[before]!
+      }
+      let last: number | undefined = p
+      while (last !== undefined) {
+        const after = leaving.get(key(name, walks.ends[last]!))
+        last = undefined
+        if (after !== undefined) {
+          const own = ownSteps(after)
+          walk.steps.push(...own.steps)
+          walk.reversed.push(...own.reversed)
+          const next = startingAt.get(
+            key(name, departures.hapStarts[after]! + departures.ownBp[after]!),
+          )
+          if (next !== undefined) {
+            const rest = stepsOf(next)
+            walk.steps.push(...rest.steps)
+            walk.reversed.push(...rest.reversed)
+            joined.add(next)
+            last = next
+          }
+        }
+      }
+      drawn.push(walk)
+    }
+  }
+  return drawn
+}
+
 function vgJson(
-  { nodes, walks }: GraphTables,
+  tables: GraphTables,
   sequences: Map<number, string>,
   distinct: boolean,
 ): { graph: VgJson & { edge: VgEdge[] }; abridged: AbridgedWalk[] } {
+  const { nodes, walks } = tables
   const node: VgNode[] = nodes.names.flatMap((name, i) =>
     i < nodes.lengths.length
       ? [
@@ -170,61 +267,52 @@ function vgJson(
       : [],
   )
 
-  const edges = new Map<string, VgEdge>()
-  const path: VgPath[] = []
-  const groups = new Map<string, VgPath & { freq: number }>()
   const abridged = new Map<string, AbridgedWalk>()
   for (let p = 0; p < walks.names.length; p++) {
-    const name = walks.names[p]!
     const abridgedSteps = walks.abridgedSteps?.[p] ?? Number.NaN
     if (!Number.isNaN(abridgedSteps)) {
+      const name = walks.names[p]!
       const walk = abridged.get(name) ?? { name, steps: 0, bp: 0 }
       walk.steps += abridgedSteps
       walk.bp += walks.abridgedBp![p]!
       abridged.set(name, walk)
-      continue
     }
-    const from = walks.offsets[p]!
-    const to = walks.offsets[p + 1]!
-    const steps: string[] = []
-    const mapping = []
-    for (let s = from; s < to; s++) {
-      const i = walks.steps[s]!
-      const reverse = walks.reversed[s] === 1
+  }
+
+  const edges = new Map<string, VgEdge>()
+  const path: VgPath[] = []
+  const groups = new Map<string, VgPath & { freq: number }>()
+  for (const { name, start, steps, reversed } of drawnWalks(tables)) {
+    const mapping = steps.map((i, s) => {
       const length = nodes.lengths[i] ?? 0
-      steps.push(`${i}${reverse ? '-' : '+'}`)
-      mapping.push({
-        position: { node_id: nodes.names[i]!, is_reverse: reverse },
-        edit: [{ from_length: length, to_length: length }],
-      })
-      if (s > from) {
+      if (s > 0) {
         const edge = {
-          from: nodes.names[walks.steps[s - 1]!]!,
+          from: nodes.names[steps[s - 1]!]!,
           to: nodes.names[i]!,
-          from_start: walks.reversed[s - 1] === 1,
-          to_end: reverse,
+          from_start: reversed[s - 1]!,
+          to_end: reversed[s]!,
         }
         edges.set(
           `${edge.from}${edge.from_start}${edge.to}${edge.to_end}`,
           edge,
         )
       }
-    }
-    const walk: VgPath = {
-      name,
-      indexOfFirstBase: walks.starts[p],
-      mapping,
-    }
-    if (!distinct) {
-      path.push(walk)
-      continue
-    }
-    const key = steps.join(',')
-    const group = groups.get(key)
-    if (group) {
-      group.freq++
+      return {
+        position: { node_id: nodes.names[i]!, is_reverse: reversed[s]! },
+        edit: [{ from_length: length, to_length: length }],
+      }
+    })
+    const walk: VgPath = { name, indexOfFirstBase: start, mapping }
+    if (distinct) {
+      const key = steps.map((i, s) => `${i}${reversed[s] ? '-' : '+'}`).join()
+      const group = groups.get(key)
+      if (group) {
+        group.freq++
+      } else {
+        groups.set(key, { ...walk, freq: 1 })
+      }
     } else {
-      groups.set(key, { ...walk, freq: 1 })
+      path.push(walk)
     }
   }
   path.push(...groups.values())
