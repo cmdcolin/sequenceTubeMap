@@ -54,10 +54,11 @@ function scaled(n: number, unit: string, kilo: string, mega: string) {
 // `sample#haplotype`, which says which walk it is within one contig's window
 const shortName = (name: string) => name.split('#').slice(0, 2).join('#')
 
-// The label in gfa-to-tabix's ADR 0004: `HG00097#1: 140 k steps, 2.1 Mb off
-// reference`
+// `HG00097#1: 140 k steps, 2.1 Mb not loaded`, as bandage-core words it: the
+// steps the walk file abridged and the walk's bp from the first of them on the
+// reference to the last, reference included
 export function abridgedLabel({ name, steps, bp }: AbridgedWalk): string {
-  return `${shortName(name)}: ${scaled(steps, 'steps', 'k steps', 'M steps')}, ${scaled(bp, 'bp', 'kb', 'Mb')} off reference`
+  return `${shortName(name)}: ${scaled(steps, 'steps', 'k steps', 'M steps')}, ${scaled(bp, 'bp', 'kb', 'Mb')} not loaded`
 }
 
 interface AbridgedWalksPanelProps {

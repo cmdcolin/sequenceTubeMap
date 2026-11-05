@@ -250,7 +250,9 @@ that a window doesn't read
 ([walks-format.md](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/walks-format.md#abridged-chunks)).
 
 - A bar over the tube map lists each abridged walk as a block, such as
-  `HG00133#1: 12 k steps, 170 kb off reference`, and the map leaves it out
+  `HG00133#1: 12 k steps, 170 kb not loaded`: the steps the writer moved, and
+  the walk's bp from the first of them on the reference to the last. The map
+  leaves it out
 - Clicking a block reads that walk in full and redraws. Double-clicking a walk
   to follow it does the same when the window abridged it
 - A walk read in full stays so for every region of that file, until its × under
