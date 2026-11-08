@@ -47,7 +47,7 @@ The same five things CI runs, all runnable alone:
 
 ```
 pnpm test          # vitest, single run
-pnpm typecheck     # tsc --noEmit
+pnpm typecheck     # tsrs --noEmit
 pnpm lint          # oxlint, with type-aware rules
 pnpm check-format  # oxfmt, reporting without rewriting
 pnpm check-docs    # markdown citations of src/... paths still resolve
@@ -56,9 +56,15 @@ pnpm check-docs    # markdown citations of src/... paths still resolve
 `pnpm lint --fix` applies the autofixable subset. `pnpm lint:fast` skips the
 type-aware pass, which is the slower half.
 
-Rules live in `.oxlintrc.json`. The type-aware ones need `oxlint-tsgolint`,
-which reads the same `tsconfig.json` `pnpm typecheck` does, so a rule like
-`no-floating-promises` sees real types rather than guessing.
+Rules live in `.oxlintrc.json`. The type-aware ones run through `tsrs-lint`,
+which comes with `tsrs` and reads the same `tsconfig.json` `pnpm typecheck`
+does, so a rule like `no-floating-promises` sees real types rather than
+guessing. oxlint picks `tsrs-lint` over `oxlint-tsgolint` whenever both are
+installed; `OXLINT_TSGOLINT_PATH=node_modules/.bin/tsgolint pnpm lint` runs the
+Go one instead.
+
+`tsrs` is the Rust port of `tsc`, here on TypeScript 7.1's beta. Editors still
+use the `typescript` 7.0 package, so code has to compile under both.
 
 Five type-aware rules are switched off for `.mjs` and `.js`, and the config says
 why at the override: TypeScript infers those files narrowly enough that the
