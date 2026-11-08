@@ -4,8 +4,8 @@
  * Reads `.gbz.db` files through `@gmod/gbz-base`, a pure TypeScript reader
  * that fetches only the SQLite pages a query touches, so a URL-hosted
  * database is queried by HTTP range requests instead of being downloaded.
- * Reads `gfa-to-tabix --walks` files the same way, through their Tabix
- * indexes.
+ * Reads `gfa-to-tabix --walks` files the same way, through their
+ * directories.
  */
 
 import '../config-client.js'
@@ -592,7 +592,7 @@ export class GBZBaseAPI implements APIInterface {
                 : ` with companion haplotype index "${indexFile}"`
             throw new Error(
               `Could not open "${trackFile}"${withIndex} as a gbz-base database: ${errorMessage(e)}\n` +
-                'The in-browser backend reads .gbz.db and gfa-to-tabix .walks.bed.gz files; .vg, .xg and .gbz are not supported.',
+                'The in-browser backend reads .gbz.db and gfa-to-tabix .walks.gz files; .vg, .xg and .gbz are not supported.',
               { cause: e },
             )
           }
@@ -633,26 +633,26 @@ export class GBZBaseAPI implements APIInterface {
     return isWalksFilename(this.fileName(graphFile))
   }
 
-  // A walk file and its index beside it: for an upload, the index dropped
-  // with it; for a URL, the URL with `.tbi` added
+  // A walk file and its directory beside it: for an upload, the directory
+  // dropped with it; for a URL, the URL with `.idx` added
   private openWalks(trackFile: string): WalkFiles {
     const key = this.fileKey(trackFile)
     let opened = this.walkGraphs.get(key)
     if (!opened) {
       const blob = isUploadId(trackFile)
-        ? this.registry.sibling(trackFile, '.tbi')
+        ? this.registry.sibling(trackFile, '.idx')
         : undefined
       if (blob === null) {
         throw new Error(
-          `${this.fileName(trackFile)} needs its .tbi; drop it in with the walk file`,
+          `${this.fileName(trackFile)} needs its .idx; drop it in with the walk file`,
         )
       }
-      opened = new WalkFiles(
-        this.byteSource(trackFile),
-        blob
+      opened = new WalkFiles({
+        data: this.byteSource(trackFile),
+        directory: blob
           ? new BlobFile(blob)
-          : new RemoteFile(withPathSuffix(this.resolveUrl(trackFile), '.tbi')),
-      )
+          : new RemoteFile(withPathSuffix(this.resolveUrl(trackFile), '.idx')),
+      })
       this.walkGraphs.set(key, opened)
     }
     return opened

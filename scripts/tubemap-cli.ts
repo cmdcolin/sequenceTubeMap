@@ -3,7 +3,7 @@
 // uses, and emits the resulting SVG.
 //
 // Four ways to say what to draw:
-//   - --graph <file>      render your own .gbz.db or .walks.bed.gz, with
+//   - --graph <file>      render your own .gbz.db or .walks.gz, with
 //                         --reads and --region
 //   - --url <link>        render the view a shared app link describes
 //   - --source <name>     render a built-in source from src/config.json
@@ -106,7 +106,7 @@ function flagHelp(): string {
   }).join('')
 }
 
-const USAGE = `tubemap-cli --graph <file.gbz.db | file.walks.bed.gz> --region X:S-E
+const USAGE = `tubemap-cli --graph <file.gbz.db | file.walks.gz> --region X:S-E
              [--haplotype-index <file>] [--reads <file.gam>]...
 tubemap-cli [--url <link> | --source <config name> | --example 1..9]
              [--region X:S-E]
@@ -118,7 +118,7 @@ Either form also takes
 --graph draws your own files. Each is a local path, relative to the working
 directory, or an http(s) URL read by range requests. --haplotype-index names
 a .gbz.db's companion haplotype index, and --reads can be given more than once.
-A gfa-to-tabix .walks.bed.gz needs its .tbi beside it.
+A gfa-to-tabix .walks.gz needs its .idx beside it.
 
 --url takes a link the app itself produced (its Copy link button, or the
 address bar), and draws what that link describes. --region and the view options
@@ -460,7 +460,7 @@ async function prepareViewTarget(
   const { isLocalCompatibleDataSource } = await import('../src/common.ts')
   if (!isLocalCompatibleDataSource(target)) {
     throw new Error(
-      `${describe} has no .gbz.db or .walks.bed.gz graph; this renderer uses the in-browser backend, which cannot read .vg/.xg/.gbz`,
+      `${describe} has no .gbz.db or .walks.gz graph; this renderer uses the in-browser backend, which cannot read .vg/.xg/.gbz`,
     )
   }
   const region = regionOverride ?? target.region

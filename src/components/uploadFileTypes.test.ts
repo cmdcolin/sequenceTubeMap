@@ -73,8 +73,8 @@ describe('isLocallyAccepted', () => {
     expect(isLocallyAccepted('graph.haplotype-index.db')).toBe(true)
     expect(isLocallyAccepted('reads.gam')).toBe(true)
     expect(isLocallyAccepted('reads.gam.gai')).toBe(true)
-    expect(isLocallyAccepted('hprc.GRCh38.walks.bed.gz')).toBe(true)
-    expect(isLocallyAccepted('hprc.GRCh38.walks.bed.gz.tbi')).toBe(true)
+    expect(isLocallyAccepted('hprc.GRCh38.walks.gz')).toBe(true)
+    expect(isLocallyAccepted('hprc.GRCh38.walks.gz.idx')).toBe(true)
   })
 
   it('rejects formats the in-browser reader cannot read', () => {
@@ -86,17 +86,15 @@ describe('isLocallyAccepted', () => {
 })
 
 describe('gfa-to-tabix walk files', () => {
-  it('stage the walk file as a graph track and its index beside it', () => {
-    expect(detectType('hprc.GRCh38.walks.bed.gz')).toBe('graph')
-    expect(isIndexSibling('hprc.GRCh38.walks.bed.gz')).toBe(false)
-    for (const name of ['hprc.GRCh38.walks.bed.gz.tbi']) {
-      expect(detectType(name)).not.toBeNull()
-      expect(isIndexSibling(name)).toBe(true)
-    }
+  it('stage the walk file as a graph track and its directory beside it', () => {
+    expect(detectType('hprc.GRCh38.walks.gz')).toBe('graph')
+    expect(isIndexSibling('hprc.GRCh38.walks.gz')).toBe(false)
+    expect(detectType('hprc.GRCh38.walks.gz.idx')).toBe('graph')
+    expect(isIndexSibling('hprc.GRCh38.walks.gz.idx')).toBe(true)
   })
 
   it('are not offered to a server, which cannot read them', () => {
-    expect(SERVER_ACCEPT.split(',')).not.toContain('.walks.bed.gz')
+    expect(SERVER_ACCEPT.split(',')).not.toContain('.walks.gz')
   })
 })
 

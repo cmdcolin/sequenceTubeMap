@@ -3,8 +3,8 @@
 # gbz-base (`gbz-base construct`, or `gbz2db` on releases up to 0.5.1), then
 # write the companion haplotype indexes when gbz-haplotype-index is on PATH
 # (`cargo install gbz-haplotype-index`), and the walk files when gfa-to-tabix
-# is (`cargo install gfa-to-tabix`), the chrM one when vg is too. See
-# doc/data.md.
+# is (`cargo install gfa-to-tabix`), by exampleData/build.sh, which needs vg.
+# See doc/data.md.
 
 set -euo pipefail
 
@@ -46,23 +46,9 @@ if command -v gbz-haplotype-index >/dev/null; then
 fi
 
 # The gfa-to-tabix walk files: the chrM graph's, for the walk-file example,
-# and the test graphs'. Walk format 6 needs gfa-to-tabix 3.0 or later.
-# format5.K12.walks.bed.gz stays in walk format 5, for the test that
-# an old file is refused
+# and the test graphs'. Walk format 7 needs gfa-to-tabix 4.0 or later.
 if command -v gfa-to-tabix >/dev/null; then
-  if command -v vg >/dev/null; then
-    gfa="$(mktemp --suffix .gfa)"
-    vg convert -f exampleData/hprc-chrM.gbz >"$gfa"
-    gfa-to-tabix "$gfa" --walks --refs GRCh38 --sequences \
-      -o exampleData/hprc-chrM
-    rm "$gfa"
-  fi
-  gfa-to-tabix exampleData/ecoli_pggb_subgraph.gfa --walks --refs K12 \
-    -o exampleData/ecoli_pggb
-  gfa-to-tabix exampleData/ecoli_pggb_subgraph.gfa --walks --refs K12 \
-    --abridge-steps 20 -o exampleData/ecoli_pggb_abridged
-  gfa-to-tabix exampleData/departures.gfa --walks --refs R --sequences --chunk 100 \
-    -o exampleData/departures
+  exampleData/build.sh
 fi
 
 echo "Done. Re-run any built-in dataset that uses these files to confirm."

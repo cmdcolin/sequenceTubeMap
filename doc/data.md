@@ -57,8 +57,8 @@ formats, and fetches only the parts of the file a region needs:
 - `.gbz.db`, through [`@gmod/gbz-base`](https://github.com/GMOD/gbz-base-js), a
   pure TypeScript port of the `gbz-base query` subgraph queries that walks the
   SQLite b-trees directly
-- [gfa-to-tabix](https://github.com/GMOD/gfa-to-tabix) walk files, which are
-  bgzipped BED with Tabix indexes; see
+- [gfa-to-tabix](https://github.com/GMOD/gfa-to-tabix) walk files, read by range
+  requests through their directories; see
   [Reading gfa-to-tabix walk files](#reading-gfa-to-tabix-walk-files)
 
 **Accepted formats**
@@ -66,11 +66,11 @@ formats, and fetches only the parts of the file a region needs:
 | Track | Formats                                                          |
 | ----- | ---------------------------------------------------------------- |
 | Graph | `.gbz.db` or `.db`, with an optional `.haplotype-index.db`       |
-| Graph | `.walks.bed.gz` with its `.tbi`                                  |
+| Graph | `.walks.gz` with its `.idx`                                      |
 | Reads | `.gam` (unsorted) or `.sorted.gam` + `.sorted.gam.gai` (indexed) |
 
 Drop a graph's companion files in with it: the upload dialog pairs
-`graph.haplotype-index.db` with `graph.gbz.db`, and a walk file with its `.tbi`.
+`graph.haplotype-index.db` with `graph.gbz.db`, and a walk file with its `.idx`.
 
 ### Converting a graph to `.gbz.db`
 
@@ -196,15 +196,15 @@ BandageJS read the same files, all through
 [@jbrowse/graph-walks](https://github.com/GMOD/graph-walks).
 
 ```bash
-cargo install gfa-to-tabix   # 3.0 or later
+cargo install gfa-to-tabix   # 4.0 or later
 vg convert -f graph.gbz > graph.gfa          # or any base-level GFA with W/P lines
 gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 ```
 
-- The command writes `graph.GRCh38.walks.bed.gz` and its `.tbi`. Give the walk
-  file as the graph track, with its `.tbi` dropped in beside it or at the same
-  URL plus `.tbi`
-- The reader takes walk format 6, which gfa-to-tabix writes from 3.0, and asks
+- The command writes `graph.GRCh38.walks.gz` and its directory `.idx`. Give the
+  walk file as the graph track, with its `.idx` dropped in beside it or at the
+  same URL plus `.idx`
+- The reader takes walk format 7, which gfa-to-tabix writes from 4.0, and asks
   for a rebuild of an older file
 - `--sequences` adds the nodes' bases, which the tube map shows as node labels.
   Without it, nodes draw at the right width with no bases
@@ -237,17 +237,17 @@ HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
 
 ```json
 {
-  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f6.GRCh38.walks.bed.gz",
+  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38.GRCh38.walks.gz",
   "trackType": "graph"
 }
 ```
 
 #### Abridged walks
 
-gfa-to-tabix gives each chunk a cost budget. In a chunk over it, usually a
+gfa-to-tabix gives each tile a cost budget. In a tile over it, usually a
 satellite array, the writer moves the costliest walks' steps to detail records
 that a window doesn't read
-([walks-format.md](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/walks-format.md#abridged-chunks)).
+([walks-format.md](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/walks-format.md#abridged-tiles)).
 
 - A bar over the tube map lists each abridged walk as a block, such as
   `HG00133#1: 12 k steps, 170 kb not loaded`: the steps the writer moved, and

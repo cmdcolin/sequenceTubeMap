@@ -283,8 +283,8 @@ describe('tracks short form', () => {
   })
 
   it('reads a gfa-to-tabix walk file as a graph', () => {
-    expect(parse('tracks=https://h/hprc.GRCh38.walks.bed.gz')?.tracks).toEqual([
-      { trackType: 'graph', trackFile: 'https://h/hprc.GRCh38.walks.bed.gz' },
+    expect(parse('tracks=https://h/hprc.GRCh38.walks.gz')?.tracks).toEqual([
+      { trackType: 'graph', trackFile: 'https://h/hprc.GRCh38.walks.gz' },
     ])
   })
 

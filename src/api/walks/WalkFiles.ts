@@ -1,16 +1,11 @@
-import { TabixIndexedFile } from '@gmod/tabix'
-import { WalkReader, referenceNodes } from '@jbrowse/graph-walks'
-import type { GraphTables } from '@jbrowse/graph-walks'
-import type { GenericFilehandle } from 'generic-filehandle2'
+import { WalkReader } from '@jbrowse/graph-walks'
+import type { GraphTables, WalkFilehandle } from '@jbrowse/graph-walks'
 
 import type { AbridgedWalk, PathInfo } from '../../Types.ts'
 import type { VgJson, VgNode, VgPath } from '../../util/tubemap.ts'
 
 // gbz-base's default, so both backends cut the same reference for a region
 const CONTEXT_BP = 100
-
-// The bp a .tbi's linear index locates rows to, 2 ** its min_shift of 14
-const TBI_WINDOW = 16_384
 
 interface VgEdge {
   from: string
@@ -23,15 +18,10 @@ interface VgEdge {
 // this class names its sequences the way the region box does and turns a cut
 // into the vg JSON the tube map draws.
 export class WalkFiles {
-  private walks: TabixIndexedFile
   private reader: WalkReader
 
-  constructor(walks: GenericFilehandle, index: GenericFilehandle) {
-    this.walks = new TabixIndexedFile({
-      filehandle: walks,
-      tbiFilehandle: index,
-    })
-    this.reader = new WalkReader(this.walks)
+  constructor(files: { data: WalkFilehandle; directory: WalkFilehandle }) {
+    this.reader = WalkReader.fromFilehandles(files)
   }
 
   // The anchor sequence a region's contig names. Walk files name it in full
@@ -59,64 +49,16 @@ export class WalkFiles {
     return found
   }
 
-  // One entry per reference sequence. Its length is where its last node
-  // ends, from the reference's rows in the last stretch the index says it has
-  // rows in.
+  // One entry per reference sequence, with where its last node ends
   async pathInfo(signal?: AbortSignal): Promise<PathInfo[]> {
-    const { chunk } = await this.reader.header({ signal })
     const names = await this.reader.referenceSequences({ signal })
-    const step = Math.max(chunk, TBI_WINDOW)
     return await Promise.all(
-      names.map(async name => {
-        const start = await this.lastRowsStart(name, step, signal)
-        const rows: string[][] = []
-        await this.walks.getLines(name, start, start + step, {
-          signal,
-          lineCallback: line => {
-            rows.push(line.split('\t'))
-          },
-        })
-        const length = Math.max(
-          0,
-          ...referenceNodes(rows)
-            .filter(node => node.refName === name)
-            .map(node => node.end),
-        )
-        return { name, length, cyclic: false }
-      }),
+      names.map(async name => ({
+        name,
+        length: await this.reader.sequenceLength(name, { signal }),
+        cyclic: false,
+      })),
     )
-  }
-
-  // The start of the last `step` with rows, found from the index alone by
-  // whether any rows lie at or past a step's start, which holds for the steps
-  // up to the last wherever the sequence's rows begin. A step is at least a
-  // .tbi's window, so the index tells one step's rows from the next's.
-  private async lastRowsStart(
-    name: string,
-    step: number,
-    signal?: AbortSignal,
-  ): Promise<number> {
-    const { maxRefLength } = await this.walks.getMetadata({ signal })
-    const rowsFrom = async (k: number) =>
-      (await this.walks.bytesForRegions(
-        [{ refName: name, start: k * step, end: maxRefLength }],
-        { signal },
-      )) > 0
-    let lo = 0
-    let hi = 1
-    while (await rowsFrom(hi)) {
-      lo = hi
-      hi *= 2
-    }
-    while (hi - lo > 1) {
-      const mid = Math.floor((lo + hi) / 2)
-      if (await rowsFrom(mid)) {
-        lo = mid
-      } else {
-        hi = mid
-      }
-    }
-    return lo * step
   }
 
   /**

@@ -27,8 +27,8 @@ const descriptions: Record<APIMode, ReactNode> = {
       The in-browser reader keeps files on your machine. It reads{' '}
       <code>.gbz.db</code> graphs with an optional{' '}
       <code>.haplotype-index.db</code>, <code>gfa-to-tabix --walks</code> files
-      from gfa-to-tabix 3.0 or later (<code>.walks.bed.gz</code> with its{' '}
-      <code>.tbi</code>), and sorted <code>.gam</code> reads with their{' '}
+      from gfa-to-tabix 4.0 or later (<code>.walks.gz</code> with its{' '}
+      <code>.idx</code>), and sorted <code>.gam</code> reads with their{' '}
       <code>.gam.gai</code> index.{' '}
       <a
         href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md"

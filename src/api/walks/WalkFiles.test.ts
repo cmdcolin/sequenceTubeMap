@@ -4,8 +4,8 @@ import { isLocalGraphFilename } from '../../common.ts'
 import { GBZBaseAPI } from '../GBZBaseAPI.ts'
 import type { ViewTarget } from '../../Types.ts'
 
-const WALKS = 'hprc-chrM.GRCh38.walks.bed.gz'
-const SIBLINGS = ['hprc-chrM.GRCh38.walks.bed.gz.tbi']
+const WALKS = 'hprc-chrM.GRCh38.walks.gz'
+const SIBLINGS = ['hprc-chrM.GRCh38.walks.gz.idx']
 
 function upload(api: GBZBaseAPI, name: string, batch?: string) {
   return api.putFile(
@@ -37,9 +37,7 @@ const total = (paths: { freq?: number }[]) =>
 
 describe('isLocalGraphFilename', () => {
   it('tells a graph from its companion haplotype index', () => {
-    expect(isLocalGraphFilename('https://h/x.GRCh38.walks.bed.gz?sig=a')).toBe(
-      true,
-    )
+    expect(isLocalGraphFilename('https://h/x.GRCh38.walks.gz?sig=a')).toBe(true)
     expect(isLocalGraphFilename('g.gbz.db')).toBe(true)
     expect(isLocalGraphFilename('g.haplotype-index.db')).toBe(false)
   })
@@ -152,12 +150,12 @@ describe('a gfa-to-tabix walk file set', () => {
   })
 })
 
-it('asks for the index of a walk file dropped without it', async () => {
+it('asks for the directory of a walk file dropped without it', async () => {
   const api = new GBZBaseAPI()
   const id = await upload(api, WALKS, 'alone')
   await expect(
     api.getChunkedData(view(id, 'chrM:0-100'), null),
-  ).rejects.toThrow(/hprc-chrM\.GRCh38\.walks\.bed\.gz needs its \.tbi/)
+  ).rejects.toThrow(/hprc-chrM\.GRCh38\.walks\.gz needs its \.idx/)
 })
 
 describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
@@ -167,10 +165,10 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
   let full: string
 
   beforeAll(async () => {
-    full = await upload(api, 'ecoli_pggb.K12.walks.bed.gz', 'full')
-    await upload(api, 'ecoli_pggb.K12.walks.bed.gz.tbi', 'full')
-    abridged = await upload(api, 'ecoli_pggb_abridged.K12.walks.bed.gz', 'ab')
-    await upload(api, 'ecoli_pggb_abridged.K12.walks.bed.gz.tbi', 'ab')
+    full = await upload(api, 'ecoli_pggb.K12.walks.gz', 'full')
+    await upload(api, 'ecoli_pggb.K12.walks.gz.idx', 'full')
+    abridged = await upload(api, 'ecoli_pggb_abridged.K12.walks.gz', 'ab')
+    await upload(api, 'ecoli_pggb_abridged.K12.walks.gz.idx', 'ab')
   })
 
   const cut = (file: string, extra = {}) =>
@@ -229,8 +227,8 @@ describe('a walk file whose haplotypes depart from the reference at the edge of 
   let file: string
 
   beforeAll(async () => {
-    file = await upload(api, 'departures.R.walks.bed.gz', 'departures')
-    await upload(api, 'departures.R.walks.bed.gz.tbi', 'departures')
+    file = await upload(api, 'departures.R.walks.gz', 'departures')
+    await upload(api, 'departures.R.walks.gz.idx', 'departures')
   })
 
   const walksOf = async (region: string, name: string) => {
@@ -278,20 +276,11 @@ describe('a walk file whose haplotypes depart from the reference at the edge of 
 
   it('says how wide a region fits under the node limit, offering no haplotype choice', async () => {
     const limited = new GBZBaseAPI(5)
-    const id = await upload(limited, 'departures.R.walks.bed.gz', 'limited')
-    await upload(limited, 'departures.R.walks.bed.gz.tbi', 'limited')
+    const id = await upload(limited, 'departures.R.walks.gz', 'limited')
+    await upload(limited, 'departures.R.walks.gz.idx', 'limited')
     const refusal = limited.getChunkedData(view(id, 'R#0#chr:0-150'), null)
     await expect(refusal).rejects.toThrow(
       /^R#0#chr:0-150 takes in more of the graph than the browser reads for one view\. A region of about [\d,]+ bp would fit\.$/,
     )
   })
-})
-
-it('asks for a rebuild of a format 5 walk file', async () => {
-  const api = new GBZBaseAPI()
-  const id = await upload(api, 'format5.K12.walks.bed.gz', 'format5')
-  await upload(api, 'format5.K12.walks.bed.gz.tbi', 'format5')
-  await expect(
-    api.getChunkedData(view(id, 'K12#1#chr:1004500-1004961'), null),
-  ).rejects.toThrow(/format 5; .* rebuild it with gfa-to-tabix 3\.0 or later/)
 })

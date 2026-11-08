@@ -159,10 +159,10 @@ export function isHaplotypeIndexFilename(name: string): boolean {
   return /\.haplotype-index\.db$/i.test(urlPath(name))
 }
 
-// `gfa-to-tabix --walks` writes `<prefix>.<sample>.walks.bed.gz` and its
-// `.tbi`, one walk file per reference sample.
+// `gfa-to-tabix --walks` writes `<prefix>.<sample>.walks.gz` and its
+// directory `.idx`, one walk file per reference sample.
 export function isWalksFilename(name: string): boolean {
-  return /\.walks\.bed\.gz$/i.test(urlPath(name))
+  return /\.walks\.gz$/i.test(urlPath(name))
 }
 
 // `name` with `suffix` added to its path, so a URL's query string such as a

@@ -5,10 +5,10 @@
 // Kept separate from GBZBaseAPI so the pairing logic is exercisable in tests
 // without opening a database.
 
-// Suffixes of files that ride alongside another file: an index, or a graph's
-// companion haplotype index. The registry stores them but never registers
-// them as tracks of their own.
-export const SIBLING_INDEX_SUFFIXES = ['.gai', '.tbi', '.csi']
+// Suffixes of files that ride alongside another file: an index, a walk
+// file's directory, or a graph's companion haplotype index. The registry
+// stores them but never registers them as tracks of their own.
+export const SIBLING_INDEX_SUFFIXES = ['.gai', '.tbi', '.csi', '.idx']
 const COMPANION_SUFFIXES = [...SIBLING_INDEX_SUFFIXES, '.haplotype-index.db']
 
 export function isSiblingIndex(name: string): boolean {

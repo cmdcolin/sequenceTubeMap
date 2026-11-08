@@ -68,7 +68,7 @@ describe('bandageJsUrl', () => {
   })
 
   it('links a walk file set, naming its reference only where the region does', () => {
-    const walks = 'https://h/hprc.GRCh38.walks.bed.gz'
+    const walks = 'https://h/hprc.GRCh38.walks.gz'
     expect(
       params(
         bandageJsUrl(view('GRCh38#0#chr6:1-100', { trackFile: walks }), PAGE),

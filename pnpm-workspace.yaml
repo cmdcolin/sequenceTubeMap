@@ -8,4 +8,3 @@ minimumReleaseAgeExclude:
   - '@rolldown/plugin-babel@0.2.4'
   - '@jbrowse/tubemap-core'
   - '@jbrowse/graph-walks'
-  - '@gmod/tabix@3.13.1'

@@ -8,11 +8,12 @@ function blobOfText(s: string): Blob {
 }
 
 describe('isSiblingIndex', () => {
-  it('flags .gai / .tbi / .csi (case-insensitive)', () => {
+  it('flags .gai / .tbi / .csi / .idx (case-insensitive)', () => {
     expect(isSiblingIndex('x.sorted.gam.gai')).toBe(true)
     expect(isSiblingIndex('x.sorted.GAM.GAI')).toBe(true)
     expect(isSiblingIndex('x.gaf.gz.tbi')).toBe(true)
     expect(isSiblingIndex('x.csi')).toBe(true)
+    expect(isSiblingIndex('x.GRCh38.walks.gz.idx')).toBe(true)
   })
 
   it('does not flag the matching data file or unrelated extensions', () => {

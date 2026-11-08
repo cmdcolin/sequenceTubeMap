@@ -61,7 +61,7 @@ function screenFiles(files: File[], isLocal: boolean) {
   const extRejected = files.length - extOk.length
   if (extRejected > 0) {
     reasons.push(
-      `${extRejected} skipped — browser mode only accepts .gbz.db, gfa-to-tabix .walks.bed.gz sets and .gam reads`,
+      `${extRejected} skipped — browser mode only accepts .gbz.db, gfa-to-tabix .walks.gz sets and .gam reads`,
     )
   }
   const sizeRejected = extOk.length - accepted.length
@@ -235,7 +235,7 @@ export const UploadPanel = ({
         </div>
         <div style={{ fontSize: 11, marginTop: 4, color: '#888' }}>
           {isLocal
-            ? 'Graph: .gbz.db (+ .haplotype-index.db), or .walks.bed.gz + .tbi   •   Reads: .sorted.gam + .sorted.gam.gai'
+            ? 'Graph: .gbz.db (+ .haplotype-index.db), or .walks.gz + .idx   •   Reads: .sorted.gam + .sorted.gam.gai'
             : `Graph: ${GRAPH_EXTS.join(' ')}   •   Reads: ${READ_EXTS.join(' ')}   •   Index: ${INDEX_EXTS.join(' ')} (ignored)`}
         </div>
       </div>

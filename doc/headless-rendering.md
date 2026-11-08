@@ -9,8 +9,8 @@ a paper without a browser screenshot.
 pnpm tubemap-cli --graph my.gbz.db --reads my.gam --region chr1:1-500 \
                  --out mine.svg
 
-# a gfa-to-tabix walk file, with its .tbi beside it
-pnpm tubemap-cli --graph exampleData/hprc-chrM.GRCh38.walks.bed.gz \
+# a gfa-to-tabix walk file, with its .idx beside it
+pnpm tubemap-cli --graph exampleData/hprc-chrM.GRCh38.walks.gz \
                  --region 'GRCh38#chrM:1-200' --out chrM.svg
 
 # whatever a link from the app describes
