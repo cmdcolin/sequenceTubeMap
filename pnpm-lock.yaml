@@ -21,8 +21,8 @@ importers:
         specifier: ^7.4.1
         version: 7.4.1
       '@jbrowse/graph-walks':
-        specifier: file:/home/cdiesh/src/vendor/walks6-pack/jbrowse-graph-walks-6.0.0.tgz
-        version: file:../vendor/walks6-pack/jbrowse-graph-walks-6.0.0.tgz
+        specifier: ^6.0.0
+        version: 6.0.0
       '@jbrowse/tubemap-core':
         specifier: ^2.0.1
         version: 2.0.1
@@ -477,9 +477,8 @@ packages:
     resolution: {integrity: sha512-Le+Rpj9Jp7GAOpo05XwYFhZbsakhC6TOfaslgW7F72xm2q6Z11dwDZwZFd0S93x2bgbasvO7S3Zr1oL+QBf2SA==}
     hasBin: true
 
-  '@jbrowse/graph-walks@file:../vendor/walks6-pack/jbrowse-graph-walks-6.0.0.tgz':
-    resolution: {integrity: sha512-LuDbMk0cNrm/R4iYezTzPisY6ySutFi39GE8FeqTcOgPUiD9vs5DT0p2yXp6+p/u1tafJ0I2SSOQu9+8chcbWQ==, tarball: file:../vendor/walks6-pack/jbrowse-graph-walks-6.0.0.tgz}
-    version: 6.0.0
+  '@jbrowse/graph-walks@6.0.0':
+    resolution: {integrity: sha512-LuDbMk0cNrm/R4iYezTzPisY6ySutFi39GE8FeqTcOgPUiD9vs5DT0p2yXp6+p/u1tafJ0I2SSOQu9+8chcbWQ==}
     engines: {node: '>=20'}
 
   '@jbrowse/tubemap-core@2.0.1':
@@ -2870,7 +2869,7 @@ snapshots:
     dependencies:
       generic-filehandle2: 2.5.1
 
-  '@jbrowse/graph-walks@file:../vendor/walks6-pack/jbrowse-graph-walks-6.0.0.tgz':
+  '@jbrowse/graph-walks@6.0.0':
     dependencies:
       '@gmod/bgzf-filehandle': 6.8.4
       generic-filehandle2: 2.5.1
