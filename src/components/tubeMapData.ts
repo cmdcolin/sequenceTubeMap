@@ -22,8 +22,8 @@ interface DemoData {
   inputTracks3: InputTrack[]
   inputTracks4: InputTrack[]
   inputTracks5: InputTrack[]
-  k3138: string
-  demoReads: string
+  k3138: VgJson
+  demoReads: VgRead[]
   reverseAlignmentGraph: VgJson
   mixedAlignmentReads: VgRead[]
   cycleGraph: VgJson
@@ -112,13 +112,6 @@ export interface ExampleResult {
   reads: InputTrack[]
 }
 
-function readsFromStringToArray(readsString: string): VgRead[] {
-  return readsString
-    .split('\n')
-    .filter(line => line.length > 0)
-    .map(line => JSON.parse(line))
-}
-
 type TrackKey =
   | 'inputTracks1'
   | 'inputTracks2'
@@ -162,12 +155,8 @@ export function computeExampleData(
   }
   const example = READ_EXAMPLES[dataOrigin]
   if (example) {
-    const graphRaw = data[example.graph]
-    const vg: VgJson =
-      typeof graphRaw === 'string' ? JSON.parse(graphRaw) : graphRaw
-    const readsRaw = data[example.reads]
-    const reads: VgRead[] =
-      typeof readsRaw === 'string' ? readsFromStringToArray(readsRaw) : readsRaw
+    const vg = data[example.graph]
+    const reads = data[example.reads]
     const nodes = tubeMap.vgExtractNodes(vg)
     const tracks = tubeMap.vgExtractTracks(vg, 0, 0)
     return {

@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box'
 import RadioRow from './RadioRow.tsx'
-import ColorPicker from './ColorPicker.tsx'
+import { ColorPicker } from './ColorPicker.tsx'
 import type { ColorScheme, FileType, PaletteField, Palette } from '../Types.ts'
 
 type SettingsFileType = FileType | 'nodeLabel'

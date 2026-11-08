@@ -11,13 +11,13 @@ import type { APIInterface } from './api/APIInterface.ts'
 function fakeAPI(overrides: Partial<APIInterface> = {}): APIInterface {
   return {
     mode: 'server',
-    getChunkedData: async () => ({}),
-    getFilenames: async () => ({ files: [], bedFiles: [] }),
+    getChunkedData: () => Promise.resolve({}),
+    getFilenames: () => Promise.resolve({ files: [], bedFiles: [] }),
     subscribeToFilenameChanges: () => {},
-    putFile: async () => 'uploaded',
-    getBedRegions: async () => ({}),
-    getPathInfo: async () => ({ pathInfo: [] }),
-    getChunkTracks: async () => ({}),
+    putFile: () => Promise.resolve('uploaded'),
+    getBedRegions: () => Promise.resolve({}),
+    getPathInfo: () => Promise.resolve({ pathInfo: [] }),
+    getChunkTracks: () => Promise.resolve({}),
     ...overrides,
   }
 }
@@ -66,7 +66,7 @@ it('renders with error when api call to server throws', async () => {
 })
 
 it('renders without crashing when sent bad fetch data from server', async () => {
-  renderApp(fakeAPI({ getFilenames: async () => ({}) }))
+  renderApp(fakeAPI({ getFilenames: () => Promise.resolve({}) }))
 
   await waitFor(() => {
     expect(screen.getAllByText(/Server did not/i)[0]).toBeInTheDocument()
@@ -80,9 +80,9 @@ it('offers a retry when the tube map data fails to load', async () => {
   let calls = 0
   renderApp(
     fakeAPI({
-      getChunkedData: async () => {
+      getChunkedData: () => {
         calls += 1
-        throw new Error('Mock Chunk Error')
+        return Promise.reject(new Error('Mock Chunk Error'))
       },
     }),
   )
@@ -112,9 +112,9 @@ it('leaves a failed fetch failed when the window regains focus', async () => {
     >
       <App
         api={fakeAPI({
-          getPathInfo: async () => {
+          getPathInfo: () => {
             calls += 1
-            throw new Error('Mock Path Error')
+            return Promise.reject(new Error('Mock Path Error'))
           },
         })}
       />
@@ -261,12 +261,11 @@ it('links a hosted graph to BandageJS from the View menu', async () => {
     .getByTestId('openInBandageJsMenuItem')
     .getAttribute('href')
 
-  expect(Object.fromEntries(new URL(href!).searchParams)).toMatchObject({
-    gbz: expect.stringMatching(/hprc-v2\.1-mc-grch38\.gbz\.db$/),
-    index: expect.stringMatching(/haplotype-index\.f3\.db$/),
-    loc: 'chr20:48000600-48001000',
-    ref: 'GRCh38',
-  })
+  const params = new URL(href!).searchParams
+  expect(params.get('gbz')).toMatch(/hprc-v2\.1-mc-grch38\.gbz\.db$/)
+  expect(params.get('index')).toMatch(/haplotype-index\.f3\.db$/)
+  expect(params.get('loc')).toBe('chr20:48000600-48001000')
+  expect(params.get('ref')).toBe('GRCh38')
 })
 
 it('disables Open in BandageJS for a graph only the server can read', async () => {
@@ -644,9 +643,9 @@ describe('wide regions', () => {
 
   const recordingAPI = (asked: string[]) =>
     fakeAPI({
-      getChunkedData: async target => {
+      getChunkedData: target => {
         asked.push(target.region)
-        return {}
+        return Promise.resolve({})
       },
     })
 
@@ -795,9 +794,11 @@ describe('leaving a view before it loads', () => {
     let calls = 0
     renderApp(
       fakeAPI({
-        getChunkedData: async () => {
+        getChunkedData: () => {
           calls += 1
-          throw new DOMException('Upstream gave up', 'AbortError')
+          return Promise.reject(
+            new DOMException('Upstream gave up', 'AbortError'),
+          )
         },
       }),
     )
@@ -831,14 +832,14 @@ describe('abridged walks', () => {
     const asked: (string[] | undefined)[] = []
     renderApp(
       fakeAPI({
-        getChunkedData: async target => {
+        getChunkedData: target => {
           asked.push(target.expand)
-          return {
+          return Promise.resolve({
             graph,
             abridged: target.expand
               ? []
               : [{ name: 'HG00097#1#chr6', steps: 35, bp: 460 }],
-          }
+          })
         },
       }),
     )

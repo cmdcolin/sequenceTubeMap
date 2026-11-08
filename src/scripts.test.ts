@@ -5,7 +5,7 @@
 
 import './config-server.mjs'
 
-import { find_vg, vg_available } from './vg.mjs'
+import { find_vg, vg_available } from './vg.ts'
 
 import {
   mkdtemp,
@@ -16,8 +16,7 @@ import {
   readdir,
   readFile,
 } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import child_process from 'node:child_process'
 import { promisify } from 'node:util'
@@ -26,9 +25,8 @@ import { promisify } from 'node:util'
 // for {stdout, stderr} that rejects if the command fails.
 const execFile = promisify(child_process.execFile)
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const EXAMPLE_DATA = join(__dirname, '..', 'exampleData')
-const SCRIPTS = join(__dirname, '..', 'scripts')
+const EXAMPLE_DATA = join(import.meta.dirname, '..', 'exampleData')
+const SCRIPTS = join(import.meta.dirname, '..', 'scripts')
 
 // Everything here shells out to vg, so the whole file skips when it isn't
 // installed, the same way the network tests in src/api/GBZBaseAPI.test.ts opt

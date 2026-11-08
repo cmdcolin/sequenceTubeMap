@@ -146,7 +146,7 @@ export function pathScale(scheme: Scheme): ColorScale {
     rows: (noun, drawn) =>
       drawn.length <= colors.length
         ? [...drawn]
-            .sort((a, b) => a.id - b.id)
+            .toSorted((a, b) => a.id - b.id)
             .map(track => ({ label: trackLabel(track), palette: color(track) }))
         : [{ label: `${drawn.length.toLocaleString()} ${noun}`, palette: aux }],
   }

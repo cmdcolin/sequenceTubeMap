@@ -21,7 +21,7 @@ import { Icon } from './Icon.tsx'
 import { faChevronDown, faChevronRight } from './icons.ts'
 import type { PathInfo } from '../Types.ts'
 import { DEFAULT_READ_RENDER_LIMIT } from './TubeMapContainer.tsx'
-import HelpDialog from './HelpDialog.tsx'
+import { HelpDialog } from './HelpDialog.tsx'
 
 interface PathsPanelProps {
   pathInfo: PathInfo[]

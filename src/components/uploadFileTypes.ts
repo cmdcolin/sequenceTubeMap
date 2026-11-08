@@ -59,6 +59,10 @@ export function isLocallyAccepted(name: string): boolean {
   return LOCAL_EXTS.some(e => lower.endsWith(e))
 }
 
+function stem(name: string) {
+  return name.replace(/\.haplotype-index\.db$|(\.gbz)?\.db$/i, '').toLowerCase()
+}
+
 // Which companion haplotype index, by position in `indexNames`, each uploaded
 // `.gbz.db` graph takes: `graph.haplotype-index.db` goes with `graph.gbz.db`,
 // and a lone index with a lone graph whatever their names.
@@ -66,8 +70,6 @@ export function pairHaplotypeIndexes(
   graphNames: string[],
   indexNames: string[],
 ): (number | undefined)[] {
-  const stem = (name: string) =>
-    name.replace(/\.haplotype-index\.db$|(\.gbz)?\.db$/i, '').toLowerCase()
   return graphNames.map(graph => {
     const byName = indexNames.findIndex(index => stem(index) === stem(graph))
     if (byName >= 0) {

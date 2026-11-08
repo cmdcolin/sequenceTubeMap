@@ -11,10 +11,11 @@ export function makeWorker() {
   // Make a couple EventEmmitters, chrome them up to look more browser-y, and
   // cross-connect their message events and postMessage functions.
   const workerSide = new EventEmitter()
-  workerSide.addEventListener = workerSide.on
+  workerSide.addEventListener = (type, listener) =>
+    workerSide.on(type, listener)
 
   const userSide = new EventEmitter()
-  userSide.addEventListener = userSide.on
+  userSide.addEventListener = (type, listener) => userSide.on(type, listener)
 
   workerSide.postMessage = (message, _options) => {
     setTimeout(() => {

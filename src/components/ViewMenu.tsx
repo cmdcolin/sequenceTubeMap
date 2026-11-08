@@ -12,7 +12,7 @@ import { AppBarMenu } from './AppBarMenu.tsx'
 import { CheckboxMenuItem } from './CheckboxMenuItem.tsx'
 import { HelpDialog } from './HelpDialog.tsx'
 import { OpenInBandageJsMenuItem } from './OpenInBandageJsMenuItem.tsx'
-import PopupDialog from './PopupDialog.tsx'
+import { PopupDialog } from './PopupDialog.tsx'
 import TrackVisibilityPanel from './TrackVisibilityPanel.tsx'
 
 const MAPPING_QUALITY_VALUES = Array.from(

@@ -145,7 +145,7 @@ describe('UploadRegistry', () => {
     })
   })
 
-  it('returns null when no sibling was uploaded', async () => {
+  it('returns null when no sibling was uploaded', () => {
     const reg = new UploadRegistry()
     const gam = reg.add({ name: 'lonely.sorted.gam', blob: blobOfText('g') })
     expect(reg.sibling(gam.id, '.gai')).toBeNull()

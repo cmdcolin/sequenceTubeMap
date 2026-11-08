@@ -4,7 +4,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import MuiButton from '@mui/material/Button'
 import type { FileType, Track } from '../Types.ts'
-import UploadPanel from './UploadPanel.tsx'
+import { UploadPanel } from './UploadPanel.tsx'
 
 interface UploadDialogProps {
   open: boolean

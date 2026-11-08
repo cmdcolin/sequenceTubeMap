@@ -4,7 +4,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { Icon } from './Icon.tsx'
 import { faLink } from './icons.ts'
-import PopupDialog from './PopupDialog.tsx'
+import { PopupDialog } from './PopupDialog.tsx'
 import type { ViewTarget } from '../Types.ts'
 
 interface CopyLinkProps {

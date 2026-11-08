@@ -83,9 +83,10 @@ function sharePosition({ count, total }: HaplotypeShare): number {
 
 function shareColorAt(position: number, reverse: boolean): ColorHex {
   const ramp = reverse ? interpolatePurples : interpolateOranges
-  return rgb(
+  const hex = rgb(
     ramp(SHARE_RAMP_START + (1 - SHARE_RAMP_START) * position),
-  ).formatHex() as ColorHex
+  ).formatHex()
+  return `#${hex.slice(1)}`
 }
 
 // Forward bands in orange, reverse-strand bands in purple

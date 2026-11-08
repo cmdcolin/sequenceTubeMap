@@ -769,7 +769,7 @@ describe('tubemap.create — coarsened view normalises orientation', () => {
     const names = [...svg.querySelectorAll('[trackName]')]
       .map(el => el.getAttribute('trackName') ?? '')
       .filter(name => name.includes('\u2192'))
-    return [...new Set(names)].sort()
+    return [...new Set(names)].toSorted()
   }
 
   it('lands both traversals of an edge in one band already', () => {
@@ -816,13 +816,13 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
   })
 
   function trackNames(
-    tracks: InputTrack[],
+    inputTracks: InputTrack[],
     reads: InputTrack[] = [],
   ): string[] {
     setupSvg()
     tubeMap.setMergeNodesFlag(false)
     tubeMap.setCoarsenedReadViewFlag(true)
-    const svg = render(nodes, tracks, reads)
+    const svg = render(nodes, inputTracks, reads)
     return [
       ...new Set(
         [...svg.querySelectorAll('[trackName]')].map(
@@ -834,7 +834,7 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
 
   it('bands the alt haplotypes by edge, leaving the reference out of the count and dropping the alts by name', () => {
     const names = trackNames(tracks)
-    expect(names.filter(name => name.includes('→')).sort()).toEqual([
+    expect(names.filter(name => name.includes('→')).toSorted()).toEqual([
       '1 haplotype (33%): Node 2 → Node 4',
       '2 haplotypes (67%): Node 2 → Node 3',
       '3 haplotypes (100%): Node 1 → Node 2',
@@ -856,7 +856,7 @@ describe('tubemap.create — coarsened view on haplotype-only data', () => {
     expect(
       trackNames(deduplicated)
         .filter(name => name.includes('→'))
-        .sort(),
+        .toSorted(),
     ).toEqual([
       '4 haplotypes (44%): Node 2 → Node 3',
       '5 haplotypes (56%): Node 2 → Node 4',
@@ -1039,7 +1039,9 @@ describe('tubemap.create — banded haplotypes with reads on screen', () => {
   it('draws the reads one by one under haplotype bands, and keys both', () => {
     tubeMap.setColorReadsByMappingQualityFlag(true)
     const { svg, names, coloring, legend } = draw(false)
-    expect(names.filter(name => name?.includes('→')).sort()).toEqual([
+    expect(
+      names.flatMap(name => (name?.includes('→') ? [name] : [])).toSorted(),
+    ).toEqual([
       '2 haplotypes (100%): Node 1 → Node 3',
       '2 haplotypes (100%): Node 3 → Node 4',
     ])
@@ -1165,7 +1167,7 @@ describe('tubemap.create — facets', () => {
     const svg = draw('read_group')
     const ids = tubeMap.getRenderedColoring().drawn.map(t => t.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids.sort()).toEqual([0, 1, 2, 3, 4])
+    expect(ids.toSorted((a, b) => a - b)).toEqual([0, 1, 2, 3, 4])
     expect(legend()).toEqual(unfaceted)
     for (const el of svg.querySelectorAll<SVGElement>('[trackID]')) {
       expect(el.style.fill).not.toBe('')
@@ -1269,7 +1271,7 @@ describe('tubemap.create — facets', () => {
         new Set(['GRCh38#0#chr1', 'a1', 'a2', 'b1']),
       )
       const ids = tubeMap.getRenderedColoring().drawn.map(t => t.id)
-      expect(ids.sort()).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+      expect(ids.toSorted((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
     })
 
     it('lists reads only in the reads panel', () => {
@@ -1394,7 +1396,7 @@ describe('tubemap.getRenderedColoring', () => {
     render(nodes, graph, reads)
 
     const coloring = tubeMap.getRenderedColoring()
-    expect([...coloring.drawn].sort((a, b) => a.id - b.id)).toEqual([
+    expect([...coloring.drawn].toSorted((a, b) => a.id - b.id)).toEqual([
       { mark: 'reference', source: 0, id: 0, name: '17', reverse: false },
       { mark: 'read', source: 2, id: 1, name: 'r1', reverse: false },
     ])

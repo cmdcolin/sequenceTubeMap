@@ -4,14 +4,16 @@ import { InternalServerError } from './errors.mjs'
 import fs from 'fs'
 import path from 'path'
 
+let foundVg: string | undefined
+
 /// Return the command string to execute to run vg.
 /// Checks config.vgPath.
 /// An entry of "" in config.vgPath means to check PATH.
 export function find_vg() {
-  if (find_vg.found_vg !== null) {
+  if (foundVg !== undefined) {
     // Cache the answer and don't re-check all the time.
     // Nobody should be deleting vg.
-    return find_vg.found_vg
+    return foundVg
   }
   for (let prefix of config.vgPath) {
     if (prefix === '') {
@@ -21,11 +23,11 @@ export function find_vg() {
       if (onPath === undefined) {
         continue
       }
-      find_vg.found_vg = onPath
-      console.log('Found vg at:', find_vg.found_vg)
-      return find_vg.found_vg
+      foundVg = onPath
+      console.log('Found vg at:', foundVg)
+      return foundVg
     }
-    if (prefix.length > 0 && prefix[prefix.length - 1] !== '/') {
+    if (prefix.length > 0 && !prefix.endsWith('/')) {
       // Add trailing slash
       prefix = prefix + '/'
     }
@@ -39,14 +41,14 @@ export function find_vg() {
       try {
         // Pretend we will execute it
         fs.accessSync(vg_filename, fs.constants.X_OK)
-      } catch (e) {
+      } catch {
         // Not executable
         continue
       }
       // If we get here it is executable.
-      find_vg.found_vg = vg_filename
-      console.log('Found vg at:', find_vg.found_vg)
-      return find_vg.found_vg
+      foundVg = vg_filename
+      console.log('Found vg at:', foundVg)
+      return foundVg
     }
   }
   // If we get here we don't see vg at all.
@@ -54,7 +56,6 @@ export function find_vg() {
     'The vg command was not found. Install vg to use the Sequence Tube Map: https://github.com/vgteam/vg?tab=readme-ov-file#installation',
   )
 }
-find_vg.found_vg = null
 
 /// Return whether vg can be found, without throwing. For tests that need the
 /// binary and should skip rather than fail when it is not installed.
@@ -62,12 +63,12 @@ export function vg_available() {
   try {
     find_vg()
     return true
-  } catch (e) {
+  } catch {
     return false
   }
 }
 
-function findOnPath(name) {
+function findOnPath(name: string) {
   for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
     const candidate = path.join(dir, name)
     try {

@@ -1,4 +1,4 @@
-import HelpDialog from './HelpDialog.tsx'
+import { HelpDialog } from './HelpDialog.tsx'
 
 const SHORTCUTS: [string, string][] = [
   ['+ / -', 'Zoom the tube map in and out'],

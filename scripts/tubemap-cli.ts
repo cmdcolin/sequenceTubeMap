@@ -326,23 +326,24 @@ function installBrowserGlobals(args: CliArgs): JSDOM {
     configurable: true,
   })
 
-  const g = globalThis as unknown as Record<string, unknown>
-  g.window = window
-  g.document = window.document
-  Object.defineProperty(g, 'navigator', {
+  Object.defineProperty(globalThis, 'navigator', {
     value: window.navigator,
     configurable: true,
   })
-  g.HTMLElement = window.HTMLElement
-  g.SVGElement = window.SVGElement
-  g.Node = window.Node
-  g.Element = window.Element
-  g.Event = window.Event
-  g.MouseEvent = window.MouseEvent
-  g.XMLSerializer = window.XMLSerializer
-  g.getComputedStyle = window.getComputedStyle.bind(window)
-  g.requestAnimationFrame = window.requestAnimationFrame.bind(window)
-  g.cancelAnimationFrame = window.cancelAnimationFrame.bind(window)
+  Object.assign(globalThis, {
+    window,
+    document: window.document,
+    HTMLElement: window.HTMLElement,
+    SVGElement: window.SVGElement,
+    Node: window.Node,
+    Element: window.Element,
+    Event: window.Event,
+    MouseEvent: window.MouseEvent,
+    XMLSerializer: window.XMLSerializer,
+    getComputedStyle: window.getComputedStyle.bind(window),
+    requestAnimationFrame: window.requestAnimationFrame.bind(window),
+    cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+  })
 
   return dom
 }
@@ -516,6 +517,10 @@ async function viewTargetForUrl(
 
 // Files named on the command line resolve against the working directory, as
 // any CLI's do, rather than the repo root config.json paths resolve against.
+function cliFile(file: string) {
+  return isUrl(file) ? file : path.resolve(file)
+}
+
 async function viewTargetForGraph(
   api: GBZBaseAPI,
   graph: string,
@@ -532,7 +537,6 @@ async function viewTargetForGraph(
   if (notGam !== undefined) {
     throw new Error(`--reads takes .gam files, not ${notGam}`)
   }
-  const cliFile = (file: string) => (isUrl(file) ? file : path.resolve(file))
   return prepareViewTarget(
     api,
     {

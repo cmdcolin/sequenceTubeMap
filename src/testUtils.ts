@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 
 // Open a MUI Select inside `container` and click the option labelled `label`.
 export async function selectMuiOption(container: HTMLElement, label: string) {
@@ -9,4 +9,11 @@ export async function selectMuiOption(container: HTMLElement, label: string) {
 // Read the currently-displayed value of a MUI Select inside `container`.
 export function muiSelectValue(container: HTMLElement) {
   return within(container).getByRole('combobox').textContent
+}
+
+export function actAsync(action: () => void) {
+  return act(() => {
+    action()
+    return Promise.resolve()
+  })
 }

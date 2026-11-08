@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import type { EventEmitter } from 'node:events'
 
 it('can be constructed', () => {
-  new LocalAPI()
+  expect(new LocalAPI()).toBeInstanceOf(LocalAPI)
 })
 
 it('can have a file uploaded', async () => {

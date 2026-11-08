@@ -11,6 +11,10 @@ function parseJson(text: string): Record<string, unknown> | undefined {
   }
 }
 
+function describe(value: unknown): string {
+  return typeof value === 'string' ? value : JSON.stringify(value)
+}
+
 // Proxies and frameworks answer errors with a whole HTML page; the alert only
 // needs its text.
 function htmlToText(text: string): string {
@@ -39,12 +43,12 @@ export async function fetchAndParse<T = unknown>(
   const error = json?.error
   if (!response.ok) {
     throw new Error(
-      `Server responded with error code ${response.status}: ${error === undefined ? htmlToText(text) : String(error)}`,
+      `Server responded with error code ${response.status}: ${error === undefined ? htmlToText(text) : describe(error)}`,
     )
   }
   if (error) {
     // Even 200 responses can come with error messages.
-    throw new Error(String(error))
+    throw new Error(describe(error))
   }
   if (json === undefined) {
     throw new Error(`Server response was not JSON: ${text}`)

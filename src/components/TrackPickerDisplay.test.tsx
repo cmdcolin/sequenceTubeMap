@@ -106,7 +106,7 @@ describe('TrackPickerDisplay', () => {
     openAutocomplete(getByTestId('file-select-component2'))
     fireEvent.click(await screen.findByRole('option', { name: 'fileC1.xg' }))
 
-    const newTracks: Tracks = JSON.parse(JSON.stringify(tracks))
+    const newTracks = structuredClone(tracks)
 
     newTracks[0]!.trackFile = 'fileA1.vg'
     newTracks[0]!.trackType = 'graph'

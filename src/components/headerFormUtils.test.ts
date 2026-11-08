@@ -13,7 +13,7 @@ import type { Track, Tracks, ViewTarget } from '../Types.ts'
 // test for determineRegionIndex and regionStringFromRegionIndex
 describe('determine regionIndex and corresponding region strings for various region inputs', () => {
   // TEST #1
-  it('determine regionIndex and regionString for smaller regionInfo lists', async () => {
+  it('determine regionIndex and regionString for smaller regionInfo lists', () => {
     const regionInfo = {
       chr: ['ref', 'ref'],
       start: ['1000', '2000'],
@@ -30,7 +30,7 @@ describe('determine regionIndex and corresponding region strings for various reg
     )
   })
   // TEST #2
-  it('determine regionIndex and regionString for larger regionInfo lists', async () => {
+  it('determine regionIndex and regionString for larger regionInfo lists', () => {
     const regionInfo = {
       chr: ['17', 'ref', '17', 'ref', '17', 'ref'],
       start: ['100', '200', '2000', '3000', '4000', '5000'],
@@ -54,7 +54,7 @@ describe('determine regionIndex and corresponding region strings for various reg
     )
   })
   // TEST #3
-  it('determine regionIndex to be null for input of region not found in regionInfo', async () => {
+  it('determine regionIndex to be null for input of region not found in regionInfo', () => {
     const regionInfo = {
       chr: ['17', 'ref', '17', 'ref', '17', 'ref'],
       start: ['100', '200', '2000', '3000', '4000', '5000'],
@@ -75,7 +75,7 @@ describe('determine regionIndex and corresponding region strings for various reg
     expect(regionIndex).toBe(null)
   })
   // TEST #4
-  it('determine regionIndex and regionString to be null given empty regionInfo', async () => {
+  it('determine regionIndex and regionString to be null given empty regionInfo', () => {
     const regionInfo = {
       chr: [],
       start: [],

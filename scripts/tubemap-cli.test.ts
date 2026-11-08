@@ -55,7 +55,7 @@ describe('tubemap-cli', () => {
     const samples = (await readdir(SAMPLES))
       .filter(name => name.endsWith('.svg'))
       .map(name => name.replace(/\.svg$/, ''))
-    expect(samples.sort()).toEqual(Object.keys(SAMPLE_ARGS).sort())
+    expect(samples.toSorted()).toEqual(Object.keys(SAMPLE_ARGS).toSorted())
   })
 
   it.concurrent.each(Object.entries(SAMPLE_ARGS))(

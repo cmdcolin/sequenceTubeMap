@@ -7,7 +7,6 @@ import Box from '@mui/material/Box'
 import { faCircleQuestion } from './icons.ts'
 import { HelpDialog } from './HelpDialog.tsx'
 import '../config-client.js'
-import '../config-global.mjs'
 import { isEmpty } from '../common.ts'
 import type { RegionInfo } from '../Types.ts'
 

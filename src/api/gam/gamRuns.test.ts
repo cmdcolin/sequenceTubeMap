@@ -101,7 +101,8 @@ function twoGroupGam() {
   }
 }
 
-const names = (reads: { name?: string }[]) => reads.map(r => r.name).sort()
+const names = (reads: { name?: string }[]) =>
+  reads.map(r => r.name ?? '').toSorted()
 
 // readAlignmentsForRuns seeks, so it takes a handle rather than the bytes.
 // The copy is to get a plain ArrayBuffer, which is what BlobPart accepts.

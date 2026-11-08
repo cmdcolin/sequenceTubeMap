@@ -24,7 +24,7 @@ function attributeDump(root: Element): string[] {
       .map(
         attribute => `${element.tagName}.${attribute.name}=${attribute.value}`,
       )
-      .sort()
+      .toSorted()
       .join(' '),
   )
 }

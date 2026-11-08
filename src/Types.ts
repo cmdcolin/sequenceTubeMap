@@ -194,3 +194,34 @@ export interface FilenamesResponse {
   folderManifests?: Record<string, FolderManifest>
   error?: string
 }
+
+export type PickerType = 'mounted' | 'upload'
+
+export interface TubeMapConfig {
+  BACKEND_URL: string | false
+  DATA_SOURCES: ViewTarget[]
+  vgPath: string[]
+  chunkixPath: string[]
+  dataPath: string
+  internalDataPath: string
+  tempDirPath: string
+  fetchTimeout: number
+  requestTimeout: number
+  maxFileSizeBytes: number
+  maxRegionBp?: number
+  defaultGraphColorPalette: ColorScheme
+  defaultHaplotypeColorPalette: ColorScheme
+  defaultReadColorPalette: ColorScheme
+  defaultTrackProps: Track
+  fileTypeToExtensions: Partial<Record<FileType, string>>
+  MAXUPLOADSIZE: number
+  pickerTypeOptions: PickerType[]
+  fileExpirationTime: number
+  serverBindAddress?: string
+  serverPort?: number
+  allowedPrivateFetchAddresses?: string[]
+}
+
+declare global {
+  var sequenceTubeMapConfig: TubeMapConfig | undefined
+}

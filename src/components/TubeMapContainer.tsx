@@ -10,7 +10,7 @@ import Button from '@mui/material/Button'
 
 import TubeMap from './TubeMap.tsx'
 import * as tubeMap from '../util/tubemap.ts'
-import PopUpInfoDialog, { type InfoAttribute } from './PopUpInfoDialog.tsx'
+import { PopUpInfoDialog, type InfoAttribute } from './PopUpInfoDialog.tsx'
 import ReadContextMenu from './ReadContextMenu.tsx'
 import NodeContextMenu from './NodeContextMenu.tsx'
 import PendingPanel from './PendingPanel.tsx'
@@ -538,12 +538,17 @@ function TubeMapContainer({
     )
   }
 
-  function appendNewGroup(reads: string[]) {
+  function appendNewGroup(groupReads: string[]) {
     const n = groupCounter + 1
     const id = `g${n}`
     setReadGroups(prev => [
       ...prev,
-      { id, name: `Group ${n}`, color: paletteForIndex(groupCounter), reads },
+      {
+        id,
+        name: `Group ${n}`,
+        color: paletteForIndex(groupCounter),
+        reads: groupReads,
+      },
     ])
     setActiveGroupId(id)
     setGroupCounter(n)

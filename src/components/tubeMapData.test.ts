@@ -9,7 +9,6 @@ import {
 } from './TubeMapContainer.tsx'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import type { ViewTarget } from '../Types.ts'
 
 // GRAPH_RENDER_LIMIT is a number picked from measurements, and a number like
 // that rots quietly: the reader gets faster, the graph gets rebuilt, and the
@@ -20,9 +19,7 @@ import type { ViewTarget } from '../Types.ts'
 //
 // Network-gated, like the other HPRC v2.1 tests: `RUN_NETWORK_TESTS=1`.
 const RUN_NETWORK = process.env.RUN_NETWORK_TESTS === '1'
-const hprc = (config.DATA_SOURCES as ViewTarget[]).find(ds =>
-  ds.name?.startsWith('HPRC v2.1'),
-)!
+const hprc = config.DATA_SOURCES.find(ds => ds.name?.startsWith('HPRC v2.1'))!
 
 async function nodeVisitsFor(region: string) {
   const target = { ...hprc, region }

@@ -137,7 +137,11 @@ function decompressGzipMultiMember(buf: Uint8Array): Uint8Array {
         `gzip member at byte ${offset}: ${inflator.msg || 'truncated'}`,
       )
     }
-    members.push(inflator.result as Uint8Array)
+    const result: unknown = inflator.result
+    if (!(result instanceof Uint8Array)) {
+      throw new Error(`gzip member at byte ${offset} did not inflate to bytes`)
+    }
+    members.push(result)
     offset = buf.length - (inflator.strm?.avail_in ?? 0)
   }
   const out = new Uint8Array(members.reduce((sum, m) => sum + m.length, 0))

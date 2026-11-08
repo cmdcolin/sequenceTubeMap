@@ -83,18 +83,18 @@ if (!page) {
 }
 const ws = new WebSocket(page.webSocketDebuggerUrl)
 await new Promise(resolve => {
-  ws.onopen = resolve
+  ws.addEventListener('open', resolve, { once: true })
 })
 
 let nextId = 1
 const pending = new Map()
-ws.onmessage = event => {
+ws.addEventListener('message', event => {
   const message = JSON.parse(event.data)
   if (message.id !== undefined) {
     pending.get(message.id)?.(message)
     pending.delete(message.id)
   }
-}
+})
 
 function send(method, params = {}) {
   const id = nextId++

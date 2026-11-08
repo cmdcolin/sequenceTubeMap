@@ -9,7 +9,7 @@ process.env.SERVER_PORT = '0'
 import { start } from './server.mjs'
 import fs from 'fs'
 import { join } from 'node:path'
-import { vg_available } from './vg.mjs'
+import { vg_available } from './vg.ts'
 const server = { start }
 
 // Tests that shell out to vg skip themselves when it isn't installed, the
@@ -20,7 +20,7 @@ const HAS_VG = vg_available()
 import { render, fireEvent, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App.tsx'
-import { selectMuiOption } from './testUtils.ts'
+import { actAsync, selectMuiOption } from './testUtils.ts'
 
 const getRegionInput = () => {
   // Helper function to select the Region input box
@@ -28,10 +28,10 @@ const getRegionInput = () => {
 }
 
 async function selectExample(name) {
-  await act(async () => {
+  await actAsync(() => {
     fireEvent.click(screen.getByTestId('examplesMenuButton'))
   })
-  await act(async () => {
+  await actAsync(() => {
     fireEvent.click(screen.getByRole('menuitem', { name }))
   })
 }
@@ -67,11 +67,11 @@ async function setUp() {
   render(<App apiUrl={serverState.getApiUrl()} />)
   // The page opens on the in-browser reader; these tests are about the server.
   for (const testid of ['fileMenuButton', 'openCustomFiles', 'mode-server']) {
-    await act(async () => {
+    await actAsync(() => {
       fireEvent.click(screen.getByTestId(testid))
     })
   }
-  await act(async () => {
+  await actAsync(() => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
   })
   await waitFor(() => {
@@ -82,7 +82,7 @@ async function setUp() {
 // This needs to be called by global and per-scope afterEach
 // Any mutations of the server (e.g. file uploads)
 // or globals (e.g. the clipboard) should be undone here.
-async function tearDown() {
+function tearDown() {
   delete navigator.clipboard
   // Remove anything a test uploaded, so a test run leaves uploads/ as it
   // found it.
@@ -97,8 +97,8 @@ beforeEach(async () => {
   await setUp()
 })
 
-afterEach(async () => {
-  await tearDown()
+afterEach(() => {
+  tearDown()
 })
 
 // Starting the server once per test run will speed up tests
@@ -166,7 +166,7 @@ it('populates the available example dropdown', async () => {
   // Default region reflects the default data source (snp1kg-BRCA1)
   expect(getRegionInput().value).toContain('17:1-100')
   // Opening the Examples menu reveals all data sources
-  await act(async () => {
+  await actAsync(() => {
     fireEvent.click(screen.getByTestId('examplesMenuButton'))
   })
   expect(
@@ -329,7 +329,7 @@ function expectSameLink(actual, expected) {
     const parsed = new URL(url)
     return {
       origin: parsed.origin + parsed.pathname,
-      search: parsed.search.replace(/^\?/, '').split('&').sort(),
+      search: parsed.search.replace(/^\?/, '').split('&').toSorted(),
     }
   }
   expect(params(actual)).toEqual(params(expected))
@@ -355,14 +355,14 @@ it('produces correct link when data source is changed', async () => {
 // Manage tracks edits the current view's tracks, so building a view from
 // scratch starts by emptying the list.
 async function openEmptyTrackList() {
-  await act(async () => {
+  await actAsync(() => {
     fireEvent.click(screen.getByTestId('fileMenuButton'))
   })
-  await act(async () => {
+  await actAsync(() => {
     fireEvent.click(screen.getByTestId('manageTracks'))
   })
   while (screen.queryByTestId('delete-button-component0')) {
-    await act(async () => {
+    await actAsync(() => {
       fireEvent.click(screen.getByTestId('delete-button-component0'))
     })
   }

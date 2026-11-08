@@ -2,9 +2,6 @@
 
 import config from './config.json' with { type: 'json' }
 
-const GLOBAL_NAME = '__sequence_tube_map_config'
-const GLOBAL_HOME = globalThis
-
 // In dev, offer the express backend at the same origin, where the Vite dev
 // server proxies /api. Production builds keep whatever config.json says —
 // typically BACKEND_URL=false on gh-pages, which offers no self-hosted backend.
@@ -26,4 +23,4 @@ if (
 }
 
 // Hide the config in the globals object when we run.
-GLOBAL_HOME[GLOBAL_NAME] = config
+globalThis.sequenceTubeMapConfig = config

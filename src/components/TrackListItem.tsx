@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { defaultTrackColors } from '../common.ts'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import type { AvailableTrack, FileType, Track } from '../Types.ts'
+import type { AvailableTrack, FileType, PickerType, Track } from '../Types.ts'
 
 interface TrackListItemProps {
   trackProps: Track
@@ -21,8 +21,6 @@ interface TrackListItemProps {
   ) => Promise<string | undefined>
   apiMode: 'local' | 'server' | 'upstream'
 }
-
-type PickerType = 'mounted' | 'upload'
 
 const TRACK_TYPE_OPTIONS: FileType[] = [
   'graph',

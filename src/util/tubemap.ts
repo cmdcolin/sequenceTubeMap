@@ -3,7 +3,6 @@
 // for the remaining clean-up plan.
 import * as d3 from 'd3'
 import '../config-client.js'
-import '../config-global.mjs'
 import { defaultTrackColors } from '../common.ts'
 import {
   type Coloring,
@@ -697,7 +696,7 @@ function emitRenderedColoring(): void {
 // The sequence is drawn in `fonts`, which is monospace, so one character's
 // width sizes every node under nodeWidthOption 'normal'.
 function measureCharWidth(): number {
-  svg
+  const probe = svg
     .append('text')
     .attr('x', 0)
     .attr('y', 100)
@@ -707,7 +706,7 @@ function measureCharWidth(): number {
     .attr('font-size', '14px')
     .attr('fill', 'black')
     .style('pointer-events', 'none')
-  const probe = document.getElementById('dummytext') as SVGTextElement | null
+    .node()
   const charWidth =
     probe && typeof probe.getComputedTextLength === 'function'
       ? probe.getComputedTextLength()
@@ -750,7 +749,10 @@ function createTubeMap(preserveViewport = true): void {
   coarsenedEdgeMeta = new Map(
     layouts.flatMap(layout => [...layout.coarsenedEdgeMeta]),
   )
-  coarsened = Object.assign({}, ...layouts.map(layout => layout.coarsened))
+  coarsened = {}
+  for (const layout of layouts) {
+    Object.assign(coarsened, layout.coarsened)
+  }
   imageBounds = faceted.bounds
   drawn = tracks.map(datumOf)
   const coloring = currentColoring()
@@ -789,13 +791,10 @@ function drawPanel(panel: FacetPanel, first: boolean): void {
   const target =
     facet === undefined
       ? svg
-      : (svg
-          .append('g')
+      : svg
+          .append<Element>('g')
           .attr('class', 'facet')
-          .attr(
-            'transform',
-            `translate(0,${panel.offsetY})`,
-          ) as unknown as AnySelection)
+          .attr('transform', `translate(0,${panel.offsetY})`)
   if (facet !== undefined) {
     drawFacetLabel(target, panel, facet, first)
   }
@@ -985,6 +984,10 @@ function getSvgParent(): HTMLElement | null {
     : null
 }
 
+function preventWheelScroll(e: WheelEvent): void {
+  e.preventDefault()
+}
+
 // align visualization to the top and left within svg and resize svg to correct size
 // enable zooming and panning. Returns a function that applies the initial zoom
 // transform; the caller is expected to invoke it *after* all content (nodes,
@@ -1006,7 +1009,9 @@ function alignSVG(preserveViewport: boolean): () => void {
   // centred initial transform) from a re-draw (should preserve the user's
   // pan/zoom across a re-create that was triggered by, e.g., a visOptions
   // change or a spurious parent re-render).
-  const previousTransform = (svgElement as { __zoom?: d3.ZoomTransform }).__zoom
+  const storedTransform: unknown = Reflect.get(svgElement, '__zoom')
+  const previousTransform =
+    storedTransform instanceof d3.ZoomTransform ? storedTransform : undefined
 
   // rAF-coalesce zoom events so a burst of wheel/pointer ticks only triggers
   // one transform write (and one browser repaint) per frame instead of one per
@@ -1150,10 +1155,7 @@ function alignSVG(preserveViewport: boolean): () => void {
 
   // createTubeMap already released the previous draw's bindings, so attaching
   // fresh ones here cannot stack up.
-  const wheelHandler = (e: WheelEvent): void => {
-    e.preventDefault()
-  }
-  parentElement.addEventListener('wheel', wheelHandler)
+  parentElement.addEventListener('wheel', preventWheelScroll)
   // jsdom, under the tests and the CLI, has no ResizeObserver
   const resizeObserver =
     typeof ResizeObserver === 'function'
@@ -1163,7 +1165,7 @@ function alignSVG(preserveViewport: boolean): () => void {
       : null
   resizeObserver?.observe(parentElement)
   cleanupParentBindings = () => {
-    parentElement.removeEventListener('wheel', wheelHandler)
+    parentElement.removeEventListener('wheel', preventWheelScroll)
     resizeObserver?.disconnect()
   }
 
@@ -1570,7 +1572,7 @@ export function axisIntervals(
     return nodePixelCoordinates.map(p => [p[0], p[1]])
   } else {
     // Sort ascending by first element of each subarray.
-    const sorted = nodePixelCoordinates.slice().sort((a, b) => a[0] - b[0])
+    const sorted = nodePixelCoordinates.slice().toSorted((a, b) => a[0] - b[0])
     // https://keithwilliams-91944.medium.com/merge-intervals-solution-in-javascript-daa61b618ed4
     const first = sorted[0]
     const mergedIntervals: [number, number][] =

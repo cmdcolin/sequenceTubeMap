@@ -217,5 +217,5 @@ shapes that moved.
 - `config` (`src/config-global.mjs`) is a `Proxy` that reads `globalThis` on
   every access, because the client and server config modules both write it and
   end-to-end tests load both in one process. Don't "simplify" it to
-  `export const config = globalThis[GLOBAL_NAME]`: that works in production and
-  breaks under test.
+  `export const config = globalThis.sequenceTubeMapConfig`: that works in
+  production and breaks under test.

@@ -12,7 +12,7 @@ import {
   urlParamsToVisOptions,
 } from './urlViewTarget.ts'
 import { EMPTY_VIEW_TARGET, useViewHistory } from './useViewHistory.ts'
-import Footer from './components/Footer.tsx'
+import { Footer } from './components/Footer.tsx'
 import { ViewMenu } from './components/ViewMenu.tsx'
 import {
   simplifyApplies,
@@ -33,7 +33,7 @@ import {
 import { dataOriginTypes } from './enums.ts'
 import './config-client.js'
 import { config } from './config-global.mjs'
-import ServerAPI from './api/ServerAPI.ts'
+import { ServerAPI } from './api/ServerAPI.ts'
 import { LocalAPI } from './api/LocalAPI.ts'
 import type { APIInterface } from './api/APIInterface.ts'
 import {

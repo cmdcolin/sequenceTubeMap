@@ -67,7 +67,7 @@ import type { InputRegion, VgNode, VgRead } from '../util/tubemap.ts'
 // Worker has no localStorage, so LocalAPI also forwards the page's
 // `?gbzBaseDebug` flag through setDebug().
 function debugFromEnvironment(): boolean {
-  if (typeof process !== 'undefined' && process.env.GBZBASE_DEBUG === '1') {
+  if ('process' in globalThis && process.env.GBZBASE_DEBUG === '1') {
     return true
   }
   return (
@@ -489,7 +489,7 @@ export class GBZBaseAPI implements APIInterface {
       // jsdom test env / opaque responses).
       if (response.body) {
         const reader = response.body.getReader()
-        const chunks: Uint8Array[] = []
+        const chunks: Uint8Array<ArrayBuffer>[] = []
         let received = 0
         this.progressListener({
           url: resolved,
@@ -520,7 +520,7 @@ export class GBZBaseAPI implements APIInterface {
         } finally {
           this.progressListener({ url: resolved, received, total, done: true })
         }
-        return new Blob(chunks as BlobPart[])
+        return new Blob(chunks)
       }
       return await response.blob()
     } catch (e) {
@@ -913,9 +913,7 @@ export class GBZBaseAPI implements APIInterface {
     return this.decodedReads.reads
   }
 
-  async getFilenames(
-    _cancelSignal: AbortSignal | null,
-  ): Promise<FilenamesResponse> {
+  getFilenames(_cancelSignal: AbortSignal | null): Promise<FilenamesResponse> {
     const files: AvailableTrack[] = []
     const bedFiles: string[] = []
     for (const [trackType, uploadIds] of this.filesByType) {
@@ -925,7 +923,7 @@ export class GBZBaseAPI implements APIInterface {
         files.push(...uploadIds.map(trackFile => ({ trackFile, trackType })))
       }
     }
-    return { files, bedFiles }
+    return Promise.resolve({ files, bedFiles })
   }
 
   // Nothing outside this object can change the file list, so there is nothing
@@ -937,7 +935,7 @@ export class GBZBaseAPI implements APIInterface {
     /* nothing to subscribe to */
   }
 
-  async putFile(
+  putFile(
     fileType: FileType,
     file: File,
     _cancelSignal: AbortSignal | null,
@@ -962,14 +960,14 @@ export class GBZBaseAPI implements APIInterface {
       list.push(id)
     }
 
-    return id
+    return Promise.resolve(id)
   }
 
-  async getBedRegions(
+  getBedRegions(
     _bedFile: string,
     _cancelSignal: AbortSignal | null,
   ): Promise<{ bedRegions?: RegionInfo }> {
-    return { bedRegions: {} }
+    return Promise.resolve({ bedRegions: {} })
   }
 
   async getPathInfo(
@@ -1007,12 +1005,12 @@ export class GBZBaseAPI implements APIInterface {
     return { pathInfo }
   }
 
-  async getChunkTracks(
+  getChunkTracks(
     _bedFile: string,
     _chunk: string,
     _cancelSignal: AbortSignal | null,
   ): Promise<{ tracks?: Track[] }> {
-    return { tracks: [] }
+    return Promise.resolve({ tracks: [] })
   }
 
   // Per-path read count cache: scanning a .gam is expensive, so we

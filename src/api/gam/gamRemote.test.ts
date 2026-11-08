@@ -114,7 +114,8 @@ describe('URL-hosted reads', () => {
       24n,
     )
     // Same answer a whole-file scan gives for the same range.
-    const names = (xs: { name?: string }[]) => xs.map(x => x.name ?? '').sort()
+    const names = (xs: { name?: string }[]) =>
+      xs.map(x => x.name ?? '').toSorted()
     const scanned = (await readGam(new Blob([hosted('/brca1.gam')]))).filter(
       r =>
         r.path?.mapping.some(m => {

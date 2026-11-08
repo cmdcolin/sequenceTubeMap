@@ -3,9 +3,9 @@ import type { ImgHTMLAttributes } from 'react'
 import IconButton from '@mui/material/IconButton'
 import { Icon } from './Icon.tsx'
 import { faCircleQuestion } from './icons.ts'
-import Markdown from 'markdown-to-jsx'
-import useSWR from 'swr'
-import PopupDialog from './PopupDialog.tsx'
+import { Markdown } from 'markdown-to-jsx'
+import useSWR, { type SWRResponse } from 'swr'
+import { PopupDialog } from './PopupDialog.tsx'
 
 interface HelpButtonProps {
   file: string
@@ -36,8 +36,9 @@ function HelpImage({ alt, src, baseURL, ...props }: HelpImageProps) {
 export const HelpButton = ({ file }: HelpButtonProps) => {
   const fileURL = new URL(file, document.baseURI)
   const [open, setOpen] = useState(false)
-  const { data, error } = useSWR(file, (f: string) =>
-    fetch(f).then(r => r.text()),
+  const { data, error }: SWRResponse<string, unknown> = useSWR(
+    file,
+    (f: string) => fetch(f).then(r => r.text()),
   )
   const content = error ? 'Could not fetch help' : (data ?? '')
 

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import '../config-client.js'
 import { config } from '../config-global.mjs'
-import { selectMuiOption } from '../testUtils.ts'
+import { actAsync, selectMuiOption } from '../testUtils.ts'
 import HeaderForm from './HeaderForm.tsx'
 import type { APIInterface } from '../api/APIInterface.ts'
 import type { RegionInfo, Tracks, ViewTarget } from '../Types.ts'
@@ -23,13 +23,13 @@ const BED_REGIONS: RegionInfo = {
 function fakeAPI(overrides: Partial<APIInterface> = {}): APIInterface {
   return {
     mode: 'server',
-    getChunkedData: async () => ({}),
-    getFilenames: async () => ({ files: [], bedFiles: [] }),
+    getChunkedData: () => Promise.resolve({}),
+    getFilenames: () => Promise.resolve({ files: [], bedFiles: [] }),
     subscribeToFilenameChanges: () => {},
-    putFile: async () => 'uploaded',
-    getBedRegions: async () => ({}),
-    getPathInfo: async () => ({ pathInfo: [] }),
-    getChunkTracks: async () => ({}),
+    putFile: () => Promise.resolve('uploaded'),
+    getBedRegions: () => Promise.resolve({}),
+    getPathInfo: () => Promise.resolve({ pathInfo: [] }),
+    getChunkTracks: () => Promise.resolve({}),
     ...overrides,
   }
 }
@@ -43,7 +43,7 @@ interface RenderOptions {
 }
 
 function renderForm(options: RenderOptions = {}) {
-  const setCurrentViewTarget = vi.fn()
+  const setCurrentViewTarget = vi.fn<(viewTarget: ViewTarget) => void>()
   // App spells out both flags on every view it holds, and the form's
   // "anything to apply?" check compares against them.
   const viewTarget: ViewTarget = options.viewTarget ?? {
@@ -163,7 +163,9 @@ it('labels the in-browser group when it is the only one', async () => {
 it('derives the region from the first BED entry when the dataset has none', async () => {
   renderForm({
     viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },
-    api: fakeAPI({ getBedRegions: async () => ({ bedRegions: BED_REGIONS }) }),
+    api: fakeAPI({
+      getBedRegions: () => Promise.resolve({ bedRegions: BED_REGIONS }),
+    }),
   })
 
   await waitFor(() => {
@@ -174,7 +176,9 @@ it('derives the region from the first BED entry when the dataset has none', asyn
 it('walks the BED regions with Prev and Next', async () => {
   const { setCurrentViewTarget } = renderForm({
     viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },
-    api: fakeAPI({ getBedRegions: async () => ({ bedRegions: BED_REGIONS }) }),
+    api: fakeAPI({
+      getBedRegions: () => Promise.resolve({ bedRegions: BED_REGIONS }),
+    }),
   })
 
   const next = await screen.findByRole('button', { name: 'Next' })
@@ -201,9 +205,10 @@ describe('a BED chunk still loading', () => {
     const form = renderForm({
       viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },
       api: fakeAPI({
-        getBedRegions: async () => ({
-          bedRegions: { ...BED_REGIONS, chunk: ['', 'chunk-1', ''] },
-        }),
+        getBedRegions: () =>
+          Promise.resolve({
+            bedRegions: { ...BED_REGIONS, chunk: ['', 'chunk-1', ''] },
+          }),
         getChunkTracks: (_bed, _chunk, signal) =>
           new Promise(resolve => {
             requests.push({
@@ -224,7 +229,7 @@ describe('a BED chunk still loading', () => {
     await userEvent.click(screen.getByTestId('examplesMenuButton'))
     await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
 
-    await act(async () => {
+    await actAsync(() => {
       requests[0]!.answer()
     })
 
@@ -237,7 +242,7 @@ describe('a BED chunk still loading', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Next' }))
     reseed({ region: 'y:10-20', tracks: TRACKS, bedFile: 'regions.bed' })
 
-    await act(async () => {
+    await actAsync(() => {
       requests[0]!.answer()
     })
 
@@ -363,24 +368,18 @@ describe('Manage tracks', () => {
     expect(
       screen.queryByRole('button', { name: 'Simplify' }),
     ).not.toBeInTheDocument()
-    expect(setCurrentViewTarget).toHaveBeenLastCalledWith(
-      expect.objectContaining({
+    expect(setCurrentViewTarget.mock.lastCall).toMatchObject([
+      {
         name: 'test data',
         dataType: 'built-in',
-        tracks: [
-          expect.objectContaining({
-            trackColorSettings: expect.objectContaining({
-              mainPalette: 'reds',
-            }),
-          }),
-        ],
-      }),
-    )
+        tracks: [{ trackColorSettings: { mainPalette: 'reds' } }],
+      },
+    ])
   })
 })
 
 it('says inside Manage tracks when an upload is over the size limit', async () => {
-  const putFile = vi.fn(async () => 'uploaded')
+  const putFile = vi.fn(() => Promise.resolve('uploaded'))
   renderForm({ api: fakeAPI({ putFile }) })
   await userEvent.click(screen.getByTestId('fileMenuButton'))
   await userEvent.click(screen.getByTestId('manageTracks'))
@@ -455,7 +454,7 @@ describe('keyboard shortcuts', () => {
     const { setCurrentViewTarget } = renderForm({
       viewTarget: { region: '', tracks: TRACKS, bedFile: 'regions.bed' },
       api: fakeAPI({
-        getBedRegions: async () => ({ bedRegions: BED_REGIONS }),
+        getBedRegions: () => Promise.resolve({ bedRegions: BED_REGIONS }),
       }),
     })
     await screen.findByRole('button', { name: 'Next' })
@@ -468,7 +467,7 @@ describe('keyboard shortcuts', () => {
     const { setCurrentViewTarget } = renderForm({
       viewTarget: { region: 'y:10-20', tracks: TRACKS, bedFile: 'regions.bed' },
       api: fakeAPI({
-        getBedRegions: async () => ({ bedRegions: BED_REGIONS }),
+        getBedRegions: () => Promise.resolve({ bedRegions: BED_REGIONS }),
       }),
     })
     await screen.findByRole('button', { name: 'Next' })

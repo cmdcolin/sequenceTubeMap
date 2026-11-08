@@ -110,6 +110,10 @@ interface DrawnWalk {
   reversed: boolean[]
 }
 
+function walkKey(name: string, bp: number) {
+  return `${name}\t${bp}`
+}
+
 // Each walk the tube map draws, from the walks the cut keeps. A walk leaving
 // the drawn stretch into sequence of its own goes on through it, and one
 // coming back from it starts there, where the cut holds all of that
@@ -117,7 +121,6 @@ interface DrawnWalk {
 // The tube map draws only the nodes a walk visits, so without this the
 // departure's own nodes, which the cut keeps, would not be drawn.
 function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
-  const key = (name: string, bp: number) => `${name}\t${bp}`
   const ownSteps = (k: number) => {
     const from = departures.offsets[k]!
     const to = departures.offsets[k + 1]!
@@ -138,8 +141,8 @@ function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
     if (heldBp === ownBp) {
       const name = departures.names[k]!
       const hapStart = departures.hapStarts[k]!
-      leaving.set(key(name, hapStart), k)
-      rejoining.set(key(name, hapStart + ownBp), k)
+      leaving.set(walkKey(name, hapStart), k)
+      rejoining.set(walkKey(name, hapStart + ownBp), k)
     }
   }
   const isAbridged = (p: number) =>
@@ -147,7 +150,7 @@ function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
   const startingAt = new Map<string, number>()
   for (let p = 0; p < walks.names.length; p++) {
     if (!isAbridged(p)) {
-      startingAt.set(key(walks.names[p]!, walks.starts[p]!), p)
+      startingAt.set(walkKey(walks.names[p]!, walks.starts[p]!), p)
     }
   }
   const stepsOf = (p: number) => {
@@ -164,7 +167,7 @@ function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
     if (!isAbridged(p) && !joined.has(p)) {
       const name = walks.names[p]!
       const walk: DrawnWalk = { name, start: walks.starts[p]!, ...stepsOf(p) }
-      const before = rejoining.get(key(name, walk.start))
+      const before = rejoining.get(walkKey(name, walk.start))
       if (before !== undefined) {
         const own = ownSteps(before)
         walk.steps.unshift(...own.steps)
@@ -173,14 +176,17 @@ function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
       }
       let last: number | undefined = p
       while (last !== undefined) {
-        const after = leaving.get(key(name, walks.ends[last]!))
+        const after = leaving.get(walkKey(name, walks.ends[last]!))
         last = undefined
         if (after !== undefined) {
           const own = ownSteps(after)
           walk.steps.push(...own.steps)
           walk.reversed.push(...own.reversed)
           const next = startingAt.get(
-            key(name, departures.hapStarts[after]! + departures.ownBp[after]!),
+            walkKey(
+              name,
+              departures.hapStarts[after]! + departures.ownBp[after]!,
+            ),
           )
           if (next !== undefined) {
             const rest = stepsOf(next)

@@ -163,7 +163,8 @@ describe('readGamRegion', () => {
     )
     const indexed = await readGamRegion(new BlobFile(gam), gai, 1n, 10000n)
     // Same set of read names — order may differ.
-    const names = (xs: { name?: string }[]) => xs.map(x => x.name ?? '').sort()
+    const names = (xs: { name?: string }[]) =>
+      xs.map(x => x.name ?? '').toSorted()
     expect(names(indexed)).toEqual(names(filtered))
   })
 
@@ -306,7 +307,8 @@ describe('readGamRegion', () => {
   it('filters to an exact node set when given one', async () => {
     const gam = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam')
     const gai = loadAsBlob('exampleData/internal/NA12878-BRCA1.sorted.gam.gai')
-    const names = (xs: { name?: string }[]) => xs.map(x => x.name ?? '').sort()
+    const names = (xs: { name?: string }[]) =>
+      xs.map(x => x.name ?? '').toSorted()
     const nodeIdsOf = (r: VgRead) =>
       (r.path?.mapping ?? []).map(m => BigInt(m.position!.node_id))
 
@@ -337,7 +339,7 @@ describe('readGamRegion', () => {
       expect(nodeIdsOf(r).some(id => holed.has(id))).toBe(true)
     }
     const keptNames = new Set(punched.map(r => r.name))
-    for (const r of ranged.filter(r => !keptNames.has(r.name))) {
+    for (const r of ranged.filter(read => !keptNames.has(read.name))) {
       expect(nodeIdsOf(r).some(id => holed.has(id))).toBe(false)
     }
   })

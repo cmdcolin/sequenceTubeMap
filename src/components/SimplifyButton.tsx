@@ -5,7 +5,7 @@ import Box from '@mui/material/Box'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { Icon } from './Icon.tsx'
 import { faGear } from './icons.ts'
-import PopupDialog from './PopupDialog.tsx'
+import { PopupDialog } from './PopupDialog.tsx'
 
 interface SimplifyButtonProps {
   simplify: boolean

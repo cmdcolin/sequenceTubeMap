@@ -10,7 +10,7 @@ import {
 // cigar string test
 describe('cigar_string', () => {
   // TEST 1
-  it('it can handle an edit that is a match and deletion', async () => {
+  it('it can handle an edit that is a match and deletion', () => {
     const readPath = {
       mapping: [
         {
@@ -26,7 +26,7 @@ describe('cigar_string', () => {
     expect(cigar_string(readPath)).toBe('4M2D')
   })
   // TEST 2
-  it('it can handle an edit that is a match and insertion', async () => {
+  it('it can handle an edit that is a match and insertion', () => {
     const readPath = {
       mapping: [
         {
@@ -42,7 +42,7 @@ describe('cigar_string', () => {
     expect(cigar_string(readPath)).toBe('4M2I')
   })
   // TEST 3
-  it('it can handle edit with double-digit length values', async () => {
+  it('it can handle edit with double-digit length values', () => {
     const readPath = {
       mapping: [
         {
@@ -81,7 +81,7 @@ describe('cigar_string', () => {
     expect(cigar_string(readPath)).toBe('32M14I10M40D')
   })
   // TEST 4
-  it('it can handle a mapping with multiple edits', async () => {
+  it('it can handle a mapping with multiple edits', () => {
     const readPath = {
       mapping: [
         {
@@ -173,7 +173,7 @@ describe('cigar_string', () => {
     expect(cigar_string(readPath)).toBe('8M1I1M1D15M22D3M1I8M1I24M1D9I')
   })
   // TEST 5
-  it('it can handle multiple edits with lengths of 0', async () => {
+  it('it can handle multiple edits with lengths of 0', () => {
     const readPath = {
       mapping: [
         {
@@ -334,7 +334,7 @@ function checkNodeExample(node: NodeLike, reads: ReadLike[]) {
 // Node coverage test
 describe('coverage', () => {
   // TEST #1
-  it('can handle zero-length node without reads', async () => {
+  it('can handle zero-length node without reads', () => {
     const node: NodeLike = {
       sequenceLength: 0,
       incomingReads: [],
@@ -346,7 +346,7 @@ describe('coverage', () => {
     expect(coverage(node, reads)).toBe(0.0)
   })
   // TEST #2
-  it('can handle node of length 1 with 1 incoming read', async () => {
+  it('can handle node of length 1 with 1 incoming read', () => {
     const node: NodeLike = {
       sequenceLength: 1,
       incomingReads: [[1, 1]],
@@ -398,7 +398,7 @@ describe('coverage', () => {
     expect(coverage(node, reads)).toBe(1.0)
   })
   // TEST #3
-  it('can handle node of length of 6 with 2 outgoing reads and 2 internal reads', async () => {
+  it('can handle node of length of 6 with 2 outgoing reads and 2 internal reads', () => {
     const node: NodeLike = {
       name: '3',
       sequenceLength: 6,
@@ -489,7 +489,7 @@ describe('coverage', () => {
     expect(coverage(node, reads)).toBe(2.17)
   })
   // TEST #4
-  it('can handle node of length of 30 with 2 incoming reads, 4 internal reads, and 3 outgoing reads', async () => {
+  it('can handle node of length of 30 with 2 incoming reads, 4 internal reads, and 3 outgoing reads', () => {
     const node: NodeLike = {
       name: '4',
       sequenceLength: 30,
@@ -655,7 +655,7 @@ describe('coverage', () => {
     expect(coverage(node, reads)).toBe(6.57)
   })
   // TEST #5
-  it('it can handle nodes with deletions in 1 read', async () => {
+  it('it can handle nodes with deletions in 1 read', () => {
     const node: NodeLike = {
       name: '3',
       sequenceLength: 6,
@@ -747,7 +747,7 @@ describe('coverage', () => {
     expect(coverage(node, reads)).toBe(1.83)
   })
   // TEST #6
-  it('it can handle larger node with deletions in all reads', async () => {
+  it('it can handle larger node with deletions in all reads', () => {
     const node: NodeLike = {
       name: '3',
       sequenceLength: 24,
@@ -893,13 +893,13 @@ describe('coverage', () => {
 
 describe('axisIntervals', () => {
   // TEST 1
-  it('can handle an empty array', async () => {
+  it('can handle an empty array', () => {
     const nodePixelCoordinates: [number, number][] = []
     const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([])
   })
   // TEST 2
-  it('can handle an array of one interval', async () => {
+  it('can handle an array of one interval', () => {
     const nodePixelCoordinates: [number, number][] = [[0, 1]]
     const threshold = 1
     expect(axisIntervals(nodePixelCoordinates, threshold)).toStrictEqual([
@@ -907,7 +907,7 @@ describe('axisIntervals', () => {
     ])
   })
   // TEST 3
-  it('can handle an array of two interval where the difference between the intervals is less than the threshold', async () => {
+  it('can handle an array of two interval where the difference between the intervals is less than the threshold', () => {
     const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [1, 2],
@@ -918,7 +918,7 @@ describe('axisIntervals', () => {
     ])
   })
   // TEST 4
-  it('can handle an array of two interval where the difference between the intervals is greater than the threshold', async () => {
+  it('can handle an array of two interval where the difference between the intervals is greater than the threshold', () => {
     const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [3, 4],
@@ -930,7 +930,7 @@ describe('axisIntervals', () => {
     ])
   })
   // TEST 5
-  it('can handle an array of two interval where the difference between the intervals is equal to the threshold', async () => {
+  it('can handle an array of two interval where the difference between the intervals is equal to the threshold', () => {
     const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [2, 3],
@@ -941,7 +941,7 @@ describe('axisIntervals', () => {
     ])
   })
   // TEST 6
-  it('can handle an array of repeating intervals', async () => {
+  it('can handle an array of repeating intervals', () => {
     const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [2, 3],
@@ -957,7 +957,7 @@ describe('axisIntervals', () => {
     ])
   })
   // TEST 7
-  it('can handle an array of repeating intervals that are more spaced out', async () => {
+  it('can handle an array of repeating intervals that are more spaced out', () => {
     const nodePixelCoordinates: [number, number][] = [
       [0, 1],
       [3, 4],
@@ -974,7 +974,7 @@ describe('axisIntervals', () => {
     ])
   })
   // TEST 8
-  it('can handle an array of out of order intervals', async () => {
+  it('can handle an array of out of order intervals', () => {
     const nodePixelCoordinates: [number, number][] = [
       [2, 3],
       [0, 1],
@@ -987,7 +987,7 @@ describe('axisIntervals', () => {
     ])
   })
   // TEST 9
-  it('can handle an array of larger, more spaced out intervals, with a larger threshold', async () => {
+  it('can handle an array of larger, more spaced out intervals, with a larger threshold', () => {
     const nodePixelCoordinates: [number, number][] = [
       [0, 10],
       [12, 15],

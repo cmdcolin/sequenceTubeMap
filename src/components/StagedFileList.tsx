@@ -1,6 +1,12 @@
 import Button from '@mui/material/Button'
 import type { FileType } from '../Types.ts'
 
+const STAGED_TYPES = [
+  'graph',
+  'read',
+  'haplotype',
+] as const satisfies readonly FileType[]
+
 export interface StagedFile {
   file: File
   type: FileType | null
@@ -70,7 +76,12 @@ export function StagedFileList({
             <select
               value={f.type ?? ''}
               onChange={e => {
-                onChangeType(i, e.target.value as FileType)
+                const picked = STAGED_TYPES.find(
+                  type => type === e.target.value,
+                )
+                if (picked !== undefined) {
+                  onChangeType(i, picked)
+                }
               }}
               style={{ fontSize: 12 }}
               aria-label={`type for ${f.file.name}`}
@@ -78,9 +89,11 @@ export function StagedFileList({
               <option value="" disabled>
                 (skip)
               </option>
-              <option value="graph">graph</option>
-              <option value="read">read</option>
-              <option value="haplotype">haplotype</option>
+              {STAGED_TYPES.map(type => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
             </select>
           )}
           <Button

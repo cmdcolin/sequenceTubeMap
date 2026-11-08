@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import useSWR from 'swr'
+import useSWR, { type SWRResponse } from 'swr'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -22,13 +22,13 @@ import { errorMessage, toError } from '../util/error.ts'
 import { truncateMiddle } from '../util/text.ts'
 import DataPositionFormRow from './DataPositionFormRow.tsx'
 import ExampleSelectButtons from './ExampleSelectButtons.tsx'
-import RegionInput from './RegionInput.tsx'
+import { RegionInput } from './RegionInput.tsx'
 import PathsPanel from './PathsPanel.tsx'
-import BedFileDropdown from './BedFileDropdown.tsx'
-import SimplifyButton from './SimplifyButton.tsx'
+import { BedFileDropdown } from './BedFileDropdown.tsx'
+import { SimplifyButton } from './SimplifyButton.tsx'
 import FormHelperText from '@mui/material/FormHelperText'
 import { HeaderFormAppBar } from './HeaderFormAppBar.tsx'
-import KeyboardShortcutsHelp from './KeyboardShortcutsHelp.tsx'
+import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp.tsx'
 import { useKeyboardShortcuts } from './useKeyboardShortcuts.ts'
 import * as tubeMap from '../util/tubemap.ts'
 import {
@@ -56,6 +56,7 @@ import {
 } from './headerFormUtils.ts'
 import type {
   FileType,
+  FilenamesResponse,
   PathInfo,
   RegionInfo,
   Track,
@@ -63,7 +64,7 @@ import type {
   ViewTarget,
 } from '../Types.ts'
 
-const DATA_SOURCES: ViewTarget[] = config.DATA_SOURCES
+const DATA_SOURCES = config.DATA_SOURCES
 
 const MAX_UPLOAD_SIZE_DESCRIPTION = `${(
   config.MAXUPLOADSIZE /
@@ -184,8 +185,9 @@ function HeaderForm({
     data: filenamesData,
     error: filenamesError,
     mutate: refetchFilenames,
-  } = useSWR(['headerForm.filenames', apiMode] as const, () =>
-    APIInterface.getFilenames(null),
+  }: SWRResponse<FilenamesResponse, unknown> = useSWR(
+    ['headerForm.filenames', apiMode] as const,
+    () => APIInterface.getFilenames(null),
   )
 
   const files = filenamesData?.files ?? []
@@ -217,7 +219,10 @@ function HeaderForm({
     dataType !== dataTypes.EXAMPLES && isSet(bedFile)
       ? (['headerForm.bedRegions', apiMode, bedFile] as const)
       : null
-  const { data: bedRegionsData, error: bedRegionsError } = useSWR(
+  const {
+    data: bedRegionsData,
+    error: bedRegionsError,
+  }: SWRResponse<{ bedRegions?: RegionInfo }, unknown> = useSWR(
     bedKey,
     ([, , bed]: readonly [string, string, string]) =>
       APIInterface.getBedRegions(bed, null),
@@ -237,7 +242,10 @@ function HeaderForm({
   // The companion haplotype index goes with it: without it the paths panel
   // answers every length by walking the graph.
   const haplotypeIndexFile = graphTrack?.haplotypeIndexFile ?? ''
-  const { data: pathInfoData, error: pathInfoError } = useSWR(
+  const {
+    data: pathInfoData,
+    error: pathInfoError,
+  }: SWRResponse<{ pathInfo: PathInfo[] }, unknown> = useSWR(
     graphFile === undefined
       ? null
       : ([
@@ -832,11 +840,11 @@ function HeaderForm({
             onToggle={() => {
               setPathsPanelOpen(o => !o)
             }}
-            onLoadPath={region => {
-              void changeRegionAndGo(region)
+            onLoadPath={pathRegion => {
+              void changeRegionAndGo(pathRegion)
             }}
-            onCopyToRegion={region => {
-              setChosenRegion(region)
+            onCopyToRegion={pathRegion => {
+              setChosenRegion(pathRegion)
             }}
           />
         )}

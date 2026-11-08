@@ -23,7 +23,7 @@ function fixtureFile(path: string, name: string): File {
 }
 
 it('can be constructed', () => {
-  new GBZBaseAPI()
+  expect(new GBZBaseAPI()).toBeInstanceOf(GBZBaseAPI)
 })
 
 it('can have a file uploaded', async () => {
@@ -551,9 +551,7 @@ describe('uploaded read + index siblings', () => {
 //
 // Opt-in via `RUN_NETWORK_TESTS=1` so the default `pnpm test` stays offline.
 const RUN_NETWORK = process.env.RUN_NETWORK_TESTS === '1'
-const hprc = (config.DATA_SOURCES as ViewTarget[]).find(ds =>
-  ds.name?.startsWith('HPRC v2.1'),
-)!
+const hprc = config.DATA_SOURCES.find(ds => ds.name?.startsWith('HPRC v2.1'))!
 
 describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC v2.1', () => {
   it('answers a query without downloading the whole file', async () => {

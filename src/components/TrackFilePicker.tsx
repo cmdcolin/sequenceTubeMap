@@ -26,6 +26,10 @@ interface TrackFilePickerProps {
   ) => Promise<string | undefined>
 }
 
+function getFilename(fullPath: string) {
+  return fullPath.split('/').at(-1) ?? ''
+}
+
 /*
  * A selection dropdown component that select files.
  * Expects a collection of track objects in the form of {"name": string, "type": string}
@@ -73,10 +77,6 @@ export const TrackFilePicker = ({
 
   function mountedOnChange(option: TrackOption) {
     handleInputChange(option.value)
-  }
-
-  function getFilename(fullPath: string) {
-    return fullPath.split('/').at(-1) ?? ''
   }
 
   // Make the list of all options for the <Select>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import PopupDialog from './PopupDialog.tsx'
-import TrackSettings from './TrackSettings.tsx'
+import { PopupDialog } from './PopupDialog.tsx'
+import { TrackSettings } from './TrackSettings.tsx'
 import Button from '@mui/material/Button'
 import { Icon } from './Icon.tsx'
 import { faGear } from './icons.ts'

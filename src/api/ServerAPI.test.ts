@@ -1,25 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ServerAPI } from './ServerAPI.ts'
 
-type Handler = (() => void) | null
-
 // setupTests stubs WebSocket with a version that discards its handlers, so the
 // reconnect behaviour needs a stub that actually keeps them.
-class FakeWebSocket {
+class FakeWebSocket extends EventTarget {
   static opened: FakeWebSocket[] = []
-  onmessage: Handler = null
-  onclose: Handler = null
-  onerror: Handler = null
   closed = false
   readonly url: string
 
   constructor(url: string) {
+    super()
     this.url = url
     FakeWebSocket.opened.push(this)
   }
 
   close() {
     this.closed = true
+  }
+
+  fire(type: 'message' | 'close' | 'error') {
+    this.dispatchEvent(new Event(type))
   }
 }
 
@@ -56,8 +56,8 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
     const api = new ServerAPI('http://example.test/api/v0')
     const handler = vi.fn()
     api.subscribeToFilenameChanges(handler, new AbortController().signal)
-    latestSocket().onmessage?.()
-    latestSocket().onmessage?.()
+    latestSocket().fire('message')
+    latestSocket().fire('message')
     expect(handler).toHaveBeenCalledTimes(2)
   })
 
@@ -67,7 +67,7 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
     const api = new ServerAPI('http://example.test/api/v0')
     api.subscribeToFilenameChanges(() => {}, new AbortController().signal)
     const first = latestSocket()
-    first.onerror?.()
+    first.fire('error')
     expect(first.closed).toBe(true)
     vi.advanceTimersByTime(1000)
     expect(FakeWebSocket.opened).toHaveLength(2)
@@ -76,7 +76,7 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
   it('reconnects after a close', () => {
     const api = new ServerAPI('http://example.test/api/v0')
     api.subscribeToFilenameChanges(() => {}, new AbortController().signal)
-    latestSocket().onclose?.()
+    latestSocket().fire('close')
     vi.advanceTimersByTime(1000)
     expect(FakeWebSocket.opened).toHaveLength(2)
   })
@@ -85,8 +85,8 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
     const api = new ServerAPI('http://example.test/api/v0')
     api.subscribeToFilenameChanges(() => {}, new AbortController().signal)
     const first = latestSocket()
-    first.onerror?.()
-    first.onclose?.()
+    first.fire('error')
+    first.fire('close')
     vi.advanceTimersByTime(1000)
     expect(FakeWebSocket.opened).toHaveLength(2)
   })
@@ -95,9 +95,9 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
     const api = new ServerAPI('http://example.test/api/v0')
     const handler = vi.fn()
     api.subscribeToFilenameChanges(handler, new AbortController().signal)
-    latestSocket().onerror?.()
+    latestSocket().fire('error')
     vi.advanceTimersByTime(1000)
-    latestSocket().onmessage?.()
+    latestSocket().fire('message')
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
@@ -108,7 +108,7 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
     const first = latestSocket()
     controller.abort()
     expect(first.closed).toBe(true)
-    first.onclose?.()
+    first.fire('close')
     vi.advanceTimersByTime(5000)
     expect(FakeWebSocket.opened).toHaveLength(1)
   })
@@ -120,7 +120,7 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
     api.subscribeToFilenameChanges(handler, controller.signal)
     const socket = latestSocket()
     controller.abort()
-    socket.onmessage?.()
+    socket.fire('message')
     expect(handler).not.toHaveBeenCalled()
   })
 
@@ -130,7 +130,7 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
     const api = new ServerAPI('http://example.test/api/v0')
     const controller = new AbortController()
     api.subscribeToFilenameChanges(() => {}, controller.signal)
-    latestSocket().onerror?.()
+    latestSocket().fire('error')
     controller.abort()
     vi.advanceTimersByTime(5000)
     expect(FakeWebSocket.opened).toHaveLength(1)
@@ -143,7 +143,7 @@ describe('ServerAPI.subscribeToFilenameChanges', () => {
   })
 })
 
-class FakeXhr {
+class FakeXhr extends EventTarget {
   static latest: FakeXhr | null = null
   responseType = ''
   response: unknown = null
@@ -151,7 +151,6 @@ class FakeXhr {
   statusText = ''
   readyState = 0
   aborted = false
-  onreadystatechange: Handler = null
 
   open() {}
 
@@ -168,7 +167,7 @@ class FakeXhr {
     this.statusText = statusText
     this.response = response
     this.readyState = 4
-    this.onreadystatechange?.()
+    this.dispatchEvent(new Event('readystatechange'))
   }
 }
 

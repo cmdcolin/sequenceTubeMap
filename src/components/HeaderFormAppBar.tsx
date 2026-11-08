@@ -10,7 +10,7 @@ import type {
   Tracks,
   ViewTarget,
 } from '../Types.ts'
-import HelpButton from './HelpButton.tsx'
+import { HelpButton } from './HelpButton.tsx'
 import { ExamplesMenu } from './ExamplesMenu.tsx'
 import { FileMenu } from './FileMenu.tsx'
 

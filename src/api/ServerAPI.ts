@@ -99,13 +99,11 @@ export class ServerAPI implements APIInterface {
       // A socket reports failure as onerror followed by onclose, and both
       // want the same response, so only the first one through gets to act.
       let handled = false
+      const listeners = new AbortController()
 
       const detach = () => {
         handled = true
-        ws.onmessage = null
-        ws.onclose = null
-        ws.onerror = null
-        cancelSignal.removeEventListener('abort', abort)
+        listeners.abort()
       }
       const abort = () => {
         detach()
@@ -121,21 +119,21 @@ export class ServerAPI implements APIInterface {
         }
       }
 
-      ws.onmessage = () => {
-        if (cancelSignal.aborted) {
-          abort()
-        } else {
-          handler()
-        }
-      }
-      ws.onclose = () => {
-        reconnect()
-      }
-      ws.onerror = () => {
-        reconnect()
-      }
-
-      cancelSignal.addEventListener('abort', abort)
+      const { signal } = listeners
+      ws.addEventListener(
+        'message',
+        () => {
+          if (cancelSignal.aborted) {
+            abort()
+          } else {
+            handler()
+          }
+        },
+        { signal },
+      )
+      ws.addEventListener('close', reconnect, { signal })
+      ws.addEventListener('error', reconnect, { signal })
+      cancelSignal.addEventListener('abort', abort, { signal })
     }
 
     connect()
@@ -166,7 +164,7 @@ export class ServerAPI implements APIInterface {
     return new Promise<string>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
       xhr.responseType = 'json'
-      xhr.onreadystatechange = () => {
+      xhr.addEventListener('readystatechange', () => {
         if (cancelSignal?.aborted && xhr.readyState !== 0) {
           xhr.abort()
           reject(new Error('Upload aborted'))
@@ -191,7 +189,7 @@ export class ServerAPI implements APIInterface {
             )
           }
         }
-      }
+      })
 
       xhr.open('POST', `${this.apiUrl}/trackFileSubmission`, true)
       xhr.send(formData)

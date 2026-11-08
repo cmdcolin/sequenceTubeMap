@@ -127,17 +127,15 @@ export interface Aesthetics {
 export type Encoding = Record<Mark, Aesthetics>
 
 function readColorScale(coloring: Coloring, strand: ColorScale): ColorScale {
-  switch (coloring.read.color) {
-    case 'group':
-      return readGroupScale(
-        coloring.readGroups ?? [],
-        coloring.otherReadsColor ?? 'greys',
-      )
-    case 'mapq':
-      return mappingQualityColorScale
-    case 'strand':
-      return strand
+  const scales: Record<ReadEncoding['color'], ColorScale> = {
+    group: readGroupScale(
+      coloring.readGroups ?? [],
+      coloring.otherReadsColor ?? 'greys',
+    ),
+    mapq: mappingQualityColorScale,
+    strand,
   }
+  return scales[coloring.read.color]
 }
 
 // What each mark is drawn with, under one file's scheme and the view's

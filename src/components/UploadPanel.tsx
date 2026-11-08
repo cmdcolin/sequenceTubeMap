@@ -94,18 +94,18 @@ export const UploadPanel = ({
   const [lastApiMode, setLastApiMode] = useState(apiMode)
   if (apiMode !== lastApiMode) {
     setLastApiMode(apiMode)
-    const { accepted, error } = screenFiles(
+    const screened = screenFiles(
       files.map(f => f.file),
       isLocal,
     )
-    setFiles(files.filter(f => accepted.includes(f.file)))
-    setError(error)
+    setFiles(files.filter(f => screened.accepted.includes(f.file)))
+    setError(screened.error)
   }
 
   const addFiles = (list: FileList | File[]) => {
-    const { accepted, error } = screenFiles(Array.from(list), isLocal)
-    setError(error)
-    setFiles(prev => [...prev, ...accepted.map(stageFile)])
+    const screened = screenFiles(Array.from(list), isLocal)
+    setError(screened.error)
+    setFiles(prev => [...prev, ...screened.accepted.map(stageFile)])
   }
 
   const removeFile = (idx: number) => {

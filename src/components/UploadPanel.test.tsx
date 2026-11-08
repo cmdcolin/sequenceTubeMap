@@ -2,7 +2,7 @@ import '../config-client.js'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import UploadPanel from './UploadPanel.tsx'
+import { UploadPanel } from './UploadPanel.tsx'
 import type { FileType } from '../Types.ts'
 
 function fakeFile(name: string, content = 'data') {
@@ -111,9 +111,9 @@ describe('UploadPanel mode toggle', () => {
 describe('UploadPanel server-mode .gam.gai handling', () => {
   it('uploads .gam but silently skips its sibling .gam.gai in server mode', async () => {
     const uploaded: { type: FileType; name: string }[] = []
-    const handleFileUpload = vi.fn(async (type: FileType, file: File) => {
+    const handleFileUpload = vi.fn((type: FileType, file: File) => {
       uploaded.push({ type, name: file.name })
-      return file.name
+      return Promise.resolve(file.name)
     })
     const onUploaded = vi.fn()
 
@@ -159,9 +159,9 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
   it('uploads .gam.gai alongside .gam in local mode (sibling lookup)', async () => {
     const uploaded: { type: FileType; name: string }[] = []
     const handleFileUpload = vi.fn(
-      async (type: FileType, file: File, _batch?: string) => {
+      (type: FileType, file: File, _batch?: string) => {
         uploaded.push({ type, name: file.name })
-        return file.name
+        return Promise.resolve(file.name)
       },
     )
     const onUploaded = vi.fn()
@@ -194,7 +194,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
     })
 
     expect(handleFileUpload).toHaveBeenCalledTimes(2)
-    expect(uploaded.map(u => u.name).sort()).toEqual([
+    expect(uploaded.map(u => u.name).toSorted()).toEqual([
       'reads.sorted.gam',
       'reads.sorted.gam.gai',
     ])
@@ -211,8 +211,8 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
   })
 
   it('accepts .xg / .vg / .gbz graphs in server mode', async () => {
-    const handleFileUpload = vi.fn(
-      async (_type: FileType, file: File) => file.name,
+    const handleFileUpload = vi.fn((_type: FileType, file: File) =>
+      Promise.resolve(file.name),
     )
     const onUploaded = vi.fn()
 
@@ -247,7 +247,7 @@ describe('UploadPanel server-mode .gam.gai handling', () => {
       trackFile: string
       trackType: FileType
     }[]
-    expect(tracks.map(t => t.trackFile).sort()).toEqual([
+    expect(tracks.map(t => t.trackFile).toSorted()).toEqual([
       'alt.vg',
       'big.gbz',
       'graph.xg',

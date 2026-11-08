@@ -2,8 +2,8 @@ import { useState } from 'react'
 import MenuItem from '@mui/material/MenuItem'
 import type { AvailableTrack, FileType, Track, Tracks } from '../Types.ts'
 import { AppBarMenu } from './AppBarMenu.tsx'
-import PopupDialog from './PopupDialog.tsx'
-import TrackPickerDisplay from './TrackPickerDisplay.tsx'
+import { PopupDialog } from './PopupDialog.tsx'
+import { TrackPickerDisplay } from './TrackPickerDisplay.tsx'
 import { UploadDialog } from './UploadDialog.tsx'
 
 interface FileMenuProps {

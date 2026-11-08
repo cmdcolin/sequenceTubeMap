@@ -66,7 +66,10 @@ export function loadGamIndex(blob: Blob): Promise<GamIndex> {
 async function parseIndexFile(blob: Blob): Promise<GamIndex> {
   const raw = new Uint8Array(await blob.arrayBuffer())
   // vg writes .gam.gai with protobuf's GzipOutputStream (raw gzip, not BGZF).
-  const body: Uint8Array = ungzip(raw, {})
+  const body: unknown = ungzip(raw, {})
+  if (!(body instanceof Uint8Array)) {
+    throw new Error('GAM index did not inflate to bytes')
+  }
   return parseIndexBody(body)
 }
 
@@ -136,7 +139,7 @@ export function indexBlockStarts(index: GamIndex): number[] {
   for (const vo of index.windows.values()) {
     add(vo)
   }
-  return [...starts].sort((a, b) => a - b)
+  return [...starts].toSorted((a, b) => a - b)
 }
 
 // Return the union of virtual-offset runs that could contain Alignments

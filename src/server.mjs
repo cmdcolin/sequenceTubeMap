@@ -6,7 +6,7 @@
 
 import './config-server.mjs'
 import { config } from './config-global.mjs'
-import { find_vg } from './vg.mjs'
+import { find_vg } from './vg.ts'
 import {
   TubeMapError,
   BadRequestError,
@@ -58,7 +58,7 @@ function find_chunkix() {
       // Add trailing slash
       prefix = './'
     }
-    if (prefix.length > 0 && prefix[prefix.length - 1] !== '/') {
+    if (prefix.length > 0 && !prefix.endsWith('/')) {
       // Add trailing slash
       prefix = prefix + '/'
     }
@@ -128,7 +128,7 @@ const ALLOWED_UPLOAD_EXTENSIONS = [
       list.split(',').map(extension => extension.trim().toLowerCase()),
     ),
   ),
-].sort((a, b) => b.length - a.length)
+].toSorted((a, b) => b.length - a.length)
 
 function allowedUploadExtension(filename) {
   const lower = filename.toLowerCase()
@@ -284,7 +284,7 @@ api.post(
       throw new BadRequestError(`Unknown file type: ${req.body.fileType}`)
     }
 
-    if (req.body.fileType === fileTypes['READ']) {
+    if (req.body.fileType === fileTypes.READ) {
       // Only .gam can be sorted and indexed here. Anything else has already
       // been written to disk by multer, so clear it before rejecting.
       const rejection = readUploadRejection(req.file.path)
@@ -657,11 +657,11 @@ async function getChunkedData(req, res) {
       // A track for a file the request also named keeps the request's colors.
       const fileToColor = new Map()
       for (const track of Object.values(req.body.tracks)) {
-        fileToColor.set(track['trackFile'], track['trackColorSettings'])
+        fileToColor.set(track.trackFile, track.trackColorSettings)
       }
       for (const track of fetchedTracks) {
-        if (fileToColor.has(track['trackFile'])) {
-          track['trackColorSettings'] = fileToColor.get(track['trackFile'])
+        if (fileToColor.has(track.trackFile)) {
+          track.trackColorSettings = fileToColor.get(track.trackFile)
         }
       }
 
@@ -990,14 +990,14 @@ function organizePathsTargetFirst(region, pathList = []) {
     // Make sure that path 0 is the path we actually asked about
     const refPaths = []
     const otherPaths = []
-    for (const path of pathList) {
-      const pathBasePath = path.name.replace(SUBRANGE_REGEX, '')
+    for (const candidate of pathList) {
+      const pathBasePath = candidate.name.replace(SUBRANGE_REGEX, '')
       if (pathBasePath === targetBasePath) {
         // This is the path we asked about, so it goes first
-        refPaths.push(path)
+        refPaths.push(candidate)
       } else {
         // Then we put each other path
-        otherPaths.push(path)
+        otherPaths.push(candidate)
       }
     }
     return refPaths.concat(otherPaths)
@@ -1012,36 +1012,37 @@ function returnErrorMiddleware(err, req, res, next) {
   // Because we take err, Express makes sure err is always set.
   if (res.headersSent) {
     // We can't send a nice message. Try the next middleware, if any.
-    return next(err)
-  }
-  // We have an error we want to send back to the user.
-  const result = { error: '' }
-  if (!(err instanceof TubeMapError)) {
-    // Unexpected error: we do not have a custom message for this error
-    result.error += 'Something about this request has caused a server error: '
-  }
-  if (err.message) {
-    // We have an error message to pass along.
-    result.error += err.message
-  }
-  if (req.error) {
-    // We have an error data buffer from a vg call
-    if (result.error) {
-      // Separate from existing message
-      result.error += ':\n'
-    }
-    result.error += req.error.toString('utf-8')
-  }
-  console.log('returning error: ' + result.error)
-  console.error(err)
-  if (err.status) {
-    // Error comes with a status
-    res.status(err.status)
+    next(err)
   } else {
-    // We don't know what's wrong, so it's our fault.
-    res.status(500)
+    // We have an error we want to send back to the user.
+    const result = { error: '' }
+    if (!(err instanceof TubeMapError)) {
+      // Unexpected error: we do not have a custom message for this error
+      result.error += 'Something about this request has caused a server error: '
+    }
+    if (err.message) {
+      // We have an error message to pass along.
+      result.error += err.message
+    }
+    if (req.error) {
+      // We have an error data buffer from a vg call
+      if (result.error) {
+        // Separate from existing message
+        result.error += ':\n'
+      }
+      result.error += req.error.toString('utf-8')
+    }
+    console.log('returning error: ' + result.error)
+    console.error(err)
+    if (err.status) {
+      // Error comes with a status
+      res.status(err.status)
+    } else {
+      // We don't know what's wrong, so it's our fault.
+      res.status(500)
+    }
+    res.json(result)
   }
-  res.json(result)
 }
 
 // Hook up the error handling middleware.
@@ -1091,17 +1092,17 @@ async function getChunkName(bed, parsedRegion, signal) {
   let chunk = ''
   const regionInfo = await getBedRegions(bed, signal)
 
-  for (let i = 0; i < regionInfo['desc'].length; i++) {
+  for (let i = 0; i < regionInfo.desc.length; i++) {
     const entryRegion = {
-      contig: regionInfo['chr'][i],
-      start: regionInfo['start'][i],
-      end: regionInfo['end'][i],
+      contig: regionInfo.chr[i],
+      start: regionInfo.start[i],
+      end: regionInfo.end[i],
     }
     if (stringifyRegion(entryRegion) === stringifyRegion(parsedRegion)) {
       // A BED entry is defined for this region exactly
-      if (regionInfo['chunk'][i] !== '') {
+      if (regionInfo.chunk[i] !== '') {
         // And a chunk file is stored for it, so use that.
-        chunk = regionInfo['chunk'][i]
+        chunk = regionInfo.chunk[i]
         break
       }
     }
@@ -1203,6 +1204,33 @@ async function readGamFile(req, gamFile) {
     .map(line => parseSubprocessJSON(line, gamFile))
 }
 
+// Parse a GAM chunk name and get the GAM number from it
+// Names are like, with either .gam or .gaf suffixes:
+// */chunk_*.gam for 0
+// */chunk-1_*.gam for 1, 2, 3, etc.
+function gamNameToNumber(gamName) {
+  if (gamName.endsWith('.json')) {
+    const pattern = /.*\/chunk.([0-9]+).annot.json/
+    const matches = gamName.match(pattern)
+    if (!matches) {
+      throw new InternalServerError('Bad GAF/JSON name ' + gamName)
+    }
+    return parseInt(matches[1])
+  } else {
+    const pattern = /.*\/chunk(-([0-9]+))?_.*\.ga[mf]/
+    const matches = gamName.match(pattern)
+    if (!matches) {
+      throw new InternalServerError('Bad GAM/GAF name ' + gamName)
+    }
+    if (matches[2] !== undefined) {
+      // We have a number
+      return parseInt(matches[2])
+    }
+  }
+  // If there's no number we are chunk 0
+  return 0
+}
+
 // The reads in each of the chunk's read files, in track order.
 async function processGamFiles(req) {
   console.time(`processing gam files-${req.reqId}`)
@@ -1218,33 +1246,6 @@ async function processGamFiles(req) {
     ) {
       gamFiles.push(req.chunkDir + '/' + file)
     }
-  }
-
-  // Parse a GAM chunk name and get the GAM number from it
-  // Names are like, with either .gam or .gaf suffixes:
-  // */chunk_*.gam for 0
-  // */chunk-1_*.gam for 1, 2, 3, etc.
-  const gamNameToNumber = gamName => {
-    if (gamName.endsWith('.json')) {
-      const pattern = /.*\/chunk.([0-9]+).annot.json/
-      const matches = gamName.match(pattern)
-      if (!matches) {
-        throw new InternalServerError('Bad GAF/JSON name ' + gamName)
-      }
-      return parseInt(matches[1])
-    } else {
-      const pattern = /.*\/chunk(-([0-9]+))?_.*\.ga[mf]/
-      const matches = gamName.match(pattern)
-      if (!matches) {
-        throw new InternalServerError('Bad GAM/GAF name ' + gamName)
-      }
-      if (matches[2] !== undefined) {
-        // We have a number
-        return parseInt(matches[2])
-      }
-    }
-    // If there's no number we are chunk 0
-    return 0
   }
 
   // Sort all the GAM files we found in order of their chunk number,
@@ -1286,22 +1287,22 @@ async function processRegionFile(req) {
 
   for (const line of await readLines(regionFile)) {
     console.log('Region: ' + line)
-    const [name, start, end] = line.split(/\s+/)
-    const subpathName = `${name}[${start}-${end}]`
+    const [name, rangeStart, rangeEnd] = line.split(/\s+/)
+    const subpathName = `${name}[${rangeStart}-${rangeEnd}]`
 
     for (const p of req.graph.path) {
       if (p.name === subpathName) {
         // Drop the subrange and record where it starts, so the frontend
         // draws the ruler on the base path.
         console.log(
-          `Rename ${subpathName} to ${name} and mark start as ${start}`,
+          `Rename ${subpathName} to ${name} and mark start as ${rangeStart}`,
         )
         p.name = name
-        p.indexOfFirstBase = start
+        p.indexOfFirstBase = rangeStart
       } else if (p.name === name) {
         // A pre-extracted region that predates subpath support (like the
         // Lancet paper data) only records its start here.
-        p.indexOfFirstBase = start
+        p.indexOfFirstBase = rangeStart
       }
     }
   }
@@ -1605,7 +1606,7 @@ api.post(
         )
         const pathInfo = names
           .filter(a => a !== '' && !a.startsWith('_'))
-          .sort()
+          .toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0))
           .map(name => ({ name, length: null, cyclic: false }))
         res.json({ pathInfo })
         return
@@ -1648,7 +1649,7 @@ api.post(
             cyclic: cyclicNames.has(name),
           }
         })
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .toSorted((a, b) => a.name.localeCompare(b.name))
       res.json({ pathInfo })
     } catch (err) {
       next(err)
@@ -2113,19 +2114,19 @@ async function getBedRegions(bed, signal) {
       }
       continue
     }
-    bed_info['chr'].push(records[0])
-    bed_info['start'].push(records[1])
-    bed_info['end'].push(records[2])
+    bed_info.chr.push(records[0])
+    bed_info.start.push(records[1])
+    bed_info.end.push(records[2])
     let desc = records.join('_')
     if (records.length > 3) {
       desc = records[3]
     }
-    bed_info['desc'].push(desc)
+    bed_info.desc.push(desc)
     let chunk = ''
     if (records.length > 4) {
       chunk = records[4]
     }
-    bed_info['chunk'].push(chunk)
+    bed_info.chunk.push(chunk)
   }
 
   if (bed_info.chr.length === 0) {
@@ -2135,8 +2136,8 @@ async function getBedRegions(bed, signal) {
   // Prefill each region's tracks from a tracks.json already on disk (a URL
   // BED's is downloaded when the region is first selected). A null keeps
   // whatever tracks the client already has.
-  for (const chunk of bed_info['chunk']) {
-    bed_info['tracks'].push(
+  for (const chunk of bed_info.chunk) {
+    bed_info.tracks.push(
       chunk === '' ? null : readChunkTracks(bedChunkLocalPath(bed, chunk)),
     )
   }
@@ -2200,7 +2201,7 @@ export function start() {
         console.log(
           '[shutdown] closing HTTP server + force-closing all connections',
         )
-        await new Promise(resolve => {
+        await new Promise(serverClosed => {
           state.server.close(err => {
             if (err) {
               console.log(
@@ -2209,7 +2210,7 @@ export function start() {
             } else {
               console.log('[shutdown] HTTP server closed cleanly')
             }
-            resolve()
+            serverClosed()
           })
           // Force-close all remaining TCP connections (keepalive + WebSocket sockets)
           // so close() resolves promptly rather than waiting for clients to drain.
@@ -2241,7 +2242,7 @@ export function start() {
 
     const serverPort = process.env.SERVER_PORT
       ? parseInt(process.env.SERVER_PORT, 10)
-      : config.serverPort || 3000
+      : (config.serverPort ?? 3000)
     // NOTE: don't pass a callback positionally to app.listen — Express 5 wraps
     // it with `once` and attaches it to both 'listening' AND 'error', so a
     // bind failure (e.g. EADDRINUSE) would fire the same callback with no
@@ -2267,7 +2268,7 @@ export function start() {
     wss.on('request', function (request) {
       // We received a websocket connection request and we need to accept it.
       console.log(
-        `${new Date()} New WebSocket connection from origin: ${request.origin}.`,
+        `${new Date().toString()} New WebSocket connection from origin: ${request.origin}.`,
       )
       const connection = request.accept(null, request.origin)
       // We save the connection so that we can notify them when there is a change in the file system

@@ -95,7 +95,8 @@ describe('a gfa-to-tabix walk file set', () => {
       view(id, region, { allHaplotypes: true }),
       null,
     )
-    const names = (g: typeof fromDb) => g.graph!.path.map(p => p.name).sort()
+    const names = (g: typeof fromDb) =>
+      g.graph!.path.map(p => p.name ?? '').toSorted()
     expect(names(fromWalks)).toEqual(names(fromDb))
     const walkNodes = new Set(fromWalks.graph!.node.map(n => String(n.id)))
     expect(fromDb.graph!.node.every(n => walkNodes.has(String(n.id)))).toBe(

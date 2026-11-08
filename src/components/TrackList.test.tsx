@@ -90,7 +90,7 @@ describe('TrackList', () => {
   })
 
   it('should call onChange when a track is changed', async () => {
-    const fakeOnChange = vi.fn()
+    const fakeOnChange = vi.fn<(trackID: number, newTrack: Track) => void>()
     const fakeOnDelete = vi.fn()
     const { getByTestId, getByText, rerender } = render(
       <TrackList
@@ -115,7 +115,7 @@ describe('TrackList', () => {
       expect.objectContaining({ trackType: 'haplotype' }),
     )
 
-    const newTracks: Tracks = JSON.parse(JSON.stringify(tracks))
+    const newTracks = structuredClone(tracks)
     newTracks[0]!.trackType = 'haplotype'
     rerenderTrackList(rerender, newTracks, fakeOnChange, fakeOnDelete)
 
@@ -140,12 +140,10 @@ describe('TrackList', () => {
     fireEvent.click(document)
 
     expect(fakeOnChange).toHaveBeenCalledTimes(3)
-    expect(fakeOnChange).toHaveBeenCalledWith(
+    expect(fakeOnChange.mock.lastCall).toMatchObject([
       0,
-      expect.objectContaining({
-        trackColorSettings: expect.objectContaining({ mainPalette: 'reds' }),
-      }),
-    )
+      { trackColorSettings: { mainPalette: 'reds' } },
+    ])
   })
 
   it('should use a new event handler when passed', async () => {

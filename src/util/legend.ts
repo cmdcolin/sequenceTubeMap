@@ -70,18 +70,14 @@ function trackLabel(
 // With a haplotype file loaded, the paths beside the reference are its tracks
 // rather than the graph's
 function nounFor(type: FileType, mark: Mark): string {
-  switch (mark) {
-    case 'reference':
-      return 'reference path'
-    case 'path':
-      return type === 'graph' ? 'other paths' : 'haplotypes'
-    case 'read':
-      return 'reads'
-    case 'readBand':
-      return 'read bands'
-    case 'haplotypeBand':
-      return 'bands'
+  const nouns: Record<Mark, string> = {
+    reference: 'reference path',
+    path: type === 'graph' ? 'other paths' : 'haplotypes',
+    read: 'reads',
+    readBand: 'read bands',
+    haplotypeBand: 'bands',
   }
+  return nouns[mark]
 }
 
 // The renderer reports a scheme for every file it drew from, so a file

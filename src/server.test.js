@@ -13,13 +13,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { start } from './server.mjs'
-import { find_vg, vg_available } from './vg.mjs'
+import { find_vg, vg_available } from './vg.ts'
 
 const HAS_VG = vg_available()
 // chunkix.py and pgtabix.py run tabix and bgzip.
 const HAS_TABIX = spawnSync('tabix', ['--version']).status === 0
 
-const serverConfig = globalThis.__sequence_tube_map_config
+const serverConfig = globalThis.sequenceTubeMapConfig
 
 let serverState = undefined
 
@@ -61,8 +61,8 @@ function makeBedWithChunks(entries, { omit = [] } = {}) {
   const lines = []
   for (const [region, chunk] of entries) {
     const [contig, range] = region.split(':')
-    const [start, end] = range.split('-')
-    lines.push([contig, start, end, region, chunk].join('\t'))
+    const [rangeStart, rangeEnd] = range.split('-')
+    lines.push([contig, rangeStart, rangeEnd, region, chunk].join('\t'))
     fs.cpSync(path.join('exampleData', chunk), path.join(dir, chunk), {
       recursive: true,
       filter: source => !omit.includes(path.basename(source)),
@@ -429,8 +429,8 @@ describe.skipIf(!HAS_VG)('BED files at URLs', () => {
     })
     expect(status).toBe(200)
     expect(body.graph.node.length).toBeGreaterThan(0)
-    const fetches = path =>
-      remote.requests.filter(request => request === path).length
+    const fetches = requestPath =>
+      remote.requests.filter(request => request === requestPath).length
     expect(fetches('/regions.bed')).toBe(1)
     expect(fetches('/chunk-cactus-no-reads/chunk_contents.txt')).toBe(1)
   })
