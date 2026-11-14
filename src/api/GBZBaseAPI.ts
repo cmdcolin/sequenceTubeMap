@@ -917,10 +917,12 @@ export class GBZBaseAPI implements APIInterface {
     const files: AvailableTrack[] = []
     const bedFiles: string[] = []
     for (const [trackType, uploadIds] of this.filesByType) {
-      if (trackType === 'bed') {
-        bedFiles.push(...uploadIds)
-      } else {
-        files.push(...uploadIds.map(trackFile => ({ trackFile, trackType })))
+      for (const trackFile of uploadIds) {
+        if (trackType === 'bed') {
+          bedFiles.push(trackFile)
+        } else {
+          files.push({ trackFile, trackType })
+        }
       }
     }
     return Promise.resolve({ files, bedFiles })

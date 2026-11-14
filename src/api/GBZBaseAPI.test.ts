@@ -592,7 +592,10 @@ describe.skipIf(!RUN_NETWORK)('URL-hosted HPRC v2.1', () => {
     const view = (region: string) =>
       api.getChunkedData({ ...hprc, region }, null)
     const lpa = await view('GRCh38#chr6:160620000-160620500')
-    const first = Math.min(...(lpa.graph?.node ?? []).map(n => Number(n.id)))
+    const first = (lpa.graph?.node ?? []).reduce(
+      (least, n) => Math.min(least, Number(n.id)),
+      Number.POSITIVE_INFINITY,
+    )
 
     expect((await view(`node:${first}+5`)).graph?.node.length).toBeGreaterThan(
       1,

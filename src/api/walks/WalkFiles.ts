@@ -181,8 +181,8 @@ function drawnWalks(tables: GraphTables): DrawnWalk[] {
       const before = rejoining.get(walkKey(name, walk.start))
       if (before !== undefined) {
         const own = ownSteps(before)
-        walk.steps.unshift(...own.steps)
-        walk.reversed.unshift(...own.reversed)
+        walk.steps = own.steps.concat(walk.steps)
+        walk.reversed = own.reversed.concat(walk.reversed)
         walk.start = departures.hapStarts[before]!
       }
       let last: number | undefined = p
@@ -191,8 +191,8 @@ function drawnWalks(tables: GraphTables): DrawnWalk[] {
         last = undefined
         if (after !== undefined) {
           const own = ownSteps(after)
-          walk.steps.push(...own.steps)
-          walk.reversed.push(...own.reversed)
+          walk.steps = walk.steps.concat(own.steps)
+          walk.reversed = walk.reversed.concat(own.reversed)
           const next = startingAt.get(
             walkKey(
               name,
@@ -201,8 +201,8 @@ function drawnWalks(tables: GraphTables): DrawnWalk[] {
           )
           if (next !== undefined) {
             const rest = stepsOf(next)
-            walk.steps.push(...rest.steps)
-            walk.reversed.push(...rest.reversed)
+            walk.steps = walk.steps.concat(rest.steps)
+            walk.reversed = walk.reversed.concat(rest.reversed)
             joined.add(next)
             last = next
           }
@@ -287,7 +287,9 @@ function vgJson(
       path.push(walk)
     }
   }
-  path.push(...groups.values())
+  for (const group of groups.values()) {
+    path.push(group)
+  }
   return {
     graph: { node, edge: [...edges.values()], path },
     abridged: [...abridged.values()],
