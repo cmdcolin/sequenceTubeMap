@@ -65,11 +65,11 @@ export class WalkFiles {
    * The graph under `start`-`end` of reference sequence `anchor`, with
    * `CONTEXT_BP` either side: the nodes the cut keeps and each walk through
    * them, in the vg JSON the tube map draws. `distinct` merges walks that take
-   * the same steps into one path whose `freq` counts them. A walk abridged in
-   * the window comes back in `abridged` rather than as a path, unless
-   * `expand` names it. A cut past `nodeLimit` nodes or graph-walks' budgets
-   * throws its RegionTooLargeError, and one whose departure read is past its
-   * budget a DepartureReadError.
+   * the same steps into one path whose `freq` counts them. A walk with a run
+   * off the reference the cut did not load comes back in `abridged` rather
+   * than as a path, unless `expand` names it. A cut past `nodeLimit` nodes or
+   * graph-walks' budgets throws its RegionTooLargeError, and one whose
+   * departure read is past its budget a DepartureReadError.
    */
   async subgraph(
     anchor: string,
@@ -114,13 +114,26 @@ function walkKey(name: string, bp: number) {
   return `${name}\t${bp}`
 }
 
+// A placeholder stands for a run of steps off the reference that the cut did
+// not load, so no step of it is a node
+function isPlaceholder({ placeholders }: GraphTables['nodes'], i: number) {
+  return placeholders?.[i] === 1
+}
+
+function isAbridged({ nodes, walks }: GraphTables, p: number) {
+  return walks.steps
+    .subarray(walks.offsets[p], walks.offsets[p + 1])
+    .some(i => isPlaceholder(nodes, i))
+}
+
 // Each walk the tube map draws, from the walks the cut keeps. A walk leaving
 // the drawn stretch into sequence of its own goes on through it, and one
 // coming back from it starts there, where the cut holds all of that
-// departure's own steps; two fragments one such departure joins are one walk.
-// The tube map draws only the nodes a walk visits, so without this the
-// departure's own nodes, which the cut keeps, would not be drawn.
-function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
+// departure's own steps, loaded; two fragments one such departure joins are
+// one walk. The tube map draws only the nodes a walk visits, so without this
+// the departure's own nodes, which the cut keeps, would not be drawn.
+function drawnWalks(tables: GraphTables): DrawnWalk[] {
+  const { nodes, walks, departures } = tables
   const ownSteps = (k: number) => {
     const from = departures.offsets[k]!
     const to = departures.offsets[k + 1]!
@@ -138,18 +151,16 @@ function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
       (bp, i) => bp + (nodes.lengths[i] ?? Number.NaN),
       0,
     )
-    if (heldBp === ownBp) {
+    if (heldBp === ownBp && !steps.some(i => isPlaceholder(nodes, i))) {
       const name = departures.names[k]!
       const hapStart = departures.hapStarts[k]!
       leaving.set(walkKey(name, hapStart), k)
       rejoining.set(walkKey(name, hapStart + ownBp), k)
     }
   }
-  const isAbridged = (p: number) =>
-    !Number.isNaN(walks.abridgedSteps?.[p] ?? Number.NaN)
   const startingAt = new Map<string, number>()
   for (let p = 0; p < walks.names.length; p++) {
-    if (!isAbridged(p)) {
+    if (!isAbridged(tables, p)) {
       startingAt.set(walkKey(walks.names[p]!, walks.starts[p]!), p)
     }
   }
@@ -164,7 +175,7 @@ function drawnWalks({ nodes, walks, departures }: GraphTables): DrawnWalk[] {
   const joined = new Set<number>()
   const drawn: DrawnWalk[] = []
   for (let p = 0; p < walks.names.length; p++) {
-    if (!isAbridged(p) && !joined.has(p)) {
+    if (!isAbridged(tables, p) && !joined.has(p)) {
       const name = walks.names[p]!
       const walk: DrawnWalk = { name, start: walks.starts[p]!, ...stepsOf(p) }
       const before = rejoining.get(walkKey(name, walk.start))
@@ -210,7 +221,7 @@ function vgJson(
 ): { graph: VgJson & { edge: VgEdge[] }; abridged: AbridgedWalk[] } {
   const { nodes, walks } = tables
   const node: VgNode[] = nodes.names.flatMap((name, i) =>
-    i < nodes.lengths.length
+    i < nodes.lengths.length && !isPlaceholder(nodes, i)
       ? [
           {
             id: name,
@@ -223,12 +234,19 @@ function vgJson(
 
   const abridged = new Map<string, AbridgedWalk>()
   for (let p = 0; p < walks.names.length; p++) {
-    const abridgedSteps = walks.abridgedSteps?.[p] ?? Number.NaN
-    if (!Number.isNaN(abridgedSteps)) {
+    if (isAbridged(tables, p)) {
       const name = walks.names[p]!
       const walk = abridged.get(name) ?? { name, steps: 0, bp: 0 }
-      walk.steps += abridgedSteps
-      walk.bp += walks.abridgedBp![p]!
+      const abridgedSteps = walks.abridgedSteps?.[p] ?? Number.NaN
+      walk.steps += Number.isNaN(abridgedSteps) ? 0 : abridgedSteps
+      for (const i of walks.steps.subarray(
+        walks.offsets[p],
+        walks.offsets[p + 1],
+      )) {
+        if (isPlaceholder(nodes, i)) {
+          walk.bp += nodes.lengths[i]!
+        }
+      }
       abridged.set(name, walk)
     }
   }

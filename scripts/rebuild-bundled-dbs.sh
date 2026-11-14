@@ -46,7 +46,7 @@ if command -v gbz-haplotype-index >/dev/null; then
 fi
 
 # The gfa-to-tabix walk files: the chrM graph's, for the walk-file example,
-# and the test graphs'. Walk format 7 needs gfa-to-tabix 4.0 or later.
+# and the test graphs'. Walk format 8 needs gfa-to-tabix 5.0 or later.
 if command -v gfa-to-tabix >/dev/null; then
   exampleData/build.sh
 fi

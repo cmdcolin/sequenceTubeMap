@@ -55,8 +55,8 @@ function scaled(n: number, unit: string, kilo: string, mega: string) {
 const shortName = (name: string) => name.split('#').slice(0, 2).join('#')
 
 // `HG00097#1: 140 k steps, 2.1 Mb not loaded`, as bandage-core words it: the
-// steps the walk file abridged and the walk's bp from the first of them on the
-// reference to the last, reference included
+// steps the walk file abridged and the bp of the walk's runs off the reference
+// that the cut did not load
 export function abridgedLabel({ name, steps, bp }: AbridgedWalk): string {
   return `${shortName(name)}: ${scaled(steps, 'steps', 'k steps', 'M steps')}, ${scaled(bp, 'bp', 'kb', 'Mb')} not loaded`
 }

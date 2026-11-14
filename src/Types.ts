@@ -71,8 +71,8 @@ export interface ViewTarget {
 }
 
 // A walk that gfa-to-tabix abridged in a costly chunk, such as a satellite
-// array: the cut leaves out its `steps` there, which span `bp`, until a view
-// names it in `expand`.
+// array: the cut leaves out its `steps` there, and `bp` of its runs off the
+// reference, until a view names it in `expand`.
 export interface AbridgedWalk {
   name: string
   steps: number

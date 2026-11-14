@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuilds the walk-file fixtures in walk format 7 with gfa-to-tabix 4.0: the
+# Rebuilds the walk-file fixtures in walk format 8 with gfa-to-tabix 5.0: the
 # test graphs from their GFAs here, and the chrM graph from hprc-chrM.gbz
 # through vg. Usage: exampleData/build.sh [gfa-to-tabix binary]
 set -euo pipefail
@@ -22,3 +22,4 @@ rm "$chrM"
 build ecoli_pggb ecoli_pggb_subgraph.gfa --refs K12
 build ecoli_pggb_abridged ecoli_pggb_subgraph.gfa --refs K12 --abridge-steps 20
 build departures departures.gfa --refs R --sequences --tile 100
+build unloaded_departure unloaded_departure.gfa --refs R --sequences --tile 100 --abridge-steps 5

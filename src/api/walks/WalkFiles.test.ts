@@ -60,7 +60,7 @@ describe('a gfa-to-tabix walk file set', () => {
     const [reference, ...others] = graph!.path
     expect(reference!.name).toBe('GRCh38#0#chrM')
     expect(Number(reference!.indexOfFirstBase)).toBeLessThanOrEqual(900)
-    expect(others.map(p => p.name)).toContain('HG00438#2#MT')
+    expect(others.map(p => p.name)).toContain('HG00621#2#MT')
     expect(total(graph!.path)).toBe(44)
     expect(
       graph!.node.every(n => n.sequence?.length === n.sequenceLength),
@@ -189,9 +189,12 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
       'NCTC86#1#chr',
     ])
     expect(response.abridged).toEqual([
-      { name: 'IAI39#1#chr', steps: 35, bp: 460 },
-      { name: 'Sakai#1#chr', steps: 35, bp: 460 },
+      { name: 'IAI39#1#chr', steps: 35, bp: 11 },
+      { name: 'Sakai#1#chr', steps: 35, bp: 6 },
     ])
+    expect(response.graph!.node.every(n => /^\d+$/.test(String(n.id)))).toBe(
+      true,
+    )
   })
 
   it('merges no abridged walks into one distinct path', async () => {
@@ -203,7 +206,7 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
     const expanded = await cut(abridged, { expand: ['IAI39#1#chr'] })
     const unabridged = await cut(full)
     expect(expanded.abridged).toEqual([
-      { name: 'Sakai#1#chr', steps: 35, bp: 460 },
+      { name: 'Sakai#1#chr', steps: 35, bp: 6 },
     ])
     expect(pathOf(expanded, 'IAI39#1#chr')!.mapping).toHaveLength(35)
     expect(pathOf(expanded, 'IAI39#1#chr')).toEqual(
@@ -246,13 +249,13 @@ describe('a walk file whose haplotypes depart from the reference at the edge of 
   }
 
   it('runs a walk on through the sequence of its own it leaves the stretch into', async () => {
-    expect(await walksOf('R#0#chr:0-150', 'H#1#h')).toEqual([
+    expect(await walksOf('R#0#chr:0-199', 'H#1#h')).toEqual([
       { start: 0, nodes: ['1', '2', '3', '9', '10'] },
     ])
   })
 
   it('starts a walk with the sequence of its own it comes onto the stretch from', async () => {
-    expect(await walksOf('R#0#chr:450-600', 'H#1#h')).toEqual([
+    expect(await walksOf('R#0#chr:400-600', 'H#1#h')).toEqual([
       { start: 300, nodes: ['9', '10', '4', '5', '6'] },
     ])
   })
@@ -283,5 +286,46 @@ describe('a walk file whose haplotypes depart from the reference at the edge of 
     await expect(refusal).rejects.toThrow(
       /^R#0#chr:0-150 takes in more of the graph than the browser reads for one view\. A region of about [\d,]+ bp would fit\.$/,
     )
+  })
+})
+
+describe('a walk file that abridges the sequence of its own a walk leaves the drawn stretch into', () => {
+  const api = new GBZBaseAPI()
+  let file: string
+
+  beforeAll(async () => {
+    file = await upload(api, 'unloaded_departure.R.walks.gz', 'unloaded')
+    await upload(api, 'unloaded_departure.R.walks.gz.idx', 'unloaded')
+  })
+
+  const nodesOf = async (extra = {}) => {
+    const { graph } = await api.getChunkedData(
+      view(file, 'R#0#chr:0-99', { allHaplotypes: true, ...extra }),
+      null,
+    )
+    return graph!.path
+      .find(p => p.name === 'H#1#h')!
+      .mapping.map(m => m.position?.node_id)
+  }
+
+  it('stops the walk where it leaves, as the cut did not load that sequence', async () => {
+    expect(await nodesOf()).toEqual(['1', '2'])
+  })
+
+  it('runs the walk on through it once the view reads the walk in full', async () => {
+    expect(await nodesOf({ expand: ['H#1#h'] })).toEqual([
+      '1',
+      '2',
+      '20',
+      '21',
+      '22',
+      '23',
+      '24',
+      '25',
+      '26',
+      '27',
+      '28',
+      '29',
+    ])
   })
 })

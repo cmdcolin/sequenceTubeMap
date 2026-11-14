@@ -196,7 +196,7 @@ BandageJS read the same files, all through
 [@jbrowse/graph-walks](https://github.com/GMOD/graph-walks).
 
 ```bash
-cargo install gfa-to-tabix   # 4.0 or later
+cargo install gfa-to-tabix   # 5.0 or later
 vg convert -f graph.gbz > graph.gfa          # or any base-level GFA with W/P lines
 gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 ```
@@ -204,7 +204,7 @@ gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
 - The command writes `graph.GRCh38.walks.gz` and its directory `.idx`. Give the
   walk file as the graph track, with its `.idx` dropped in beside it or at the
   same URL plus `.idx`
-- The reader takes walk format 7, which gfa-to-tabix writes from 4.0, and asks
+- The reader takes walk format 8, which gfa-to-tabix writes from 5.0, and asks
   for a rebuild of an older file
 - `--sequences` adds the nodes' bases, which the tube map shows as node labels.
   Without it, nodes draw at the right width with no bases
@@ -251,8 +251,8 @@ that a window doesn't read
 
 - A bar over the tube map lists each abridged walk as a block, such as
   `HG00133#1: 12 k steps, 170 kb not loaded`: the steps the writer moved, and
-  the walk's bp from the first of them on the reference to the last. The map
-  leaves it out
+  the bp of the walk's runs off the reference that the window did not load. The
+  map leaves out a walk with such a run
 - Clicking a block reads that walk in full and redraws. Double-clicking a walk
   to follow it does the same when the window abridged it
 - A walk read in full stays so for every region of that file, until its × under
