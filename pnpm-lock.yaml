@@ -493,7 +493,7 @@ packages:
     hasBin: true
 
   '@jbrowse/graph-walks@file:../vendor/walks8-pack/jbrowse-graph-walks-7.0.0.tgz':
-    resolution: {integrity: sha512-CzGeExVJlzZpRUSBurtSuoL7UKIKRrVO4kGAqVSuzOMUDAFuZ+nbWZbo0JPjuzc3Sf7IwFEE45N2Ija7+ziUlg==, tarball: file:../vendor/walks8-pack/jbrowse-graph-walks-7.0.0.tgz}
+    resolution: {integrity: sha512-qJyG4NR5Pc0A9GRdD+2REB53YHTRKGvcKzSyoI3i0E4aus4fxVoDXhR6HSQ3pNxGWRFyF92haLiB0T5U8rsJQg==, tarball: file:../vendor/walks8-pack/jbrowse-graph-walks-7.0.0.tgz}
     version: 7.0.0
     engines: {node: '>=20'}
 
