@@ -237,7 +237,7 @@ HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
 
 ```json
 {
-  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38.GRCh38.walks.gz",
+  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f8.GRCh38.walks.gz",
   "trackType": "graph"
 }
 ```
