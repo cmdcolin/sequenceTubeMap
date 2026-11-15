@@ -73,11 +73,7 @@ export interface ViewTarget {
 // A walk that gfa-to-tabix abridged in a costly chunk, such as a satellite
 // array: the cut leaves out its `steps` there, and `bp` of its runs off the
 // reference, until a view names it in `expand`.
-export interface AbridgedWalk {
-  name: string
-  steps: number
-  bp: number
-}
+export type { AbridgedWalk } from '@jbrowse/graph-walks'
 
 // Per-region data stored as parallel arrays keyed by a region index.
 // e.g. desc[4] is the description of the region whose chr/start/end are

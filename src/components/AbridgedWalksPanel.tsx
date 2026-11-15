@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { abridgedText } from '@jbrowse/graph-walks'
 import type { CSSProperties } from 'react'
 import type { AbridgedWalk } from '../Types.ts'
 
@@ -40,26 +41,8 @@ const REMOVE_STYLE: CSSProperties = {
 // A satellite array can abridge hundreds of walks in one window
 const SHOWN_AT_FIRST = 8
 
-const twoDigits = (n: number) =>
-  Number(n.toPrecision(2)).toLocaleString('en-US')
-
-function scaled(n: number, unit: string, kilo: string, mega: string) {
-  return n >= 1e6
-    ? `${twoDigits(n / 1e6)} ${mega}`
-    : n >= 1e3
-      ? `${twoDigits(n / 1e3)} ${kilo}`
-      : `${n.toLocaleString('en-US')} ${unit}`
-}
-
 // `sample#haplotype`, which says which walk it is within one contig's window
 const shortName = (name: string) => name.split('#').slice(0, 2).join('#')
-
-// `HG00097#1: 140 k steps, 2.1 Mb not loaded`, as bandage-core words it: the
-// steps the walk file abridged and the bp of the walk's runs off the reference
-// that the cut did not load
-export function abridgedLabel({ name, steps, bp }: AbridgedWalk): string {
-  return `${shortName(name)}: ${scaled(steps, 'steps', 'k steps', 'M steps')}, ${scaled(bp, 'bp', 'kb', 'Mb')} not loaded`
-}
 
 interface AbridgedWalksPanelProps {
   abridged: AbridgedWalk[]
@@ -81,7 +64,7 @@ function AbridgedWalksPanel({
       {abridged.length > 0 ? (
         <div style={ROW_STYLE}>
           <span title="The walk file moved these walks' costliest stretch to detail records, which a window doesn't read.">
-            Abridged walks, not drawn:
+            Abridged walks, not drawn in full:
           </span>
           {shown.map(walk => (
             <button
@@ -93,7 +76,7 @@ function AbridgedWalksPanel({
                 onExpandedChange([...expanded, walk.name])
               }}
             >
-              {abridgedLabel(walk)}
+              {abridgedText(walk, shortName(walk.name))}
             </button>
           ))}
           {shown.length < abridged.length ? (

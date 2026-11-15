@@ -1,11 +1,8 @@
-import { WalkReader } from '@jbrowse/graph-walks'
+import { CUT_PRESETS, WalkReader, abridgedWalks } from '@jbrowse/graph-walks'
 import type { GraphTables, WalkFilehandle } from '@jbrowse/graph-walks'
 
 import type { AbridgedWalk, PathInfo } from '../../Types.ts'
 import type { VgJson, VgNode, VgPath } from '../../util/tubemap.ts'
-
-// gbz-base's default, so both backends cut the same reference for a region
-const CONTEXT_BP = 100
 
 interface VgEdge {
   from: string
@@ -62,12 +59,13 @@ export class WalkFiles {
   }
 
   /**
-   * The graph under `start`-`end` of reference sequence `anchor`, with
-   * `CONTEXT_BP` either side: the nodes the cut keeps and each walk through
-   * them, in the vg JSON the tube map draws. `distinct` merges walks that take
-   * the same steps into one path whose `freq` counts them. A walk with a run
-   * off the reference the cut did not load comes back in `abridged` rather
-   * than as a path, unless `expand` names it. A cut past `nodeLimit` nodes or
+   * The graph under `start`-`end` of reference sequence `anchor`, cut by
+   * graph-walks' browser preset as every reader cuts it: the nodes the cut
+   * keeps and each walk through them, in the vg JSON the tube map draws.
+   * `distinct` merges walks that take the same steps into one path whose
+   * `freq` counts them. A walk with a run off the reference the cut did not
+   * load is drawn only in its loaded fragments, and comes back in `abridged`
+   * with graph-walks' counts, unless `expand` names it. A cut past `nodeLimit` nodes or
    * graph-walks' budgets throws its RegionTooLargeError, and one whose
    * departure read is past its budget a DepartureReadError.
    */
@@ -87,8 +85,8 @@ export class WalkFiles {
       anchor,
       { start, end },
       {
+        ...CUT_PRESETS.browser,
         signal: opts.signal,
-        context: CONTEXT_BP,
         links: false,
         sequences: true,
         nodeLimit: opts.nodeLimit,
@@ -219,7 +217,7 @@ function vgJson(
   sequences: Map<number, string>,
   distinct: boolean,
 ): { graph: VgJson & { edge: VgEdge[] }; abridged: AbridgedWalk[] } {
-  const { nodes, walks } = tables
+  const { nodes } = tables
   const node: VgNode[] = nodes.names.flatMap((name, i) =>
     i < nodes.lengths.length && !isPlaceholder(nodes, i)
       ? [
@@ -231,25 +229,6 @@ function vgJson(
         ]
       : [],
   )
-
-  const abridged = new Map<string, AbridgedWalk>()
-  for (let p = 0; p < walks.names.length; p++) {
-    if (isAbridged(tables, p)) {
-      const name = walks.names[p]!
-      const walk = abridged.get(name) ?? { name, steps: 0, bp: 0 }
-      const abridgedSteps = walks.abridgedSteps?.[p] ?? Number.NaN
-      walk.steps += Number.isNaN(abridgedSteps) ? 0 : abridgedSteps
-      for (const i of walks.steps.subarray(
-        walks.offsets[p],
-        walks.offsets[p + 1],
-      )) {
-        if (isPlaceholder(nodes, i)) {
-          walk.bp += nodes.lengths[i]!
-        }
-      }
-      abridged.set(name, walk)
-    }
-  }
 
   const edges = new Map<string, VgEdge>()
   const path: VgPath[] = []
@@ -292,6 +271,6 @@ function vgJson(
   }
   return {
     graph: { node, edge: [...edges.values()], path },
-    abridged: [...abridged.values()],
+    abridged: abridgedWalks(tables),
   }
 }

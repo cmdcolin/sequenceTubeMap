@@ -439,7 +439,7 @@ describe('TubeMapContainer', () => {
 
       await userEvent.click(
         screen.getByRole('button', {
-          name: 'HG00097#1: 140 k steps, 2.1 Mb not loaded',
+          name: 'HG00097#1: 140,321 steps not loaded, 2093 kb off the reference',
         }),
       )
       expect(onExpandedChange).toHaveBeenCalledWith([
@@ -501,7 +501,7 @@ describe('TubeMapContainer', () => {
       ).toHaveLength(300)
     })
 
-    it('counts a short stretch in steps and bp', () => {
+    it("counts a short stretch in steps and bp, in graph-walks' words", () => {
       renderContainer({
         data: {
           ...makeData(0),
@@ -510,7 +510,9 @@ describe('TubeMapContainer', () => {
       })
 
       expect(
-        screen.getByText('IAI39#1: 35 steps, 460 bp not loaded'),
+        screen.getByText(
+          'IAI39#1: 35 steps not loaded, 460 bp off the reference',
+        ),
       ).toBeInTheDocument()
     })
   })

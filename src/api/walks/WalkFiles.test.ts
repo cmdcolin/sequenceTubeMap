@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { CUT_PRESETS, WalkReader } from '@jbrowse/graph-walks'
 import '../../config-client.js'
 import { isLocalGraphFilename } from '../../common.ts'
 import { GBZBaseAPI } from '../GBZBaseAPI.ts'
@@ -65,6 +66,13 @@ describe('a gfa-to-tabix walk file set', () => {
     expect(
       graph!.node.every(n => n.sequence?.length === n.sequenceLength),
     ).toBe(true)
+  })
+
+  it("cuts by graph-walks' browser preset, as every reader cuts", async () => {
+    const cut = vi.spyOn(WalkReader.prototype, 'cut')
+    await api.getChunkedData(view(id, 'GRCh38#chrM:2000-2100'), null)
+    expect(cut.mock.calls[0]![2]).toMatchObject(CUT_PRESETS.browser)
+    cut.mockRestore()
   })
 
   it('lists each haplotype on its own when asked for all of them', async () => {
@@ -226,6 +234,19 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
   })
 })
 
+// The departure fixtures' reference is 600 bp, built for a stretch drawn
+// 100 bp past the window: the browser preset's 1000 bp would hold all of it
+// and leave no edge to depart at
+function with100bpContext() {
+  const { context } = CUT_PRESETS.browser
+  beforeEach(() => {
+    CUT_PRESETS.browser.context = 100
+  })
+  afterEach(() => {
+    CUT_PRESETS.browser.context = context
+  })
+}
+
 describe('a walk file whose haplotypes depart from the reference at the edge of the drawn stretch', () => {
   const api = new GBZBaseAPI()
   let file: string
@@ -234,6 +255,8 @@ describe('a walk file whose haplotypes depart from the reference at the edge of 
     file = await upload(api, 'departures.R.walks.gz', 'departures')
     await upload(api, 'departures.R.walks.gz.idx', 'departures')
   })
+
+  with100bpContext()
 
   const walksOf = async (region: string, name: string) => {
     const { graph } = await api.getChunkedData(
@@ -297,6 +320,8 @@ describe('a walk file that abridges the sequence of its own a walk leaves the dr
     file = await upload(api, 'unloaded_departure.R.walks.gz', 'unloaded')
     await upload(api, 'unloaded_departure.R.walks.gz.idx', 'unloaded')
   })
+
+  with100bpContext()
 
   const nodesOf = async (extra = {}) => {
     const { graph } = await api.getChunkedData(

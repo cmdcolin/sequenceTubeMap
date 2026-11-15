@@ -846,7 +846,7 @@ describe('abridged walks', () => {
 
     await userEvent.click(
       await screen.findByRole('button', {
-        name: 'HG00097#1: 35 steps, 460 bp not loaded',
+        name: 'HG00097#1: 35 steps not loaded, 460 bp off the reference',
       }),
     )
     await waitFor(() => {
