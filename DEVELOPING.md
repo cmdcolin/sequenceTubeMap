@@ -76,7 +76,7 @@ there.
 
 `import/extensions` requires relative imports to spell out the file extension.
 Node's ESM resolver does not guess at one, and
-[`pnpm tubemap-cli`](doc/headless-rendering.md) hands `src/` straight to node,
+[`pnpm tubemap-cli`](docs/headless-rendering.md) hands `src/` straight to node,
 so a bare `../Types` would break that entry point while the Vite build stayed
 happy.
 
@@ -113,7 +113,7 @@ it too.
 ## Figures in the docs
 
 A figure of a tube map comes from `pnpm tubemap-cli`
-([headless-rendering.md](doc/headless-rendering.md)). A figure of the
+([headless-rendering.md](docs/headless-rendering.md)). A figure of the
 _interface_ — the render cap's notice, the paths panel, the Examples menu —
 comes from `scripts/screenshot-ui.mjs`, which drives headless Chrome over the
 DevTools protocol and crops each shot to the element it is about:
@@ -121,7 +121,7 @@ DevTools protocol and crops each shot to the element it is about:
 ```
 pnpm start --port 5200 &                  # the backend is for the menu shot
 google-chrome --headless=new --remote-debugging-port=9222 about:blank &
-node scripts/screenshot-ui.mjs        # overwrites the PNGs in doc/images/
+node scripts/screenshot-ui.mjs        # overwrites the PNGs in docs/images/
 ```
 
 It needs `magick` (ImageMagick) for the crop, and no browser-automation
@@ -174,7 +174,7 @@ pnpm build       # production bundle into build/
 
 CI builds and publishes `build/` to the `gh-pages` branch automatically on every
 push to `master`. That build ships `BACKEND_URL: false`, so it offers no
-self-hosted backend. See [data.md](doc/data.md#option-2--in-browser).
+self-hosted backend. See [data.md](docs/data.md#option-2--in-browser).
 
 ## Architecture
 
@@ -254,7 +254,7 @@ limitation, not a bug.
 
 - `GBZBase.open({ source, haplotypeIndex })` once per graph, cached for the
   session. `haplotypeIndex` is the optional companion index described in
-  [data.md](doc/data.md#naming-haplotypes-optional).
+  [data.md](docs/data.md#naming-haplotypes-optional).
 - `db.getPathFragments({ path, start, end: end + 1 })`, then
   `db.getSubgraphs({ path, start, end: end + 1, haplotypes, limit, signal })`
   for a path region. The app throws on a window no fragment covers. `haplotypes`
@@ -295,7 +295,7 @@ urlViewTarget ──> App ──> HeaderForm        (choose data + region)
 A **`ViewTarget`** — tracks, region, BED file, data type — is the unit of
 navigation. `src/urlViewTarget.ts` parses one out of the query string and
 serializes it back, which is what makes every view linkable
-([urlparams.md](doc/urlparams.md)). There is no router.
+([urlparams.md](docs/urlparams.md)). There is no router.
 
 `App` turns the current `ViewTarget` into an SWR key and fetches through
 whichever `APIInterface` it holds. Fetchers return the _processed_ shape, so
@@ -375,7 +375,7 @@ alone — most of the historical bugs in this file were geometry, not types.
 
 Those checks say what a render must never do; two golden tests pin what it does.
 `scripts/tubemap-cli.test.ts` compares the CLI's SVGs byte for byte with
-`doc/tubemap-cli-samples/`, at default settings.
+`docs/tubemap-cli-samples/`, at default settings.
 `src/util/layout.golden.test.ts` pins every shape and node position
 `layoutTubeMap` returns for the demo examples and a BRCA1 window with
 reverse-strand reads, under each option that takes a different layout path, in

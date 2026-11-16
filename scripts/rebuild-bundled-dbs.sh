@@ -4,7 +4,7 @@
 # write the companion haplotype indexes when gbz-haplotype-index is on PATH
 # (`cargo install gbz-haplotype-index`), and the walk files when gfa-to-tabix
 # is (`cargo install gfa-to-tabix`), by exampleData/build.sh, which needs vg.
-# See doc/data.md.
+# See docs/data.md.
 
 set -euo pipefail
 

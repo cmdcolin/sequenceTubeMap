@@ -16,7 +16,7 @@ metadata:
 
 `GRAPH_RENDER_LIMIT` in `src/components/TubeMapContainer.tsx` refuses a window
 whose haplotypes make too many node visits
-([measurements](../../doc/data.md#how-wide-a-region-will-draw)) instead of
+([measurements](../../docs/data.md#how-wide-a-region-will-draw)) instead of
 freezing the tab, which makes the refusal safe rather than the feature done. The
 app draws every haplotype through the window. A "show me these haplotypes"
 selection would make a chosen set cheap and turn MHC-scale windows from refused

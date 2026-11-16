@@ -536,12 +536,14 @@ describe('name resolution against configured data sources', () => {
   })
 })
 
-// doc/urlparams.md is the contract for what a link may say, and a documented
+// docs/urlparams.md is the contract for what a link may say, and a documented
 // syntax that no longer parses is worse than none, so the examples in it are
 // run rather than trusted.
-describe('doc/urlparams.md examples', () => {
+describe('docs/urlparams.md examples', () => {
   const examples = [
-    ...readFileSync('doc/urlparams.md', 'utf8').matchAll(/```\n([\s\S]*?)```/g),
+    ...readFileSync('docs/urlparams.md', 'utf8').matchAll(
+      /```\n([\s\S]*?)```/g,
+    ),
   ]
     .map(match => match[1]!.trim().replace(/\n\s*/g, ''))
     .map(block => block.replace(/^https?:\/\/[^?]*\??/, '').replace(/^\?/, ''))
@@ -582,7 +584,7 @@ describe('doc/urlparams.md examples', () => {
   )
 
   it('documents every View menu flag', () => {
-    const doc = readFileSync('doc/urlparams.md', 'utf8')
+    const doc = readFileSync('docs/urlparams.md', 'utf8')
     const undocumented = VIS_OPTION_FLAGS.filter(flag => !doc.includes(flag))
 
     expect(undocumented).toEqual([])

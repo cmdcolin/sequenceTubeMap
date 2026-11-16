@@ -1,11 +1,11 @@
 #!/bin/sh
-# Regenerate doc/tubemap-cli-samples/ from the bundled demo data and the
+# Regenerate docs/tubemap-cli-samples/ from the bundled demo data and the
 # built-in snp1kg-BRCA1 source. Run from the repo root; needs rsvg-convert and
 # ImageMagick alongside the usual toolchain. scripts/tubemap-cli.test.ts checks
 # the CLI still reproduces these SVGs.
 set -e
 
-out=doc/tubemap-cli-samples
+out=docs/tubemap-cli-samples
 
 # One width for every PNG, so the samples sit at a consistent size on the page.
 # The SVG beside each one is the figure at its natural scale.

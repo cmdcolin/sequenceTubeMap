@@ -1,5 +1,5 @@
 #!/bin/sh
-# Regenerate doc/images/facets-*.png. Run from the repo root; needs
+# Regenerate docs/images/facets-*.png. Run from the repo root; needs
 # rsvg-convert, ImageMagick and pngquant.
 #
 # The read facets draw exampleData/hprc-chrM-3samples.sorted.gam (see
@@ -10,7 +10,7 @@
 # to the first or last panels of a stack too tall to print whole.
 set -e
 
-out=doc/images
+out=docs/images
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 

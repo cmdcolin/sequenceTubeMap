@@ -2,7 +2,7 @@
 # Rebuild exampleData/hprc-chrM-3samples.sorted.gam: reads simulated from the
 # chrM haplotypes of three HPRC samples, kept where they touch the first 650 bp
 # of the graph, and labelled with their sample and one of two read groups each.
-# The faceted figures in doc/images/facets-*.png draw it. Run from the repo
+# The faceted figures in docs/images/facets-*.png draw it. Run from the repo
 # root; needs vg and python3.
 set -e
 

@@ -153,7 +153,7 @@ sets `facetBy`, which the `facet=` URL parameter holds beside `mapq=`, since
 file has more than one read group or sample, so the goldens
 (`example-6.facet-*`) give example 6's reads made-up ones, and
 `exampleData/hprc-chrM-3samples.sorted.gam`, reads simulated from three HPRC
-samples' chrM haplotypes, backs the figures in `doc/images/facets-*.png`.
+samples' chrM haplotypes, backs the figures in `docs/images/facets-*.png`.
 
 Panel labels sit in a `g.facet-label-group` that the zoom counter-scales like
 node labels, capped at 2.5 so a label never crosses the rule above it, and
@@ -212,7 +212,7 @@ one `No PanSN sample · 3 haplotypes` and the last `Reads · 112 reads`. Goldens
 unnamed panel and the reads), `hprc-chrM.facet-haplotype-sample` (42
 one-haplotype sample panels and the simulated reads; the first two and the reads
 panel pinned whole) and `micb-kir3dl1.facet-haplotype-sample-banded` (45 panels,
-two diploid ones pinned). `doc/images/facets-haplotypes-*.png` draw the real
+two diploid ones pinned). `docs/images/facets-haplotypes-*.png` draw the real
 HPRC haplotypes in `exampleData/micb-kir3dl1.gbz.db` and
 `exampleData/hprc-chrM.gbz.db`; `scripts/make-facet-figures.sh` regenerates
 them.

@@ -31,7 +31,7 @@ const descriptions: Record<APIMode, ReactNode> = {
       <code>.idx</code>), and sorted <code>.gam</code> reads with their{' '}
       <code>.gam.gai</code> index.{' '}
       <a
-        href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/doc/data.md"
+        href="https://github.com/cmdcolin/sequenceTubeMap/blob/master/docs/data.md"
         target="_blank"
         rel="noreferrer"
       >

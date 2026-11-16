@@ -15,7 +15,7 @@ import { config } from '../config-global.mjs'
 // cap ends up either refusing the app's own flagship figure or waving through
 // the window that hangs the tab. So the calibration is checked against the
 // real graph, through the same pipeline the renderer is fed by. The
-// measurements are in doc/data.md.
+// measurements are in docs/data.md.
 //
 // Network-gated, like the other HPRC v2.1 tests: `RUN_NETWORK_TESTS=1`.
 const RUN_NETWORK = process.env.RUN_NETWORK_TESTS === '1'

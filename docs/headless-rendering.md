@@ -298,9 +298,9 @@ register:
 ```bash
 rsvg-convert -z 1 str.svg -o str.png
 magick str.png -crop 3515x385+1165+0 +repage -background white -flatten \
-  doc/images/hprc-v2.1-chr20-str.png
+  docs/images/hprc-v2.1-chr20-str.png
 magick str.png -crop 1239x385+9988+0 +repage -background white -flatten \
-  doc/images/hprc-v2.1-chr20-register.png
+  docs/images/hprc-v2.1-chr20-register.png
 ```
 
 A local track file is staged as an upload rather than fetched, so the bundled
@@ -325,7 +325,7 @@ pnpm tubemap-cli --graph $d/chr5_73149742_73150242.giraffe.gbz.db \
   --reads $d/normal.chr5_73149742_73150242.sorted.gam --region chr5:1-500 \
   --compressed --banded-haplotypes --read-limit 40 --legend --out banded.svg
 rsvg-convert -w 1600 banded.svg | magick - -background white -flatten \
-  doc/images/layers-banded-haplotypes.png
+  docs/images/layers-banded-haplotypes.png
 ```
 
 `--read-limit 40` thins the chr5 window's 285 reads so the figure stays one page
@@ -341,7 +341,7 @@ pnpm tubemap-cli --graph $d/chr5_73149742_73150242.giraffe.gbz.db \
   --reads $d/normal.chr5_73149742_73150242.sorted.gam --region chr5:1-500 \
   --compressed --banded-haplotypes --coarsened --legend --out both.svg
 rsvg-convert -w 1600 both.svg | magick - -background white -flatten \
-  doc/images/layers-banded-haplotypes-and-reads.png
+  docs/images/layers-banded-haplotypes-and-reads.png
 ```
 
 A dense pileup is where banding pays most. Drawn per read, the HCC1395 tumor
@@ -367,7 +367,7 @@ title() {
 title 'Per read: 1,076 reads' > t1.png
 title 'With --coarsened: 6 bands, one per edge' > t2.png
 magick t1.png reads.png -size 1200x2 xc:'#ccc' t2.png bands.png -append \
-  +repage -depth 8 doc/images/layers-reads-vs-bands.png
+  +repage -depth 8 docs/images/layers-reads-vs-bands.png
 ```
 
 The committed PNGs went through `pngquant --quality=80-98 --strip` as well.

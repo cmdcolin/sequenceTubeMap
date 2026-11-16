@@ -23,7 +23,7 @@ export interface BaseTrack {
   trackDisplayName?: string
   // Companion haplotype index for a `.gbz.db` graph. Names the haplotypes a
   // subgraph walks and answers path lengths from a table instead of a walk. See
-  // doc/data.md; only the in-browser gbz-base backend reads it.
+  // docs/data.md; only the in-browser gbz-base backend reads it.
   haplotypeIndexFile?: string
 }
 

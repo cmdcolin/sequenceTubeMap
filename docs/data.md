@@ -444,9 +444,9 @@ pnpm tubemap-cli --source 'HPRC v2.1 whole genome (gbz-base, URL-hosted)' \
                  --region 'GRCh38#chr1:109675000-109705000' \
                  --coarsened --compressed --out gstm1.svg
 sed '0,/viewBox="[^"]*"/s//viewBox="52000 -20 3700 245"/' gstm1.svg |
-  rsvg-convert -b white -o doc/images/hprc-v2.1-gstm1-deletion-start.png
+  rsvg-convert -b white -o docs/images/hprc-v2.1-gstm1-deletion-start.png
 sed '0,/viewBox="[^"]*"/s//viewBox="83900 -20 3700 245"/' gstm1.svg |
-  rsvg-convert -b white -o doc/images/hprc-v2.1-gstm1-deletion-end.png
+  rsvg-convert -b white -o docs/images/hprc-v2.1-gstm1-deletion-end.png
 ```
 
 The cap resets with each new region, and `pnpm tubemap-cli` ignores it.

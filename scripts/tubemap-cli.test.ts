@@ -10,7 +10,7 @@ import { promisify } from 'node:util'
 const run = promisify(execFile)
 
 const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
-const SAMPLES = path.join(REPO, 'doc', 'tubemap-cli-samples')
+const SAMPLES = path.join(REPO, 'docs', 'tubemap-cli-samples')
 
 // The renders scripts/make-cli-samples.sh makes, by output name.
 const SAMPLE_ARGS: Record<string, string[]> = {

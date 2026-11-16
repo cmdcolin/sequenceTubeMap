@@ -11,7 +11,7 @@ MemPanG26 Hackathon Team 2 — [Colin Diesh](https://github.com/cmdcolin) &
 [Rafeed Rahman Turjya](https://scholar.google.com/citations?user=Vb6tJA0AAAAJ&hl=en)
 et al.
 
-![HPRC v2.1 chr20 microsatellite](doc/images/hprc-v2.1-chr20-str.png)
+![HPRC v2.1 chr20 microsatellite](docs/images/hprc-v2.1-chr20-str.png)
 
 464 HPRC v2.1 haplotypes at a chr20 CT microsatellite — 46 allele lengths, 240
 distinct routes. Read straight from HPRC's 10 GB hosted `.gbz.db` by range
@@ -20,13 +20,13 @@ node-to-node edge instead of drawing all 464 as separate lines, darker the more
 haplotypes take that edge; haplotypes named from the companion index
 (`HG01243#2#…`, not `unknown#57`).
 
-![HPRC v2.1 chr20 haplotypes in register](doc/images/hprc-v2.1-chr20-register.png)
+![HPRC v2.1 chr20 haplotypes in register](docs/images/hprc-v2.1-chr20-register.png)
 
 Same locus, view scrolled ~260 bp right: haplotypes back in register. Both
 figures are crops of one drawing the app lays out end to end and lets you
 scroll.
 
-![Reads faceted by sample over the HPRC chrM graph](doc/images/facets-by-sample.png)
+![Reads faceted by sample over the HPRC chrM graph](docs/images/facets-by-sample.png)
 
 Facets: the View menu's "Facet by" splits one graph into a labelled panel per
 read sample or read group, or per haplotype sample from the haplotypes' PanSN
@@ -36,7 +36,7 @@ reference for the C alleles at chrM 146 and 152 while HG00438's and HG00735's
 stay on T, over the HPRC chrM graph with the other 42 haplotypes banded. The
 reads are simulated from the three samples' haplotypes, since no bundled
 alignment file carries more than one sample. See
-[headless rendering](doc/headless-rendering.md) for the CLI flags and more
+[headless rendering](docs/headless-rendering.md) for the CLI flags and more
 figures.
 
 ## What a tube map shows
@@ -49,15 +49,15 @@ homologs across species — as shared and diverging paths through nodes.
 
 Two paths, same three nodes, same sequence:
 
-![Two paths through three nodes](doc/images/example1.png)
+![Two paths through three nodes](docs/images/example1.png)
 
 Where sequences differ, paths part around a bubble:
 
-![Two paths diverging in the middle](doc/images/example2.png)
+![Two paths diverging in the middle](docs/images/example2.png)
 
 An inversion: one node traversed both directions, not two nodes:
 
-![A node traversed in both directions](doc/images/example3.png)
+![A node traversed in both directions](docs/images/example3.png)
 
 Graphviz and d3 force layouts draw nodes and edges with no notion of a path or
 of orientation. The tube map draws paths as lines on a transit map, with d3. The
@@ -77,14 +77,14 @@ Use **File → Open…**, or pick a dataset from the **Examples** menu.
 Servers take `.xg`, `.vg` and `.gbz` graphs and `.gam` reads directly.
 In-browser mode needs a `.gbz.db` or a `gfa-to-tabix --walks` file; it reads a
 hosted one by range request, so a whole-pangenome graph browses with no
-download. Details: [doc/data.md](doc/data.md).
+download. Details: [docs/data.md](docs/data.md).
 
 ## Reads over a graph
 
 GAM alignments over the snp1kg BRCA1 graph. Red: every node visit is
 reverse-strand. Mixed-orientation reads draw forward, in blue:
 
-[![BRCA1 reads](doc/images/brca1-reads.png)][demo-reads]
+[![BRCA1 reads](docs/images/brca1-reads.png)][demo-reads]
 
 Link carries compressed node widths plus region. Browser subsamples to 100 reads
 to stay responsive (banner above the map raises the cap).
@@ -94,38 +94,38 @@ O(edges), not O(reads). Allele balance at a bubble reads at a glance. The same
 view works on a haplotype-only graph with no reads loaded, as in the chr20
 figures above: it bands the haplotypes by edge instead.
 
-[![BRCA1 reads, coarsened](doc/images/brca1-reads-coarsened.png)][demo-coarsened]
+[![BRCA1 reads, coarsened](docs/images/brca1-reads-coarsened.png)][demo-coarsened]
 
 ## Navigating and sharing
 
 Region box takes `<contig>:<start>-<end>` (`Circ1:0-1320`), `chr1:1000+500`, or
 `node:42-55`. **Paths in this graph** browses a graph's contigs. The URL carries
 data, region and view options — any tube map is a shareable link
-([params](doc/urlparams.md)).
+([params](docs/urlparams.md)).
 
 **View → Open in BandageJS** opens the same window of a hosted `.gbz.db` or walk
 file in [BandageJS](https://jbrowse.org/demos/bandagejs/), a force-directed
 graph viewer.
 
-[![The app with BRCA1 reads loaded](doc/images/1.png)][demo-brca1]
+[![The app with BRCA1 reads loaded](docs/images/1.png)][demo-brca1]
 
 ## Headless rendering
 
 `pnpm tubemap-cli` renders your own `.gbz.db` or walk file and reads, or any
 link or bundled source, to SVG, no browser — made every figure here but the app
-screenshot. [Details](doc/headless-rendering.md), and a
-[gallery](doc/headless-rendering.md#gallery) of banded haplotypes and read
+screenshot. [Details](docs/headless-rendering.md), and a
+[gallery](docs/headless-rendering.md#gallery) of banded haplotypes and read
 encodings.
 
 ## Docs
 
-- [doc/data.md](doc/data.md) — guide for loading your own data
-- [doc/server.md](doc/server.md) — running the server in Docker or from a
+- [docs/data.md](docs/data.md) — guide for loading your own data
+- [docs/server.md](docs/server.md) — running the server in Docker or from a
   checkout
-- [doc/urlparams.md](doc/urlparams.md) — every parameter a link can carry
-- [doc/headless-rendering.md](doc/headless-rendering.md) — `pnpm tubemap-cli`
+- [docs/urlparams.md](docs/urlparams.md) — every parameter a link can carry
+- [docs/headless-rendering.md](docs/headless-rendering.md) — `pnpm tubemap-cli`
   and its options
-- [doc/differences-from-upstream.md](doc/differences-from-upstream.md) — what
+- [docs/differences-from-upstream.md](docs/differences-from-upstream.md) — what
   changed from vgteam/sequenceTubeMap
 
 ## Thanks

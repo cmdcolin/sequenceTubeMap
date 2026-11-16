@@ -11,7 +11,7 @@
 //
 //   pnpm start --port 5200                       # frontend and backend
 //   google-chrome --headless=new --remote-debugging-port=9222 about:blank
-//   node scripts/screenshot-ui.mjs               # writes into doc/images/
+//   node scripts/screenshot-ui.mjs               # writes into docs/images/
 //
 // The backend only has to answer `getFilenames` — it is up so the Examples
 // menu has a server group to show, not to serve any graph. `magick`
@@ -22,7 +22,7 @@ import { execFileSync } from 'node:child_process'
 
 const APP = `http://localhost:${process.env.APP_PORT ?? 5200}`
 const CDP = `http://127.0.0.1:${process.env.CDP_PORT ?? 9222}`
-const OUT = 'doc/images'
+const OUT = 'docs/images'
 const TMP = 'tmp/screenshot-ui'
 // 2× so the figures stay sharp where they are rendered scaled down.
 const SCALE = 2
