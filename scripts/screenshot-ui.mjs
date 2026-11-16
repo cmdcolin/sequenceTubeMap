@@ -155,7 +155,7 @@ for (const shot of shots) {
     mobile: false,
   })
   // `#local` is what keeps config-client from pointing the app at the express
-  // backend in dev (see doc/development.md); the menu shot wants it pointed
+  // backend in dev (see DEVELOPING.md); the menu shot wants it pointed
   // there, and nothing else does.
   await send('Page.navigate', {
     url: `${APP}/${query}${local ? '#local' : ''}`,

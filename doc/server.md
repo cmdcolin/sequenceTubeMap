@@ -36,7 +36,7 @@ docker push quay.io/jmonlong/sequencetubemap:vg1.74.1
 ```
 
 From a checkout, `pnpm start` runs the same server behind the Vite dev server —
-see [development.md](development.md).
+see [DEVELOPING.md](../DEVELOPING.md).
 
 ## The data path
 

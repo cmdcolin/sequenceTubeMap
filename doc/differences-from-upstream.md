@@ -34,7 +34,7 @@ fork replaces that:
 
 The GitHub Pages build ships `BACKEND_URL: false`, so the public demo runs with
 no server at all. See [data.md](data.md#option-2--in-browser) and
-[architecture.md](architecture.md#in-browser-path).
+[DEVELOPING.md](../DEVELOPING.md#in-browser-path).
 
 ## Uploading to the vgteam server
 

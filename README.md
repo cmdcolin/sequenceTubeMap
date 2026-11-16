@@ -127,9 +127,6 @@ encodings.
   and its options
 - [doc/differences-from-upstream.md](doc/differences-from-upstream.md) — what
   changed from vgteam/sequenceTubeMap
-- [doc/development.md](doc/development.md) — setup, dev server, checks, build
-- [doc/architecture.md](doc/architecture.md) — how a region becomes a drawn tube
-  map
 
 ## Thanks
 

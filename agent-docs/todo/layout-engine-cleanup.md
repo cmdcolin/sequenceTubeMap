@@ -15,7 +15,7 @@ The layout code lives in
 it: tubemap-core's `test/layout-golden/`, built from the viewer's layout inputs
 dumped to `test/fixtures/`, and the viewer's own `src/util/layout-golden/`,
 built through its data pipeline. Work on both through a
-[linked local clone](../../doc/development.md#developing-against-a-local-tubemap-core).
+[linked local clone](../../DEVELOPING.md#developing-against-a-local-tubemap-core).
 
 The layout keeps `nodes` typed `LayoutNode[]` rather than
 `(LayoutNode | undefined)[]`: forEach, map and sort skip the hole at index 0,
