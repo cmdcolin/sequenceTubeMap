@@ -1,9 +1,28 @@
 import { readFileSync } from 'node:fs'
 import { CUT_PRESETS, WalkReader } from '@jbrowse/graph-walks'
+import type * as GraphWalks from '@jbrowse/graph-walks'
 import '../../config-client.js'
 import { isLocalGraphFilename } from '../../common.ts'
 import { GBZBaseAPI } from '../GBZBaseAPI.ts'
 import type { ViewTarget } from '../../Types.ts'
+
+const drawnPast = vi.hoisted((): { bp?: number } => ({}))
+
+vi.mock('@jbrowse/graph-walks', async importOriginal => {
+  const walks = await importOriginal<typeof GraphWalks>()
+  const { browser } = walks.CUT_PRESETS
+  return {
+    ...walks,
+    CUT_PRESETS: {
+      ...walks.CUT_PRESETS,
+      get browser() {
+        return drawnPast.bp === undefined
+          ? browser
+          : { ...browser, context: drawnPast.bp }
+      },
+    },
+  }
+})
 
 const WALKS = 'hprc-chrM.GRCh38.walks.gz'
 const SIBLINGS = ['hprc-chrM.GRCh38.walks.gz.idx']
@@ -234,14 +253,14 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
 
 // The departure fixtures' reference is 600 bp, built for a stretch drawn
 // 100 bp past the window: the browser preset's 1000 bp would hold all of it
-// and leave no edge to depart at
+// and leave no edge to depart at. graph-walks freezes its presets, so these
+// tests cut by a copy of the browser preset with 100 bp of context
 function with100bpContext() {
-  const { context } = CUT_PRESETS.browser
   beforeEach(() => {
-    CUT_PRESETS.browser.context = 100
+    drawnPast.bp = 100
   })
   afterEach(() => {
-    CUT_PRESETS.browser.context = context
+    drawnPast.bp = undefined
   })
 }
 
