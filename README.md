@@ -130,7 +130,6 @@ encodings.
 - [doc/development.md](doc/development.md) — setup, dev server, checks, build
 - [doc/architecture.md](doc/architecture.md) — how a region becomes a drawn tube
   map
-- [agent-docs/TODO.md](agent-docs/TODO.md) — unfinished work
 
 ## Thanks
 
