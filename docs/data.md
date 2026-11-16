@@ -250,9 +250,9 @@ that a window doesn't read
 ([walks-format.md](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/walks-format.md#abridged-tiles)).
 
 - A bar over the tube map lists each abridged walk as a block, such as
-  `HG00133#1: 12 k steps, 170 kb not loaded`: the steps the writer moved, and
-  the bp of the walk's runs off the reference that the window did not load. The
-  map leaves out a walk with such a run
+  `HG00133#1: 170 kb off the reference not loaded`: the bp of the walk's runs
+  off the reference that the window did not load, in the words graph-walks'
+  `abridgedText` gives every reader. The map leaves out a walk with such a run
 - Clicking a block reads that walk in full and redraws. Double-clicking a walk
   to follow it does the same when the window abridged it
 - A walk read in full stays so for every region of that file, until its × under

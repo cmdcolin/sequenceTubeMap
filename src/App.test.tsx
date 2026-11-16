@@ -838,7 +838,7 @@ describe('abridged walks', () => {
             graph,
             abridged: target.expand
               ? []
-              : [{ name: 'HG00097#1#chr6', steps: 35, bp: 460 }],
+              : [{ name: 'HG00097#1#chr6', bp: 460 }],
           })
         },
       }),
@@ -846,7 +846,7 @@ describe('abridged walks', () => {
 
     await userEvent.click(
       await screen.findByRole('button', {
-        name: 'HG00097#1: 35 steps not loaded, 460 bp off the reference',
+        name: 'HG00097#1: 460 bp off the reference not loaded',
       }),
     )
     await waitFor(() => {

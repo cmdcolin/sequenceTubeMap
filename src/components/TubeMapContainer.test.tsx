@@ -430,7 +430,7 @@ describe('TubeMapContainer', () => {
   })
 
   describe('abridged walks', () => {
-    const abridged = [{ name: 'HG00097#1#chr6', steps: 140_321, bp: 2_093_000 }]
+    const abridged = [{ name: 'HG00097#1#chr6', bp: 2_093_000 }]
     const data = { ...makeData(0, [makeWalk(1, 3)]), abridged }
 
     it('labels each one as a block that reads it in full', async () => {
@@ -439,7 +439,7 @@ describe('TubeMapContainer', () => {
 
       await userEvent.click(
         screen.getByRole('button', {
-          name: 'HG00097#1: 140,321 steps not loaded, 2093 kb off the reference',
+          name: 'HG00097#1: 2093 kb off the reference not loaded',
         }),
       )
       expect(onExpandedChange).toHaveBeenCalledWith([
@@ -487,7 +487,6 @@ describe('TubeMapContainer', () => {
     it('shows the first few of many, and the rest on request', async () => {
       const many = Array.from({ length: 300 }, (_, i) => ({
         name: `S${i}#1#chr6`,
-        steps: 10,
         bp: 100,
       }))
       renderContainer({ data: { ...makeData(0), abridged: many } })
@@ -501,18 +500,16 @@ describe('TubeMapContainer', () => {
       ).toHaveLength(300)
     })
 
-    it("counts a short stretch in steps and bp, in graph-walks' words", () => {
+    it("says a short stretch in bp, in graph-walks' words", () => {
       renderContainer({
         data: {
           ...makeData(0),
-          abridged: [{ name: 'IAI39#1#chr', steps: 35, bp: 460 }],
+          abridged: [{ name: 'IAI39#1#chr', bp: 460 }],
         },
       })
 
       expect(
-        screen.getByText(
-          'IAI39#1: 35 steps not loaded, 460 bp off the reference',
-        ),
+        screen.getByText('IAI39#1: 460 bp off the reference not loaded'),
       ).toBeInTheDocument()
     })
   })

@@ -189,16 +189,16 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
   const pathOf = (response: Awaited<ReturnType<typeof cut>>, name: string) =>
     response.graph!.path.find(p => p.name === name)
 
-  it('lists each abridged walk with its counts, apart from the paths', async () => {
+  it('lists each abridged walk with its bp off the reference not loaded, apart from the paths', async () => {
     const response = await cut(abridged)
     expect(response.graph!.path.map(p => p.name)).toEqual([
       'K12#1#chr',
       'CFT073#1#chr',
       'NCTC86#1#chr',
     ])
-    expect(response.abridged).toEqual([
-      { name: 'IAI39#1#chr', steps: 35, bp: 11 },
-      { name: 'Sakai#1#chr', steps: 35, bp: 6 },
+    expect(response.abridged).toStrictEqual([
+      { name: 'IAI39#1#chr', bp: 11 },
+      { name: 'Sakai#1#chr', bp: 6 },
     ])
     expect(response.graph!.node.every(n => /^\d+$/.test(String(n.id)))).toBe(
       true,
@@ -213,9 +213,7 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
   it('reads a walk the view expands in full, as the unabridged file holds it', async () => {
     const expanded = await cut(abridged, { expand: ['IAI39#1#chr'] })
     const unabridged = await cut(full)
-    expect(expanded.abridged).toEqual([
-      { name: 'Sakai#1#chr', steps: 35, bp: 6 },
-    ])
+    expect(expanded.abridged).toStrictEqual([{ name: 'Sakai#1#chr', bp: 6 }])
     expect(pathOf(expanded, 'IAI39#1#chr')!.mapping).toHaveLength(35)
     expect(pathOf(expanded, 'IAI39#1#chr')).toEqual(
       pathOf(unabridged, 'IAI39#1#chr'),

@@ -65,9 +65,10 @@ export class WalkFiles {
    * `distinct` merges walks that take the same steps into one path whose
    * `freq` counts them. A walk with a run off the reference the cut did not
    * load is drawn only in its loaded fragments, and comes back in `abridged`
-   * with graph-walks' counts, unless `expand` names it. A cut past `nodeLimit` nodes or
-   * graph-walks' budgets throws its RegionTooLargeError, and one whose
-   * departure read is past its budget a DepartureReadError.
+   * with the bp graph-walks says it did not load, unless `expand` names it. A
+   * cut past `nodeLimit` nodes or graph-walks' budgets throws its
+   * RegionTooLargeError, and one whose departure read is past its budget a
+   * DepartureReadError.
    */
   async subgraph(
     anchor: string,
