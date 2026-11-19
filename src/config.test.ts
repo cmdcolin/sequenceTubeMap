@@ -15,8 +15,8 @@ describe('the hosted HPRC walk file', () => {
     expect(hostedWalkFiles).toEqual([HPRC_F8_WALKS])
   })
 
-  it('is the format 8 file in doc/data.md', () => {
-    const doc = readFileSync('doc/data.md', 'utf-8')
+  it('is the format 8 file in docs/data.md', () => {
+    const doc = readFileSync('docs/data.md', 'utf-8')
     expect(doc).toContain(HPRC_F8_WALKS)
     expect(doc).not.toMatch(/hprc-v2\.1-mc-(grch38|chm13)\.\w+\.walks\.gz/)
   })
