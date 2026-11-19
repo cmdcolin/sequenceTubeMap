@@ -1,4 +1,10 @@
-import { CUT_PRESETS, WalkReader, abridgedWalks } from '@jbrowse/graph-walks'
+import {
+  CUT_PRESETS,
+  WalkReader,
+  abridgedWalks,
+  panSNContig,
+  panSNSample,
+} from '@jbrowse/graph-walks'
 import type { GraphTables, WalkFilehandle } from '@jbrowse/graph-walks'
 
 import type { AbridgedWalk, PathInfo } from '../../Types.ts'
@@ -21,29 +27,24 @@ export class WalkFiles {
     this.reader = WalkReader.fromFilehandles(files)
   }
 
-  // The anchor sequence a region's contig names. Walk files name it in full
-  // PanSN, `GRCh38#0#chr20`, and the region box also takes the forms the
-  // gbz-base backend does: `GRCh38#chr20` and plain `chr20`.
+  // The anchor sequence a region's contig names, as graph-walks' sequenceFor
+  // resolves it on the file's first reference sample, so this answers as
+  // every other reader does. The region box also takes the gbz-base backend's
+  // `GRCh38#chr20`, which is chr20 on GRCh38.
   async anchorFor(contig: string, signal?: AbortSignal): Promise<string> {
-    const names = await this.reader.referenceSequences({ signal })
-    if (names.includes(contig)) {
-      return contig
-    }
-    const parts = contig.split('#')
     const { references } = await this.reader.header({ signal })
-    const candidates =
-      parts.length === 2
-        ? [`${parts[0]}#0#${parts[1]}`]
-        : references.map(sample => `${sample}#0#${contig}`)
-    const found =
-      candidates.find(name => names.includes(name)) ??
-      names.find(name => name.endsWith(`#${contig}`))
-    if (found === undefined) {
+    const { sample, refName } =
+      contig.split('#').length === 2
+        ? { sample: panSNSample(contig), refName: panSNContig(contig) }
+        : { sample: references[0] ?? '', refName: contig }
+    const anchor = await this.reader.sequenceFor(sample, refName, { signal })
+    if (anchor === undefined) {
+      const names = await this.reader.referenceSequences({ signal })
       throw new Error(
         `the walk file has no reference sequence ${contig}; it holds ${names.slice(0, 5).join(', ')}${names.length > 5 ? ', …' : ''}`,
       )
     }
-    return found
+    return anchor
   }
 
   // One entry per reference sequence, with where its last node ends

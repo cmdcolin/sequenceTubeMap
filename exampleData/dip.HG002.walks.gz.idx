@@ -1,0 +1,4 @@
+#walks	format:i:8	tile:i:20	revisited:i:3	stay:i:311	abridge:i:1000000	abridgebytes:i:3000000	graph:Z:596e51f9519bfc31	leftout:i:0	bytes:i:874
+#header	0	157
+HG002#1#chr1	360	102
+HG002#2#chr1	733	113

@@ -23,3 +23,4 @@ build ecoli_pggb ecoli_pggb_subgraph.gfa --refs K12
 build ecoli_pggb_abridged ecoli_pggb_subgraph.gfa --refs K12 --abridge-steps 20
 build departures departures.gfa --refs R --sequences --tile 100
 build unloaded_departure unloaded_departure.gfa --refs R --sequences --tile 100 --abridge-steps 5
+build dip dip.gfa --refs HG002 --tile 20

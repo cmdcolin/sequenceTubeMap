@@ -186,6 +186,36 @@ it('asks for the directory of a walk file dropped without it', async () => {
   ).rejects.toThrow(/hprc-chrM\.GRCh38\.walks\.gz needs its \.idx/)
 })
 
+describe('a walk file whose reference sample, HG002, has two haplotypes', () => {
+  const api = new GBZBaseAPI()
+  let file: string
+
+  beforeAll(async () => {
+    file = await upload(api, 'dip.HG002.walks.gz', 'dip')
+    await upload(api, 'dip.HG002.walks.gz.idx', 'dip')
+  })
+
+  it('refuses a contig both haplotypes hold, naming them and the haplotypes to pick from', async () => {
+    for (const region of ['chr1:0-40', 'HG002#chr1:0-40']) {
+      await expect(
+        api.getChunkedData(view(file, region), null),
+      ).rejects.toThrow(
+        'chr1 on HG002 is 2 sequences of the file, HG002#1#chr1, HG002#2#chr1; name one of them, or its haplotype: HG002#1, HG002#2',
+      )
+    }
+  })
+
+  it('cuts the haplotype a full name picks', async () => {
+    for (const name of ['HG002#1#chr1', 'HG002#2#chr1']) {
+      const { graph } = await api.getChunkedData(
+        view(file, `${name}:0-39`),
+        null,
+      )
+      expect(graph!.path[0]!.name).toBe(name)
+    }
+  })
+})
+
 describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
   const api = new GBZBaseAPI()
   const region = 'K12#1#chr:1004500-1004961'
