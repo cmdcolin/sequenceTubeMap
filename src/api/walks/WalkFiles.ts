@@ -89,7 +89,7 @@ export class WalkFiles {
       {
         ...CUT_PRESETS.browser,
         signal: opts.signal,
-        links: false,
+        links: 'none',
         sequences: true,
         nodeLimit: opts.nodeLimit,
         expand: name => expand.has(name),
