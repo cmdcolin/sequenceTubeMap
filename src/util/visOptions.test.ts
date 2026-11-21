@@ -28,8 +28,8 @@ describe('exampleColorSchemes', () => {
     // The legend lists a read track for every example, and reads that do turn
     // up (examples 8 and 9) are drawn from this same pair.
     const [, reads] = exampleColorSchemes(dataOriginTypes.EXAMPLE_1)
-    expect(reads?.mainPalette).toBe('blues')
-    expect(reads?.auxPalette).toBe('reds')
+    expect(reads?.mainPalette).toBe('reds')
+    expect(reads?.auxPalette).toBe('blues')
   })
 
   it('falls back rather than leaving a render with no scheme at all', () => {

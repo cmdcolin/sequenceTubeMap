@@ -21,11 +21,11 @@ importers:
         specifier: ^7.4.1
         version: 7.4.1
       '@jbrowse/graph-walks':
-        specifier: ^8.0.2
-        version: 8.0.2
+        specifier: ^9.0.0
+        version: 9.0.0
       '@jbrowse/tubemap-core':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^2.1.0
+        version: 2.1.0
       '@mui/material':
         specifier: ^9.5.0
         version: 9.5.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -492,12 +492,12 @@ packages:
     resolution: {integrity: sha512-Le+Rpj9Jp7GAOpo05XwYFhZbsakhC6TOfaslgW7F72xm2q6Z11dwDZwZFd0S93x2bgbasvO7S3Zr1oL+QBf2SA==}
     hasBin: true
 
-  '@jbrowse/graph-walks@8.0.2':
-    resolution: {integrity: sha512-r/rr7Rb9a6eTHk8JNowjZZIVcdekWjXbT+R+T/ia54kd7YRl0TMhW6TKyRc83L9zChQW29wpZMeEDG5zFbbOpQ==}
+  '@jbrowse/graph-walks@9.0.0':
+    resolution: {integrity: sha512-1n5YkBjcbNQO2rPXnLKOWNqaZG+vHFyQGKgED2EdQahmnZ/c4tEoL9Y2ftsNr8beYyjtS4Q2GIORpjXZfBHGhg==}
     engines: {node: '>=20'}
 
-  '@jbrowse/tubemap-core@2.0.1':
-    resolution: {integrity: sha512-tpufiNVlRWzGiOdbWERDg6vPdmKqZMxbVWAHy8vW0Lk6CLlf9zc2Jy9kcVIR8ybkzsktpfpb0pETdDDK6FWdpA==}
+  '@jbrowse/tubemap-core@2.1.0':
+    resolution: {integrity: sha512-UqNSIkLOfisPZYf/xpzBWxHPB8GrGShSAydXvex39ybJZiItCUWQH3lHhEyedRuQ0fmttfxeuOH6lWh4L8yyxw==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -2971,12 +2971,12 @@ snapshots:
     dependencies:
       generic-filehandle2: 2.5.1
 
-  '@jbrowse/graph-walks@8.0.2':
+  '@jbrowse/graph-walks@9.0.0':
     dependencies:
       '@gmod/bgzf-filehandle': 6.8.4
       generic-filehandle2: 2.5.1
 
-  '@jbrowse/tubemap-core@2.0.1': {}
+  '@jbrowse/tubemap-core@2.1.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

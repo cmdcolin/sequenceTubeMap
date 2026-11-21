@@ -1,4 +1,8 @@
-import type { HaplotypeShare } from '@jbrowse/tubemap-core'
+import {
+  FORWARD_READ_COLORS,
+  REVERSE_READ_COLORS,
+  type HaplotypeShare,
+} from '@jbrowse/tubemap-core'
 import { interpolateOranges, interpolatePurples, rgb } from 'd3'
 import type { ColorHex, ColorPaletteName } from '../Types.ts'
 
@@ -22,22 +26,6 @@ export const ygreys: readonly ColorHex[] = [
   '#525252',
   '#252525',
   '#000000',
-]
-
-export const blues: readonly ColorHex[] = [
-  '#6baed6',
-  '#4292c6',
-  '#2171b5',
-  '#08519c',
-  '#08306b',
-]
-
-export const reds: readonly ColorHex[] = [
-  '#fb6a4a',
-  '#ef3b2c',
-  '#cb181d',
-  '#a50f15',
-  '#67000d',
 ]
 
 // d3 category10, with grey replaced by teal (grey is indistinct from read backgrounds)
@@ -109,7 +97,7 @@ export interface PaletteInfo {
   name: ColorPaletteName
   label: string
   kind: PaletteKind
-  colors: readonly ColorHex[]
+  colors: readonly string[]
 }
 
 export const PALETTES: readonly PaletteInfo[] = [
@@ -120,8 +108,18 @@ export const PALETTES: readonly PaletteInfo[] = [
     kind: 'sequential',
     colors: ygreys,
   },
-  { name: 'blues', label: 'Blues', kind: 'sequential', colors: blues },
-  { name: 'reds', label: 'Reds', kind: 'sequential', colors: reds },
+  {
+    name: 'blues',
+    label: 'Blues',
+    kind: 'sequential',
+    colors: REVERSE_READ_COLORS,
+  },
+  {
+    name: 'reds',
+    label: 'Reds',
+    kind: 'sequential',
+    colors: FORWARD_READ_COLORS,
+  },
   {
     name: 'plainColors',
     label: 'Plain (categorical)',

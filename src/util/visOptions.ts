@@ -113,8 +113,8 @@ const CATEGORICAL_GRAPH: ColorScheme = {
 // Forward reads from the main palette, reverse ones from the aux: the pair the
 // app's own config ships as the read default.
 const EXAMPLE_READS: ColorScheme = {
-  mainPalette: 'blues',
-  auxPalette: 'reds',
+  mainPalette: 'reds',
+  auxPalette: 'blues',
 }
 
 const EXAMPLE_GRAPH_SCHEMES: Record<string, ColorScheme> = {

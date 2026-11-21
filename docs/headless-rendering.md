@@ -89,7 +89,7 @@ the renderer marked `is_reverse`, and it marks a read that way only when _every_
 node visit is reversed — a mixed-orientation read is drawn as if forward. None
 of the `--example` datasets contain a wholly reversed read, but plenty of the
 bundled alignment data does: on snp1kg-BRCA1 at `17:1-400` the flag moves all
-118 reverse-strand reads out of the red auxiliary palette and into the blue main
+118 reverse-strand reads out of the blue auxiliary palette and into the red main
 one.
 
 Under `--coarsened` the flag rarely changes anything. The layout turns reads,
@@ -253,7 +253,7 @@ legend panel is open.
 
 Pass it where a color means something, and leave it off where it does not. None
 of the `--example` datasets contain a wholly reverse-strand read, so a key on
-one of those figures names a red palette the picture never uses, over tracks
+one of those figures names a blue palette the picture never uses, over tracks
 called "Demo graph" — which is why the samples below carry one only on real
 data.
 
@@ -329,10 +329,10 @@ rsvg-convert -w 1600 banded.svg | magick - -background white -flatten \
 ```
 
 `--read-limit 40` thins the chr5 window's 285 reads so the figure stays one page
-tall. Adding `--coarsened` bands all 285 instead, in blue under the orange,
-which turns the whole window into allele balance at a glance: the darker
-haplotype band through the last bubble's node carries more haplotypes than the
-lighter one around it.
+tall. Adding `--coarsened` bands all 285 instead, in red under the orange, which
+turns the whole window into allele balance at a glance: the darker haplotype
+band through the last bubble's node carries more haplotypes than the lighter one
+around it.
 
 ![Banded haplotypes over banded reads](images/layers-banded-haplotypes-and-reads.png)
 

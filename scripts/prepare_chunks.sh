@@ -4,7 +4,7 @@ set -e
 function usage() {
     echo >&2 "${0}: Extract graph and read chunks for a region, producing a referencing line for a BED file on standard output"
     echo >&2
-    echo >&2 "Usage: ${0} -x mygraph.xg [-h mygraph.gbwt] -r chr1:1-100 [-d 'Description of region'] [-n 123 [-n 456]] -o chunk-chr1-1-100 [-g mygam1.gam  [-p '{\"mainPalette\": \"blues\", \"auxPalette\": \"reds\"}'] [-g mygam2.gam [-p ...] ...]] >> regions.bed"
+    echo >&2 "Usage: ${0} -x mygraph.xg [-h mygraph.gbwt] -r chr1:1-100 [-d 'Description of region'] [-n 123 [-n 456]] -o chunk-chr1-1-100 [-g mygam1.gam  [-p '{\"mainPalette\": \"reds\", \"auxPalette\": \"blues\"}'] [-g mygam2.gam [-p ...] ...]] >> regions.bed"
     exit 1
 }
 

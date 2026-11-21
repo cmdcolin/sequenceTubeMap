@@ -225,8 +225,8 @@
   },
 
   "defaultReadColorPalette": {
-    "mainPalette": "blues",
-    "auxPalette": "reds"
+    "mainPalette": "reds",
+    "auxPalette": "blues"
   },
 
   "defaultTrackProps": {

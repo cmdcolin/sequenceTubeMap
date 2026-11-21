@@ -143,8 +143,8 @@ describe('TrackPickerDisplay', () => {
       trackFile: 'fileB2.gam',
       trackType: 'read',
       trackColorSettings: {
-        mainPalette: 'blues',
-        auxPalette: 'reds',
+        mainPalette: 'reds',
+        auxPalette: 'blues',
       },
     }
 

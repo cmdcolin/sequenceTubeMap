@@ -81,8 +81,8 @@ download. Details: [docs/data.md](docs/data.md).
 
 ## Reads over a graph
 
-GAM alignments over the snp1kg BRCA1 graph. Red: every node visit is
-reverse-strand. Mixed-orientation reads draw forward, in blue:
+GAM alignments over the snp1kg BRCA1 graph. Blue: every node visit is
+reverse-strand. Mixed-orientation reads draw forward, in red:
 
 [![BRCA1 reads](docs/images/brca1-reads.png)][demo-reads]
 

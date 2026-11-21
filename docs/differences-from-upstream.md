@@ -59,6 +59,10 @@ Samples in [tubemap-cli-samples/](tubemap-cli-samples/). See
   pipeline and inherit lane assignment, loop topology and strand coloring. With
   no reads loaded it bands the haplotypes instead, shaded by the share of them
   that take each edge.
+- **Read strand colors** — forward reads red and reverse reads blue, as
+  JBrowse's alignments track colors strands, from `@jbrowse/tubemap-core`'s read
+  ramps so every tube map reader paints reads alike. Upstream has drawn forward
+  reads blue since 2023, to match the UCSC Genome Browser.
 - **Ignore strand** — drops the reverse-strand aux palette (purple, for
   haplotype bands), and merges (+A→+B) with (−B→−A) into one Sankey band.
 - **Node labels** — node IDs on the graph, counter-scaled to stay readable at

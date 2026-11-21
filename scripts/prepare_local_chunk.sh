@@ -4,7 +4,7 @@ set -e
 function usage() {
     echo >&2 "${0}: Prepare a tube map chunk and BED line on standard output from a pre-made subgraph. Only supports paths, not haplotypes."
     echo >&2
-    echo >&2 "Usage: ${0} -x subgraph.xg -r chr1:1-100 [-d 'Description of region'] [-n 123 [-n 456]] -o chunk-chr1-1-100 [-g mygam1.gam [-p '{\"mainPalette\": \"blues\", \"auxPalette\": \"reds\"}'] [-g mygam2.gam [-p ...] ...]] [-b /output/directory/prefix/to/remove] >> regions.bed"
+    echo >&2 "Usage: ${0} -x subgraph.xg -r chr1:1-100 [-d 'Description of region'] [-n 123 [-n 456]] -o chunk-chr1-1-100 [-g mygam1.gam [-p '{\"mainPalette\": \"reds\", \"auxPalette\": \"blues\"}'] [-g mygam2.gam [-p ...] ...]] [-b /output/directory/prefix/to/remove] >> regions.bed"
     exit 1
 }
 
