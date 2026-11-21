@@ -9,7 +9,7 @@
     "@emotion/styled": "^11.14.1",
     "@gmod/bgzf-filehandle": "^6.8.0",
     "@gmod/gbz-base": "^7.4.1",
-    "@jbrowse/graph-walks": "^9.0.0",
+    "@jbrowse/graph-walks": "^9.1.0",
     "@jbrowse/tubemap-core": "^2.1.0",
     "@mui/material": "^9.5.0",
     "comlink": "^4.4.2",
