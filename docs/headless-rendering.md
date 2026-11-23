@@ -5,21 +5,20 @@ static SVG — useful for scripting, headless servers, or pasting a tube map int
 a paper without a browser screenshot.
 
 ```bash
-# your own files: a .gbz.db, a region, and any number of .gam read files
-pnpm tubemap-cli --graph my.gbz.db --reads my.gam --region chr1:1-500 \
-                 --out mine.svg
-
-# a gfa-to-tabix walk file, with its .idx beside it
+# your own files: a gfa-to-tabix walk file with its .idx beside it, a region,
+# and any number of .gam read files
+pnpm tubemap-cli --graph my.GRCh38.walks.gz --reads my.gam \
+                 --region chr1:1-500 --out mine.svg
 pnpm tubemap-cli --graph exampleData/hprc-chrM.GRCh38.walks.gz \
                  --region 'GRCh38#chrM:1-200' --out chrM.svg
 
 # whatever a link from the app describes
-pnpm tubemap-cli --url 'https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000' \
+pnpm tubemap-cli --url 'https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gfa-to-tabix%20walks)&region=17:1-1000' \
                  --out brca1.svg
 
 # a source from src/config.json by name, with the region it names or your own
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --out brca1.svg
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gfa-to-tabix walks)' --out brca1.svg
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gfa-to-tabix walks)' \
                  --region 17:1-200 --out brca1-zoom.svg
 
 # bundled demo data (1–9)
@@ -34,19 +33,25 @@ even though the Vite build accepts them.
 
 ## Your own files
 
-`--graph` takes a `.gbz.db` or a
-[gfa-to-tabix walk file](data.md#reading-gfa-to-tabix-walk-files), local or a
-URL, and `--region` says where in it to look. `--reads` adds a GAM read track
-and can be repeated; a [`.gai` index](data.md#indexing-reads-for-region-queries)
-beside the GAM is picked up, so only the blocks the region touches are read.
-`--haplotype-index` names the graph's
+`--graph` takes a
+[gfa-to-tabix walk file](data.md#reading-gfa-to-tabix-walk-files) or a legacy
+`.gbz.db`, local or a URL, and `--region` says where in it to look. `--reads`
+adds a GAM read track and can be repeated; a
+[`.gai` index](data.md#indexing-reads-for-region-queries) beside the GAM is
+picked up, so only the blocks the region touches are read. `--haplotype-index`
+names a `.gbz.db`'s
 [companion index](data.md#pointing-a-track-at-a-companion-index), which is where
-haplotypes get their real names. Local paths resolve against the working
-directory.
+its haplotypes get their real names; a walk file carries them itself. Local
+paths resolve against the working directory.
 
 Those are the only formats the renderer reads, so a `.vg`, `.xg` or `.gbz` graph
-needs [converting to `.gbz.db`](data.md#converting-a-graph-to-gbzdb) first, and
-a GAF converting to GAM.
+needs [converting to a walk file](data.md#reading-gfa-to-tabix-walk-files)
+first, and a GAF converting to GAM.
+
+A walk file is cut 1,000 bp past the region either side and a `.gbz.db` 100 bp,
+so a figure of a narrow window comes out far wider from the walk file. The
+figures on this page whose commands name a `.gbz.db` were drawn that way and are
+still made from it.
 
 ## Rendering a link
 
@@ -57,7 +62,7 @@ settings the link carries are the ones the app would have shown
 override it, so a link is a starting point rather than the whole command.
 
 Two things a link does not carry into a headless render. Its data has to be
-readable by the in-browser backend, which means a `.gbz.db` or walk-file graph —
+readable by the in-browser backend, which means a walk-file or `.gbz.db` graph —
 a link to a `.vg`/`.xg`/`.gbz` source is refused rather than half-drawn. And the
 browser subsamples reads where the CLI does not, so a dense region draws every
 read here unless `--read-limit` says otherwise.
@@ -176,10 +181,11 @@ from whatever was sequenced, not from the samples the haplotypes name. Reads and
 haplotypes can't both be faceted at once, so the View menu offers the four
 choices (none, read group, read sample, haplotype sample) as one.
 
-The gbz-base backend usually collapses identical haplotypes into one walk named
-for whichever sorted first, which would file the rest under the wrong sample, so
-a haplotype facet fetches every haplotype under its own name. On a hosted graph
-with hundreds of haplotypes that means hundreds of tubes to lay out.
+The in-browser backend usually collapses identical haplotypes into one walk
+named for whichever sorted first, which would file the rest under the wrong
+sample, so a haplotype facet fetches every haplotype under its own name. On a
+hosted graph with hundreds of haplotypes that means hundreds of tubes to lay
+out.
 
 Under `--banded-haplotypes` each panel bands only its own haplotypes, and a
 band's share is of the panel's haplotypes, not the whole cohort's: for a diploid
@@ -265,7 +271,7 @@ subsampling when a high-coverage region would otherwise produce an unusably
 large SVG:
 
 ```bash
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' \
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gfa-to-tabix walks)' \
                  --region 17:1-300 --read-limit 100 --out brca1-sampled.svg
 ```
 

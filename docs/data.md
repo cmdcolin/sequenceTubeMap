@@ -6,7 +6,7 @@ the app for the first two.
 |                                                     | Where the work happens  | Size limit    | Setup needed                  |
 | --------------------------------------------------- | ----------------------- | ------------- | ----------------------------- |
 | [vgteam server](#option-1--vgteam-server)           | `api.tubemap.graphs.vg` | 5 MB per file | none                          |
-| [In-browser](#option-2--in-browser)                 | your browser            | none          | one-time `.gbz.db` conversion |
+| [In-browser](#option-2--in-browser)                 | your browser            | none          | one-time walk-file conversion |
 | [Self-hosted server](#option-3--self-hosted-server) | your machine            | none          | Docker or a local checkout    |
 
 Running the Express backend yourself unlocks a further set of options — built-in
@@ -51,28 +51,117 @@ Drop the graph and read files in the dialog and click **Upload & use**.
 ## Option 2 — In-browser
 
 Everything runs in your browser — no server, no upload. Files never leave your
-machine and there is no size limit. The browser reads a graph in either of two
-formats, and fetches only the parts of the file a region needs:
-
-- `.gbz.db`, through [`@gmod/gbz-base`](https://github.com/GMOD/gbz-base-js), a
-  pure TypeScript port of the `gbz-base query` subgraph queries that walks the
-  SQLite b-trees directly
-- [gfa-to-tabix](https://github.com/GMOD/gfa-to-tabix) walk files, read by range
-  requests through their directories; see
-  [Reading gfa-to-tabix walk files](#reading-gfa-to-tabix-walk-files)
+machine and there is no size limit. The browser reads a graph from
+[gfa-to-tabix](https://github.com/GMOD/gfa-to-tabix) walk files, and fetches
+only the tiles a region needs; see
+[Reading gfa-to-tabix walk files](#reading-gfa-to-tabix-walk-files).
 
 **Accepted formats**
 
-| Track | Formats                                                          |
-| ----- | ---------------------------------------------------------------- |
-| Graph | `.gbz.db` or `.db`, with an optional `.haplotype-index.db`       |
-| Graph | `.walks.gz` with its `.idx`                                      |
-| Reads | `.gam` (unsorted) or `.sorted.gam` + `.sorted.gam.gai` (indexed) |
+| Track | Formats                                                            |
+| ----- | ------------------------------------------------------------------ |
+| Graph | `.walks.gz` with its `.idx`                                        |
+| Graph | legacy: `.gbz.db` or `.db`, with an optional `.haplotype-index.db` |
+| Reads | `.gam` (unsorted) or `.sorted.gam` + `.sorted.gam.gai` (indexed)   |
 
-Drop a graph's companion files in with it: the upload dialog pairs
-`graph.haplotype-index.db` with `graph.gbz.db`, and a walk file with its `.idx`.
+Drop a graph's companion files in with it: the upload dialog pairs a walk file
+with its `.idx`, and `graph.haplotype-index.db` with `graph.gbz.db`.
+
+### Reading gfa-to-tabix walk files
+
+`gfa-to-tabix --walks` cuts every haplotype's path into pieces filed by
+reference position, one walk file per reference sample, so the browser reads a
+region with a few range requests and names every haplotype
+`sample#haplotype#contig` without a companion index. The JBrowse graph track and
+BandageJS read the same files, all through
+[@jbrowse/graph-walks](https://github.com/GMOD/graph-walks).
+
+```bash
+cargo install gfa-to-tabix   # 5.0 or later
+vg convert --no-translation -f graph.gbz > graph.gfa   # or any base-level GFA with W/P lines
+gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
+```
+
+- The command writes `graph.GRCh38.walks.gz` and its directory `.idx`. Give the
+  walk file as the graph track, with its `.idx` dropped in beside it or at the
+  same URL plus `.idx`
+- The reader takes walk format 8, which gfa-to-tabix writes from 5.0, and asks
+  for a rebuild of an older file
+- `--sequences` adds the nodes' bases, which the tube map shows as node labels.
+  Without it, nodes draw at the right width with no bases
+- `--refs` takes several samples and writes a file for each. A file takes
+  regions on the sample it was written for: `GRCh38#chr20:1000-2000`,
+  `GRCh38#0#chr20:1000-2000`, or plain `chr20:1000-2000`
+- A graph whose paths have no PanSN sample takes the reference path's name:
+  `--refs 17` on the bundled snp1kg-BRCA1 graph writes
+  `snp1kg-BRCA1.17.walks.gz`, and its regions read `17:1-100`
+- A walk file takes no node region (`node:42-55`), since gfa-to-tabix indexes it
+  by reference position
+- Node ids are the GFA's, and a `.gam` read track draws over the walk file only
+  where they are the ids the reads were aligned to. A GBZ built from a GFA whose
+  segments it chopped or renamed writes the GFA's names back by default, so
+  `--no-translation` is what keeps the GBZ's own ids
+
+The cut is graph-walks' browser preset: the reference over the region plus 1,000
+bp either side, and each haplotype from its first step there to its last. The
+`.gbz.db` reader keeps 100 bp either side, so the same region draws 1,800 bp
+wider from a walk file, and holds the same nodes and walks where the two
+overlap. Where a haplotype leaves the reference at the edge for sequence of its
+own, and the cut holds all of it, up to 65,536 bp, its walk runs on through
+those nodes. Two of a contig's W lines that meet with none of its sequence
+missing between them draw as one walk. A walk stops at the edge where the cut
+holds only part of that sequence, or the graph lacks some of it, and a
+haplotype's sequence past either end of the reference path is not drawn. On the
+bundled chrM graph both readers name the same 44 haplotypes. A walk file can
+also list a haplotype as [abridged](#abridged-walks) until it is read in full.
+
+A window past graph-walks' budgets, 4,000,000 steps or 8 MB of walk rows, or the
+node limit is refused, with the width that would fit where one does. One whose
+departure records come to more than 2 MB, usually at a collapsed repeat, is
+refused at any width.
+
+HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
+(gfa-to-tabix walks, URL-hosted)** example reads. It was written without
+`--sequences`, so its nodes draw with no bases:
+
+```json
+{
+  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f8.GRCh38.walks.gz",
+  "trackType": "graph"
+}
+```
+
+#### Abridged walks
+
+gfa-to-tabix gives each tile a cost budget. In a tile over it, usually a
+satellite array, the writer moves the costliest walks' steps to detail records
+that a window doesn't read
+([walks-format.md](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/walks-format.md#abridged-tiles)).
+
+- A bar over the tube map lists each abridged walk as a block, such as
+  `HG00133#1: 170 kb off the reference not loaded`: the bp of the walk's runs
+  off the reference that the window did not load, in the words graph-walks'
+  `abridgedText` gives every reader. The map leaves out a walk with such a run
+- Clicking a block reads that walk in full and redraws. Double-clicking a walk
+  to follow it does the same when the window abridged it
+- A walk read in full stays so for every region of that file, until its × under
+  **Read in full** abridges it again
+- The node limit and the draw limit apply to the cut with the walk in full
+
+At HPRC v2.1's LPA KIV-2 array, `GRCh38#chr6:160614798-160647758`, read in full,
+HG00133#1 runs 150 kb through the array, and HG00133#2 166 kb.
 
 ### Converting a graph to `.gbz.db`
+
+`.gbz.db` is the legacy format: the browser still reads it, through
+[`@gmod/gbz-base`](https://github.com/GMOD/gbz-base-js), but new graphs should
+be walk files. Three things only a `.gbz.db` does here:
+
+- a node region (`node:42-55`)
+- the Reads column of the paths panel, which counts an uploaded GAM's reads on
+  each path
+- a haplotype's own sequence past the end of the reference path, which a walk
+  file's cut leaves out
 
 This needs [`gbz-base`](https://github.com/jltsiren/gbz-base)
 (`cargo install --git https://github.com/jltsiren/gbz-base`), and
@@ -186,82 +275,6 @@ of walking the graph to the end of each one: the release 2.1 graph's 292 indexed
 paths cost 2.3 s and 3.6 MB with the companion open, and 6 s and 41 MB without
 it.
 
-### Reading gfa-to-tabix walk files
-
-`gfa-to-tabix --walks` cuts every haplotype's path into pieces filed by
-reference position, one walk file per reference sample, so the browser reads a
-region with a few range requests and names every haplotype
-`sample#haplotype#contig` without a companion index. The JBrowse graph track and
-BandageJS read the same files, all through
-[@jbrowse/graph-walks](https://github.com/GMOD/graph-walks).
-
-```bash
-cargo install gfa-to-tabix   # 5.0 or later
-vg convert -f graph.gbz > graph.gfa          # or any base-level GFA with W/P lines
-gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
-```
-
-- The command writes `graph.GRCh38.walks.gz` and its directory `.idx`. Give the
-  walk file as the graph track, with its `.idx` dropped in beside it or at the
-  same URL plus `.idx`
-- The reader takes walk format 8, which gfa-to-tabix writes from 5.0, and asks
-  for a rebuild of an older file
-- `--sequences` adds the nodes' bases, which the tube map shows as node labels.
-  Without it, nodes draw at the right width with no bases
-- `--refs` takes several samples and writes a file for each. A file takes
-  regions on the sample it was written for: `GRCh38#chr20:1000-2000`,
-  `GRCh38#0#chr20:1000-2000`, or plain `chr20:1000-2000`
-- A walk file takes no node region (`node:42-55`), since gfa-to-tabix indexes it
-  by reference position
-- Node ids are the GFA's, so `vg convert -f` of a GBZ keeps the ids that
-  alignments to that GBZ use, and a `.gam` read track draws over the walk file
-
-The cut matches the `.gbz.db` reader's: the reference over the region plus 100
-bp either side, and each haplotype from its first step there to its last. Where
-a haplotype leaves the reference at the edge for sequence of its own, and the
-cut holds all of it, up to 65,536 bp, its walk runs on through those nodes, so
-the walk-file cut can run a node or two wider. Two of a contig's W lines that
-meet with none of its sequence missing between them draw as one walk. A walk
-stops at the edge where the cut holds only part of that sequence, or the graph
-lacks some of it. On the bundled chrM graph both readers name the same 44
-haplotypes. A walk file can also list a haplotype as [abridged](#abridged-walks)
-until it is read in full.
-
-A window past graph-walks' budgets, 4,000,000 steps or 8 MB of walk rows, or the
-node limit is refused, with the width that would fit where one does. One whose
-departure records come to more than 2 MB, usually at a collapsed repeat, is
-refused at any width.
-
-HPRC release 2.1 has a hosted walk file, which the **HPRC v2.1 whole genome
-(gfa-to-tabix walks, URL-hosted)** example reads:
-
-```json
-{
-  "trackFile": "https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f8.GRCh38.walks.gz",
-  "trackType": "graph"
-}
-```
-
-#### Abridged walks
-
-gfa-to-tabix gives each tile a cost budget. In a tile over it, usually a
-satellite array, the writer moves the costliest walks' steps to detail records
-that a window doesn't read
-([walks-format.md](https://github.com/GMOD/gfa-to-tabix/blob/main/docs/walks-format.md#abridged-tiles)).
-
-- A bar over the tube map lists each abridged walk as a block, such as
-  `HG00133#1: 170 kb off the reference not loaded`: the bp of the walk's runs
-  off the reference that the window did not load, in the words graph-walks'
-  `abridgedText` gives every reader. The map leaves out a walk with such a run
-- Clicking a block reads that walk in full and redraws. Double-clicking a walk
-  to follow it does the same when the window abridged it
-- A walk read in full stays so for every region of that file, until its × under
-  **Read in full** abridges it again
-- The node limit and the draw limit apply to the cut with the walk in full
-
-At HPRC v2.1's LPA KIV-2 array, `GRCh38#chr6:160614798-160647758`, read in full,
-HG00133#1 runs 150 kb through the array, and HG00133#2 166 kb.
-
 ### Indexing reads for region queries
 
 Drop an unsorted `.gam` to scan every alignment, or sort and index it so only
@@ -281,19 +294,21 @@ In the dialog click **Switch to in-browser →**, drop your files, and click
 **Load files**. The browser reads an uploaded file in place from its `File`
 object, and it never leaves your machine.
 
-A `.gbz.db` or walk-file set hosted on an HTTPS server with CORS
+A walk-file set or `.gbz.db` hosted on an HTTPS server with CORS
 (`Access-Control-Allow-Origin`) and range support, which S3 and CloudFront
 provide, can instead be given as a track URL. The browser reads it by range
 requests rather than downloading it, so a whole-pangenome graph works without
-pulling the whole file. The bundled **HPRC v2.1 whole genome** example is
-exactly that: 10 GB on HPRC's S3, where a 500 bp window costs 15 requests and a
-megabyte. Bigger windows cost proportionally more; the reader's README has
-numbers for MHC- and LPA-scale queries.
+pulling the whole file. The bundled **HPRC v2.1 whole genome** examples are
+exactly that: a 1.6 GB walk file on jbrowse.org, and the legacy 10 GB `.gbz.db`
+on HPRC's S3, where a 500 bp window costs 15 requests and a megabyte. Bigger
+windows cost proportionally more; the gbz-base reader's README has numbers for
+MHC- and LPA-scale queries.
 
 ### Which bundled examples read in the browser
 
-The **Examples** menu groups its entries by backend. A `(gbz-base)` or
-`(gfa-to-tabix walks)` in the name marks a graph the browser reads itself.
+The **Examples** menu groups its entries by backend. A `(gfa-to-tabix walks)` in
+the name marks a graph the browser reads itself, and `(gbz-base)` the legacy
+`.gbz.db` copy of the same graph.
 
 ![The Examples menu, grouped by backend](images/examples-menu-grouped.png)
 
@@ -305,14 +320,19 @@ alone, since it is the only one it can open — `Discovered` is whatever
 
 | Example                                                 | Graph                                 | Haplotype names                                                                |
 | ------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
-| snp1kg-BRCA1 (gbz-base)                                 | bundled, with a `.gam` read track     | `_gbwt_ref` paths, no haplotypes                                               |
-| cactus (gbz-base)                                       | bundled, with a `.gam` read track     | `_gbwt_ref` paths, no haplotypes                                               |
-| backward (gbz-base)                                     | bundled, `fwd` and `rev` paths        | `_gbwt_ref` paths, no haplotypes                                               |
-| HPRC chrM (gbz-base, companion index)                   | bundled, PanSN sample names           | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
-| HPRC MICB-KIR3DL1 (gbz-base, named haplotypes)          | bundled, an HPRC slice                | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
+| snp1kg-BRCA1 (gfa-to-tabix walks)                       | bundled, with a `.gam` read track     | the path `17`                                                                  |
+| cactus (gfa-to-tabix walks)                             | bundled, with a `.gam` read track     | the three paths' own                                                           |
+| backward (gfa-to-tabix walks)                           | bundled, `fwd` and `rev` paths        | `fwd` and `rev`                                                                |
+| HPRC chrM (gfa-to-tabix walks)                          | bundled, PanSN sample names           | real, from the walk file                                                       |
+| HPRC MICB-KIR3DL1 (gfa-to-tabix walks)                  | bundled, an HPRC slice of 46 samples  | real, from the walk file                                                       |
+| HPRC v2.1 whole genome (gfa-to-tabix walks, URL-hosted) | hosted, 1.6 GB, read by range request | real, from the walk file                                                       |
+| snp1kg-BRCA1, cactus and backward (gbz-base)            | the same graphs as `.gbz.db`          | `_gbwt_ref` and `unknown#N`                                                    |
+| HPRC chrM and MICB-KIR3DL1 (gbz-base)                   | the same graphs as `.gbz.db`          | real, from a bundled [companion index](#pointing-a-track-at-a-companion-index) |
 | HPRC v2.1 whole genome (gbz-base, URL-hosted)           | hosted, 10 GB, read by range request  | real, from the [companion index](#pointing-a-track-at-a-companion-index)       |
-| HPRC chrM (gfa-to-tabix walks)                          | bundled, the chrM graph's walk files  | real, from the walk file                                                       |
-| HPRC v2.1 whole genome (gfa-to-tabix walks, URL-hosted) | hosted, 1.2 GB, read by range request | real, from the walk file                                                       |
+
+`exampleData/build.sh` rebuilds the bundled walk files. The `rev` path of the
+backward graph runs 200 bp past the start of `fwd`, which only its `.gbz.db`
+draws.
 
 Everything else in the menu — `snp1kg-BRCA1`, `vg "small" example`, `cactus`,
 `cactus multiple reads`, `Lancet example` — is an `.xg`/`.vg`/`.gbz` graph that
@@ -340,8 +360,8 @@ server is running.
 ## Finding contig names
 
 Open **Paths in this graph** in the sidebar to browse the paths a graph
-contains. In the browser, with an uploaded graph and a read file of up to 32 MB,
-it also counts the reads on each path; for a hosted file it leaves the Reads
+contains. In the browser, with an uploaded `.gbz.db` and a read file of up to 32
+MB, it also counts the reads on each path; for a hosted file it leaves the Reads
 column out, since counting means downloading the whole GAM. Region syntax:
 
 |                  | Example          |
@@ -353,10 +373,11 @@ column out, since counting means downloading the whole GAM. Region syntax:
 
 A node region is cut the way `vg chunk` cuts it, by either backend: `node:42-55`
 is the nodes with those ids and everything within 20 edges of them, and
-`node:42+5` is node 42 and everything within five. The browser refuses a node
-region that spans more than 10,000 ids or takes in more than 10,000 nodes, since
-each can be a range request. With no path to anchor it, a node region has no
-ruler, and in the browser its walks are named only when the graph has a
+`node:42+5` is node 42 and everything within five. In the browser only a
+`.gbz.db` takes one. The browser refuses a node region that spans more than
+10,000 ids or takes in more than 10,000 nodes, since each can be a range
+request. With no path to anchor it, a node region has no ruler, and in the
+browser its walks are named only when the graph has a
 [companion index](#naming-haplotypes-optional).
 
 ### Region syntax for PanSN graphs

@@ -190,11 +190,11 @@ Everything that fetches data goes through `APIInterface`
 | `LocalAPI`     | the browser, in a worker        |
 | `ServerAPI`    | express + `vg chunk`, over HTTP |
 
-The page opens on `LocalAPI` and the first `.gbz.db` data source, unless a link
-names a view whose graph only a vg server reads and a self-hosted server is
-configured. `config.BACKEND_URL` says whether one is: a string (`""` for same
-origin) names it, and literal `false` means there is none. `src/App.tsx` reads
-it once (`hasSelfHostedServer`).
+The page opens on `LocalAPI` and the first in-browser data source, a walk file,
+unless a link names a view whose graph only a vg server reads and a self-hosted
+server is configured. `config.BACKEND_URL` says whether one is: a string (`""`
+for same origin) names it, and literal `false` means there is none.
+`src/App.tsx` reads it once (`hasSelfHostedServer`).
 
 File → Open switches backends at runtime, between the in-browser reader, a
 `ServerAPI` pointed at the vgteam's public backend, and the self-hosted server
@@ -216,7 +216,8 @@ changes over a websocket. This is upstream's design, largely unchanged.
 ### In-browser path
 
 ```
-LocalAPI ──Comlink──> Worker ──> GBZBaseAPI ──┬──> @gmod/gbz-base ──> .gbz.db
+LocalAPI ──Comlink──> Worker ──> GBZBaseAPI ──┬──> @jbrowse/graph-walks ──> .walks.gz (+.idx)
+                                              ├──> @gmod/gbz-base ──> .gbz.db (legacy)
                                               │     (BlobFile | RemoteFile)
                                               └──> src/api/gam ──> .gam (+.gai)
 ```
@@ -225,8 +226,13 @@ LocalAPI ──Comlink──> Worker ──> GBZBaseAPI ──┬──> @gmod/g
 page reads and GAM decoding stay off the main thread. Everything real happens in
 `GBZBaseAPI` (`src/api/GBZBaseAPI.ts`):
 
-- **Graphs** come from `@gmod/gbz-base`, which reads `.gbz.db` SQLite b-trees
-  directly. An uploaded file is read from its `Blob`; a URL is read by HTTP
+- **Graphs** come from `@jbrowse/graph-walks`, which cuts a region out of a
+  gfa-to-tabix walk file; `src/api/walks/WalkFiles.ts` turns the cut into
+  vg-style JSON. A graph track ending `.walks.gz` takes that path (`isWalks`),
+  and every example and test that only needs a graph uses it.
+- **Legacy graphs** come from `@gmod/gbz-base`, which reads `.gbz.db` SQLite
+  b-trees directly. Node regions and the paths panel's read counts exist only on
+  this path. An uploaded file is read from its `Blob`; a URL is read by HTTP
   range requests, so a hosted whole-chromosome database is queried without
   downloading it. `src/api/gbz/schema.ts` converts the result to the same
   vg-style JSON the server returns, so `TubeMapContainer` cannot tell the two

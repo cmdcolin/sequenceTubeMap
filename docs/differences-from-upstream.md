@@ -17,7 +17,11 @@ in-browser fallback shells a WASM build of `gbz-base query` through a WASI shim,
 over a whole local file, and returns `gam: []` — graphs only, no reads. This
 fork replaces that:
 
-- **`.gbz.db` read in pure TypeScript** via
+- **gfa-to-tabix walk files** read by range request through
+  [`@jbrowse/graph-walks`](https://github.com/GMOD/graph-walks): one file per
+  reference sample, every haplotype under its `sample#haplotype#contig` name
+  with no companion index. This is the format the bundled examples use.
+- **Legacy `.gbz.db` read in pure TypeScript** via
   [`@gmod/gbz-base`](https://github.com/GMOD/gbz-base-js) — no WASM, no Rust
   toolchain, no vendored binary. It walks the SQLite b-trees directly and
   touches only the pages a query needs.
@@ -28,9 +32,10 @@ fork replaces that:
   BGZF, libvgio type-tagged message framing, a hand-rolled protobuf `Alignment`
   decoder, and a parser for vg's `.gam.gai` binary-tree index, so a region query
   reads only the virtual-offset runs that can overlap the node range.
-- **Real haplotype names.** With an optional companion index written by
-  `gbz-haplotype-index`, paths report as `sample#haplotype#contig` instead of
-  `unknown#N`, and the paths panel shows exact lengths.
+- **Real haplotype names.** A walk file carries them. For a `.gbz.db`, with an
+  optional companion index written by `gbz-haplotype-index`, paths report as
+  `sample#haplotype#contig` instead of `unknown#N`, and the paths panel shows
+  exact lengths.
 
 The GitHub Pages build ships `BACKEND_URL: false`, so the public demo runs with
 no server at all. See [data.md](data.md#option-2--in-browser) and
@@ -118,9 +123,9 @@ content rather than the on-screen viewport (see
 
 ## Trade-offs
 
-- In-browser mode reads only `.gbz.db`, which needs a one-time `vg` +
-  `gbz-base construct` conversion; upstream's server mode takes `.xg` and `.vg`
-  directly.
+- In-browser mode reads only gfa-to-tabix walk files and legacy `.gbz.db`, which
+  need a one-time `vg` + `gfa-to-tabix --walks` (or `gbz-base construct`)
+  conversion; upstream's server mode takes `.xg` and `.vg` directly.
 - Remote `.gam` tracks are still downloaded whole — only graphs are range-read.
 - The fork is not a maintained superset of upstream, and the diff is not kept
   mergeable back.

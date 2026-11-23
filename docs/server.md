@@ -81,7 +81,7 @@ Each entry is a `ViewTarget`:
 {
   "name": "my example",
   "tracks": [
-    { "trackFile": "exampleData/my.gbz.db", "trackType": "graph" },
+    { "trackFile": "exampleData/my.GRCh38.walks.gz", "trackType": "graph" },
     { "trackFile": "exampleData/my.gam", "trackType": "read" }
   ],
   "region": "chr1:1-500",

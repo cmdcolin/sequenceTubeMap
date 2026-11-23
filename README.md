@@ -2,8 +2,8 @@
 
 Fork of [vgteam/sequenceTubeMap](https://github.com/vgteam/sequenceTubeMap):
 pangenome graphs and reads drawn as tube maps, in the browser. Adds in-browser
-reading of `.gbz.db` and [gfa-to-tabix](https://github.com/GMOD/gfa-to-tabix)
-walk files, uploads, and a modernized React/TypeScript UI.
+reading of [gfa-to-tabix](https://github.com/GMOD/gfa-to-tabix) walk files,
+uploads, and a modernized React/TypeScript UI.
 
 Live demo: https://cmdcolin.github.io/sequenceTubeMap/
 
@@ -68,16 +68,16 @@ a separate package with no DOM or d3, so other apps can draw it their own way.
 
 Use **File → Open…**, or pick a dataset from the **Examples** menu.
 
-|                             | Where the work happens  | Size limit    | Setup needed                      |
-| --------------------------- | ----------------------- | ------------- | --------------------------------- |
-| **vgteam server** (default) | `api.tubemap.graphs.vg` | 5 MB per file | none                              |
-| **In-browser**              | your browser            | none          | `.gbz.db` or walk-file conversion |
-| **Self-hosted server**      | your machine            | none          | Docker or a local checkout        |
+|                             | Where the work happens  | Size limit    | Setup needed               |
+| --------------------------- | ----------------------- | ------------- | -------------------------- |
+| **vgteam server** (default) | `api.tubemap.graphs.vg` | 5 MB per file | none                       |
+| **In-browser**              | your browser            | none          | walk-file conversion       |
+| **Self-hosted server**      | your machine            | none          | Docker or a local checkout |
 
 Servers take `.xg`, `.vg` and `.gbz` graphs and `.gam` reads directly.
-In-browser mode needs a `.gbz.db` or a `gfa-to-tabix --walks` file; it reads a
-hosted one by range request, so a whole-pangenome graph browses with no
-download. Details: [docs/data.md](docs/data.md).
+In-browser mode needs a `gfa-to-tabix --walks` file; it reads a hosted one by
+range request, so a whole-pangenome graph browses with no download. It still
+opens a legacy `.gbz.db`. Details: [docs/data.md](docs/data.md).
 
 ## Reads over a graph
 
@@ -103,15 +103,15 @@ Region box takes `<contig>:<start>-<end>` (`Circ1:0-1320`), `chr1:1000+500`, or
 data, region and view options — any tube map is a shareable link
 ([params](docs/urlparams.md)).
 
-**View → Open in BandageJS** opens the same window of a hosted `.gbz.db` or walk
-file in [BandageJS](https://jbrowse.org/demos/bandagejs/), a force-directed
+**View → Open in BandageJS** opens the same window of a hosted walk file or
+`.gbz.db` in [BandageJS](https://jbrowse.org/demos/bandagejs/), a force-directed
 graph viewer.
 
 [![The app with BRCA1 reads loaded](docs/images/1.png)][demo-brca1]
 
 ## Headless rendering
 
-`pnpm tubemap-cli` renders your own `.gbz.db` or walk file and reads, or any
+`pnpm tubemap-cli` renders your own walk file or `.gbz.db` and reads, or any
 link or bundled source, to SVG, no browser — made every figure here but the app
 screenshot. [Details](docs/headless-rendering.md), and a
 [gallery](docs/headless-rendering.md#gallery) of banded haplotypes and read
@@ -136,10 +136,10 @@ and group, and to the original sequenceTubeMap developers!
 _Claude Code AI was used during this work._
 
 [demo-brca1]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-100
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gfa-to-tabix%20walks)&region=17:1-100
 [demo-chr20]:
   https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20v2.1%20whole%20genome%20(gbz-base%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000&vis=coarsenedReadView
 [demo-reads]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gfa-to-tabix%20walks)&region=17:1-1000&vis=compressedView
 [demo-coarsened]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView,coarsenedReadView
+  https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gfa-to-tabix%20walks)&region=17:1-1000&vis=compressedView,coarsenedReadView

@@ -21,13 +21,13 @@ the view it carries. In development the fragment doubles as the backend switch:
 Name a configured data source and a region:
 
 ```
-?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000&vis=compressedView
+?name=snp1kg-BRCA1%20(gfa-to-tabix%20walks)&region=17:1-1000&vis=compressedView
 ```
 
 Spell out your own files:
 
 ```
-?region=chr1:0-1000&tracks=graph:https://example.com/graph.gbz.db,read:https://example.com/reads.gam
+?region=chr1:0-1000&tracks=graph:https://example.com/graph.GRCh38.walks.gz,read:https://example.com/reads.gam
 ```
 
 ## Parameters
@@ -57,7 +57,7 @@ source; a link that spells out its `tracks` works anywhere.
 Comma-separated, one entry per track, in the order they are drawn:
 
 ```
-tracks=graph:path/to/graph.gbz.db,read:path/to/reads.gam
+tracks=graph:path/to/graph.GRCh38.walks.gz,read:path/to/reads.gam
 ```
 
 Each entry is `type:path`, where `path` is relative to the server root or any
@@ -105,8 +105,8 @@ every read track at once; the per-track `colorReadsByMappingQuality` and
 tracksJson=[{"trackType":"graph","trackColorSettings":{"mainPalette":"blues","auxPalette":"reds"}}]
 ```
 
-A hosted graph whose haplotype names live in a separate index carries both
-files, which is the form the in-browser backend reads (see
+A legacy hosted `.gbz.db` whose haplotype names live in a separate index carries
+both files, which is the form the in-browser backend reads (see
 [data.md](data.md#pointing-a-track-at-a-companion-index)):
 
 ```
@@ -183,7 +183,7 @@ Omitted means false.
 **Built-in dataset:**
 
 ```
-http://localhost:3000?name=snp1kg-BRCA1%20(gbz-base)&region=17:1-1000
+http://localhost:3000?name=snp1kg-BRCA1%20(gfa-to-tabix%20walks)&region=17:1-1000
 ```
 
 The README's figures link into the live demo this way;
@@ -195,6 +195,6 @@ renaming a data source fails a test rather than quietly breaking four links.
 ```
 http://localhost:3000?
   region=chr1:0-1000&
-  tracks=graph:https://example.com/graph.gbz.db,read:https://example.com/reads.gam&
+  tracks=graph:https://example.com/graph.GRCh38.walks.gz,read:https://example.com/reads.gam&
   dataType=mounted%20files
 ```
