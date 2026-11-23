@@ -177,7 +177,7 @@ pnpm build       # production bundle into build/
 ```
 
 CI builds and publishes `build/` to the `gh-pages` branch automatically on every
-push to `master`. That build ships `BACKEND_URL: false`, so it offers no
+push to `main`. That build ships `BACKEND_URL: false`, so it offers no
 self-hosted backend. See [data.md](docs/data.md#option-2--in-browser).
 
 ## Architecture
