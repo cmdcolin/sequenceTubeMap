@@ -73,6 +73,26 @@
       "removeSequences": false
     },
     {
+      "name": "snp1kg-BRCA1 (gfa-to-tabix walks)",
+      "tracks": [
+        {
+          "trackFile": "exampleData/internal/snp1kg-BRCA1.17.walks.gz",
+          "trackType": "graph",
+          "trackColorSettings": {
+            "mainPalette": "greys",
+            "auxPalette": "ygreys"
+          }
+        },
+        {
+          "trackFile": "exampleData/internal/NA12878-BRCA1.sorted.gam",
+          "trackType": "read"
+        }
+      ],
+      "region": "17:1-100",
+      "bedFile": "exampleData/internal/snp1kg-BRCA1.bed",
+      "dataType": "built-in"
+    },
+    {
       "name": "snp1kg-BRCA1 (gbz-base)",
       "tracks": [
         {
