@@ -8,3 +8,9 @@ minimumReleaseAgeExclude:
   - '@rolldown/plugin-babel@0.2.4'
   - '@jbrowse/tubemap-core'
   - '@jbrowse/graph-walks'
+# babel-plugin-react-compiler 1.0.0 silently skips every component that
+# destructures with a default under Babel 8, which no longer counts an
+# AssignmentPattern as an LVal. Drop this once the compiler handles Babel 8:
+# https://github.com/react/react/issues/36868
+overrides:
+  '@babel/core': ^7.29.0
