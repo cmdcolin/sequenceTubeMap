@@ -24,10 +24,6 @@ export interface FoldView {
   branches: Branch[]
 }
 
-export function thresholdText(bp: number) {
-  return bp >= 1000 ? `${bp / 1000} kb` : `${bp} bp`
-}
-
 const NAMES_SHOWN = 5
 
 // The walks a tube stands for, by name, the first few of many

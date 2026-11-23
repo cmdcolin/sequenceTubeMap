@@ -92,9 +92,8 @@ export const DEFAULT_VIS_OPTIONS: StoredVisOptions = {
   foldVariantsBp: 0,
 }
 
-// A folded node is tens of kb and has no sequence to show, so its width is
-// logarithmic. A folded track stands for many haplotypes, so no facet can hold
-// it, and the few walks left are drawn one tube each: a band is drawn per edge
+// A folded track stands for many haplotypes, so no facet can hold it, and the
+// few walks left are drawn one tube each: a band is drawn per edge
 // and nothing inside a node, which hides the pass an inversion makes back
 // through its block.
 export function foldedVisOptions<T extends StoredVisOptions>(
@@ -104,7 +103,6 @@ export function foldedVisOptions<T extends StoredVisOptions>(
   return folded
     ? {
         ...visOptions,
-        compressedView: true,
         coarsenedReadView: false,
         coarsenedHaplotypeView: false,
         facetBy: null,

@@ -44,9 +44,15 @@ and fetches nothing.
   A tube's width grows with the logarithm of its haplotype count, as the app
   draws any walk that stands for several, so one haplotype stays visible beside
   four hundred.
-- **Node widths are logarithmic**, as under Compressed view. A merged node is
-  tens of kb, which at one character per base is hundreds of thousands of px.
-  Widths therefore do not compare as sizes, and the labels carry the sizes.
+- **Every node is as wide as it is long**, at one scale for the whole map. A
+  merged node is tens of kb, which at the unfolded map's character per base is
+  hundreds of thousands of px, so the scale is chosen to fit the map to the
+  window: 85% of its width, less 70 px for each node's gap, over the bp of every
+  folded node, in whole bases per px and never under one. Compressed view
+  switches to logarithmic widths, as it does unfolded.
+- **Chevrons point the way a tube runs** along each straight run, so the pass
+  back through an inverted block points left under a reference that points
+  right. Only a folded map has them.
 
 ## What a tube and a node stand for
 
@@ -87,10 +93,9 @@ differs is under the threshold.
 - **The first track is the reference.** That is the reference path of a walk
   file or `.gbz.db`; a vg server's graph is folded against whichever path it
   lists first.
-- **No direction marks yet.** Nothing on a tube says which way it runs, so an
-  inversion reads from the shape of the loop alone. The chevrons are written:
-  they are drawn on every run the layout marks `reverse`, which
-  `@jbrowse/tubemap-core` does from the release after 2.1.1.
+- **The scale is set when the map is drawn**, from the window's width then.
+  Resizing the window does not change it until the map is drawn again.
+- **Curves carry no chevrons**, only the straight runs between them.
 - **A tube is one color along its length.** It is not paler where it passes a
   node without reading it, as `@jbrowse/graph-fold`'s own pictures draw it: the
   app shades a tube inside every node box alike.

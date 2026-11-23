@@ -8,7 +8,8 @@ import Typography from '@mui/material/Typography'
 import type { FacetBy } from '@jbrowse/tubemap-core'
 import type { ViewTarget, VisOptionFlag, VisOptions } from '../Types.ts'
 import { facetByFrom, MAX_MAPPING_QUALITY_CUTOFF } from '../util/visOptions.ts'
-import { FOLD_THRESHOLDS, thresholdText } from '../util/foldVariants.ts'
+import { bpLabel } from '@jbrowse/graph-fold'
+import { FOLD_THRESHOLDS } from '../util/foldVariants.ts'
 import { AppBarMenu } from './AppBarMenu.tsx'
 import { CheckboxMenuItem } from './CheckboxMenuItem.tsx'
 import { HelpDialog } from './HelpDialog.tsx'
@@ -77,8 +78,8 @@ export function ViewMenu({
             />
             <CheckboxMenuItem
               label="Compressed view"
-              checked={visOptions.compressedView || folded}
-              disabled={compressedViewLocked === true || folded}
+              checked={visOptions.compressedView}
+              disabled={compressedViewLocked}
               onToggle={() => {
                 toggleVisOptionFlag('compressedView')
               }}
@@ -175,13 +176,14 @@ export function ViewMenu({
                 under the map with its size and how many haplotypes carry it.
                 Insertions of nearly one size at one site are drawn as one
                 dashed box, labelled with their size range and how many lengths
-                it stands for. A merged node is as wide as the logarithm of its
-                length, and clicking it says how many nodes it holds. Each walk
-                left is drawn as its own tube, so banding is off while folded,
-                as is faceting, and reads are hidden, since they map to the
-                nodes that were merged away. A graph whose reference passes a
-                node more than once is not folded, and a notice above the map
-                says why.
+                it stands for. A merged node is as wide as it is long, at a
+                scale that fits the map to the window, unless Compressed view is
+                on, and clicking it says how many nodes it holds. Chevrons on a
+                tube point the way it runs. Each walk left is drawn as its own
+                tube, so banding is off while folded, as is faceting, and reads
+                are hidden, since they map to the nodes that were merged away. A
+                graph whose reference passes a node more than once is not
+                folded, and a notice above the map says why.
               </HelpDialog>
               <Select
                 labelId="foldVariantsLabel"
@@ -193,7 +195,7 @@ export function ViewMenu({
               >
                 {FOLD_THRESHOLDS.map(threshold => (
                   <MenuItem value={threshold} key={threshold}>
-                    {threshold === 0 ? 'off' : thresholdText(threshold)}
+                    {threshold === 0 ? 'off' : bpLabel(threshold)}
                   </MenuItem>
                 ))}
               </Select>

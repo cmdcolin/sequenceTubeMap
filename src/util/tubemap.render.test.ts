@@ -1511,8 +1511,8 @@ describe('tubemap.create — folded variants', () => {
     const svg = renderFolded()
 
     expect(labelsOf(svg, '.fold-branch-label')).toEqual([
-      ['deletion 3.0 kb, 5 of 10'],
-      ['insertion 2.0 kb to 2.0 kb (2 lengths), 4 of 10'],
+      ['deletion 3 kb, 5 of 10'],
+      ['insertion about 2 kb (cluster of 2 lengths), 4 of 10'],
     ])
     expect(svg.querySelectorAll('.fold-branch-bracket')).toHaveLength(2)
   })
@@ -1549,7 +1549,7 @@ describe('tubemap.create — folded variants', () => {
     const svg = document.querySelector<SVGSVGElement>('#tubemap')!
 
     expect(labelsOf(svg, '.fold-branch-label').map(lines => lines[0])).toEqual([
-      'insertion 2.0 kb to 2.0 kb (2 lengths), 4 of 10',
+      'insertion about 2 kb (cluster of 2 lengths), 4 of 10',
     ])
   })
 
@@ -1596,7 +1596,7 @@ describe('tubemap.create — folded variants', () => {
     expect(Object.fromEntries(onInfo.mock.calls[0]![0])).toMatchObject({
       'Merged Nodes:': '2 of the unfolded graph',
       'Reference Span:': 'at 4,001',
-      'Variant:': 'insertion 2.0 kb to 2.0 kb (2 lengths), 4 of 10',
+      'Variant:': 'insertion about 2 kb (cluster of 2 lengths), 4 of 10',
     })
   })
 
@@ -1640,30 +1640,89 @@ describe('tubemap.create — folded variants', () => {
     ])
   })
 
-  it('marks no direction on a layout that does not say which runs are reversed', () => {
-    expect(renderFolded().querySelectorAll('.reverse-mark')).toHaveLength(0)
+  // A walk that takes the middle node of three against the reference
+  function invertedExample() {
+    return foldTubeMapData(
+      {
+        nodes: [
+          { name: 'a', sequenceLength: 3000 },
+          { name: 'b', sequenceLength: 15_000 },
+          { name: 'c', sequenceLength: 3000 },
+        ],
+        tracks: [
+          {
+            id: 0,
+            name: 'ref',
+            sequence: ['a', 'b', 'c'],
+            freq: 1,
+            sourceTrackID: 0,
+            isCompletelyReverse: false,
+          },
+          {
+            id: 1,
+            name: 'inv',
+            sequence: ['a', '-b', 'c'],
+            freq: 9,
+            sourceTrackID: 0,
+            isCompletelyReverse: false,
+          },
+        ],
+        reads: [],
+        region: undefined,
+        coloredNodes: undefined,
+        abridged: [],
+      },
+      1000,
+    )
+  }
+
+  it('points chevrons the way each run travels, back along the pass through an inverted block', () => {
+    const data = invertedExample()
+    const svg = renderFolded(data)
+    const block = svg.querySelector<SVGPathElement>(
+      'g.node path[data-node="b"]',
+    )!
+    const marks = [...svg.querySelectorAll('.direction-mark')]
+    const reversed = marks.filter(mark => mark.classList.contains('reverse'))
+
+    expect(data.fold?.branches).toMatchObject([{ kind: 'inversion' }])
+    expect(block).not.toBeNull()
+    expect(reversed.length).toBeGreaterThan(0)
+    expect(marks.length).toBeGreaterThan(reversed.length)
   })
 
-  it('draws chevrons on the runs the layout marks as travelled right to left', async () => {
-    const core = await vi.importActual<typeof TubeMapCore>(
-      '@jbrowse/tubemap-core',
-    )
-    vi.mocked(placeFacets).mockImplementationOnce((...args) => {
-      const placed = core.placeFacets(...args)
-      for (const { layout } of placed.panels) {
-        for (const rectangle of layout.shapes.rectangles) {
-          if (rectangle.id === 1) {
-            Object.assign(rectangle, { reverse: true })
-          }
-        }
-      }
-      return placed
-    })
-    const svg = renderFolded()
-    const tube = svg.querySelectorAll('rect[trackID="1"]')
+  it('marks no direction on an unfolded map', () => {
+    const { nodes, tracks } = dataForExample('3')
 
-    expect(tube.length).toBeGreaterThan(0)
-    expect(svg.querySelectorAll('.reverse-mark')).toHaveLength(tube.length)
+    expect(
+      render(nodes, tracks).querySelectorAll('.direction-mark'),
+    ).toHaveLength(0)
+  })
+
+  it('draws each node as wide as it is long, at a scale that fits the viewport', () => {
+    tubeMap.setNodeWidthOption('normal')
+    const svg = renderFolded(invertedExample())
+    const widthOf = (name: string) => {
+      const xs = [
+        ...svg
+          .querySelector(`g.node path[data-node="${name}"]`)!
+          .getAttribute('d')!
+          .matchAll(/[ML] ?(-?[\d.]+)/g),
+      ].map(match => Number(match[1]))
+      return Math.max(...xs) - Math.min(...xs)
+    }
+    const { box } = measureSvgContent(svg)
+
+    expect(widthOf('b') / widthOf('a')).toBeGreaterThan(3.5)
+    expect(widthOf('b') / widthOf('a')).toBeLessThan(5.5)
+    expect(box!.width).toBeLessThan(1800)
+    expect(box!.width).toBeGreaterThan(900)
+  })
+
+  it('keeps logarithmic widths under Compressed view', () => {
+    const svg = renderFolded(invertedExample())
+
+    expect(measureSvgContent(svg).box!.width).toBeLessThan(700)
   })
 
   it('draws no reads, where the unfolded reads would stop the layout', () => {
@@ -1691,17 +1750,29 @@ describe('tubemap.create — folded variants', () => {
   })
 })
 
-describe('leftChevrons', () => {
-  it('points each chevron left, on the middle of the run', () => {
+describe('chevrons', () => {
+  it('points right along a forward run, on its middle', () => {
+    expect(tubeMap.chevrons({ xStart: 0, yStart: 0, xEnd: 28, yEnd: 10 })).toBe(
+      'M12.5 2 L15.5 5 L12.5 8',
+    )
+  })
+
+  it('points left along a run travelled right to left', () => {
     expect(
-      tubeMap.leftChevrons({ xStart: 0, yStart: 0, xEnd: 24, yEnd: 10 }),
-    ).toBe('M13.5 2 L10.5 5 L13.5 8')
+      tubeMap.chevrons({
+        xStart: 0,
+        yStart: 0,
+        xEnd: 28,
+        yEnd: 10,
+        reverse: true,
+      }),
+    ).toBe('M15.5 2 L12.5 5 L15.5 8')
   })
 
   it('repeats along a long run', () => {
     expect(
       tubeMap
-        .leftChevrons({ xStart: 100, yStart: 0, xEnd: 0, yEnd: 10 })
+        .chevrons({ xStart: 160, yStart: 0, xEnd: 0, yEnd: 10 })
         .match(/M/g),
     ).toHaveLength(4)
   })

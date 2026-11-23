@@ -122,14 +122,16 @@ of the 464 haplotypes, and an insertion of 8.9 to 9.5 kb on 129.
   distinct walks, with 72 to 90 bp folded away in each. The legend names a tube
   by its haplotype count, and hovering or clicking it says the rest and names
   its walks.
-- A merged node is as wide as the logarithm of its length, so widths do not
-  compare as sizes; the labels carry the sizes. Clicking one says how many nodes
-  it holds and where it lies on the reference.
+- A merged node is as wide as it is long, at one scale that fits the map to the
+  window, so the 39 kb the deletion leaves out is the widest box. Clicking a
+  node says how many nodes it holds and where it lies on the reference.
+- Chevrons on a tube point the way it runs.
 
-`GRCh38#chr16:75204000-75225000` unfolded is 1,655 nodes and 83,350 px. Folded
+`GRCh38#chr16:75204000-75225000` unfolded is 1,655 nodes and 85,596 px. Folded
 at 1 kb it is three nodes, and the 439 haplotypes that carry a 16.6 kb inversion
 make the loop: the orange tube passes under the block, turns, runs back through
-it against the reference, turns again and carries on.
+it against the reference, its chevrons pointing left, turns again and carries
+on. The block is five times as wide as its 3.2 kb flanks, as it is long.
 
 ![The chr16 window unfolded](docs/images/fold-chr16-before.png)
 
@@ -153,9 +155,7 @@ What it does not do:
   reports no inversion for either and draws both reversed.
 - **Nothing is nested.** A variant inside a kept insertion makes it another size
   of that insertion.
-- Banding and faceting are off while folded. Nothing yet marks the direction of
-  a tube: chevrons on a run travelled right to left are drawn once
-  `@jbrowse/tubemap-core` reports those runs, in the release after 2.1.1.
+- Banding and faceting are off while folded.
 
 `pnpm tubemap-cli --fold-variants 1000` draws the same figure headlessly. More
 in [docs/fold-variants.md](docs/fold-variants.md).

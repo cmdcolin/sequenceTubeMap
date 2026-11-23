@@ -6,7 +6,7 @@
 # Each window is drawn twice. Unfolded, as the app draws a window this size:
 # banded, with logarithmic node widths. That figure is too wide to print, so it
 # is shown whole, squeezed into a strip, above its first 2000 px at natural
-# scale. Folded at 1 kb, the whole figure prints at twice natural scale.
+# scale. Folded at 1 kb, the whole figure prints 2000 px wide.
 #
 # The folded maps as the app shows them, with the notice above them and the
 # View menu's control, come from scripts/screenshot-ui.mjs fold-variants.
@@ -41,7 +41,7 @@ window() {
 
   pnpm --silent tubemap-cli --url "$walks&region=$region" --legend \
     --fold-variants 1000 --out "$work/folded.svg"
-  rsvg-convert -z 2 -b white "$work/folded.svg" -o "$work/folded.png"
+  rsvg-convert -w 2000 -b white "$work/folded.svg" -o "$work/folded.png"
   pngquant --force --strip --quality 80-98 \
     --output "$out/fold-$name-folded.png" "$work/folded.png"
 }

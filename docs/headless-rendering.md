@@ -120,9 +120,10 @@ by whatever colors them.
 `--fold-variants N` merges every variant under N bp into the reference and
 labels the ones kept, as the View menu's **Fold variants under** does, though it
 takes any threshold and not only the menu's three. A folded figure is drawn with
-logarithmic node widths and one tube per walk, whatever `--banded-haplotypes`,
-`--coarsened` and `--facet-by` say, and with no reads; the run says on stderr
-how many reads it left out, or why a graph was not folded. See
+one tube per walk, whatever `--banded-haplotypes`, `--coarsened` and
+`--facet-by` say, with every node as wide as it is long at a scale that fits
+`--width`, or logarithmic under `--compressed`, and with no reads; the run says
+on stderr how many reads it left out, or why a graph was not folded. See
 [fold-variants.md](fold-variants.md).
 
 `--facet-by read_group` (or `sample_name`) draws the graph once per read group

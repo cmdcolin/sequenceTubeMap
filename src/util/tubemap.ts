@@ -831,7 +831,7 @@ function drawPanel(panel: FacetPanel, first: boolean): void {
     trackGroup,
   )
   if (foldView !== undefined) {
-    drawReverseMarks(shapes.rectangles, trackGroup)
+    drawDirectionMarks(shapes.rectangles, trackGroup)
   }
   drawTrackRectangles(shapes.rectangles, 'read', trackGroup)
   drawTrackCurves(shapes.curves, 'read', trackGroup)
@@ -849,10 +849,10 @@ function drawPanel(panel: FacetPanel, first: boolean): void {
 
   const nodeGroup = target.append('g').attr('class', 'node')
   drawNodes(dNodes, nodeGroup)
-  if (config.nodeWidthOption === 'normal' && !config.showNodeLabels)
+  if (nodeWidthOption() === 'normal' && !config.showNodeLabels)
     drawLabels(dNodes, target)
   if (first && layout.trackForRuler !== undefined) drawRuler(layout, target)
-  if (config.nodeWidthOption === 'normal') drawMismatches(layout, target)
+  if (nodeWidthOption() === 'normal') drawMismatches(layout, target)
   // Drawn last so the labels paint above ruler/mismatches/reads
   if (config.showNodeLabels) drawNodeLabels(dNodes, target)
   if (branchLabels !== undefined) drawBranchLabels(branchLabels, target)
@@ -930,6 +930,36 @@ function drawFacetLabel(
     .attr('fill', '#333333')
 }
 
+// A folded node is tens of kb with no sequence to show, so where an unfolded
+// one is a character to the base, it is drawn to a scale that fits the map
+function nodeWidthOption(): TubeMapConfig['nodeWidthOption'] {
+  return foldView !== undefined && config.nodeWidthOption === 'normal'
+    ? 'small'
+    : config.nodeWidthOption
+}
+
+// What a folded map is fitted to: most of the viewport, less a gap per node
+const FOLDED_MAP_SHARE = 0.85
+const FOLDED_NODE_GAP = 70
+const FOLDED_MIN_SHARE = 0.25
+
+// The scale at which the folded map about fits the viewport, in whole bases
+// and no finer than one to the px. The branch nodes are counted as if end to
+// end with the reference, which is as wide as they can make it.
+function foldedBasesPerPixel(): number | undefined {
+  const nodes = foldView?.nodes ?? []
+  const bp = nodes.reduce((sum, node) => sum + node.sequenceLength, 0)
+  const measured = getSvgParent()?.clientWidth ?? 0
+  const width = measured > 0 ? measured : 1200
+  const nodePx = Math.max(
+    width * FOLDED_MIN_SHARE,
+    width * FOLDED_MAP_SHARE - nodes.length * FOLDED_NODE_GAP,
+  )
+  return foldView === undefined || nodeWidthOption() !== 'small'
+    ? undefined
+    : Math.max(1, Math.ceil(bp / nodePx))
+}
+
 function layOut(): FacetedLayout | undefined {
   const topologyOptions: TopologyOptions = {
     // A folded node is named in the fold's branches and members, and a merge
@@ -939,9 +969,9 @@ function layOut(): FacetedLayout | undefined {
     coarsenedReadView: config.coarsenedReadView,
     layers: layersFromConfig(),
     ignoreStrand: config.ignoreStrand,
-    nodeWidthOption: config.nodeWidthOption,
-    charWidth:
-      config.nodeWidthOption === 'normal' ? measureCharWidth() : undefined,
+    nodeWidthOption: nodeWidthOption(),
+    charWidth: nodeWidthOption() === 'normal' ? measureCharWidth() : undefined,
+    basesPerPixel: foldedBasesPerPixel(),
   }
   const placementOptions: FacetOptions = {
     mappingQualityCutoff: config.mappingQualityCutoff,
@@ -1548,7 +1578,7 @@ export function coverage(
 
 // draw sequence labels for nodes
 function drawLabels(dNodes: Node[], target: AnySelection): void {
-  if (config.nodeWidthOption === 'normal') {
+  if (nodeWidthOption() === 'normal') {
     // Wrap in a layer so the zoom flush can hide the per-base sequence text
     // (and only it, not other top-level <text> elements) when zoomed out.
     target
@@ -1846,51 +1876,52 @@ function drawBranchLabels(
   }
 }
 
-const CHEVRON_SPACING = 24
+const CHEVRON_SPACING = 40
 const CHEVRON_MAX_HEIGHT = 10
 
-// Chevrons pointing left along a horizontal run, one every CHEVRON_SPACING px
-// and at least one
-export function leftChevrons({
+// Chevrons along a horizontal run, pointing the way its track travels, one
+// every CHEVRON_SPACING px and at least one
+export function chevrons({
   xStart,
   yStart,
   xEnd,
   yEnd,
-}: Pick<TrackRectangle, 'xStart' | 'yStart' | 'xEnd' | 'yEnd'>): string {
+  reverse: leftward = false,
+}: Pick<
+  TrackRectangle,
+  'xStart' | 'yStart' | 'xEnd' | 'yEnd' | 'reverse'
+>): string {
   const left = Math.min(xStart, xEnd)
   const width = Math.abs(xEnd - xStart)
   const middle = (yStart + yEnd) / 2
   const half = Math.min(CHEVRON_MAX_HEIGHT, Math.abs(yEnd - yStart) * 0.6) / 2
+  const back = leftward ? half : -half
   const count = Math.max(1, Math.floor(width / CHEVRON_SPACING))
   return Array.from({ length: count }, (_, i) => {
-    const x = left + ((i + 0.5) * width) / count - half / 2
-    return `M${x + half} ${middle - half} L${x} ${middle} L${x + half} ${middle + half}`
+    const tip = left + ((i + 0.5) * width) / count - back / 2
+    return `M${tip + back} ${middle - half} L${tip} ${middle} L${tip + back} ${middle + half}`
   }).join(' ')
 }
 
-// Marks each run a folded tube travels right to left, so the pass back through
-// an inverted block reads as one. tubemap-core sets `reverse` on those runs
-// from the release after 2.1.1; before it no rectangle has the field, and
-// nothing is drawn.
-function drawReverseMarks(
+// Every run of a folded tube says which way it travels, so the pass back
+// through an inverted block reads as one
+function drawDirectionMarks(
   rectangles: TrackRectangle[],
   group: SvgGroupSelection,
 ): void {
   group
-    .selectAll('reverseMarks')
-    .data(
-      rectangles.filter(
-        rect =>
-          rect.type !== 'read' && 'reverse' in rect && rect.reverse === true,
-      ),
-    )
+    .selectAll('directionMarks')
+    .data(rectangles.filter(rect => rect.type !== 'read'))
     .enter()
     .append('path')
-    .attr('class', 'reverse-mark')
-    .attr('d', leftChevrons)
+    .attr('class', rect =>
+      rect.reverse === true ? 'direction-mark reverse' : 'direction-mark',
+    )
+    .attr('d', chevrons)
     .attr('fill', 'none')
     .attr('stroke', 'white')
     .attr('stroke-width', 1.5)
+    .attr('stroke-opacity', 0.85)
     .style('pointer-events', 'none')
 }
 
@@ -1941,7 +1972,7 @@ function drawRuler(layout: TubeMapLayout, target: AnySelection): void {
 
   // How often should we have a tick in bp?
   let markingInterval = 100
-  if (config.nodeWidthOption === 'normal') markingInterval = 20
+  if (nodeWidthOption() === 'normal') markingInterval = 20
   // How close may markings be in image space?
   const markingClearance = 80
 
@@ -1980,7 +2011,7 @@ function drawRuler(layout: TubeMapLayout, target: AnySelection): void {
       : // Otherwise, add them to the left side
         indexIntoVisitToMark
 
-    if (config.nodeWidthOption !== 'normal' && !is_region) {
+    if (nodeWidthOption() !== 'normal' && !is_region) {
       // Actually always mark at an edge of the node, if we are scaling the node nonlinearly
       // and if we are not highlighting the input region
       offsetIntoNodeForward = currentNodeIsReverse ? nodeSeqLen - 1 : 0
@@ -2063,7 +2094,7 @@ function drawRuler(layout: TubeMapLayout, target: AnySelection): void {
         currentNodeIsReverse,
       )
 
-      if (config.nodeWidthOption === 'normal' || !alreadyMarkedNode) {
+      if (nodeWidthOption() === 'normal' || !alreadyMarkedNode) {
         // This is a mark we are not filtering due to node compression.
         // Make the mark
         ticks.push([nextUnmarkedIndex, xCoordOfMarking])

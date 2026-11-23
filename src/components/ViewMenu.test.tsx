@@ -59,8 +59,8 @@ describe('the View menu, folding variants', () => {
   it('shows what a folded graph is drawn with, and locks it', async () => {
     await openMenu(true, 1000)
 
-    expect(item(/Compressed view/)).toHaveAttribute('aria-disabled', 'true')
-    expect(checkbox(/Compressed view/)).toBeChecked()
+    expect(item(/Compressed view/)).not.toHaveAttribute('aria-disabled')
+    expect(checkbox(/Compressed view/)).not.toBeChecked()
     expect(item(/Band haplotypes/)).toHaveAttribute('aria-disabled', 'true')
     expect(checkbox(/Band haplotypes/)).not.toBeChecked()
     expect(item(/Merge node chains/)).toHaveAttribute('aria-disabled', 'true')
@@ -69,7 +69,7 @@ describe('the View menu, folding variants', () => {
   it('leaves them alone on a graph the fold refused', async () => {
     await openMenu(false, 1000)
 
-    expect(item(/Compressed view/)).not.toHaveAttribute('aria-disabled')
+    expect(item(/Merge node chains/)).not.toHaveAttribute('aria-disabled')
     expect(checkbox(/Band haplotypes/)).toBeChecked()
   })
 })

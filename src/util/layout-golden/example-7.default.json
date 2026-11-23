@@ -19,7 +19,7 @@
   "rectangles": [
     {"xStart":24,"yStart":63,"xEnd":28,"yEnd":69,"id":5,"type":"read"},
     {"xStart":95.46426249302381,"yStart":122,"xEnd":103.46426249302381,"yEnd":128,"id":5,"type":"read"},
-    {"xStart":95.46426249302381,"yStart":88,"xEnd":103.46426249302381,"yEnd":94,"id":5,"type":"read"},
+    {"xStart":95.46426249302381,"yStart":88,"xEnd":103.46426249302381,"yEnd":94,"id":5,"type":"read","reverse":true},
     {"xStart":95.46426249302381,"yStart":136,"xEnd":103.46426249302381,"yEnd":142,"id":5,"type":"read"},
     {"xStart":172.34826696410977,"yStart":63,"xEnd":184.34826696410977,"yEnd":69,"id":5,"type":"read"},
     {"xStart":24,"yStart":56,"xEnd":28,"yEnd":62,"id":2,"type":"read"},
@@ -27,7 +27,7 @@
     {"xStart":172.34826696410977,"yStart":49,"xEnd":184.34826696410977,"yEnd":55,"id":2,"type":"read"},
     {"xStart":16,"yStart":49,"xEnd":28,"yEnd":55,"id":4,"type":"read"},
     {"xStart":95.46426249302381,"yStart":115,"xEnd":103.46426249302381,"yEnd":121,"id":4,"type":"read"},
-    {"xStart":95.46426249302381,"yStart":81,"xEnd":103.46426249302381,"yEnd":87,"id":4,"type":"read"},
+    {"xStart":95.46426249302381,"yStart":81,"xEnd":103.46426249302381,"yEnd":87,"id":4,"type":"read","reverse":true},
     {"xStart":95.46426249302381,"yStart":129,"xEnd":103.46426249302381,"yEnd":135,"id":4,"type":"read"},
     {"xStart":172.34826696410977,"yStart":56,"xEnd":184.34826696410977,"yEnd":62,"id":4,"type":"read"},
     {"xStart":16,"yStart":42,"xEnd":28,"yEnd":48,"id":3,"type":"read"},

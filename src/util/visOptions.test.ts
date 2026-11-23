@@ -70,10 +70,9 @@ describe('foldedVisOptions', () => {
     expect(DEFAULT_VIS_OPTIONS.foldVariantsBp).toBe(0)
   })
 
-  it('draws a folded graph compressed, one tube per walk, in one panel', () => {
+  it('draws a folded graph one tube per walk, in one panel, at the width the menu has', () => {
     expect(foldedVisOptions(chosen, true)).toEqual({
       ...chosen,
-      compressedView: true,
       coarsenedHaplotypeView: false,
       coarsenedReadView: false,
       facetBy: null,

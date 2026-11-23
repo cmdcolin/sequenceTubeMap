@@ -30,7 +30,8 @@ import type {
 } from '../Types.ts'
 import { mergeUnique, subsampleReads } from '../util/array.ts'
 import { foldedVisOptions } from '../util/visOptions.ts'
-import { thresholdText, type FoldView } from '../util/foldVariants.ts'
+import { bpLabel } from '@jbrowse/graph-fold'
+import type { FoldView } from '../util/foldVariants.ts'
 import { errorMessage } from '../util/error.ts'
 import { dataOriginTypes } from '../enums.ts'
 
@@ -210,21 +211,24 @@ function counted(count: number, noun: string) {
 function FoldNotice({
   fold,
   hiddenReads,
+  compressed,
 }: {
   fold: FoldView
   hiddenReads: number
+  compressed: boolean
 }) {
   const kept = fold.branches.filter(branch => branch.anchored).length
   return (
     <Alert severity="info" sx={FOLD_NOTICE_SX} data-testid="foldNotice">
       <strong>
-        Variants under {thresholdText(fold.threshold)} are folded into the
-        reference
+        Variants under {bpLabel(fold.threshold)} are folded into the reference
       </strong>
       : {counted(fold.nodes.length, 'node')} drawn for the{' '}
       {fold.unfoldedNodes.toLocaleString()} of the graph, with{' '}
-      {counted(kept, 'kept variant')} labelled under the map. Node widths are
-      logarithmic.
+      {counted(kept, 'kept variant')} labelled under the map.{' '}
+      {compressed
+        ? 'Node widths are logarithmic, under Compressed view.'
+        : 'Every node is as wide as it is long, at one scale that fits the map to the window.'}
       {hiddenReads > 0
         ? ` ${counted(hiddenReads, 'read')} ${hiddenReads === 1 ? 'is' : 'are'} hidden, since reads map to the nodes that were merged away.`
         : ''}
@@ -810,7 +814,11 @@ function TubeMapContainer({
         />
       ) : null}
       {fold !== undefined && !graphTooLarge ? (
-        <FoldNotice fold={fold} hiddenReads={hiddenReads} />
+        <FoldNotice
+          fold={fold}
+          hiddenReads={hiddenReads}
+          compressed={shownVisOptions.compressedView}
+        />
       ) : null}
       {foldRefused !== undefined ? (
         <FoldRefusedNotice reason={foldRefused} />
