@@ -14,11 +14,11 @@ et al.
 ![HPRC v2.1 chr20 microsatellite](docs/images/hprc-v2.1-chr20-str.png)
 
 464 HPRC v2.1 haplotypes at a chr20 CT microsatellite — 46 allele lengths, 240
-distinct routes. Read straight from HPRC's 10 GB hosted `.gbz.db` by range
-request: no server, no download. Coarsened (Sankey) view bands the haplotypes by
+distinct routes. Read straight from a hosted chr20 walk file with bases (63 MB,
+[gfa-to-tabix](https://github.com/GMOD/gfa-to-tabix)) by range request: no
+server, no download. Coarsened (Sankey) view bands the haplotypes by
 node-to-node edge instead of drawing all 464 as separate lines, darker the more
-haplotypes take that edge; haplotypes named from the companion index
-(`HG01243#2#…`, not `unknown#57`).
+haplotypes take that edge.
 
 ![HPRC v2.1 chr20 haplotypes in register](docs/images/hprc-v2.1-chr20-register.png)
 
@@ -204,7 +204,7 @@ _Claude Code AI was used during this work._
 [demo-brca1]:
   https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gfa-to-tabix%20walks)&region=17:1-100
 [demo-chr20]:
-  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20v2.1%20whole%20genome%20(gbz-base%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000&vis=coarsenedReadView
+  https://cmdcolin.github.io/sequenceTubeMap/?name=HPRC%20v2.1%20chr20%20with%20bases%20(gfa-to-tabix%20walks%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000&vis=coarsenedReadView&context=100
 [demo-reads]:
   https://cmdcolin.github.io/sequenceTubeMap/?name=snp1kg-BRCA1%20(gfa-to-tabix%20walks)&region=17:1-1000&vis=compressedView
 [demo-coarsened]:

@@ -12,7 +12,8 @@ const hostedWalkFiles = config.DATA_SOURCES.flatMap(source =>
 
 describe('the hosted HPRC walk file', () => {
   it('is the format 8 file in the example data sources', () => {
-    expect(hostedWalkFiles).toEqual([HPRC_F8_WALKS])
+    expect(hostedWalkFiles).toContain(HPRC_F8_WALKS)
+    expect(hostedWalkFiles.filter(file => !file?.includes('-f8.'))).toEqual([])
   })
 
   it('is the format 8 file in docs/data.md', () => {

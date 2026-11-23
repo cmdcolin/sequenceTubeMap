@@ -52,10 +52,11 @@ A walk file is cut 1,000 bp past the region either side and a `.gbz.db` 100 bp,
 so a figure of a narrow window comes out far wider from the walk file.
 `--context 100` cuts a walk file at 100 bp instead, or any other number of bp
 ([what a narrower context leaves out](data.md#reading-gfa-to-tabix-walk-files)),
-and the figures on this page drawn from a bundled walk file pass it. The two
-hosted HPRC figures are still drawn from the `.gbz.db`: the hosted walk file has
-no bases to label the chr20 repeat's nodes with, and it lays the GSTM1 window
-out a third wider, with the deletion's far end off the crop.
+and the figures on this page drawn from a walk file pass it. The chr20 figures
+below come from a hosted chr20 walk file written with `--sequences`, since the
+whole-genome one has no bases to label the repeat's nodes with. The GSTM1 figure
+is still drawn from the `.gbz.db`: the walk file lays that window out a third
+wider, with the deletion's far end off the crop.
 
 ## Rendering a link
 
@@ -297,30 +298,29 @@ simplify it. The app leaves the coarsened view uncapped for the same reason.
 ## Hosted graphs
 
 A source whose graph is a URL is read by range request here as it is in the
-browser, companion haplotype index included, so a figure over HPRC release 2.1
-needs no local copy of its 10 GB database:
+browser, so a figure over HPRC release 2.1 needs no local copy of the graph:
 
 ```bash
-pnpm tubemap-cli --source 'HPRC v2.1 whole genome (gbz-base, URL-hosted)' \
+pnpm tubemap-cli --source 'HPRC v2.1 chr20 with bases (gfa-to-tabix walks, URL-hosted)' \
                  --region 'GRCh38#chr20:48000600-48001000' --coarsened \
-                 --out str.svg
+                 --context 100 --out str.svg
 ```
 
 That is 464 haplotypes on 240 distinct walks. Drawn at one lane per haplotype
-that comes out 23036 by 1549 units — too wide for a page, and at that many lanes
+that comes out 13917 by 1594 units — too wide for a page, and at that many lanes
 solid color soup: 464 haplotypes read as noise, not signal. `--coarsened` (see
 [View options](#view-options) above) fixes both: with no reads loaded, it
 aggregates every haplotype but the reference into one band per node-to-node edge
 instead, each shaded by its share of the haplotypes, so the figure comes out
-13300 by 373. The [README](../README.md)'s two chr20 figures are crops of it,
+11784 by 373. The [README](../README.md)'s two chr20 figures are crops of it,
 one over the allele staircase and one where the haplotypes come back into
 register:
 
 ```bash
 rsvg-convert -z 1 str.svg -o str.png
-magick str.png -crop 3515x385+1165+0 +repage -background white -flatten \
+magick str.png -crop 2824x374+895+0 +repage -background white -flatten \
   docs/images/hprc-v2.1-chr20-str.png
-magick str.png -crop 1239x385+9988+0 +repage -background white -flatten \
+magick str.png -crop 1239x374+8478+0 +repage -background white -flatten \
   docs/images/hprc-v2.1-chr20-register.png
 ```
 
