@@ -15,12 +15,12 @@ it('can have a file uploaded', async () => {
   // upload machinery.
   // See for example <https://github.com/vitest-dev/vitest/issues/2078> for
   // background on the many flavors of Blob.
-  const fileData = readFileSync('exampleData/x.gbz.db')
+  const fileData = readFileSync('exampleData/backward.fwd.walks.gz')
   // Since a Node Buffer is an ArrayBuffer, we can use it to make a jsdom File.
   // We need to put the data block in an enclosing array, or else the block
   // will be iterated and each byte will be stringified and *those* bytes will
   // be uploaded.
-  const file = new window.File([fileData], 'x.gbz.db', {
+  const file = new window.File([fileData], 'backward.fwd.walks.gz', {
     type: 'application/octet-stream',
   })
 
@@ -35,13 +35,21 @@ describe('when a file is uploaded', () => {
   const api = new LocalAPI()
 
   beforeAll(async () => {
-    const fileData = readFileSync('exampleData/x.gbz.db')
-    const file = new window.File([fileData], 'x.gbz.db', {
+    const fileData = readFileSync('exampleData/backward.fwd.walks.gz')
+    const file = new window.File([fileData], 'backward.fwd.walks.gz', {
       type: 'application/octet-stream',
     })
 
     const controller = new AbortController()
     uploadName = await api.putFile('graph', file, controller.signal)
+    await api.putFile(
+      'graph',
+      new window.File(
+        [readFileSync('exampleData/backward.fwd.walks.gz.idx')],
+        'backward.fwd.walks.gz.idx',
+      ),
+      controller.signal,
+    )
   })
 
   it('should show up in the list of files', async () => {
@@ -61,7 +69,7 @@ describe('when a file is uploaded', () => {
     const viewTarget: ViewTarget = {
       dataType: 'mounted files',
       tracks: [{ trackFile: uploadName!, trackType: 'graph' }],
-      region: 'x:1-10',
+      region: 'fwd:1-10',
     }
     const controller = new AbortController()
     const view = await api.getChunkedData(viewTarget, controller.signal)
@@ -75,17 +83,21 @@ describe('when a file is uploaded', () => {
 // only real source of one is an upload made through this object. The old
 // plumbing subscribed inside the worker and never fired.
 describe('filename change notifications', () => {
-  function gbzFile() {
-    return new window.File([readFileSync('exampleData/x.gbz.db')], 'x.gbz.db', {
-      type: 'application/octet-stream',
-    })
+  function walkFile() {
+    return new window.File(
+      [readFileSync('exampleData/backward.fwd.walks.gz')],
+      'backward.fwd.walks.gz',
+      {
+        type: 'application/octet-stream',
+      },
+    )
   }
 
   it('fires when a file is uploaded', async () => {
     const api = new LocalAPI()
     const handler = vi.fn()
     api.subscribeToFilenameChanges(handler, new AbortController().signal)
-    await api.putFile('graph', gbzFile(), null)
+    await api.putFile('graph', walkFile(), null)
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
@@ -95,7 +107,7 @@ describe('filename change notifications', () => {
     const controller = new AbortController()
     api.subscribeToFilenameChanges(handler, controller.signal)
     controller.abort()
-    await api.putFile('graph', gbzFile(), null)
+    await api.putFile('graph', walkFile(), null)
     expect(handler).not.toHaveBeenCalled()
   })
 })
@@ -138,9 +150,21 @@ describe('cancellation', () => {
     const api = new LocalAPI()
     const uploadName = await api.putFile(
       'graph',
-      new window.File([readFileSync('exampleData/x.gbz.db')], 'x.gbz.db', {
-        type: 'application/octet-stream',
-      }),
+      new window.File(
+        [readFileSync('exampleData/backward.fwd.walks.gz')],
+        'backward.fwd.walks.gz',
+        {
+          type: 'application/octet-stream',
+        },
+      ),
+      null,
+    )
+    await api.putFile(
+      'graph',
+      new window.File(
+        [readFileSync('exampleData/backward.fwd.walks.gz.idx')],
+        'backward.fwd.walks.gz.idx',
+      ),
       null,
     )
     const controller = new AbortController()
@@ -148,7 +172,7 @@ describe('cancellation', () => {
     const viewTarget: ViewTarget = {
       dataType: 'mounted files',
       tracks: [{ trackFile: uploadName, trackType: 'graph' }],
-      region: 'x:1-10',
+      region: 'fwd:1-10',
     }
     await expect(
       api.getChunkedData(viewTarget, controller.signal),

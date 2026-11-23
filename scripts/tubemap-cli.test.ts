@@ -75,7 +75,7 @@ describe('tubemap-cli', () => {
   )
 
   it.concurrent('draws --graph and --reads, relative to the working directory, as a link to the same files draws them', async () => {
-    const graph = 'exampleData/internal/snp1kg-BRCA1.gbz.db'
+    const graph = 'exampleData/internal/snp1kg-BRCA1.17.walks.gz'
     const reads = 'exampleData/internal/NA12878-BRCA1.sorted.gam'
     const fromOutDir = (file: string) =>
       path.relative(outDir, path.join(REPO, file))

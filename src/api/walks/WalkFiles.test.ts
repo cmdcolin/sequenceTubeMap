@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import { CUT_PRESETS, WalkReader } from '@jbrowse/graph-walks'
 import type * as GraphWalks from '@jbrowse/graph-walks'
 import '../../config-client.js'
-import { isLocalGraphFilename } from '../../common.ts'
+import { config } from '../../config-global.mjs'
+import { isLocalGraphFilename, isWalksFilename } from '../../common.ts'
 import { GBZBaseAPI } from '../GBZBaseAPI.ts'
 import type { ViewTarget } from '../../Types.ts'
 
@@ -184,6 +185,69 @@ it('asks for the directory of a walk file dropped without it', async () => {
   await expect(
     api.getChunkedData(view(id, 'chrM:0-100'), null),
   ).rejects.toThrow(/hprc-chrM\.GRCh38\.walks\.gz needs its \.idx/)
+})
+
+describe('the bundled walk-file examples', () => {
+  const bundled = config.DATA_SOURCES.flatMap(source => {
+    const file = source.tracks.find(t => t.trackType === 'graph')?.trackFile
+    return file !== undefined &&
+      isWalksFilename(file) &&
+      file.startsWith('exampleData/')
+      ? [{ name: source.name, file, region: source.region }]
+      : []
+  })
+
+  it('cover BRCA1, cactus, backward, chrM and MICB-KIR3DL1', () => {
+    expect(bundled.map(b => b.file.replace(/^.*\//, ''))).toEqual([
+      'snp1kg-BRCA1.17.walks.gz',
+      'cactus.ref.walks.gz',
+      'backward.fwd.walks.gz',
+      'hprc-chrM.GRCh38.walks.gz',
+      'micb-kir3dl1.GRCh38.walks.gz',
+    ])
+  })
+
+  it.each(bundled)('$name draws its region', async ({ file, region }) => {
+    const api = new GBZBaseAPI()
+    const put = (path: string) =>
+      api.putFile('graph', new window.File([readFileSync(path)], path), null)
+    const id = await put(file)
+    await put(`${file}.idx`)
+    const { graph } = await api.getChunkedData(view(id, region), null)
+    expect(graph!.node.length).toBeGreaterThan(1)
+    expect(
+      graph!.node.every(n => n.sequence?.length === n.sequenceLength),
+    ).toBe(true)
+    expect(total(graph!.path)).toBeGreaterThan(0)
+  })
+
+  it('names the same MICB haplotypes as the .gbz.db the GFA was written from', async () => {
+    const region = 'GRCh38#chr6:31500000-31501000'
+    const names = async (api: GBZBaseAPI, tracks: ViewTarget['tracks']) =>
+      (await api.getChunkedData({ tracks, region, allHaplotypes: true }, null))
+        .graph!.path.map(p => p.name ?? '')
+        .toSorted()
+    const walks = new GBZBaseAPI()
+    const walkId = await upload(walks, 'micb-kir3dl1.GRCh38.walks.gz')
+    await upload(walks, 'micb-kir3dl1.GRCh38.walks.gz.idx')
+    const gbz = new GBZBaseAPI()
+    const fromWalks = await names(walks, [
+      { trackFile: walkId, trackType: 'graph' },
+    ])
+    expect(fromWalks).toHaveLength(91)
+    expect(fromWalks).toEqual(
+      await names(gbz, [
+        {
+          trackFile: await upload(gbz, 'micb-kir3dl1.gbz.db'),
+          trackType: 'graph',
+          haplotypeIndexFile: await upload(
+            gbz,
+            'micb-kir3dl1.haplotype-index.db',
+          ),
+        },
+      ]),
+    )
+  })
 })
 
 describe('a walk file whose reference sample, HG002, has two haplotypes', () => {

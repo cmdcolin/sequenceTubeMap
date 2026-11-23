@@ -14,12 +14,16 @@ import type { ViewTarget } from '../../Types.ts'
 // which was invisible while the file was fetched whole through a Blob and
 // only the decode was narrowed.
 //
-// cactus-NA12879 is aligned to cactus.gbz.db; NA12878-BRCA1 stands alone for
+// cactus-NA12879 is aligned to the cactus graph; NA12878-BRCA1 stands alone for
 // the low-level test.
 const BRCA1 = 'exampleData/internal/NA12878-BRCA1.sorted.gam'
 const HOSTED = new Map([
   ['/brca1.gam', readFileSync(BRCA1)],
-  ['/cactus.gbz.db', readFileSync('exampleData/cactus.gbz.db')],
+  ['/cactus.ref.walks.gz', readFileSync('exampleData/cactus.ref.walks.gz')],
+  [
+    '/cactus.ref.walks.gz.idx',
+    readFileSync('exampleData/cactus.ref.walks.gz.idx'),
+  ],
   ['/reads.gam', readFileSync('exampleData/cactus-NA12879.sorted.gam')],
   ['/reads.gam.gai', readFileSync('exampleData/cactus-NA12879.sorted.gam.gai')],
   // A single-page app's fallback route, answering a missing index with a page.
@@ -138,7 +142,7 @@ describe('URL-hosted reads', () => {
     const viewTarget: ViewTarget = {
       dataType: 'mounted files',
       tracks: [
-        { trackFile: `${origin}/cactus.gbz.db`, trackType: 'graph' },
+        { trackFile: `${origin}/cactus.ref.walks.gz`, trackType: 'graph' },
         { trackFile: `${origin}/reads.gam`, trackType: 'read' },
       ],
       region: 'ref:1-100',
@@ -158,7 +162,7 @@ describe('URL-hosted reads', () => {
   const readsView = (reads: string): ViewTarget => ({
     dataType: 'mounted files',
     tracks: [
-      { trackFile: `${origin}/cactus.gbz.db`, trackType: 'graph' },
+      { trackFile: `${origin}/cactus.ref.walks.gz`, trackType: 'graph' },
       { trackFile: `${origin}${reads}`, trackType: 'read' },
     ],
     region: 'ref:1-100',
@@ -176,10 +180,11 @@ describe('URL-hosted reads', () => {
     expect(bytesFor('/reads.gam.gai')).toBe(hosted('/reads.gam.gai').length)
   })
 
-  // `.db` was matched against the whole URL, which left the paths panel empty.
+  // The extension was matched against the whole URL, which left the paths panel
+  // empty.
   it('lists the paths of a graph URL with a query string', async () => {
     const { pathInfo } = await new GBZBaseAPI().getPathInfo(
-      `${origin}/cactus.gbz.db?v=2`,
+      `${origin}/cactus.ref.walks.gz?v=2`,
       null,
     )
     expect(pathInfo.map(p => p.name)).toContain('ref')

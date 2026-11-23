@@ -124,7 +124,7 @@ it("loads a picked data source with its own flags, not the last view's", async (
 })
 
 // Which backend an example needs is not in its name, so the menu says it by
-// grouping: `.gbz.db` examples the browser reads itself first, the ones a vg
+// grouping: the examples the browser reads itself first, the ones a vg
 // server has to chunk after.
 it('groups the datasets menu by the backend that reads each example', async () => {
   renderForm()
@@ -135,7 +135,7 @@ it('groups the datasets menu by the backend that reads each example', async () =
     screen.getByText('In-browser (.gbz.db, gfa-to-tabix walks)'),
   ).toBeVisible()
   expect(screen.getByText('Needs a vg server (.xg, .vg, .gbz)')).toBeVisible()
-  expect(items.indexOf('snp1kg-BRCA1 (gbz-base)')).toBeLessThan(
+  expect(items.indexOf('snp1kg-BRCA1 (gfa-to-tabix walks)')).toBeLessThan(
     items.indexOf('cactus'),
   )
 })
@@ -156,7 +156,7 @@ it('labels the in-browser group when it is the only one', async () => {
     screen.queryByRole('menuitem', { name: 'cactus' }),
   ).not.toBeInTheDocument()
   expect(
-    screen.getByRole('menuitem', { name: 'cactus (gbz-base)' }),
+    screen.getByRole('menuitem', { name: 'cactus (gfa-to-tabix walks)' }),
   ).toBeInTheDocument()
 })
 

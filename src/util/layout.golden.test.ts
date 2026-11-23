@@ -17,6 +17,7 @@ import {
   type LayoutOptions,
   type TubeMapLayout,
 } from '@jbrowse/tubemap-core'
+import type * as GraphWalks from '@jbrowse/graph-walks'
 import '../config-client.js'
 import { GBZBaseAPI } from '../api/GBZBaseAPI.ts'
 import {
@@ -26,6 +27,19 @@ import {
 import { dataOriginTypes } from '../enums.ts'
 import type { Tracks } from '../Types.ts'
 import * as demo from './demo-data.js'
+
+// The goldens pin a stretch drawn 100 bp past the window, a tenth of what
+// graph-walks' browser preset keeps, so the files stay small enough to read
+vi.mock('@jbrowse/graph-walks', async importOriginal => {
+  const walks = await importOriginal<typeof GraphWalks>()
+  return {
+    ...walks,
+    CUT_PRESETS: {
+      ...walks.CUT_PRESETS,
+      browser: { ...walks.CUT_PRESETS.browser, context: 100 },
+    },
+  }
+})
 
 interface Dataset {
   nodes: InputNode[]
@@ -66,15 +80,20 @@ function upload(api: GBZBaseAPI, type: 'graph' | 'read', path: string) {
   return api.putFile(type, file, null)
 }
 
+async function uploadWalks(api: GBZBaseAPI, path: string) {
+  const id = await upload(api, 'graph', path)
+  await upload(api, 'graph', `${path}.idx`)
+  return id
+}
+
 // A window of NA12878 reads with reverse-strand alignments, which none of the
 // demo examples have.
 async function brca1Dataset(): Promise<Dataset> {
   const api = new GBZBaseAPI()
   const gam = 'exampleData/internal/NA12878-BRCA1.sorted.gam'
-  const graphId = await upload(
+  const graphId = await uploadWalks(
     api,
-    'graph',
-    'exampleData/internal/snp1kg-BRCA1.gbz.db',
+    'exampleData/internal/snp1kg-BRCA1.17.walks.gz',
   )
   const readId = await upload(api, 'read', gam)
   await upload(api, 'read', `${gam}.gai`)
@@ -242,23 +261,16 @@ async function expectFacetGoldens(
   }
 }
 
-// A bundled HPRC graph through its companion index, every haplotype under its
-// own name, and optionally reads
+// A bundled HPRC walk file, every haplotype under its own name, and
+// optionally reads
 async function hprcDataset(
   graph: string,
   region: string,
   gam?: string,
 ): Promise<Dataset> {
   const api = new GBZBaseAPI()
-  const graphId = await upload(api, 'graph', `exampleData/${graph}.gbz.db`)
-  const indexId = await upload(
-    api,
-    'graph',
-    `exampleData/${graph}.haplotype-index.db`,
-  )
-  const tracks: Tracks = [
-    { trackFile: graphId, trackType: 'graph', haplotypeIndexFile: indexId },
-  ]
+  const graphId = await uploadWalks(api, `exampleData/${graph}.GRCh38.walks.gz`)
+  const tracks: Tracks = [{ trackFile: graphId, trackType: 'graph' }]
   if (gam !== undefined) {
     const readId = await upload(api, 'read', gam)
     await upload(api, 'read', `${gam}.gai`)

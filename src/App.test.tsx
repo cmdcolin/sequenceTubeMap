@@ -246,7 +246,7 @@ it('links a hosted graph to BandageJS from the View menu', async () => {
   window.history.replaceState(
     null,
     '',
-    '/?name=HPRC%20v2.1%20whole%20genome%20(gbz-base%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000',
+    '/?name=HPRC%20v2.1%20whole%20genome%20(gfa-to-tabix%20walks%2C%20URL-hosted)&region=GRCh38%23chr20:48000600-48001000',
   )
   vi.resetModules()
   const { default: UrlApp } = await import('./App.tsx')
@@ -262,8 +262,9 @@ it('links a hosted graph to BandageJS from the View menu', async () => {
     .getAttribute('href')
 
   const params = new URL(href!).searchParams
-  expect(params.get('gbz')).toMatch(/hprc-v2\.1-mc-grch38\.gbz\.db$/)
-  expect(params.get('index')).toMatch(/haplotype-index\.f3\.db$/)
+  expect(params.get('gbz')).toMatch(
+    /hprc-v2\.1-mc-grch38-f8\.GRCh38\.walks\.gz$/,
+  )
   expect(params.get('loc')).toBe('chr20:48000600-48001000')
   expect(params.get('ref')).toBe('GRCh38')
 })

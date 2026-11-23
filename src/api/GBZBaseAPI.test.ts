@@ -701,7 +701,15 @@ describe('reads returned with a graph view', () => {
   beforeAll(async () => {
     graphId = await api.putFile(
       'graph',
-      fixtureFile('exampleData/cactus.gbz.db', 'cactus.gbz.db'),
+      fixtureFile('exampleData/cactus.ref.walks.gz', 'cactus.ref.walks.gz'),
+      null,
+    )
+    await api.putFile(
+      'graph',
+      fixtureFile(
+        'exampleData/cactus.ref.walks.gz.idx',
+        'cactus.ref.walks.gz.idx',
+      ),
       null,
     )
     gamId = await api.putFile(

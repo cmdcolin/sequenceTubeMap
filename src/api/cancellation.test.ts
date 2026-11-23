@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import type { Server } from 'node:http'
 import { readFileSync } from 'node:fs'
-import { GBZBase } from '@gmod/gbz-base'
+import { WalkReader } from '@jbrowse/graph-walks'
 import { GBZBaseAPI } from './GBZBaseAPI.ts'
 import { LocalAPI } from './LocalAPI.ts'
 import type { ViewTarget } from '../Types.ts'
@@ -9,7 +9,11 @@ import type { ViewTarget } from '../Types.ts'
 // Scrolling a URL-hosted graph abandons one view after another. Each test
 // here holds a response open so it can abort a view at a known point.
 const HOSTED = new Map([
-  ['/cactus.gbz.db', readFileSync('exampleData/cactus.gbz.db')],
+  ['/cactus.ref.walks.gz', readFileSync('exampleData/cactus.ref.walks.gz')],
+  [
+    '/cactus.ref.walks.gz.idx',
+    readFileSync('exampleData/cactus.ref.walks.gz.idx'),
+  ],
   ['/reads.gam', readFileSync('exampleData/cactus-NA12879.sorted.gam')],
   ['/reads.gam.gai', readFileSync('exampleData/cactus-NA12879.sorted.gam.gai')],
 ])
@@ -102,7 +106,7 @@ function readsView(): ViewTarget {
   return {
     dataType: 'mounted files',
     tracks: [
-      { trackFile: `${origin}/cactus.gbz.db`, trackType: 'graph' },
+      { trackFile: `${origin}/cactus.ref.walks.gz`, trackType: 'graph' },
       { trackFile: `${origin}/reads.gam`, trackType: 'read' },
     ],
     region: 'ref:1-100',
@@ -128,11 +132,11 @@ it('rejects an abandoned view with an AbortError and reads nothing more', async 
 it('reports a graph query aborted partway as an AbortError', async () => {
   const api = new GBZBaseAPI()
   const controller = new AbortController()
-  const spy = vi.spyOn(GBZBase.prototype, 'getSubgraphs')
-  spy.mockImplementation(function (this: GBZBase, ...args) {
+  const spy = vi.spyOn(WalkReader.prototype, 'cut')
+  spy.mockImplementation(function (this: WalkReader, ...args) {
     spy.mockRestore()
     controller.abort()
-    return this.getSubgraphs(...args)
+    return this.cut(...args)
   })
 
   await expect(
