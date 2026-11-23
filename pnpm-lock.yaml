@@ -24,8 +24,8 @@ importers:
         specifier: ^7.4.1
         version: 7.4.1
       '@jbrowse/graph-fold':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^1.0.0
+        version: 1.0.0
       '@jbrowse/graph-walks':
         specifier: ^9.1.0
         version: 9.1.0
@@ -300,8 +300,8 @@ packages:
     resolution: {integrity: sha512-Le+Rpj9Jp7GAOpo05XwYFhZbsakhC6TOfaslgW7F72xm2q6Z11dwDZwZFd0S93x2bgbasvO7S3Zr1oL+QBf2SA==}
     hasBin: true
 
-  '@jbrowse/graph-fold@0.1.0':
-    resolution: {integrity: sha512-KnJR6phkpl5hKXDjwdETo3MK9Ma9JrLwb94rDb4UK4YWv/tIfa8IEYuRyq9+ge0R0G0jrO38xXr/tgzyEoLG/A==}
+  '@jbrowse/graph-fold@1.0.0':
+    resolution: {integrity: sha512-PdSHuvrtkBF+EfvmMWvyPGwDaW6cCEWDaNDynLv4DGzYrG3JQCq/bQyCGkvhg198/q639FOo7GQGg/tBjCjuBA==}
 
   '@jbrowse/graph-walks@9.1.0':
     resolution: {integrity: sha512-H+G7WQNjaypsjJB1xwFxIMf14gSC0G7t3uckjl8LNVN44edqGlxS4YDuju3VbAyYHUHjbh22HtaUhfFvykipVA==}
@@ -2671,7 +2671,7 @@ snapshots:
     dependencies:
       generic-filehandle2: 2.5.1
 
-  '@jbrowse/graph-fold@0.1.0': {}
+  '@jbrowse/graph-fold@1.0.0': {}
 
   '@jbrowse/graph-walks@9.1.0':
     dependencies:
