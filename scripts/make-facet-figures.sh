@@ -6,8 +6,10 @@
 # scripts/make-facet-fixture.sh), each figure the left end of the faceted map
 # at natural scale, where chrM 146 and 152 split the samples, so the panel
 # labels and the legend come along. The haplotype facets draw the real HPRC
-# haplotypes in exampleData/micb-kir3dl1.gbz.db and hprc-chrM.gbz.db, cropped
-# to the first or last panels of a stack too tall to print whole.
+# haplotypes in exampleData/micb-kir3dl1.GRCh38.walks.gz and
+# hprc-chrM.GRCh38.walks.gz, cropped to the first or last panels of a stack too
+# tall to print whole. Every cut keeps 100 bp of context, so each window is
+# framed as narrowly as these figures were first drawn.
 set -e
 
 out=docs/images
@@ -18,11 +20,10 @@ trap 'rm -rf "$work"' EXIT
 render() {
   name=$1
   shift
-  pnpm --silent tubemap-cli --graph exampleData/hprc-chrM.gbz.db \
-    --haplotype-index exampleData/hprc-chrM.haplotype-index.db \
+  pnpm --silent tubemap-cli --graph exampleData/hprc-chrM.GRCh38.walks.gz \
     --reads exampleData/hprc-chrM-3samples.sorted.gam \
-    --region 'GRCh38#chrM:245-255' --banded-haplotypes --ignore-strand \
-    --legend "$@" --out "$work/$name.svg"
+    --region 'GRCh38#chrM:245-255' --context 100 --banded-haplotypes \
+    --ignore-strand --legend "$@" --out "$work/$name.svg"
   rsvg-convert "$work/$name.svg" -o "$work/$name.png"
   magick "$work/$name.png" -crop 2600x2400+0+0 +repage -resize 2000x \
     -background white -flatten "$out/$name.png"
@@ -39,7 +40,8 @@ figure() {
   crop=$3
   width=$4
   shift 4
-  pnpm --silent tubemap-cli --legend "$@" --out "$work/$name.svg"
+  pnpm --silent tubemap-cli --legend --context 100 "$@" \
+    --out "$work/$name.svg"
   rsvg-convert "$work/$name.svg" -o "$work/$name.png"
   magick "$work/$name.png" -gravity "$gravity" -crop "$crop" +repage \
     -resize "$width"x -background white -flatten -strip "$work/$name.crop.png"
@@ -48,7 +50,7 @@ figure() {
 }
 
 micb=GRCh38%23chr6:31500700-31500949
-micbGraph='"trackFile":"exampleData/micb-kir3dl1.gbz.db","haplotypeIndexFile":"exampleData/micb-kir3dl1.haplotype-index.db","trackType":"graph"'
+micbGraph='"trackFile":"exampleData/micb-kir3dl1.GRCh38.walks.gz","trackType":"graph"'
 
 # Each haplotype in a palette color, so a sample's two tell apart
 figure facets-haplotypes-by-sample NorthWest 1800x1400+0+0 1800 \
@@ -60,8 +62,7 @@ figure facets-haplotypes-banded NorthWest 1490x1900+0+0 1490 \
   --compressed --banded-haplotypes
 
 figure facets-haplotypes-chrM SouthWest 2000x1400+0+0 1800 \
-  --graph exampleData/hprc-chrM.gbz.db \
-  --haplotype-index exampleData/hprc-chrM.haplotype-index.db \
+  --graph exampleData/hprc-chrM.GRCh38.walks.gz \
   --reads exampleData/hprc-chrM-3samples.sorted.gam \
   --region 'GRCh38#chrM:245-255' --banded-haplotypes --ignore-strand \
   --coarsened --facet-by haplotype_sample

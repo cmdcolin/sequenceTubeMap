@@ -51,9 +51,11 @@ first, and a GAF converting to GAM.
 A walk file is cut 1,000 bp past the region either side and a `.gbz.db` 100 bp,
 so a figure of a narrow window comes out far wider from the walk file.
 `--context 100` cuts a walk file at 100 bp instead, or any other number of bp
-([what a narrower context leaves out](data.md#reading-gfa-to-tabix-walk-files)).
-The figures on this page whose commands name a `.gbz.db` were drawn that way and
-are still made from it.
+([what a narrower context leaves out](data.md#reading-gfa-to-tabix-walk-files)),
+and the figures on this page drawn from a bundled walk file pass it. The two
+hosted HPRC figures are still drawn from the `.gbz.db`: the hosted walk file has
+no bases to label the chr20 repeat's nodes with, and it lays the GSTM1 window
+out a third wider, with the deletion's far end off the crop.
 
 ## Rendering a link
 
@@ -139,8 +141,9 @@ panel it appears in. `none` turns it off.
 The figures below draw `exampleData/hprc-chrM-3samples.sorted.gam`, reads
 simulated from the chrM haplotypes of three HPRC samples (no bundled alignment
 file carries more than one read group or sample), over the first 650 bp of
-`hprc-chrM.gbz.db` with the haplotypes banded. `scripts/make-facet-fixture.sh`
-rebuilds the reads and `scripts/make-facet-figures.sh` the figures.
+`hprc-chrM.GRCh38.walks.gz` with the haplotypes banded.
+`scripts/make-facet-fixture.sh` rebuilds the reads and
+`scripts/make-facet-figures.sh` the figures.
 
 Split by sample, HG02886's reads leave the reference for the C alleles at chrM
 146 and 152, where HG00438's and HG00735's stay on T:
@@ -214,7 +217,7 @@ a sample's haplotypes leave the reference, as HG00733's do, the reference is the
 tube that bends:
 
 ```sh
-pnpm tubemap-cli --compressed --legend --out micb.svg --url '?tracksJson=[{"trackFile":"exampleData/micb-kir3dl1.gbz.db","haplotypeIndexFile":"exampleData/micb-kir3dl1.haplotype-index.db","trackType":"graph","trackColorSettings":{"mainPalette":"greys","auxPalette":"plainColors"}}]&region=GRCh38%23chr6:31500700-31500949&facet=haplotype_sample'
+pnpm tubemap-cli --compressed --legend --out micb.svg --url '?tracksJson=[{"trackFile":"exampleData/micb-kir3dl1.GRCh38.walks.gz","trackType":"graph","trackColorSettings":{"mainPalette":"greys","auxPalette":"plainColors"}}]&region=GRCh38%23chr6:31500700-31500949&context=100&facet=haplotype_sample'
 ```
 
 ![MICB-KIR3DL1 haplotypes faceted by sample](images/facets-haplotypes-by-sample.png)
@@ -225,10 +228,10 @@ so HG00733's two haplotypes agree across the window, HG00673's differ at nearly
 every bubble, and HG00438's only at the first:
 
 ```sh
-pnpm tubemap-cli --graph exampleData/micb-kir3dl1.gbz.db \
-  --haplotype-index exampleData/micb-kir3dl1.haplotype-index.db \
-  --region 'GRCh38#chr6:31500700-31500949' --compressed --banded-haplotypes \
-  --facet-by haplotype_sample --legend --out micb-banded.svg
+pnpm tubemap-cli --graph exampleData/micb-kir3dl1.GRCh38.walks.gz \
+  --region 'GRCh38#chr6:31500700-31500949' --context 100 --compressed \
+  --banded-haplotypes --facet-by haplotype_sample --legend \
+  --out micb-banded.svg
 ```
 
 ![MICB-KIR3DL1 haplotype bands faceted by sample](images/facets-haplotypes-banded.png)
@@ -241,11 +244,10 @@ The reads are the simulated three-sample fixture above, banded under
 `--coarsened`:
 
 ```sh
-pnpm tubemap-cli --graph exampleData/hprc-chrM.gbz.db \
-  --haplotype-index exampleData/hprc-chrM.haplotype-index.db \
+pnpm tubemap-cli --graph exampleData/hprc-chrM.GRCh38.walks.gz \
   --reads exampleData/hprc-chrM-3samples.sorted.gam \
-  --region 'GRCh38#chrM:245-255' --banded-haplotypes --ignore-strand \
-  --coarsened --facet-by haplotype_sample --out chrM.svg
+  --region 'GRCh38#chrM:245-255' --context 100 --banded-haplotypes \
+  --ignore-strand --coarsened --facet-by haplotype_sample --out chrM.svg
 ```
 
 ![chrM haplotypes faceted by sample, reads last](images/facets-haplotypes-chrM.png)
@@ -256,7 +258,8 @@ pnpm tubemap-cli --graph exampleData/hprc-chrM.gbz.db \
 reader who never opens the app can tell what a color means:
 
 ```bash
-pnpm tubemap-cli --source 'snp1kg-BRCA1 (gbz-base)' --legend --out brca1.svg
+pnpm tubemap-cli --source 'snp1kg-BRCA1 (gfa-to-tabix walks)' --context 100 \
+                 --legend --out brca1.svg
 ```
 
 ![A figure carrying its color legend](tubemap-cli-samples/snp1kg-BRCA1.png)
@@ -372,9 +375,9 @@ weigh against the rest.
 ```bash
 for view in reads bands; do
   [ $view = bands ] && extra=--coarsened || extra=
-  pnpm tubemap-cli --graph $d/chr7_124051614_124054114__HCC1395.giraffe.gbz.db \
+  pnpm tubemap-cli --graph $d/chr7_124051614_124054114__HCC1395.giraffe.ref0.walks.gz \
     --reads $d/Tumor_HCC1395.chr7_124051614_124054114.sorted.gam \
-    --region ref0:1184-1923 --compressed $extra --out $view.svg
+    --region ref0:1184-2040 --context 100 --compressed $extra --out $view.svg
   rsvg-convert -w 1168 $view.svg | magick - -background white -flatten \
     -bordercolor white -border 16x8 $view.png
 done
@@ -395,7 +398,7 @@ The committed PNGs went through `pngquant --quality=80-98 --strip` as well.
 Everything below lives in [tubemap-cli-samples/](tubemap-cli-samples/), SVG
 alongside PNG, and `scripts/make-cli-samples.sh` regenerates the lot.
 
-`--source 'snp1kg-BRCA1 (gbz-base)' --legend`
+`--source 'snp1kg-BRCA1 (gfa-to-tabix walks)' --context 100 --legend`
 ([SVG](tubemap-cli-samples/snp1kg-BRCA1.svg))
 
 ![snp1kg-BRCA1 tube map](tubemap-cli-samples/snp1kg-BRCA1.png)

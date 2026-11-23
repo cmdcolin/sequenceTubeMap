@@ -28,4 +28,6 @@ done
 render demo-example-6-compressed --example 6 --compressed
 # The one sample with --legend: the demo datasets contain no reverse-strand
 # read, so a key on them would name a color their figure never uses.
-render snp1kg-BRCA1 --source 'snp1kg-BRCA1 (gbz-base)' --legend
+# Cut with 100 bp of context, so the sample stays the width it was first drawn.
+render snp1kg-BRCA1 --source 'snp1kg-BRCA1 (gfa-to-tabix walks)' --context 100 \
+  --legend

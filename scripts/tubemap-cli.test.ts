@@ -21,7 +21,13 @@ const SAMPLE_ARGS: Record<string, string[]> = {
     ]),
   ),
   'demo-example-6-compressed': ['--example', '6', '--compressed'],
-  'snp1kg-BRCA1': ['--source', 'snp1kg-BRCA1 (gbz-base)', '--legend'],
+  'snp1kg-BRCA1': [
+    '--source',
+    'snp1kg-BRCA1 (gfa-to-tabix walks)',
+    '--context',
+    '100',
+    '--legend',
+  ],
 }
 
 let outDir = ''
