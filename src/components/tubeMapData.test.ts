@@ -133,6 +133,23 @@ describe('foldTubeMapData', () => {
     })
   })
 
+  it('counts two walks of one haplotype once, and a merged track as its walks', () => {
+    const data = foldable()
+    data.tracks = [
+      { ...data.tracks[0]!, name: 'GRCh38#0#chr1' },
+      { ...data.tracks[1]!, name: 'HG1#1#contigA', freq: 1 },
+      { ...data.tracks[2]!, name: 'HG1#1#contigB', freq: 1, id: 2 },
+      { ...data.tracks[2]!, name: 'HG2#1#contig', freq: 4, id: 3 },
+    ]
+    const folded = foldTubeMapData(data, 1000)
+
+    expect(folded.fold?.haplotypes).toBe(6)
+    expect(folded.fold?.branches).toMatchObject([
+      { kind: 'deletion', haplotypes: 5 },
+    ])
+    expect(folded.tracks.map(track => track.freq)).toEqual([1, 1, 5])
+  })
+
   it("keeps each track on its file's colors and the reference on its coordinates", () => {
     const { tracks } = foldTubeMapData(foldable(), 1000)
 

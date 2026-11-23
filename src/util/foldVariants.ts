@@ -27,7 +27,7 @@ export interface FoldView {
 const NAMES_SHOWN = 5
 
 // The walks a tube stands for, by name, the first few of many
-export function memberNames({ names }: FoldedTrackFields) {
+export function memberNames({ names }: Pick<FoldedTrackFields, 'names'>) {
   return names.length > NAMES_SHOWN
     ? `${names.slice(0, NAMES_SHOWN).join(', ')} and ${(names.length - NAMES_SHOWN).toLocaleString()} more`
     : names.join(', ')

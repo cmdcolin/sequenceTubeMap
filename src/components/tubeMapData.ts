@@ -64,6 +64,11 @@ export interface TubeMapData {
   hiddenReads?: number
 }
 
+const withHaplotype = <T extends { name?: string; freq?: number }>(track: T) =>
+  track.name !== undefined && (track.freq ?? 1) === 1
+    ? { ...track, haplotype: track.name.split('#', 2).join('#') }
+    : track
+
 // Merges every variant under `threshold` bp into the reference, which is the
 // first track, and near-equal alleles at one site into one branch. Reads map
 // to the nodes the fold merges away, and the layout throws on a read that
@@ -75,7 +80,7 @@ export function foldTubeMapData(
 ): TubeMapData {
   const fold =
     threshold > 0
-      ? foldGraph(data.nodes, data.tracks, {
+      ? foldGraph(data.nodes, data.tracks.map(withHaplotype), {
           threshold,
           cluster: true,
           referenceRevisits: data.referenceRevisits,
@@ -87,7 +92,10 @@ export function foldTubeMapData(
       ? {
           ...data,
           nodes: fold.nodes,
-          tracks: fold.tracks,
+          tracks: fold.tracks.map(track => ({
+            ...track,
+            freq: track.haplotypes,
+          })),
           reads: [],
           hiddenReads: data.reads.length,
           fold: {
