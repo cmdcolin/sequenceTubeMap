@@ -327,7 +327,7 @@ at the second.
 ![Banded haplotypes over one sample's reads](images/layers-banded-haplotypes.png)
 
 ```bash
-pnpm tubemap-cli --graph $d/chr5_73149742_73150242.giraffe.gbz.db \
+pnpm tubemap-cli --graph $d/chr5_73149742_73150242.giraffe.chr5.walks.gz \
   --reads $d/normal.chr5_73149742_73150242.sorted.gam --region chr5:1-500 \
   --compressed --banded-haplotypes --read-limit 40 --legend --out banded.svg
 rsvg-convert -w 1600 banded.svg | magick - -background white -flatten \
@@ -343,7 +343,7 @@ around it.
 ![Banded haplotypes over banded reads](images/layers-banded-haplotypes-and-reads.png)
 
 ```bash
-pnpm tubemap-cli --graph $d/chr5_73149742_73150242.giraffe.gbz.db \
+pnpm tubemap-cli --graph $d/chr5_73149742_73150242.giraffe.chr5.walks.gz \
   --reads $d/normal.chr5_73149742_73150242.sorted.gam --region chr5:1-500 \
   --compressed --banded-haplotypes --coarsened --legend --out both.svg
 rsvg-convert -w 1600 both.svg | magick - -background white -flatten \

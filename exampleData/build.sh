@@ -18,7 +18,7 @@ build() {
 from_gbz() {
   local name=$1 ref=$2 gfa
   gfa=$(mktemp --suffix .gfa)
-  vg convert -f "$name.gbz" > "$gfa"
+  vg convert --no-translation -f "$name.gbz" > "$gfa"
   build "$name" "$gfa" --refs "$ref" --sequences
   rm "$gfa"
 }
@@ -26,6 +26,7 @@ from_gbz hprc-chrM GRCh38
 from_gbz internal/snp1kg-BRCA1 17
 from_gbz cactus ref
 from_gbz backward fwd
+from_gbz visualization_examples/chr5_73149742_73150242.giraffe chr5
 build micb-kir3dl1 micb-kir3dl1.gfa.gz --refs GRCh38 --sequences
 build ecoli_pggb ecoli_pggb_subgraph.gfa --refs K12
 build ecoli_pggb_abridged ecoli_pggb_subgraph.gfa --refs K12 --abridge-steps 20
