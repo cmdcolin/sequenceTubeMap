@@ -11,7 +11,7 @@ import type {
 import type { APIInterface, ChunkedDataResponse } from '../api/APIInterface.ts'
 import { dataOriginTypes } from '../enums.ts'
 import { errorMessage, isAbortError } from '../util/error.ts'
-import { foldedTubes, type FoldView } from '../util/foldVariants.ts'
+import type { FoldView } from '../util/foldVariants.ts'
 import type { AbridgedWalk, Tracks, ViewTarget } from '../Types.ts'
 
 // demo-data.js types are inferred from JS literals; keep this loose so the
@@ -64,51 +64,6 @@ export interface TubeMapData {
   hiddenReads?: number
 }
 
-function foldedData(data: TubeMapData, threshold: number): TubeMapData {
-  const fold = foldGraph(data.nodes, data.tracks, {
-    threshold,
-    cluster: true,
-    referenceRevisits: data.referenceRevisits,
-  })
-  const sources = new Map<number, number>()
-  fold.walks.forEach((walk, i) => {
-    const source = data.tracks[i]?.sourceTrackID
-    if (source !== undefined && !sources.has(walk.track)) {
-      sources.set(walk.track, source)
-    }
-  })
-  return fold.folded
-    ? {
-        ...data,
-        nodes: fold.nodes.map(({ name, sequenceLength }) => ({
-          name,
-          sequenceLength,
-        })),
-        tracks: fold.tracks.map(
-          ({ id, name, sequence, freq, indexOfFirstBase }) => ({
-            id,
-            name,
-            sequence,
-            freq,
-            sourceTrackID: sources.get(id) ?? 0,
-            ...(indexOfFirstBase === undefined ? {} : { indexOfFirstBase }),
-          }),
-        ),
-        reads: [],
-        hiddenReads: data.reads.length,
-        fold: {
-          threshold,
-          haplotypes: fold.tracks.reduce((sum, track) => sum + track.freq, 0),
-          unfoldedNodes: data.nodes.length,
-          nodes: fold.nodes,
-          members: fold.members,
-          branches: fold.branches,
-          tubes: foldedTubes(fold.walks),
-        },
-      }
-    : { ...data, foldRefused: fold.reason ?? 'the fold gave no reason' }
-}
-
 // Merges every variant under `threshold` bp into the reference, which is the
 // first track, and near-equal alleles at one site into one branch. Reads map
 // to the nodes the fold merges away, and the layout throws on a read that
@@ -118,15 +73,34 @@ export function foldTubeMapData(
   data: TubeMapData,
   threshold: number,
 ): TubeMapData {
-  let result = data
-  if (threshold > 0) {
-    try {
-      result = foldedData(data, threshold)
-    } catch (e) {
-      result = { ...data, foldRefused: errorMessage(e) }
-    }
-  }
-  return result
+  const fold =
+    threshold > 0
+      ? foldGraph(data.nodes, data.tracks, {
+          threshold,
+          cluster: true,
+          referenceRevisits: data.referenceRevisits,
+        })
+      : undefined
+  return fold === undefined
+    ? data
+    : fold.folded
+      ? {
+          ...data,
+          nodes: fold.nodes,
+          tracks: fold.tracks,
+          reads: [],
+          hiddenReads: data.reads.length,
+          fold: {
+            threshold,
+            haplotypes: fold.haplotypes,
+            unfoldedNodes: data.nodes.length,
+            nodes: fold.nodes,
+            tracks: fold.tracks,
+            members: fold.members,
+            branches: fold.branches,
+          },
+        }
+      : { ...data, foldRefused: fold.reason }
 }
 
 // Turn one API response into tube map inputs. The track list says which

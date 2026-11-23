@@ -30,11 +30,7 @@ import type {
 } from '../Types.ts'
 import { mergeUnique, subsampleReads } from '../util/array.ts'
 import { foldedVisOptions } from '../util/visOptions.ts'
-import {
-  isDrawnBranch,
-  thresholdText,
-  type FoldView,
-} from '../util/foldVariants.ts'
+import { thresholdText, type FoldView } from '../util/foldVariants.ts'
 import { errorMessage } from '../util/error.ts'
 import { dataOriginTypes } from '../enums.ts'
 
@@ -218,7 +214,7 @@ function FoldNotice({
   fold: FoldView
   hiddenReads: number
 }) {
-  const kept = fold.branches.filter(isDrawnBranch).length
+  const kept = fold.branches.filter(branch => branch.anchored).length
   return (
     <Alert severity="info" sx={FOLD_NOTICE_SX} data-testid="foldNotice">
       <strong>

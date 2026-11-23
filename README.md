@@ -108,19 +108,20 @@ squeezed to the page, and under it is its first 2,000 px:
 The View menu's **Fold variants under** merges every variant shorter than the
 threshold into the reference, with `@jbrowse/graph-fold`, and labels what is
 left. At 1 kb the same window is 9 nodes and 6 tubes: a 45.5 kb deletion on 306
-of the 464 haplotypes, and an insertion of about 9.3 kb on 129.
+of the 464 haplotypes, and an insertion of 8.9 to 9.5 kb on 129.
 
 ![The chr1 window folded at 1 kb, in the app](docs/images/fold-variants-chr1.png)
 
 - A bracket under the map spans each kept variant, over its kind, its size and
   how many haplotypes carry it. Insertions of nearly one size at one site are
-  one dashed box, labelled as a cluster with its size range: the 9.3 kb one
-  stands for 56 sizes from 8.9 to 9.5 kb.
+  one dashed box, labelled with their range and how many lengths it stands for:
+  `insertion 8.9 kb to 9.5 kb (56 lengths), 129 of 464`.
 - Each tube is one route through the folded graph, wider the more haplotypes
   take it, on a log scale. Its haplotypes share the route and its orientations
   and differ under the threshold: the blue tube is 306 haplotypes on 127
-  distinct walks, with 72 to 90 bp folded away in each. Hovering or clicking a
-  tube says so.
+  distinct walks, with 72 to 90 bp folded away in each. The legend names a tube
+  by its haplotype count, and hovering or clicking it says the rest and names
+  its walks.
 - A merged node is as wide as the logarithm of its length, so widths do not
   compare as sizes; the labels carry the sizes. Clicking one says how many nodes
   it holds and where it lies on the reference.
@@ -152,8 +153,9 @@ What it does not do:
   reports no inversion for either and draws both reversed.
 - **Nothing is nested.** A variant inside a kept insertion makes it another size
   of that insertion.
-- Banding and faceting are off while folded, and no arrowheads mark the
-  direction of a tube.
+- Banding and faceting are off while folded. Nothing yet marks the direction of
+  a tube: chevrons on a run travelled right to left are drawn once
+  `@jbrowse/tubemap-core` reports those runs, in the release after 2.1.1.
 
 `pnpm tubemap-cli --fold-variants 1000` draws the same figure headlessly. More
 in [docs/fold-variants.md](docs/fold-variants.md).

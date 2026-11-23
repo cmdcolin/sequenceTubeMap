@@ -1507,12 +1507,12 @@ describe('tubemap.create — folded variants', () => {
     tubeMap.setNodeWidthOption('normal')
   })
 
-  it('labels each kept branch with its kind, size and carriers, and a cluster as one', () => {
+  it("labels each kept branch in the package's words, a cluster by its lengths", () => {
     const svg = renderFolded()
 
     expect(labelsOf(svg, '.fold-branch-label')).toEqual([
       ['deletion 3.0 kb, 5 of 10'],
-      ['insertion 2.0 kb, 4 of 10', 'cluster of 2 sizes, 2.0 kb to 2.0 kb'],
+      ['insertion 2.0 kb to 2.0 kb (2 lengths), 4 of 10'],
     ])
     expect(svg.querySelectorAll('.fold-branch-bracket')).toHaveLength(2)
   })
@@ -1549,7 +1549,7 @@ describe('tubemap.create — folded variants', () => {
     const svg = document.querySelector<SVGSVGElement>('#tubemap')!
 
     expect(labelsOf(svg, '.fold-branch-label').map(lines => lines[0])).toEqual([
-      'insertion 2.0 kb, 4 of 10',
+      'insertion 2.0 kb to 2.0 kb (2 lengths), 4 of 10',
     ])
   })
 
@@ -1570,6 +1570,8 @@ describe('tubemap.create — folded variants', () => {
             refStart: 1,
             refEnd: 1441,
             haplotypes: 2,
+            tracks: [],
+            anchored: false,
             nodes: [],
           },
         ],
@@ -1594,9 +1596,7 @@ describe('tubemap.create — folded variants', () => {
     expect(Object.fromEntries(onInfo.mock.calls[0]![0])).toMatchObject({
       'Merged Nodes:': '2 of the unfolded graph',
       'Reference Span:': 'at 4,001',
-      'Variant:': 'insertion 2.0 kb, 4 of 10',
-      'Cluster:':
-        'cluster of 2 sizes, 2.0 kb to 2.0 kb, drawn at the most carried size',
+      'Variant:': 'insertion 2.0 kb to 2.0 kb (2 lengths), 4 of 10',
     })
   })
 
@@ -1608,14 +1608,62 @@ describe('tubemap.create — folded variants', () => {
     tube.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
 
     expect(document.body.lastElementChild?.textContent).toBe(
-      'insA ×4 (folded: 4 haplotypes on 2 distinct walks, 0 bp to 40 bp folded away in each)',
+      '4 haplotypes on 2 distinct walks, 0 bp to 40 bp folded away in each: insA, insB',
     )
 
     tube.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(Object.fromEntries(onInfo.mock.calls[0]![0])).toMatchObject({
-      Haplotypes: 4,
-      'Distinct Walks': 2,
+    expect(Object.fromEntries(onInfo.mock.calls[0]![0])).toEqual({
+      Name: '4 haplotypes',
+      Folded:
+        '4 haplotypes on 2 distinct walks, 0 bp to 40 bp folded away in each',
+      Walks: 'insA, insB',
     })
+  })
+
+  it('names a tube in the legend by its haplotypes, and the reference by its path', () => {
+    renderFolded()
+
+    expect(
+      tubeMap
+        .getRenderedColoring()
+        .drawn.toSorted((a, b) => a.id - b.id)
+        .map(track => track.name),
+    ).toEqual(['ref', '5 haplotypes', '4 haplotypes'])
+    expect(
+      tubeMap
+        .getTrackVisibilitySnapshot()
+        .map(({ name, freq }) => [name, freq]),
+    ).toEqual([
+      ['ref', 1],
+      ['5 haplotypes', undefined],
+      ['4 haplotypes', undefined],
+    ])
+  })
+
+  it('marks no direction on a layout that does not say which runs are reversed', () => {
+    expect(renderFolded().querySelectorAll('.reverse-mark')).toHaveLength(0)
+  })
+
+  it('draws chevrons on the runs the layout marks as travelled right to left', async () => {
+    const core = await vi.importActual<typeof TubeMapCore>(
+      '@jbrowse/tubemap-core',
+    )
+    vi.mocked(placeFacets).mockImplementationOnce((...args) => {
+      const placed = core.placeFacets(...args)
+      for (const { layout } of placed.panels) {
+        for (const rectangle of layout.shapes.rectangles) {
+          if (rectangle.id === 1) {
+            Object.assign(rectangle, { reverse: true })
+          }
+        }
+      }
+      return placed
+    })
+    const svg = renderFolded()
+    const tube = svg.querySelectorAll('rect[trackID="1"]')
+
+    expect(tube.length).toBeGreaterThan(0)
+    expect(svg.querySelectorAll('.reverse-mark')).toHaveLength(tube.length)
   })
 
   it('draws no reads, where the unfolded reads would stop the layout', () => {
@@ -1640,5 +1688,21 @@ describe('tubemap.create — folded variants', () => {
         {},
       ),
     ).toThrow(/unknown node ins2/)
+  })
+})
+
+describe('leftChevrons', () => {
+  it('points each chevron left, on the middle of the run', () => {
+    expect(
+      tubeMap.leftChevrons({ xStart: 0, yStart: 0, xEnd: 24, yEnd: 10 }),
+    ).toBe('M13.5 2 L10.5 5 L13.5 8')
+  })
+
+  it('repeats along a long run', () => {
+    expect(
+      tubeMap
+        .leftChevrons({ xStart: 100, yStart: 0, xEnd: 0, yEnd: 10 })
+        .match(/M/g),
+    ).toHaveLength(4)
   })
 })

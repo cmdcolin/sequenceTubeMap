@@ -173,14 +173,15 @@ export function ViewMenu({
                 the structural variants are what is left: each insertion,
                 deletion and inversion at least this long is kept and labelled
                 under the map with its size and how many haplotypes carry it.
-                Insertions of nearly one size at one site are drawn as one box,
-                labelled as a cluster with its size range. A merged node is as
-                wide as the logarithm of its length, and clicking it says how
-                many nodes it holds. Each walk left is drawn as its own tube, so
-                banding is off while folded, as is faceting, and reads are
-                hidden, since they map to the nodes that were merged away. A
-                graph whose reference passes a node more than once is not
-                folded, and a notice above the map says why.
+                Insertions of nearly one size at one site are drawn as one
+                dashed box, labelled with their size range and how many lengths
+                it stands for. A merged node is as wide as the logarithm of its
+                length, and clicking it says how many nodes it holds. Each walk
+                left is drawn as its own tube, so banding is off while folded,
+                as is faceting, and reads are hidden, since they map to the
+                nodes that were merged away. A graph whose reference passes a
+                node more than once is not folded, and a notice above the map
+                says why.
               </HelpDialog>
               <Select
                 labelId="foldVariantsLabel"

@@ -11,15 +11,8 @@ import {
   encodingFor,
   readEncodingFrom,
 } from './encoding.ts'
-import {
-  branchLabelLines,
-  bpText,
-  clusterText,
-  thresholdText,
-  isDrawnBranch,
-  tubeText,
-  type FoldView,
-} from './foldVariants.ts'
+import { bpLabel, branchLabel, variationLabel } from '@jbrowse/graph-fold'
+import { memberNames, type FoldView } from './foldVariants.ts'
 import type { Scheme } from './scales.ts'
 import { formatTrackDisplayName } from './trackName.ts'
 import {
@@ -438,10 +431,12 @@ function emitTrackVisibility(): void {
     if (t.type === 'haplotype' || t.type === undefined) {
       items.push({
         id: t.id,
-        name: t.name ?? String(t.id),
+        name: foldedTube(t.id)?.label ?? t.name ?? String(t.id),
         color: paintOf(t, datumOf(t)).color,
         hidden: t.hidden === true,
-        ...(t.freq !== undefined ? { freq: t.freq } : {}),
+        ...(t.freq !== undefined && foldedTube(t.id) === undefined
+          ? { freq: t.freq }
+          : {}),
       })
     }
   }
@@ -835,6 +830,9 @@ function drawPanel(panel: FacetPanel, first: boolean): void {
     'haplotype',
     trackGroup,
   )
+  if (foldView !== undefined) {
+    drawReverseMarks(shapes.rectangles, trackGroup)
+  }
   drawTrackRectangles(shapes.rectangles, 'read', trackGroup)
   drawTrackCurves(shapes.curves, 'read', trackGroup)
 
@@ -1255,8 +1253,21 @@ function colorSchemeFor(track: ColorableTrack): ColorScheme {
   )
 }
 
+// A folded tube other than the reference, which is named by how many
+// haplotypes it stands for and not by the first of them
+function foldedTube(trackID: number) {
+  return trackID === inputTracks[0]?.id
+    ? undefined
+    : foldView?.tracks.find(track => track.id === trackID)
+}
+
 function datumOf(track: ColorableTrack): DrawnTrack {
-  return drawnTrack(track, inputTracks[0]?.id, config.readGroups)
+  const tube = foldedTube(track.id)
+  return drawnTrack(
+    tube === undefined ? track : { ...track, name: tube.label },
+    inputTracks[0]?.id,
+    config.readGroups,
+  )
 }
 
 function paintOf(
@@ -1354,7 +1365,7 @@ function foldedNodeAttributes(name: string): InfoAttribute[] {
                 'Reference Span:',
                 node.refStart === node.refEnd
                   ? `at ${node.refStart.toLocaleString()}`
-                  : `${node.refStart.toLocaleString()}-${node.refEnd.toLocaleString()} (${bpText(node.refEnd - node.refStart)})`,
+                  : `${node.refStart.toLocaleString()}-${node.refEnd.toLocaleString()} (${bpLabel(node.refEnd - node.refStart)})`,
               ] satisfies InfoAttribute,
             ]),
         ...(branch === undefined
@@ -1362,15 +1373,7 @@ function foldedNodeAttributes(name: string): InfoAttribute[] {
           : [
               [
                 'Variant:',
-                branchLabelLines(branch, foldView.haplotypes)[0],
-              ] satisfies InfoAttribute,
-            ]),
-        ...(node.cluster === undefined
-          ? []
-          : [
-              [
-                'Cluster:',
-                `${clusterText(node.cluster)}, drawn at the most carried size`,
+                branchLabel(branch, foldView.haplotypes),
               ] satisfies InfoAttribute,
             ]),
       ]
@@ -1672,17 +1675,9 @@ function labelHeight(lines: string[]): number {
   return lines.length * BRANCH_LABEL_LINE_HEIGHT + NODE_LABEL_PADDING * 2
 }
 
-function takesStep(track: InputTrack, from: string, to: string): boolean {
-  return track.sequence.some((step, i) => {
-    const next = track.sequence[i + 1]
-    const a = forward(step)
-    const b = next === undefined ? undefined : forward(next)
-    return (a === from && b === to) || (a === to && b === from)
-  })
-}
-
 // Where a branch lies in the drawing: across its boxes, or for a jump between
-// the two nodes it joins. Undefined when a hidden track took it out.
+// the two nodes it joins. Undefined when every track that carries it is
+// hidden.
 function branchExtent(
   layout: TubeMapLayout,
   branch: FoldView['branches'][number],
@@ -1695,23 +1690,24 @@ function branchExtent(
   const boxes = branch.nodes.map(drawnNode).filter(node => node !== undefined)
   const from = branch.from === undefined ? undefined : drawnNode(branch.from)
   const to = branch.to === undefined ? undefined : drawnNode(branch.to)
-  return branch.nodes.length > 0
-    ? boxes.length === branch.nodes.length
-      ? [
-          Math.min(...boxes.map(node => node.x)),
-          Math.max(...boxes.map(node => node.x + node.pixelWidth)),
-        ]
-      : undefined
-    : from !== undefined &&
-        to !== undefined &&
-        inputTracks.some(
-          track => !track.hidden && takesStep(track, from.name, to.name),
-        )
-      ? [
-          Math.min(from.x + from.pixelWidth, to.x),
-          Math.max(from.x + from.pixelWidth, to.x),
-        ]
-      : undefined
+  const carried = inputTracks.some(
+    track => !track.hidden && branch.tracks.includes(track.id),
+  )
+  return !carried
+    ? undefined
+    : branch.nodes.length > 0
+      ? boxes.length === branch.nodes.length
+        ? [
+            Math.min(...boxes.map(node => node.x)),
+            Math.max(...boxes.map(node => node.x + node.pixelWidth)),
+          ]
+        : undefined
+      : from !== undefined && to !== undefined
+        ? [
+            Math.min(from.x + from.pixelWidth, to.x),
+            Math.max(from.x + from.pixelWidth, to.x),
+          ]
+        : undefined
 }
 
 // Each kept branch gets a bracket under the stretch it covers and its kind,
@@ -1725,10 +1721,10 @@ function placeBranchLabels(
   const top = maxY + BRANCH_LABEL_GAP
   const rows: { height: number; taken: [number, number][] }[] = []
   const placed: (BranchLabel & { row: number })[] = []
-  for (const branch of fold.branches.filter(isDrawnBranch)) {
+  for (const branch of fold.branches.filter(b => b.anchored)) {
     const extent = branchExtent(layout, branch)
     if (extent !== undefined) {
-      const lines = branchLabelLines(branch, fold.haplotypes)
+      const lines = [branchLabel(branch, fold.haplotypes)]
       const half = labelWidth(lines) / 2
       const [x0, x1] = extent
       const cx = Math.max(minX + half, (x0 + x1) / 2)
@@ -1757,10 +1753,10 @@ function placeBranchLabels(
     y: rowTops[row]!,
   }))
   const footnotes = fold.branches
-    .filter(branch => !isDrawnBranch(branch))
+    .filter(branch => !branch.anchored)
     .map((branch, i) => {
       const lines = [
-        `no box or jump of its own: ${branchLabelLines(branch, fold.haplotypes).join(', ')}`,
+        `no box or jump of its own: ${branchLabel(branch, fold.haplotypes)}`,
       ]
       const cx = minX + labelWidth(lines) / 2
       return {
@@ -1848,6 +1844,54 @@ function drawBranchLabels(
   for (const footnote of footnotes) {
     drawLabelBox(group, footnote, 'fold-footnote')
   }
+}
+
+const CHEVRON_SPACING = 24
+const CHEVRON_MAX_HEIGHT = 10
+
+// Chevrons pointing left along a horizontal run, one every CHEVRON_SPACING px
+// and at least one
+export function leftChevrons({
+  xStart,
+  yStart,
+  xEnd,
+  yEnd,
+}: Pick<TrackRectangle, 'xStart' | 'yStart' | 'xEnd' | 'yEnd'>): string {
+  const left = Math.min(xStart, xEnd)
+  const width = Math.abs(xEnd - xStart)
+  const middle = (yStart + yEnd) / 2
+  const half = Math.min(CHEVRON_MAX_HEIGHT, Math.abs(yEnd - yStart) * 0.6) / 2
+  const count = Math.max(1, Math.floor(width / CHEVRON_SPACING))
+  return Array.from({ length: count }, (_, i) => {
+    const x = left + ((i + 0.5) * width) / count - half / 2
+    return `M${x + half} ${middle - half} L${x} ${middle} L${x + half} ${middle + half}`
+  }).join(' ')
+}
+
+// Marks each run a folded tube travels right to left, so the pass back through
+// an inverted block reads as one. tubemap-core sets `reverse` on those runs
+// from the release after 2.1.1; before it no rectangle has the field, and
+// nothing is drawn.
+function drawReverseMarks(
+  rectangles: TrackRectangle[],
+  group: SvgGroupSelection,
+): void {
+  group
+    .selectAll('reverseMarks')
+    .data(
+      rectangles.filter(
+        rect =>
+          rect.type !== 'read' && 'reverse' in rect && rect.reverse === true,
+      ),
+    )
+    .enter()
+    .append('path')
+    .attr('class', 'reverse-mark')
+    .attr('d', leftChevrons)
+    .attr('fill', 'none')
+    .attr('stroke', 'white')
+    .attr('stroke-width', 1.5)
+    .style('pointer-events', 'none')
 }
 
 // If nodes are spaced closely together (based on the threshold value) then those nodes would be grouped together
@@ -2388,10 +2432,10 @@ function trackTooltipText(trackID: number): string {
   if (!t) return String(trackID)
   const display = formatTrackDisplayName(t.name, t.freq)
   const kind = t.type === 'read' ? 'read' : 'haplotype'
-  const tube = foldView?.tubes.get(trackID)
+  const tube = foldedTube(trackID)
   return tube === undefined
     ? `${display} (${kind})`
-    : `${display} (folded: ${tubeText(tube)})`
+    : `${variationLabel(tube)}: ${memberNames(tube)}`
 }
 
 function positionHoverTooltip(event: MouseEvent): void {
@@ -2507,15 +2551,14 @@ function trackSingleClick(this: SVGElement): void {
     return
   }
   const track_attributes: InfoAttribute[] = [['Name', current_track.name]]
-  const tube = foldView?.tubes.get(trackID)
+  const tube = foldedTube(trackID)
   if (tube !== undefined) {
-    track_attributes.push(
-      ['Haplotypes', tube.haplotypes],
-      ['Distinct Walks', tube.walks],
-      [
-        'Folded Away',
-        `${bpText(tube.minHiddenBp)} to ${bpText(tube.maxHiddenBp)} in each walk: they share this route and its orientations, and differ under the ${thresholdText(foldView?.threshold ?? 0)} threshold`,
-      ],
+    track_attributes.splice(
+      0,
+      1,
+      ['Name', tube.label],
+      ['Folded', variationLabel(tube)],
+      ['Walks', memberNames(tube)],
     )
   }
   if (current_track.type === 'read') {

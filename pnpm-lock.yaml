@@ -301,7 +301,7 @@ packages:
     hasBin: true
 
   '@jbrowse/graph-fold@file:vendor/jbrowse-graph-fold-0.0.0.tgz':
-    resolution: {integrity: sha512-b+QsBTJ+tBQlY/42SqTaGYnF2AMlKd4SK4h2NMdp+nkWcohpg/wtjproqaPoJn5ORfei87B6kGFxY997XJq0LQ==, tarball: file:vendor/jbrowse-graph-fold-0.0.0.tgz}
+    resolution: {integrity: sha512-SVRerZufC2a8+2e8P7HD73fE7edB5p+Ym5roXIPS3z8qlSjJbkOPx1qiW4mbWZvDFgehQ+iueEjvUhyOEL5IJg==, tarball: file:vendor/jbrowse-graph-fold-0.0.0.tgz}
     version: 0.0.0
 
   '@jbrowse/graph-walks@9.1.0':

@@ -33,9 +33,10 @@ and fetches nothing.
   `replacement 15.7 kb for 6.3 kb`.
 - **A cluster** is insertions or deletions at one site whose breakpoints and
   lengths differ by at most 5% of the larger. It is drawn once, at its most
-  carried size, in a dashed box, and its label has a second line:
-  `cluster of 56 sizes, 8.9 kb to 9.5 kb`. Clustering is always on while folded;
-  without it that one site is 56 boxes in a column.
+  carried size, in a dashed box, and its label gives the range and the number of
+  lengths in place of one size:
+  `insertion 8.9 kb to 9.5 kb (56 lengths), 129 of 464`. Clustering is always on
+  while folded; without it that one site is 56 boxes in a column.
 - **A variant with no box or jump of its own**, such as walks that start inside
   the window, is listed in a line at the foot of the map and not left out.
 - **One tube per route**, never bands. A band is drawn per edge and nothing
@@ -56,12 +57,14 @@ of them carry a 584 bp deletion that only separates at a 50 bp threshold. The
 route and the orientation of every step are exact for all of them, and what
 differs is under the threshold.
 
-- **Hovering a tube** says so:
-  `folded: 439 haplotypes on 356 distinct walks, 8 bp to 795 bp folded away in each`.
-  Clicking it lists the same in the info dialog.
+- **The legend and the track list** name a tube by its count, `439 haplotypes`,
+  and not by the first of them. A tube of one haplotype keeps that walk's name.
+- **Hovering a tube** says
+  `439 haplotypes on 356 distinct walks, 8 bp to 795 bp folded away in each`,
+  and then names its walks, the first five of many. Clicking it lists the same
+  in the info dialog.
 - **Clicking a node** adds to the info dialog how many nodes of the unfolded
-  graph it holds, its span on the reference, the variant it is the box of, and
-  its cluster.
+  graph it holds, its span on the reference and the variant it is the box of.
 
 ## Limits
 
@@ -84,8 +87,13 @@ differs is under the threshold.
 - **The first track is the reference.** That is the reference path of a walk
   file or `.gbz.db`; a vg server's graph is folded against whichever path it
   lists first.
-- **No direction marks.** Nothing on a tube says which way it runs, so an
-  inversion reads from the shape of the loop alone.
+- **No direction marks yet.** Nothing on a tube says which way it runs, so an
+  inversion reads from the shape of the loop alone. The chevrons are written:
+  they are drawn on every run the layout marks `reverse`, which
+  `@jbrowse/tubemap-core` does from the release after 2.1.1.
+- **A tube is one color along its length.** It is not paler where it passes a
+  node without reading it, as `@jbrowse/graph-fold`'s own pictures draw it: the
+  app shades a tube inside every node box alike.
 - **Faceting is off while folded**, since a folded tube is many samples'
   haplotypes, and so are **Merge node chains** and the node colors a BED file
   sets, which name unfolded nodes.

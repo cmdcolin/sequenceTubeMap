@@ -126,11 +126,10 @@ describe('foldTubeMapData', () => {
     expect(folded.fold?.branches).toMatchObject([
       { kind: 'deletion', length: 3000, haplotypes: 5 },
     ])
-    expect(folded.fold?.tubes.get(1)).toEqual({
-      haplotypes: 2,
-      walks: 1,
-      minHiddenBp: 2,
-      maxHiddenBp: 2,
+    expect(folded.fold?.tracks[1]).toMatchObject({
+      label: '2 haplotypes',
+      names: ['hap1'],
+      variation: { walks: 1, foldedAwayBp: { min: 2, max: 2 } },
     })
   })
 
@@ -174,7 +173,7 @@ describe('foldTubeMapData', () => {
     expect(refused.reads).toHaveLength(1)
   })
 
-  it('gives the reason rather than throwing on a walk through a node it was not given', () => {
+  it('gives the reason for a walk through a node it was not given', () => {
     const data = foldable()
     data.tracks[1]!.sequence = ['a', 'missing', 'c']
 
