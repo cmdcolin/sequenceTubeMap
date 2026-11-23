@@ -136,6 +136,7 @@ function normalizeViewTarget(target: ViewTarget): ViewTarget {
     ...(target.dataType !== undefined && { dataType: target.dataType }),
     simplify: simplifyApplies(target.tracks, target.simplify),
     removeSequences: target.removeSequences ?? false,
+    ...(target.context !== undefined && { context: target.context }),
     ...(target.skipAutoLoad !== undefined && {
       skipAutoLoad: target.skipAutoLoad,
     }),

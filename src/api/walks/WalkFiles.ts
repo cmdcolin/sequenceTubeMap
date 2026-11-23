@@ -66,7 +66,9 @@ export class WalkFiles {
    * `distinct` merges walks that take the same steps into one path whose
    * `freq` counts them. A walk with a run off the reference the cut did not
    * load is drawn only in its loaded fragments, and comes back in `abridged`
-   * with the bp graph-walks says it did not load, unless `expand` names it. A
+   * with the bp graph-walks says it did not load, unless `expand` names it.
+   * `context` is the bp of reference kept past each end, the preset's where
+   * it is left out. A
    * cut past `nodeLimit` nodes or graph-walks' budgets throws its
    * RegionTooLargeError, and one whose departure read is past its budget a
    * DepartureReadError.
@@ -78,6 +80,7 @@ export class WalkFiles {
     opts: {
       distinct: boolean
       nodeLimit: number
+      context?: number
       expand?: string[]
       signal?: AbortSignal
     },
@@ -92,6 +95,7 @@ export class WalkFiles {
       { start, end },
       {
         ...CUT_PRESETS.browser,
+        ...(opts.context !== undefined && { context: opts.context }),
         signal: opts.signal,
         links: 'none',
         sequences: true,

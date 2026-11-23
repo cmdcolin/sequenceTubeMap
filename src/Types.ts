@@ -58,6 +58,9 @@ export interface ViewTarget {
   // Abridged walks to read in full, by `sample#haplotype#contig`. Only a walk
   // file abridges walks, and only the in-browser backend reads one.
   expand?: string[]
+  // bp of reference a walk file's cut keeps past each end of the region, in
+  // place of graph-walks' 1000. Only the in-browser backend reads a walk file.
+  context?: number
 
   // Non-essential to server, used for examples.
   name?: string

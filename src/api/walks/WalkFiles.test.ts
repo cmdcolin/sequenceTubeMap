@@ -95,6 +95,18 @@ describe('a gfa-to-tabix walk file set', () => {
     cut.mockRestore()
   })
 
+  it("keeps the context a view names past each end, and the preset's 1000 bp for a view that names none", async () => {
+    const cut = vi.spyOn(WalkReader.prototype, 'cut')
+    const region = 'GRCh38#chrM:2000-2100'
+    await api.getChunkedData(view(id, region), null)
+    await api.getChunkedData(view(id, region, { context: 100 }), null)
+    await api.getChunkedData(view(id, region, { context: 0 }), null)
+    expect(cut.mock.calls.map(([, , options]) => options?.context)).toEqual([
+      1000, 100, 0,
+    ])
+    cut.mockRestore()
+  })
+
   it('lists each haplotype on its own when asked for all of them', async () => {
     const { graph } = await api.getChunkedData(
       view(id, 'GRCh38#chrM:1000-1300', { allHaplotypes: true }),
@@ -219,6 +231,21 @@ describe('the bundled walk-file examples', () => {
       graph!.node.every(n => n.sequence?.length === n.sequenceLength),
     ).toBe(true)
     expect(total(graph!.path)).toBeGreaterThan(0)
+  })
+
+  it('draws BRCA1 in fewer nodes at 100 bp of context than at the default, which is 1000', async () => {
+    const api = new GBZBaseAPI()
+    const id = await upload(api, 'internal/snp1kg-BRCA1.17.walks.gz')
+    await upload(api, 'internal/snp1kg-BRCA1.17.walks.gz.idx')
+    const nodes = async (extra = {}) =>
+      (await api.getChunkedData(view(id, '17:1-100', extra), null)).graph!.node
+        .length
+    const atDefault = await nodes()
+    expect(await nodes({ context: 1000 })).toBe(atDefault)
+    expect(await nodes({ context: 100 })).toBeLessThan(atDefault)
+    expect(await nodes({ context: 0 })).toBeLessThan(
+      await nodes({ context: 100 }),
+    )
   })
 
   it('names the same MICB haplotypes as the .gbz.db the GFA was written from', async () => {

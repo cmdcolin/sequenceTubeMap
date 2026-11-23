@@ -660,7 +660,7 @@ export class GBZBaseAPI implements APIInterface {
 
   private async walkGraph(
     graphFile: string,
-    { region, allHaplotypes, expand }: ViewTarget,
+    { region, allHaplotypes, expand, context }: ViewTarget,
     cancelSignal: AbortSignal | null,
   ) {
     const parsed = parseRegion(region)
@@ -677,6 +677,7 @@ export class GBZBaseAPI implements APIInterface {
       return await walks.subgraph(anchor, start, end + 1, {
         distinct: allHaplotypes !== true,
         nodeLimit: this.subgraphNodeLimit,
+        context,
         expand,
         signal,
       })

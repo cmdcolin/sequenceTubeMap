@@ -152,6 +152,7 @@ function HeaderForm({
   const [removeSequences, setRemoveSequences] = useState(
     currentViewTarget.removeSequences ?? false,
   )
+  const [context, setContext] = useState(currentViewTarget.context)
   // Filenames of files uploaded via the "Open custom files" dialog. Shown as a
   // success banner so the user gets confirmation. Cleared when the user
   // navigates away or commits a view target.
@@ -375,6 +376,7 @@ function HeaderForm({
       dataType,
       simplify,
       removeSequences,
+      context,
     })
   }
 
@@ -404,6 +406,7 @@ function HeaderForm({
     setDataType(target.dataType ?? dataTypes.BUILT_IN)
     setSimplify(target.simplify ?? false)
     setRemoveSequences(target.removeSequences ?? false)
+    setContext(target.context)
     setManualError(null)
     setRecentlyUploaded([])
   }
@@ -532,6 +535,7 @@ function HeaderForm({
     setBedFile('none')
     setChosenRegion('')
     setName(undefined)
+    setContext(undefined)
     setTracks(uploadedTracks)
     setDataType(dataTypes.CUSTOM_FILES)
     setManualError(null)
@@ -571,6 +575,7 @@ function HeaderForm({
               dataType: dataTypes.BUILT_IN,
               simplify: ds.simplify ?? false,
               removeSequences: ds.removeSequences ?? false,
+              context: ds.context,
             }),
           )
         }

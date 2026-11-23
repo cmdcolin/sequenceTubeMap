@@ -49,9 +49,11 @@ needs [converting to a walk file](data.md#reading-gfa-to-tabix-walk-files)
 first, and a GAF converting to GAM.
 
 A walk file is cut 1,000 bp past the region either side and a `.gbz.db` 100 bp,
-so a figure of a narrow window comes out far wider from the walk file. The
-figures on this page whose commands name a `.gbz.db` were drawn that way and are
-still made from it.
+so a figure of a narrow window comes out far wider from the walk file.
+`--context 100` cuts a walk file at 100 bp instead, or any other number of bp
+([what a narrower context leaves out](data.md#reading-gfa-to-tabix-walk-files)).
+The figures on this page whose commands name a `.gbz.db` were drawn that way and
+are still made from it.
 
 ## Rendering a link
 

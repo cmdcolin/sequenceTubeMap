@@ -102,6 +102,30 @@ describe('tubemap-cli', () => {
     expect(flags === link).toBe(true)
   }, 60_000)
 
+  it.concurrent('cuts a walk file with --context bp past the region, as a link with context= does, and with 1000 without it', async () => {
+    const graph = 'exampleData/hprc-chrM.GRCh38.walks.gz'
+    const link = `?region=GRCh38%23chrM:2000-2100&tracks=graph:${graph}`
+    const flags = ['--graph', graph, '--region', 'GRCh38#chrM:2000-2100']
+    const [bare, narrow, linked, overridden, preset] = await Promise.all([
+      render('context-default', flags),
+      render('context-flag', [...flags, '--context', '100']),
+      render('context-link', ['--url', `${link}&context=100`]),
+      render('context-over', [
+        '--url',
+        `${link}&context=0`,
+        '--context',
+        '100',
+      ]),
+      render('context-preset', [...flags, '--context', '1000']),
+    ])
+    const nodes = (svg: string) => svg.match(/data-node=/g)?.length ?? 0
+    expect(nodes(narrow)).toBeGreaterThan(0)
+    expect(nodes(narrow)).toBeLessThan(nodes(bare))
+    expect(linked === narrow).toBe(true)
+    expect(overridden === narrow).toBe(true)
+    expect(preset === bare).toBe(true)
+  }, 60_000)
+
   it.concurrent('folds variants under --fold-variants, drawing no reads and saying so', async () => {
     const out = path.join(outDir, 'folded.svg')
     const { stderr } = await run(

@@ -59,6 +59,33 @@ describe('urlViewTarget round trip', () => {
     expect(params).not.toContain('skipAutoLoad')
   })
 
+  it("round trips a walk cut's context, and leaves it out of a link for a view that names none", () => {
+    const target = {
+      region: 'x:1-100',
+      tracks: [{ trackType: 'graph' as const, trackFile: 'x.walks.gz' }],
+      name: undefined,
+    }
+    expect(roundTrip({ ...target, context: 100 })).toEqual({
+      ...target,
+      context: 100,
+    })
+    expect(roundTrip({ ...target, context: 0 })).toEqual({
+      ...target,
+      context: 0,
+    })
+    expect(viewTargetToUrlParams(target)).not.toContain('context')
+  })
+
+  it('ignores a context that is not a number of bp', () => {
+    for (const context of ['', 'wide', '-5', 'Infinity']) {
+      expect(
+        urlParamsToViewTarget(
+          `http://x/?region=x:1-100&tracks=graph:x.walks.gz&context=${context}`,
+        ),
+      ).not.toHaveProperty('context')
+    }
+  })
+
   it('returns null for a query with no view target', () => {
     expect(urlParamsToViewTarget('http://localhost/?utm_source=email')).toBe(
       null,

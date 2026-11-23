@@ -65,6 +65,7 @@ const VIEW_PARAM_KEYS = [
   'dataType',
   'simplify',
   'removeSequences',
+  'context',
   'skipAutoLoad',
 ]
 
@@ -76,6 +77,11 @@ function asString(value: unknown) {
 // to be coerced back.
 function asBoolean(value: unknown) {
   return value === 'true' ? true : value === 'false' ? false : undefined
+}
+
+function asBp(value: string | undefined) {
+  const bp = value === undefined || value === '' ? Number.NaN : Number(value)
+  return Number.isFinite(bp) && bp >= 0 ? Math.round(bp) : undefined
 }
 
 // Runs at module scope on whatever URL the user arrived with, so a malformed
@@ -287,12 +293,14 @@ function parseViewFields(params: Map<string, string>) {
   const dataType = readScalar(params, 'dataType')
   const simplify = asBoolean(readScalar(params, 'simplify'))
   const removeSequences = asBoolean(readScalar(params, 'removeSequences'))
+  const context = asBp(readScalar(params, 'context'))
   return {
     ...(region !== undefined && { region }),
     ...(bedFile !== undefined && { bedFile }),
     ...(dataType !== undefined && { dataType }),
     ...(simplify !== undefined && { simplify }),
     ...(removeSequences !== undefined && { removeSequences }),
+    ...(context !== undefined && { context }),
   }
 }
 
@@ -444,6 +452,9 @@ export function viewTargetToUrlParams(
     ...(target.removeSequences === true
       ? [scalarParam('removeSequences', 'true')]
       : []),
+    ...(target.context === undefined
+      ? []
+      : [scalarParam('context', String(target.context))]),
     ...(visOptions === undefined ? [] : visOptionsToParams(visOptions)),
   ].join('&')
 }

@@ -113,7 +113,7 @@ tubemap-cli [--url <link> | --source <config name> | --example 1..9]
 
 Either form also takes
              [--out file.svg] [--width N] [--height N]
-             [--viewport] [--read-limit N] [--legend]
+             [--viewport] [--read-limit N] [--legend] [--context N]
 
 --graph draws your own files. Each is a local path, relative to the working
 directory, or an http(s) URL read by range requests. --haplotype-index names
@@ -130,6 +130,13 @@ ${flagHelp()}  --mapq N            drop reads below mapping quality N
                       haplotype_sample (the PanSN sample), stacked
   --fold-variants N   merge every variant under N bp into the reference and
                       label the ones kept; draws no reads and no facets
+
+--context N keeps N bp of the reference past each end of the region when the
+graph is a gfa-to-tabix .walks.gz, where a cut keeps 1000 by default, so a
+narrow region draws narrow: --context 100 frames it as a .gbz.db is framed. A
+haplotype that leaves the region and rejoins the reference past the context is
+drawn only up to where it leaves. A link's context= says the same, and the flag
+overrides it. A .gbz.db ignores it.
 
 --legend draws the app's color key into the figure, above the map, so it can be
 read away from the app.
@@ -172,6 +179,9 @@ interface CliArgs {
   legend: boolean
   // Most reads to draw, or undefined to draw them all.
   readLimit: number | undefined
+  // bp of reference a walk file's cut keeps past the region, or undefined for
+  // what the target says.
+  context: number | undefined
   // View-menu settings this render departs from the app's defaults on.
   visOptions: Partial<StoredVisOptions>
 }
@@ -263,6 +273,7 @@ function parseCli(): CliArgs {
       mapq: { type: 'string' },
       'facet-by': { type: 'string' },
       'fold-variants': { type: 'string' },
+      context: { type: 'string' },
       help: { type: 'boolean', default: false },
       ...flagArgOptions(),
     },
@@ -296,6 +307,10 @@ function parseCli(): CliArgs {
       values['read-limit'] === undefined
         ? undefined
         : parsePositive('read-limit', values['read-limit']),
+    context:
+      values.context === undefined
+        ? undefined
+        : Math.round(parseCount('context', values.context)),
     visOptions: {
       ...flagOverrides(values),
       ...(values.mapq !== undefined && {
@@ -618,12 +633,14 @@ async function resolveRender(api: GBZBaseAPI, args: CliArgs): Promise<Render> {
     }
   }
 
-  const viewTarget =
+  const target =
     kind === 'graph'
       ? await viewTargetForGraph(api, value, args)
       : kind === 'source'
         ? await viewTargetForSource(api, value, args.region)
         : await viewTargetForUrl(api, value, args.region)
+  const viewTarget =
+    args.context === undefined ? target : { ...target, context: args.context }
   console.error(
     `querying ${viewTarget.name ?? 'the link'} @ ${viewTarget.region} ...`,
   )

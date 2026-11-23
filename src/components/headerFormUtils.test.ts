@@ -129,6 +129,26 @@ describe('makeViewTarget — fresh values are honored', () => {
     expect(vt.simplify).toBe(false)
   })
 
+  it("carries a walk cut's context, and has no context field for a view that names none", () => {
+    const inputs = {
+      tracks: graphTracks,
+      bedFile: undefined,
+      name: 'x',
+      region: 'x:0-1000',
+      dataType: 'built-in',
+      simplify: false,
+      removeSequences: false,
+    }
+    expect(makeViewTarget({ ...inputs, context: 100 }).context).toBe(100)
+    expect(makeViewTarget(inputs)).not.toHaveProperty('context')
+    expect(
+      viewTargetsEqual(
+        makeViewTarget(inputs),
+        makeViewTarget({ ...inputs, context: 100 }),
+      ),
+    ).toBe(false)
+  })
+
   it('keeps simplify on for graph-only track sets', () => {
     const vt = makeViewTarget({
       tracks: graphTracks,

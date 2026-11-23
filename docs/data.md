@@ -115,6 +115,26 @@ haplotype's sequence past either end of the reference path is not drawn. On the
 bundled chrM graph both readers name the same 44 haplotypes. A walk file can
 also list a haplotype as [abridged](#abridged-walks) until it is read in full.
 
+A view can keep another context than the preset's 1,000 bp:
+
+- `context=100` in a link ([urlparams.md](urlparams.md#context)),
+  `"context": 100` on a `DATA_SOURCES` entry in `config.json`, or
+  `--context 100` on `pnpm tubemap-cli`, in bp. A region changed in the app
+  keeps the context its link or data source set
+- At 100 bp a region is framed as the `.gbz.db` reader frames it, which is what
+  keeps a figure of a narrow window narrow: BRCA1 at `17:1-100` draws 2,296
+  units across in place of 9,395
+- The default is unchanged, and it is the one to keep outside a figure. Every
+  graph-walks reader cuts by the same preset, so the same region draws the same
+  graph in JBrowse, BandageJS and here, and a view with its own context no
+  longer matches them
+- A smaller context can also draw less of a haplotype. A cut attaches a
+  departure's own nodes only where it leaves or rejoins the reference on the
+  region or its context, so a haplotype that leaves inside the region and
+  rejoins past a narrow context stops where it leaves, where a wider one would
+  have drawn it through
+- A `.gbz.db` ignores the setting
+
 A window past graph-walks' budgets, 4,000,000 steps or 8 MB of walk rows, or the
 node limit is refused, with the width that would fit where one does. One whose
 departure records come to more than 2 MB, usually at a collapsed repeat, is

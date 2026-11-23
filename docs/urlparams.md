@@ -183,6 +183,14 @@ in-browser backend ignores it. Omitted means false.
 `true` strips node sequences server-side, which also locks compressed view.
 Omitted means false.
 
+### `context`
+
+The bp of reference a [walk file's cut](data.md#reading-gfa-to-tabix-walk-files)
+keeps past each end of the region, a whole number from 0 up. `context=100`.
+Leaving it out keeps 1,000, which is what every other graph-walks reader keeps,
+and anything that is not such a number is ignored. A `.gbz.db` and the server
+backend ignore it.
+
 ---
 
 ## Examples

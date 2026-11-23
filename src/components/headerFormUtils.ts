@@ -78,6 +78,7 @@ export interface ViewTargetInputs {
   dataType: string
   simplify: boolean
   removeSequences: boolean
+  context?: number
 }
 
 // `vg simplify` cannot run over reads, so a view with a read track is never
@@ -95,6 +96,7 @@ export function makeViewTarget(inputs: ViewTargetInputs): ViewTarget {
     dataType: inputs.dataType,
     simplify: simplifyApplies(inputs.tracks, inputs.simplify),
     removeSequences: inputs.removeSequences,
+    ...(inputs.context !== undefined && { context: inputs.context }),
   }
 }
 
@@ -256,7 +258,8 @@ export function viewTargetsEqual(
     a.bedFile === b.bedFile &&
     a.region === b.region &&
     a.simplify === b.simplify &&
-    a.removeSequences === b.removeSequences
+    a.removeSequences === b.removeSequences &&
+    a.context === b.context
   )
 }
 
