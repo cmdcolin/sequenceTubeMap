@@ -153,6 +153,9 @@ export interface VisOptions {
   ignoreStrand: boolean
   // One panel per value of this read field, stacked; null draws one panel
   facetBy: FacetBy | null
+  // Merge every variant under this many bp into the reference, so the
+  // structural variants are what is left; 0 draws the graph as it is
+  foldVariantsBp: number
 }
 
 // Keys of VisOptions that hold a boolean, i.e. the ones that can be toggled.

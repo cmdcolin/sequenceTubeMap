@@ -710,7 +710,7 @@ export class GBZBaseAPI implements APIInterface {
       throw new Error('No graph track selected')
     }
     if (this.isWalks(graphFile)) {
-      const { graph, abridged } = await this.walkGraph(
+      const { graph, abridged, referenceRevisits } = await this.walkGraph(
         graphFile,
         viewTarget,
         cancelSignal,
@@ -726,6 +726,7 @@ export class GBZBaseAPI implements APIInterface {
           cancelSignal,
         )),
         abridged,
+        referenceRevisits,
       }
     }
     this.noteHaplotypeIndex(graphFile, graphTrack.haplotypeIndexFile)

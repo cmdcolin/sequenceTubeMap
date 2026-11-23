@@ -81,7 +81,11 @@ export class WalkFiles {
       expand?: string[]
       signal?: AbortSignal
     },
-  ): Promise<{ graph: VgJson & { edge: VgEdge[] }; abridged: AbridgedWalk[] }> {
+  ): Promise<{
+    graph: VgJson & { edge: VgEdge[] }
+    abridged: AbridgedWalk[]
+    referenceRevisits: number
+  }> {
     const expand = new Set(opts.expand)
     const { graph, kept, fragments, departures } = await this.reader.cut(
       anchor,
@@ -218,7 +222,11 @@ function vgJson(
   tables: GraphTables,
   sequences: Map<number, string>,
   distinct: boolean,
-): { graph: VgJson & { edge: VgEdge[] }; abridged: AbridgedWalk[] } {
+): {
+  graph: VgJson & { edge: VgEdge[] }
+  abridged: AbridgedWalk[]
+  referenceRevisits: number
+} {
   const { nodes } = tables
   const node: VgNode[] = nodes.names.flatMap((name, i) =>
     i < nodes.lengths.length && !isPlaceholder(nodes, i)
@@ -274,5 +282,6 @@ function vgJson(
   return {
     graph: { node, edge: [...edges.values()], path },
     abridged: abridgedWalks(tables),
+    referenceRevisits: tables.revisited,
   }
 }

@@ -2,7 +2,7 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TubeMapContainer from './TubeMapContainer.tsx'
 import { subsampleReads } from '../util/array.ts'
-import type { TubeMapData } from './tubeMapData.ts'
+import { foldTubeMapData, type TubeMapData } from './tubeMapData.ts'
 import type { InputTrack } from '../util/tubemap.ts'
 import type { ViewTarget, VisOptions } from '../Types.ts'
 
@@ -77,6 +77,7 @@ const VIS_OPTIONS: VisOptions = {
   coarsenedHaplotypeView: false,
   ignoreStrand: false,
   facetBy: null,
+  foldVariantsBp: 0,
 }
 
 const VIEW_TARGET: ViewTarget = {
@@ -512,5 +513,67 @@ describe('TubeMapContainer', () => {
         screen.getByText('IAI39#1: 460 bp off the reference not loaded'),
       ).toBeInTheDocument()
     })
+  })
+})
+
+// A reference with a 3 kb node that one walk skips, and a read on it
+function foldableData(): TubeMapData {
+  return {
+    ...makeData(1),
+    nodes: [
+      { name: '1', sequenceLength: 500 },
+      { name: '2', sequenceLength: 3000 },
+      { name: '3', sequenceLength: 500 },
+    ],
+    tracks: [
+      { id: 0, name: 'ref', sequence: ['1', '2', '3'], sourceTrackID: 0 },
+      { id: 1, name: 'hap', sequence: ['1', '3'], freq: 4, sourceTrackID: 0 },
+    ],
+  }
+}
+
+describe('TubeMapContainer, with variants folded', () => {
+  it('says what was folded and that the reads are hidden, and draws none', () => {
+    mocks.drawnReads.length = 0
+    renderContainer({ data: foldTubeMapData(foldableData(), 1000) })
+
+    const notice = screen.getByTestId('foldNotice')
+    expect(notice).toHaveTextContent(
+      'Variants under 1 kb are folded into the reference',
+    )
+    expect(notice).toHaveTextContent('1 kept variant labelled under the map')
+    expect(notice).toHaveTextContent(
+      '1 read is hidden, since reads map to the nodes that were merged away',
+    )
+    expect(mocks.drawnReads.at(-1)).toEqual([])
+  })
+
+  it('says nothing of reads where none were loaded', () => {
+    renderContainer({
+      data: foldTubeMapData({ ...foldableData(), reads: [] }, 1000),
+    })
+
+    expect(screen.getByTestId('foldNotice')).not.toHaveTextContent('hidden')
+  })
+
+  it('gives the reason a graph was not folded, and draws it with its reads', () => {
+    mocks.drawnReads.length = 0
+    const data = foldableData()
+    renderContainer({
+      data: foldTubeMapData({ ...data, referenceRevisits: 7 }, 1000),
+    })
+
+    expect(screen.getByTestId('foldRefused')).toHaveTextContent(
+      'Variants are not folded: the reference passes 7 nodes of the graph more than once',
+    )
+    expect(screen.queryByTestId('foldNotice')).not.toBeInTheDocument()
+    expect(mocks.drawnReads.at(-1)).toEqual(data.reads)
+  })
+
+  it('shows neither notice with the fold off', () => {
+    renderContainer({ data: foldTubeMapData(foldableData(), 0) })
+
+    expect(screen.queryByTestId('foldNotice')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('foldRefused')).not.toBeInTheDocument()
   })
 })

@@ -17,6 +17,8 @@ export interface ChunkedDataResponse {
   region?: InputRegion
   coloredNodes?: string[]
   abridged?: AbridgedWalk[]
+  // How many nodes the reference passes more than once in the whole graph
+  referenceRevisits?: number
 }
 
 // Contract implemented by LocalAPI and ServerAPI. All methods take an optional

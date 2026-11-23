@@ -162,6 +162,13 @@ haplotype's PanSN name, with the reads in a last panel of their own.
 menu's **Facet by** sets it. It sits beside `mapq` rather than in `vis`, which
 holds only on/off flags.
 
+### `fold`
+
+The threshold in bp under which variants are folded into the reference: `50`,
+`1000` or `10000`, the View menu's **Fold variants under** choices. `fold=1000`.
+`off`, `0`, or leaving it out, draws the graph as it is, and any other number is
+ignored. See [fold-variants.md](fold-variants.md).
+
 ### `dataType`
 
 `built-in` | `mounted files` | `examples`. Tags the view with how it was built.

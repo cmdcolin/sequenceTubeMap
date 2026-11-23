@@ -84,9 +84,10 @@ show — rather than the cropped figure.
 Every option in the app's View menu has a flag: `--compressed`, `--no-reads`,
 `--no-soft-clips`, `--no-merge-nodes`, `--node-labels`, `--transparent-nodes`,
 `--coarsened`, `--banded-haplotypes`, `--ignore-strand`, `--color-by-mapq`,
-`--alpha-by-mapq`, `--mapq N` and `--facet-by F` — `--help` lists them, from the
-same table that reads them, so the two cannot drift apart. The mapping-quality
-flags only show up when the reads actually differ in mapping quality.
+`--alpha-by-mapq`, `--mapq N`, `--facet-by F` and `--fold-variants N` — `--help`
+lists them, from the same table that reads them, so the two cannot drift apart.
+The mapping-quality flags only show up when the reads actually differ in mapping
+quality.
 
 `--ignore-strand` is quiet on all nine bundled `--example` datasets, which is
 those datasets rather than the flag. What it moves in the normal view is reads
@@ -115,6 +116,14 @@ solid color soup at that count — so this is the flag to reach for there too; s
 stacks the reads under the bands: one by one, or banded as well under
 `--coarsened`. The legend keys the haplotype bands by their share and the reads
 by whatever colors them.
+
+`--fold-variants N` merges every variant under N bp into the reference and
+labels the ones kept, as the View menu's **Fold variants under** does, though it
+takes any threshold and not only the menu's three. A folded figure is drawn with
+logarithmic node widths and one tube per walk, whatever `--banded-haplotypes`,
+`--coarsened` and `--facet-by` say, and with no reads; the run says on stderr
+how many reads it left out, or why a graph was not folded. See
+[fold-variants.md](fold-variants.md).
 
 `--facet-by read_group` (or `sample_name`) draws the graph once per read group
 or sample, stacked top to bottom under a label naming the group and its read

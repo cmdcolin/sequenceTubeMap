@@ -518,6 +518,23 @@ describe('the address bar', () => {
     )
   })
 
+  it('puts the fold threshold picked in the View menu in the link', async () => {
+    localStorage.clear()
+    renderApp()
+    await userEvent.click(screen.getByTestId('examplesMenuButton'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'cactus' }))
+    await userEvent.click(screen.getByTestId('viewMenuButton'))
+    await userEvent.click(
+      within(screen.getByTestId('foldVariantsSelect')).getByRole('combobox'),
+    )
+    await userEvent.click(screen.getByRole('option', { name: '1 kb' }))
+
+    await waitFor(() => {
+      expect(window.location.search).toContain('fold=1000')
+    })
+    localStorage.clear()
+  })
+
   it('turns a View setting back off when Back returns to a view without it', async () => {
     localStorage.clear()
     renderApp()

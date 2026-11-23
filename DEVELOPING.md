@@ -124,6 +124,10 @@ google-chrome --headless=new --remote-debugging-port=9222 about:blank &
 node scripts/screenshot-ui.mjs        # overwrites the PNGs in docs/images/
 ```
 
+`node scripts/screenshot-ui.mjs fold-variants` takes only the shots whose file
+name holds that word. The folded and unfolded figures beside them come from
+`scripts/make-fold-figures.sh`.
+
 It needs `magick` (ImageMagick) for the crop, and no browser-automation
 dependency: Node's own `fetch` and `WebSocket` are the whole driver. Re-run it
 when a change moves any of that UI, and commit the PNGs it rewrites.

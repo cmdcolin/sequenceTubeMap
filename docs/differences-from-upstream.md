@@ -64,6 +64,10 @@ Samples in [tubemap-cli-samples/](tubemap-cli-samples/). See
   pipeline and inherit lane assignment, loop topology and strand coloring. With
   no reads loaded it bands the haplotypes instead, shaded by the share of them
   that take each edge.
+- **Fold variants** — merges every variant under a threshold into the reference
+  with `@jbrowse/graph-fold`, so a window of thousands of nodes draws as its
+  structural variants, each labelled with its size and carriers. See
+  [fold-variants.md](fold-variants.md).
 - **Read strand colors** — forward reads red and reverse reads blue, as
   JBrowse's alignments track colors strands, from `@jbrowse/tubemap-core`'s read
   ramps so every tube map reader paints reads alike. Upstream has drawn forward

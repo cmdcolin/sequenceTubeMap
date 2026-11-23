@@ -11,6 +11,15 @@ import {
   encodingFor,
   readEncodingFrom,
 } from './encoding.ts'
+import {
+  branchLabelLines,
+  bpText,
+  clusterText,
+  thresholdText,
+  isDrawnBranch,
+  tubeText,
+  type FoldView,
+} from './foldVariants.ts'
 import type { Scheme } from './scales.ts'
 import { formatTrackDisplayName } from './trackName.ts'
 import {
@@ -138,6 +147,8 @@ export interface CreateParams {
   tracks: InputTrack[]
   reads?: InputTrack[] | null
   region?: InputRegion
+  // The fold the nodes and tracks came out of, when they are folded
+  fold?: FoldView
 }
 
 // vg-json shapes. vg is permissive (mixes string/number, sometimes omits
@@ -217,6 +228,7 @@ let inputNodes: InputNode[] = []
 let inputTracks: InputTrack[] = []
 let inputReads: InputTrack[] = []
 let inputRegion: InputRegion = []
+let foldView: FoldView | undefined
 
 // --- the latest layout ---
 // One per facet, or the one unfaceted placement
@@ -224,6 +236,8 @@ let panels: FacetPanel[] = []
 // Every track the panels drew, once each: a haplotype repeats in every panel
 // under one id
 let tracks: Track[] = []
+// Where the kept branches of a folded drawing are labelled, under it
+let branchLabels: BranchLabels | undefined
 
 // --- UI state, outlives a render ---
 // The root <svg> until alignSVG, then the zoomed <g> everything is drawn in
@@ -353,6 +367,7 @@ export function create(params: CreateParams): void {
   svg = d3.select(params.svgID)
   inputReads = params.reads ?? NO_READS
   inputRegion = params.region ?? []
+  foldView = params.fold
   createTubeMap(sameDataset)
 }
 
@@ -731,6 +746,7 @@ function createTubeMap(preserveViewport = true): void {
   if (faceted === undefined) {
     panels = []
     tracks = []
+    branchLabels = undefined
     imageBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 }
     coarsened = {}
     drawn = []
@@ -753,7 +769,18 @@ function createTubeMap(preserveViewport = true): void {
   for (const layout of layouts) {
     Object.assign(coarsened, layout.coarsened)
   }
-  imageBounds = faceted.bounds
+  branchLabels =
+    foldView !== undefined && panels.length === 1
+      ? placeBranchLabels(panels[0]!.layout, foldView)
+      : undefined
+  imageBounds =
+    branchLabels === undefined
+      ? faceted.bounds
+      : {
+          ...faceted.bounds,
+          maxX: Math.max(faceted.bounds.maxX, branchLabels.maxX),
+          maxY: branchLabels.maxY,
+        }
   drawn = tracks.map(datumOf)
   const coloring = currentColoring()
   paints = new Map(
@@ -830,6 +857,7 @@ function drawPanel(panel: FacetPanel, first: boolean): void {
   if (config.nodeWidthOption === 'normal') drawMismatches(layout, target)
   // Drawn last so the labels paint above ruler/mismatches/reads
   if (config.showNodeLabels) drawNodeLabels(dNodes, target)
+  if (branchLabels !== undefined) drawBranchLabels(branchLabels, target)
 }
 
 const READ_FACET_NOUNS: Record<ReadFacetBy, string> = {
@@ -906,7 +934,9 @@ function drawFacetLabel(
 
 function layOut(): FacetedLayout | undefined {
   const topologyOptions: TopologyOptions = {
-    mergeNodes: config.mergeNodesFlag,
+    // A folded node is named in the fold's branches and members, and a merge
+    // would drop the name
+    mergeNodes: config.mergeNodesFlag && foldView === undefined,
     showReads: config.showReads,
     coarsenedReadView: config.coarsenedReadView,
     layers: layersFromConfig(),
@@ -1291,6 +1321,59 @@ function drawNodes(dNodes: Node[], groupNode: SvgGroupSelection): void {
     .style('fill-opacity', d => colorNodes(d.name)['fill-opacity'] ?? null)
     .style('stroke', d => colorNodes(d.name).outline ?? null)
     .style('stroke-width', '2px')
+    .style('stroke-dasharray', d =>
+      foldedNode(d.name)?.cluster === undefined ? null : '6 4',
+    )
+}
+
+function foldedNode(name: string) {
+  return foldView?.nodes.find(node => node.name === name)
+}
+
+// What a folded node stands for, for the info dialog. A view of the nodes it
+// holds would open from here.
+function foldedNodeAttributes(name: string): InfoAttribute[] {
+  const node = foldedNode(name)
+  const members = foldView?.members[name]
+  const branch = foldView?.branches.find(b => b.nodes.includes(name))
+  return node === undefined || foldView === undefined
+    ? []
+    : [
+        ...(members === undefined
+          ? []
+          : [
+              [
+                'Merged Nodes:',
+                `${members.length.toLocaleString()} of the unfolded graph`,
+              ] satisfies InfoAttribute,
+            ]),
+        ...(node.refStart === undefined || node.refEnd === undefined
+          ? []
+          : [
+              [
+                'Reference Span:',
+                node.refStart === node.refEnd
+                  ? `at ${node.refStart.toLocaleString()}`
+                  : `${node.refStart.toLocaleString()}-${node.refEnd.toLocaleString()} (${bpText(node.refEnd - node.refStart)})`,
+              ] satisfies InfoAttribute,
+            ]),
+        ...(branch === undefined
+          ? []
+          : [
+              [
+                'Variant:',
+                branchLabelLines(branch, foldView.haplotypes)[0],
+              ] satisfies InfoAttribute,
+            ]),
+        ...(node.cluster === undefined
+          ? []
+          : [
+              [
+                'Cluster:',
+                `${clusterText(node.cluster)}, drawn at the most carried size`,
+              ] satisfies InfoAttribute,
+            ]),
+      ]
 }
 
 // Given a node name, return an object with "fill", "fill-opacity", and "outline"
@@ -1335,6 +1418,7 @@ function nodeSingleClick(
     ['Node ID:', currentNode.name + (currentNode.switched ? '(reversed)' : '')],
     ['Node Length:', currentNode.sequenceLength + ' bases'],
     ['Haplotypes:', currentNode.degree],
+    ...foldedNodeAttributes(currentNode.name),
   ]
   // Once any layer is banded the reads a node holds include bands, and a band
   // counts an edge's crossings, which miss reads that stay inside the node
@@ -1554,6 +1638,216 @@ function drawNodeLabels(dNodes: Node[], target: AnySelection): void {
       .attr('width', width + NODE_LABEL_PADDING * 2)
       .attr('height', height + NODE_LABEL_PADDING * 2)
   })
+}
+
+interface BranchLabel {
+  lines: string[]
+  // The stretch of the drawing the branch covers, and the label's centre
+  x0: number
+  x1: number
+  cx: number
+  y: number
+}
+
+interface BranchLabels {
+  labels: BranchLabel[]
+  footnotes: BranchLabel[]
+  maxX: number
+  maxY: number
+}
+
+const BRANCH_LABEL_CHAR_WIDTH = NODE_LABEL_FONT_SIZE * 0.62
+const BRANCH_LABEL_LINE_HEIGHT = NODE_LABEL_FONT_SIZE + 3
+const BRANCH_BRACKET_HEIGHT = 6
+const BRANCH_LABEL_GAP = 10
+
+function labelWidth(lines: string[]): number {
+  return (
+    Math.max(...lines.map(line => line.length)) * BRANCH_LABEL_CHAR_WIDTH +
+    NODE_LABEL_PADDING * 2
+  )
+}
+
+function labelHeight(lines: string[]): number {
+  return lines.length * BRANCH_LABEL_LINE_HEIGHT + NODE_LABEL_PADDING * 2
+}
+
+function takesStep(track: InputTrack, from: string, to: string): boolean {
+  return track.sequence.some((step, i) => {
+    const next = track.sequence[i + 1]
+    const a = forward(step)
+    const b = next === undefined ? undefined : forward(next)
+    return (a === from && b === to) || (a === to && b === from)
+  })
+}
+
+// Where a branch lies in the drawing: across its boxes, or for a jump between
+// the two nodes it joins. Undefined when a hidden track took it out.
+function branchExtent(
+  layout: TubeMapLayout,
+  branch: FoldView['branches'][number],
+): [number, number] | undefined {
+  const drawnNode = (name: string) => {
+    const index = layout.nodeMap.get(name)
+    const node = index === undefined ? undefined : layout.nodes[index]
+    return node?.x === undefined ? undefined : node
+  }
+  const boxes = branch.nodes.map(drawnNode).filter(node => node !== undefined)
+  const from = branch.from === undefined ? undefined : drawnNode(branch.from)
+  const to = branch.to === undefined ? undefined : drawnNode(branch.to)
+  return branch.nodes.length > 0
+    ? boxes.length === branch.nodes.length
+      ? [
+          Math.min(...boxes.map(node => node.x)),
+          Math.max(...boxes.map(node => node.x + node.pixelWidth)),
+        ]
+      : undefined
+    : from !== undefined &&
+        to !== undefined &&
+        inputTracks.some(
+          track => !track.hidden && takesStep(track, from.name, to.name),
+        )
+      ? [
+          Math.min(from.x + from.pixelWidth, to.x),
+          Math.max(from.x + from.pixelWidth, to.x),
+        ]
+      : undefined
+}
+
+// Each kept branch gets a bracket under the stretch it covers and its kind,
+// size and carriers under that, in rows below the drawing so that no two
+// overlap. A branch with no box or jump of its own goes in a line at the foot.
+function placeBranchLabels(
+  layout: TubeMapLayout,
+  fold: FoldView,
+): BranchLabels {
+  const { minX, maxX, maxY } = layout.bounds
+  const top = maxY + BRANCH_LABEL_GAP
+  const rows: { height: number; taken: [number, number][] }[] = []
+  const placed: (BranchLabel & { row: number })[] = []
+  for (const branch of fold.branches.filter(isDrawnBranch)) {
+    const extent = branchExtent(layout, branch)
+    if (extent !== undefined) {
+      const lines = branchLabelLines(branch, fold.haplotypes)
+      const half = labelWidth(lines) / 2
+      const [x0, x1] = extent
+      const cx = Math.max(minX + half, (x0 + x1) / 2)
+      const span: [number, number] = [
+        Math.min(x0, cx - half) - BRANCH_LABEL_GAP,
+        Math.max(x1, cx + half) + BRANCH_LABEL_GAP,
+      ]
+      const free = rows.findIndex(row =>
+        row.taken.every(([a, b]) => span[1] < a || span[0] > b),
+      )
+      const row = free === -1 ? rows.length : free
+      rows[row] ??= { height: 0, taken: [] }
+      rows[row].taken.push(span)
+      rows[row].height = Math.max(rows[row].height, labelHeight(lines))
+      placed.push({ lines, x0, x1, cx, y: 0, row })
+    }
+  }
+  const rowTops: number[] = []
+  let y = top
+  for (const row of rows) {
+    rowTops.push(y)
+    y += BRANCH_BRACKET_HEIGHT * 2 + row.height + BRANCH_LABEL_GAP
+  }
+  const labels = placed.map(({ row, ...label }) => ({
+    ...label,
+    y: rowTops[row]!,
+  }))
+  const footnotes = fold.branches
+    .filter(branch => !isDrawnBranch(branch))
+    .map((branch, i) => {
+      const lines = [
+        `no box or jump of its own: ${branchLabelLines(branch, fold.haplotypes).join(', ')}`,
+      ]
+      const cx = minX + labelWidth(lines) / 2
+      return {
+        lines,
+        x0: cx,
+        x1: cx,
+        cx,
+        y: y + i * (labelHeight(lines) + NODE_LABEL_PADDING),
+      }
+    })
+  const last = footnotes.at(-1)
+  return {
+    labels,
+    footnotes,
+    maxX: Math.max(
+      maxX,
+      ...[...labels, ...footnotes].map(
+        label => label.cx + labelWidth(label.lines) / 2,
+      ),
+    ),
+    maxY: last === undefined ? y : last.y + labelHeight(last.lines),
+  }
+}
+
+// In the node labels' style, but sized from the font's nominal width so the
+// app and the headless renderer place them alike
+function drawLabelBox(
+  target: AnySelection,
+  { lines, cx, y }: BranchLabel,
+  className: string,
+): void {
+  const width = labelWidth(lines)
+  const group = target
+    .append('g')
+    .attr('class', className)
+    .attr('transform', `translate(${cx},${y})`)
+    .style('pointer-events', 'none')
+  group
+    .append('rect')
+    .attr('x', -width / 2)
+    .attr('y', 0)
+    .attr('width', width)
+    .attr('height', labelHeight(lines))
+    .attr('fill', '#FFE500')
+    .attr('rx', 2)
+  lines.forEach((line, i) => {
+    group
+      .append('text')
+      .text(line)
+      .attr('x', 0)
+      .attr('y', NODE_LABEL_PADDING + (i + 0.8) * BRANCH_LABEL_LINE_HEIGHT)
+      .attr('text-anchor', 'middle')
+      .attr('font-family', fonts)
+      .attr('font-size', `${NODE_LABEL_FONT_SIZE}px`)
+      .attr('font-weight', i === 0 ? 'bold' : 'normal')
+      .attr('fill', 'black')
+  })
+}
+
+function drawBranchLabels(
+  { labels, footnotes }: BranchLabels,
+  target: AnySelection,
+): void {
+  const group = target.append<Element>('g').attr('class', 'fold-branches')
+  for (const label of labels) {
+    const { x0, x1, cx, y } = label
+    const bracketY = y + BRANCH_BRACKET_HEIGHT
+    group
+      .append('path')
+      .attr('class', 'fold-branch-bracket')
+      .attr(
+        'd',
+        `M${x0} ${y} L${x0} ${bracketY} L${x1} ${bracketY} L${x1} ${y}` +
+          ` M${(x0 + x1) / 2} ${bracketY} L${cx} ${bracketY + BRANCH_BRACKET_HEIGHT}`,
+      )
+      .attr('fill', 'none')
+      .attr('stroke', 'black')
+      .attr('stroke-width', 1.5)
+    drawLabelBox(
+      group,
+      { ...label, y: bracketY + BRANCH_BRACKET_HEIGHT },
+      'fold-branch-label',
+    )
+  }
+  for (const footnote of footnotes) {
+    drawLabelBox(group, footnote, 'fold-footnote')
+  }
 }
 
 // If nodes are spaced closely together (based on the threshold value) then those nodes would be grouped together
@@ -2094,7 +2388,10 @@ function trackTooltipText(trackID: number): string {
   if (!t) return String(trackID)
   const display = formatTrackDisplayName(t.name, t.freq)
   const kind = t.type === 'read' ? 'read' : 'haplotype'
-  return `${display} (${kind})`
+  const tube = foldView?.tubes.get(trackID)
+  return tube === undefined
+    ? `${display} (${kind})`
+    : `${display} (folded: ${tubeText(tube)})`
 }
 
 function positionHoverTooltip(event: MouseEvent): void {
@@ -2210,6 +2507,17 @@ function trackSingleClick(this: SVGElement): void {
     return
   }
   const track_attributes: InfoAttribute[] = [['Name', current_track.name]]
+  const tube = foldView?.tubes.get(trackID)
+  if (tube !== undefined) {
+    track_attributes.push(
+      ['Haplotypes', tube.haplotypes],
+      ['Distinct Walks', tube.walks],
+      [
+        'Folded Away',
+        `${bpText(tube.minHiddenBp)} to ${bpText(tube.maxHiddenBp)} in each walk: they share this route and its orientations, and differ under the ${thresholdText(foldView?.threshold ?? 0)} threshold`,
+      ],
+    )
+  }
   if (current_track.type === 'read') {
     track_attributes.push(['Sample Name', current_track.sample_name])
     track_attributes.push([

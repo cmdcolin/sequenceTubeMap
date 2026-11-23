@@ -12,6 +12,7 @@
 //   pnpm start --port 5200                       # frontend and backend
 //   google-chrome --headless=new --remote-debugging-port=9222 about:blank
 //   node scripts/screenshot-ui.mjs               # writes into docs/images/
+//   node scripts/screenshot-ui.mjs fold-variants # only the shots named so
 //
 // The backend only has to answer `getFilenames` — it is up so the Examples
 // menu has a server group to show, not to serve any graph. `magick`
@@ -30,8 +31,45 @@ const SCALE = 2
 const V21 = encodeURIComponent('HPRC v2.1 whole genome (gbz-base, URL-hosted)')
 const KIV2 = 'GRCh38%23chr6:160620000-160620500'
 const MHC10KB = 'GRCh38%23chr6:31500000-31510000'
+// The hosted walk file with the reference grey and each other tube a color
+const V21_WALKS = `?tracks=graph:${encodeURIComponent(
+  'https://jbrowse.org/demos/hprc/hprc-v2.1-mc-grch38-f8.GRCh38.walks.gz',
+)}&colors=greys/plainColors`
+const CHR1_DELETION = 'GRCh38%23chr1:72298000-72349000'
+const CHR16_INVERSION = 'GRCh38%23chr16:75204000-75225000'
+const foldLabelled = `document.querySelector('.fold-branch-label')`
 
-const shots = [
+const allShots = [
+  {
+    // Fold variants at 1 kb: a 51 kb window that is 1,906 nodes unfolded, with
+    // the notice that says what was folded and the labels under the map
+    out: 'fold-variants-chr1.png',
+    query: `${V21_WALKS}&region=${CHR1_DELETION}&fold=1000`,
+    until: foldLabelled,
+    element: '#tubeMapContainer',
+    pad: 0,
+    height: 860,
+  },
+  {
+    // The same on an inversion, where the tube turns and runs back through
+    // the inverted block
+    out: 'fold-variants-chr16.png',
+    query: `${V21_WALKS}&region=${CHR16_INVERSION}&fold=1000`,
+    until: foldLabelled,
+    element: '#tubeMapContainer',
+    pad: 0,
+    height: 700,
+  },
+  {
+    // The control itself, in the View menu
+    out: 'fold-variants-menu.png',
+    query: `${V21_WALKS}&region=${CHR16_INVERSION}&fold=1000`,
+    until: foldLabelled,
+    then: [`document.querySelector('[data-testid="viewMenuButton"]').click()`],
+    element: '.MuiMenu-paper, .MuiPopover-paper',
+    pad: 10,
+    height: 1100,
+  },
   {
     // The render cap. A 10 kb MHC window on the hosted HPRC v2.1 graph is
     // 73,282 node visits, so the app refuses it rather than freezing the tab.
@@ -66,6 +104,11 @@ const shots = [
     height: 1400,
   },
 ]
+
+const only = process.argv.slice(2)
+const shots = allShots.filter(
+  shot => only.length === 0 || only.some(name => shot.out.includes(name)),
+)
 
 // An element whose own text contains this, ignoring the elements that only
 // contain it through a child.

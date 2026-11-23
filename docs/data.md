@@ -424,6 +424,10 @@ Measured in Chrome, the 10 kb row draws in a second but then takes 400 ms per
 zoom step, and the 50 kb row takes 10 s to draw. **Draw anyway** is there when
 you mean it.
 
+The count is of what is drawn, so a window folded with the View menu's **Fold
+variants under** ([fold-variants.md](fold-variants.md)) is counted after the
+fold: the 51 kb window in the README is 9 nodes and 35 visits folded at 1 kb.
+
 **Coarsen** is the better answer on a graph with no reads loaded: the coarsened
 view draws one band per node-to-node edge instead of one ribbon per visit, so it
 gets a cap of 1,000,000 visits instead. Coarsened, the 10 kb row draws in 0.6 s

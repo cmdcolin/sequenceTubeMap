@@ -481,6 +481,23 @@ describe('vis short form', () => {
     expect(visOf('facet=population')).toEqual({})
   })
 
+  it('reads the fold threshold from fold, ignoring one the View menu lacks', () => {
+    expect(visOf('fold=1000')).toEqual({ foldVariantsBp: 1000 })
+    expect(visOf('fold=off')).toEqual({ foldVariantsBp: 0 })
+    expect(visOf('fold=123')).toEqual({})
+    expect(visOf('fold=')).toEqual({})
+  })
+
+  it('round trips a fold threshold', () => {
+    const params = viewTargetToUrlParams(
+      { region: 'x:1-100', tracks: [] },
+      { ...DEFAULT_VIS_OPTIONS, foldVariantsBp: 10_000 },
+    )
+
+    expect(params).toContain('fold=10000')
+    expect(visOf(params)).toEqual({ foldVariantsBp: 10_000 })
+  })
+
   it('round trips a facet', () => {
     for (const facetBy of ['sample_name', 'haplotype_sample'] as const) {
       const params = viewTargetToUrlParams(

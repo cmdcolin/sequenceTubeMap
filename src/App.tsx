@@ -21,6 +21,7 @@ import {
 import {
   exampleTracks,
   fetchTubeMapData,
+  foldTubeMapData,
   refetchAborted,
   type FetchKey,
   type TubeMapData,
@@ -52,6 +53,7 @@ import {
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
 } from './util/visOptions.ts'
+import { foldThresholdFrom } from './util/foldVariants.ts'
 import type {
   ColorScheme,
   Tracks,
@@ -80,11 +82,13 @@ function validateVisOptions(value: unknown): StoredVisOptions | undefined {
     }
     const cutoff = mappingQualityCutoffFrom(value.mappingQualityCutoff)
     const facetBy = facetByFrom(value.facetBy)
+    const foldVariantsBp = foldThresholdFrom(value.foldVariantsBp)
     return {
       ...DEFAULT_VIS_OPTIONS,
       ...flags,
       ...(cutoff !== undefined && { mappingQualityCutoff: cutoff }),
       ...(facetBy !== undefined && { facetBy }),
+      ...(foldVariantsBp !== undefined && { foldVariantsBp }),
     }
   }
   return undefined
@@ -284,7 +288,13 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
   // right while the next region loads and wrong once there is no view at all:
   // uploading files would leave the previous dataset's graph on screen while
   // the user picks a region in the new ones.
-  const data = fetchKey === null ? undefined : fetched
+  const unfolded = fetchKey === null ? undefined : fetched
+  // Folded here, between the fetch and the layout, since the threshold is a
+  // view setting and a change of it should not fetch again
+  const data =
+    unfolded === undefined
+      ? undefined
+      : foldTubeMapData(unfolded, visOptions.foldVariantsBp)
 
   // Which backend each mode talks to, and the view target to fall back to
   // when switching to it.
@@ -392,6 +402,10 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
     updateVisOptions({ ...visOptions, facetBy: value })
   }
 
+  const handleFoldVariantsChange = (value: number) => {
+    updateVisOptions({ ...visOptions, foldVariantsBp: value })
+  }
+
   const setLegend = (visible: boolean) => {
     setLegendVisible(visible)
     writeStored(LEGEND_VISIBLE_KEY, visible)
@@ -444,6 +458,8 @@ function App({ apiUrl = defaultApiUrl, api }: AppProps) {
             toggleVisOptionFlag={toggleVisOptionFlag}
             handleMappingQualityCutoffChange={handleMappingQualityCutoffChange}
             handleFacetByChange={handleFacetByChange}
+            handleFoldVariantsChange={handleFoldVariantsChange}
+            folded={data?.fold !== undefined}
             compressedViewLocked={viewTarget.removeSequences}
             bandageJsViewTarget={
               dataOrigin === dataOriginTypes.API ? viewTarget : undefined

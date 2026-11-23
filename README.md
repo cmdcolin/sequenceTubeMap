@@ -96,6 +96,68 @@ figures above: it bands the haplotypes by edge instead.
 
 [![BRCA1 reads, coarsened](docs/images/brca1-reads-coarsened.png)][demo-coarsened]
 
+## Folding small variants
+
+A 51 kb window of HPRC v2.1, `GRCh38#chr1:72298000-72349000`, is 1,906 nodes.
+Banded and with logarithmic node widths, which is how the app offers to draw a
+window this size, it is 113,712 px wide. The strip is that whole drawing
+squeezed to the page, and under it is its first 2,000 px:
+
+![The chr1 window unfolded: the whole drawing as a strip, and its first 2,000 px](docs/images/fold-chr1-before.png)
+
+The View menu's **Fold variants under** merges every variant shorter than the
+threshold into the reference, with `@jbrowse/graph-fold`, and labels what is
+left. At 1 kb the same window is 9 nodes and 6 tubes: a 45.5 kb deletion on 306
+of the 464 haplotypes, and an insertion of about 9.3 kb on 129.
+
+![The chr1 window folded at 1 kb, in the app](docs/images/fold-variants-chr1.png)
+
+- A bracket under the map spans each kept variant, over its kind, its size and
+  how many haplotypes carry it. Insertions of nearly one size at one site are
+  one dashed box, labelled as a cluster with its size range: the 9.3 kb one
+  stands for 56 sizes from 8.9 to 9.5 kb.
+- Each tube is one route through the folded graph, wider the more haplotypes
+  take it, on a log scale. Its haplotypes share the route and its orientations
+  and differ under the threshold: the blue tube is 306 haplotypes on 127
+  distinct walks, with 72 to 90 bp folded away in each. Hovering or clicking a
+  tube says so.
+- A merged node is as wide as the logarithm of its length, so widths do not
+  compare as sizes; the labels carry the sizes. Clicking one says how many nodes
+  it holds and where it lies on the reference.
+
+`GRCh38#chr16:75204000-75225000` unfolded is 1,655 nodes and 83,350 px. Folded
+at 1 kb it is three nodes, and the 439 haplotypes that carry a 16.6 kb inversion
+make the loop: the orange tube passes under the block, turns, runs back through
+it against the reference, turns again and carries on.
+
+![The chr16 window unfolded](docs/images/fold-chr16-before.png)
+
+![The chr16 window folded at 1 kb: the tube loops back through the inverted block](docs/images/fold-chr16-folded.png)
+
+The control is off by default, and a link carries it as `fold=1000`:
+
+![The View menu with Fold variants under set to 1 kb](docs/images/fold-variants-menu.png)
+
+What it does not do:
+
+- **Reads are hidden while folded.** A read maps to the nodes the fold merged
+  away and has no place on the merged ones, so the notice above the map counts
+  the reads it left out.
+- **A graph whose reference passes a node more than once is not folded**, as in
+  a pggb graph with a collapsed repeat: a run off the reference there may be a
+  copy of reference sequence and not a variant. The graph is drawn as it is and
+  a notice gives the reason.
+- **A haplotype lying wholly inside an inversion** takes every step reversed, as
+  does one written against the reference. The fold cannot tell them apart,
+  reports no inversion for either and draws both reversed.
+- **Nothing is nested.** A variant inside a kept insertion makes it another size
+  of that insertion.
+- Banding and faceting are off while folded, and no arrowheads mark the
+  direction of a tube.
+
+`pnpm tubemap-cli --fold-variants 1000` draws the same figure headlessly. More
+in [docs/fold-variants.md](docs/fold-variants.md).
+
 ## Navigating and sharing
 
 Region box takes `<contig>:<start>-<end>` (`Circ1:0-1320`), `chr1:1000+500`, or
@@ -125,6 +187,8 @@ encodings.
 - [docs/urlparams.md](docs/urlparams.md) — every parameter a link can carry
 - [docs/headless-rendering.md](docs/headless-rendering.md) — `pnpm tubemap-cli`
   and its options
+- [docs/fold-variants.md](docs/fold-variants.md) — folding small variants so the
+  structural ones are left, and what a folded map does not show
 - [docs/differences-from-upstream.md](docs/differences-from-upstream.md) — what
   changed from vgteam/sequenceTubeMap
 

@@ -128,6 +128,8 @@ View options, mirroring the app's View menu:
 ${flagHelp()}  --mapq N            drop reads below mapping quality N
   --facet-by F        one panel per read_group, sample_name or
                       haplotype_sample (the PanSN sample), stacked
+  --fold-variants N   merge every variant under N bp into the reference and
+                      label the ones kept; draws no reads and no facets
 
 --legend draws the app's color key into the figure, above the map, so it can be
 read away from the app.
@@ -260,6 +262,7 @@ function parseCli(): CliArgs {
       'read-limit': { type: 'string' },
       mapq: { type: 'string' },
       'facet-by': { type: 'string' },
+      'fold-variants': { type: 'string' },
       help: { type: 'boolean', default: false },
       ...flagArgOptions(),
     },
@@ -301,6 +304,11 @@ function parseCli(): CliArgs {
       }),
       ...(values['facet-by'] !== undefined && {
         facetBy: parseFacet(values['facet-by']),
+      }),
+      ...(values['fold-variants'] !== undefined && {
+        foldVariantsBp: Math.round(
+          parseCount('fold-variants', values['fold-variants']),
+        ),
       }),
     },
   }
@@ -647,25 +655,52 @@ async function main(): Promise<void> {
   // touches `typeof window` at import time, and d3 binds to the ambient
   // document on first selection.
   const tubeMap = await import('../src/util/tubemap.ts')
-  const { exampleTracks, fetchTubeMapData } =
+  const { exampleTracks, fetchTubeMapData, foldTubeMapData } =
     await import('../src/components/tubeMapData.ts')
   const { legendSections } = await import('../src/util/legend.ts')
   const { GBZBaseAPI } = await import('../src/api/GBZBaseAPI.ts')
   const { subsampleReads } = await import('../src/util/array.ts')
   const { exportSvg } = await import('../src/util/svgExport.ts')
-  const { applyVisOptions } = await import('../src/util/visOptions.ts')
+  const { applyVisOptions, foldedVisOptions } =
+    await import('../src/util/visOptions.ts')
 
   const api = new GBZBaseAPI()
   const { key, viewTarget, visOptions, colorSchemes } = await resolveRender(
     api,
     args,
   )
-  const data = await fetchTubeMapData(key, api)
+  const data = foldTubeMapData(
+    await fetchTubeMapData(key, api),
+    visOptions.foldVariantsBp,
+  )
+  const { fold } = data
+  if (data.foldRefused !== undefined) {
+    console.error(
+      `warning: variants are not folded: ${data.foldRefused}. The graph is drawn as it is.`,
+    )
+  }
+  if (fold !== undefined) {
+    console.error(
+      `folded ${fold.unfoldedNodes.toLocaleString()} nodes to ${fold.nodes.length.toLocaleString()}, keeping ${fold.branches.length.toLocaleString()} variant(s)`,
+    )
+    if (data.hiddenReads) {
+      console.error(
+        `warning: ${data.hiddenReads.toLocaleString()} read(s) are not drawn, since reads map to the nodes the fold merged away`,
+      )
+    }
+    if (visOptions.facetBy !== null) {
+      console.error('warning: --facet-by does not apply to a folded render')
+    }
+  }
 
   // Configure the renderer through the same path the app does, rather than
   // leaning on tubemap's module defaults happening to agree with it.
   applyVisOptions(
-    { ...visOptions, colorSchemes, coloredNodes: data.coloredNodes },
+    {
+      ...foldedVisOptions(visOptions, fold !== undefined),
+      colorSchemes,
+      coloredNodes: data.coloredNodes,
+    },
     viewTarget?.removeSequences !== true,
   )
 
@@ -693,6 +728,7 @@ async function main(): Promise<void> {
     tracks: data.tracks,
     reads,
     region: data.region,
+    fold,
   })
 
   debugTiming('create()', tCreate)

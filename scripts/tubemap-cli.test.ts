@@ -102,6 +102,33 @@ describe('tubemap-cli', () => {
     expect(flags === link).toBe(true)
   }, 60_000)
 
+  it.concurrent('folds variants under --fold-variants, drawing no reads and saying so', async () => {
+    const out = path.join(outDir, 'folded.svg')
+    const { stderr } = await run(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        path.join(REPO, 'scripts', 'tubemap-cli.ts'),
+        '--graph',
+        'exampleData/internal/snp1kg-BRCA1.17.walks.gz',
+        '--reads',
+        'exampleData/internal/NA12878-BRCA1.sorted.gam',
+        '--region',
+        '17:1-1000',
+        '--fold-variants',
+        '50',
+        '--out',
+        out,
+      ],
+      { cwd: REPO },
+    )
+    const svg = await readFile(out, 'utf8')
+
+    expect(stderr).toContain('folded 102 nodes to 1, keeping 0 variant(s)')
+    expect(stderr).toContain('1,401 read(s) are not drawn')
+    expect(svg.match(/data-node=/g)).toHaveLength(1)
+  }, 60_000)
+
   it.concurrent('names haplotypes from --haplotype-index as the configured source does', async () => {
     const graph = [
       '--graph',

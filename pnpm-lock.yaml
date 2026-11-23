@@ -23,6 +23,9 @@ importers:
       '@gmod/gbz-base':
         specifier: ^7.4.1
         version: 7.4.1
+      '@jbrowse/graph-fold':
+        specifier: file:./vendor/jbrowse-graph-fold-0.0.0.tgz
+        version: file:vendor/jbrowse-graph-fold-0.0.0.tgz
       '@jbrowse/graph-walks':
         specifier: ^9.1.0
         version: 9.1.0
@@ -296,6 +299,10 @@ packages:
   '@gmod/gbz-base@7.4.1':
     resolution: {integrity: sha512-Le+Rpj9Jp7GAOpo05XwYFhZbsakhC6TOfaslgW7F72xm2q6Z11dwDZwZFd0S93x2bgbasvO7S3Zr1oL+QBf2SA==}
     hasBin: true
+
+  '@jbrowse/graph-fold@file:vendor/jbrowse-graph-fold-0.0.0.tgz':
+    resolution: {integrity: sha512-b+QsBTJ+tBQlY/42SqTaGYnF2AMlKd4SK4h2NMdp+nkWcohpg/wtjproqaPoJn5ORfei87B6kGFxY997XJq0LQ==, tarball: file:vendor/jbrowse-graph-fold-0.0.0.tgz}
+    version: 0.0.0
 
   '@jbrowse/graph-walks@9.1.0':
     resolution: {integrity: sha512-H+G7WQNjaypsjJB1xwFxIMf14gSC0G7t3uckjl8LNVN44edqGlxS4YDuju3VbAyYHUHjbh22HtaUhfFvykipVA==}
@@ -2664,6 +2671,8 @@ snapshots:
   '@gmod/gbz-base@7.4.1':
     dependencies:
       generic-filehandle2: 2.5.1
+
+  '@jbrowse/graph-fold@file:vendor/jbrowse-graph-fold-0.0.0.tgz': {}
 
   '@jbrowse/graph-walks@9.1.0':
     dependencies:

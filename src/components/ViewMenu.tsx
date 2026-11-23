@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography'
 import type { FacetBy } from '@jbrowse/tubemap-core'
 import type { ViewTarget, VisOptionFlag, VisOptions } from '../Types.ts'
 import { facetByFrom, MAX_MAPPING_QUALITY_CUTOFF } from '../util/visOptions.ts'
+import { FOLD_THRESHOLDS, thresholdText } from '../util/foldVariants.ts'
 import { AppBarMenu } from './AppBarMenu.tsx'
 import { CheckboxMenuItem } from './CheckboxMenuItem.tsx'
 import { HelpDialog } from './HelpDialog.tsx'
@@ -27,6 +28,10 @@ interface ViewMenuProps {
   toggleVisOptionFlag: (flag: VisOptionFlag) => void
   handleMappingQualityCutoffChange: (value: number) => void
   handleFacetByChange: (value: FacetBy | null) => void
+  handleFoldVariantsChange: (value: number) => void
+  // Whether the graph on screen is folded, which a graph the fold refuses is
+  // not, whatever the setting
+  folded: boolean
   compressedViewLocked?: boolean
   bandageJsViewTarget: ViewTarget | undefined
   trackFileBaseURI: string | undefined
@@ -39,6 +44,8 @@ export function ViewMenu({
   toggleVisOptionFlag,
   handleMappingQualityCutoffChange,
   handleFacetByChange,
+  handleFoldVariantsChange,
+  folded,
   compressedViewLocked,
   bandageJsViewTarget,
   trackFileBaseURI,
@@ -62,6 +69,7 @@ export function ViewMenu({
             <CheckboxMenuItem
               label="Merge node chains"
               checked={visOptions.removeRedundantNodes}
+              disabled={folded}
               onToggle={() => {
                 toggleVisOptionFlag('removeRedundantNodes')
               }}
@@ -69,8 +77,8 @@ export function ViewMenu({
             />
             <CheckboxMenuItem
               label="Compressed view"
-              checked={visOptions.compressedView}
-              disabled={compressedViewLocked}
+              checked={visOptions.compressedView || folded}
+              disabled={compressedViewLocked === true || folded}
               onToggle={() => {
                 toggleVisOptionFlag('compressedView')
               }}
@@ -78,7 +86,8 @@ export function ViewMenu({
             />
             <CheckboxMenuItem
               label="Band haplotypes (Sankey)"
-              checked={visOptions.coarsenedHaplotypeView}
+              checked={visOptions.coarsenedHaplotypeView && !folded}
+              disabled={folded}
               onToggle={() => {
                 toggleVisOptionFlag('coarsenedHaplotypeView')
               }}
@@ -127,7 +136,8 @@ export function ViewMenu({
               </HelpDialog>
               <Select
                 labelId="facetByLabel"
-                value={visOptions.facetBy ?? 'none'}
+                disabled={folded}
+                value={folded ? 'none' : (visOptions.facetBy ?? 'none')}
                 onChange={e => {
                   handleFacetByChange(facetByFrom(e.target.value) ?? null)
                 }}
@@ -143,6 +153,50 @@ export function ViewMenu({
                 <MenuItem value="haplotype_sample">haplotype sample</MenuItem>
               </Select>
             </Box>
+            <Box
+              sx={{
+                px: 2,
+                py: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+              onKeyDown={e => {
+                e.stopPropagation()
+              }}
+            >
+              <Typography variant="body2" id="foldVariantsLabel">
+                Fold variants under:
+              </Typography>
+              <HelpDialog title="Fold variants">
+                Merges every variant shorter than this into the reference, so
+                the structural variants are what is left: each insertion,
+                deletion and inversion at least this long is kept and labelled
+                under the map with its size and how many haplotypes carry it.
+                Insertions of nearly one size at one site are drawn as one box,
+                labelled as a cluster with its size range. A merged node is as
+                wide as the logarithm of its length, and clicking it says how
+                many nodes it holds. Each walk left is drawn as its own tube, so
+                banding is off while folded, as is faceting, and reads are
+                hidden, since they map to the nodes that were merged away. A
+                graph whose reference passes a node more than once is not
+                folded, and a notice above the map says why.
+              </HelpDialog>
+              <Select
+                labelId="foldVariantsLabel"
+                value={visOptions.foldVariantsBp}
+                onChange={e => {
+                  handleFoldVariantsChange(Number(e.target.value))
+                }}
+                data-testid="foldVariantsSelect"
+              >
+                {FOLD_THRESHOLDS.map(threshold => (
+                  <MenuItem value={threshold} key={threshold}>
+                    {threshold === 0 ? 'off' : thresholdText(threshold)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Box>
             <Divider />
             <ListSubheader>Reads</ListSubheader>
             <CheckboxMenuItem
@@ -154,8 +208,8 @@ export function ViewMenu({
             />
             <CheckboxMenuItem
               label="Coarsened (Sankey) view"
-              checked={visOptions.coarsenedReadView}
-              disabled={readsDisabled}
+              checked={visOptions.coarsenedReadView && !folded}
+              disabled={readsDisabled || folded}
               onToggle={() => {
                 toggleVisOptionFlag('coarsenedReadView')
               }}

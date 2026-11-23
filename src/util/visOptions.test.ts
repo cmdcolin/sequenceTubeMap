@@ -2,7 +2,12 @@
 
 import { describe, expect, it } from 'vitest'
 import { dataOriginTypes } from '../enums.ts'
-import { exampleColorSchemes, fetchTargetFor } from './visOptions.ts'
+import {
+  DEFAULT_VIS_OPTIONS,
+  exampleColorSchemes,
+  fetchTargetFor,
+  foldedVisOptions,
+} from './visOptions.ts'
 
 describe('exampleColorSchemes', () => {
   it('mutes the graph and keeps both read strands on the alignment examples', () => {
@@ -50,5 +55,32 @@ describe('fetchTargetFor', () => {
     for (const facetBy of [null, 'read_group', 'sample_name'] as const) {
       expect(fetchTargetFor(target, { facetBy })).toBe(target)
     }
+  })
+})
+
+describe('foldedVisOptions', () => {
+  const chosen = {
+    ...DEFAULT_VIS_OPTIONS,
+    coarsenedHaplotypeView: true,
+    coarsenedReadView: true,
+    facetBy: 'haplotype_sample' as const,
+  }
+
+  it('folds are off by default', () => {
+    expect(DEFAULT_VIS_OPTIONS.foldVariantsBp).toBe(0)
+  })
+
+  it('draws a folded graph compressed, one tube per walk, in one panel', () => {
+    expect(foldedVisOptions(chosen, true)).toEqual({
+      ...chosen,
+      compressedView: true,
+      coarsenedHaplotypeView: false,
+      coarsenedReadView: false,
+      facetBy: null,
+    })
+  })
+
+  it('leaves an unfolded graph as the View menu has it', () => {
+    expect(foldedVisOptions(chosen, false)).toBe(chosen)
   })
 })

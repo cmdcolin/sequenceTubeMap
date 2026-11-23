@@ -5,6 +5,7 @@ import {
   VIS_OPTION_FLAGS,
   type StoredVisOptions,
 } from './util/visOptions.ts'
+import { foldThresholdFrom } from './util/foldVariants.ts'
 import {
   DEFAULT_AVAILABLE_COLORS,
   type ColorScheme,
@@ -355,10 +356,12 @@ export function urlParamsToVisOptions(
 
   const cutoff = mappingQualityCutoffFrom(Number(readScalar(params, 'mapq')))
   const facetBy = facetByFrom(readScalar(params, 'facet'))
+  const foldVariantsBp = foldThresholdFrom(readScalar(params, 'fold'))
   return {
     ...flags,
     ...(cutoff !== undefined && { mappingQualityCutoff: cutoff }),
     ...(facetBy !== undefined && { facetBy }),
+    ...(foldVariantsBp !== undefined && { foldVariantsBp }),
   }
 }
 
@@ -408,6 +411,9 @@ function visOptionsToParams(visOptions: StoredVisOptions) {
       : []),
     ...(visOptions.facetBy !== DEFAULT_VIS_OPTIONS.facetBy
       ? [scalarParam('facet', visOptions.facetBy ?? 'none')]
+      : []),
+    ...(visOptions.foldVariantsBp !== DEFAULT_VIS_OPTIONS.foldVariantsBp
+      ? [scalarParam('fold', String(visOptions.foldVariantsBp))]
       : []),
   ]
 }

@@ -29,6 +29,12 @@ import type {
   VisOptions,
 } from '../Types.ts'
 import { mergeUnique, subsampleReads } from '../util/array.ts'
+import { foldedVisOptions } from '../util/visOptions.ts'
+import {
+  isDrawnBranch,
+  thresholdText,
+  type FoldView,
+} from '../util/foldVariants.ts'
 import { errorMessage } from '../util/error.ts'
 import { dataOriginTypes } from '../enums.ts'
 
@@ -196,6 +202,46 @@ function LargeRegionNotice({
         Narrow the region, or load it anyway.
       </Alert>
     </Box>
+  )
+}
+
+const FOLD_NOTICE_SX = { margin: '0 20px 8px', padding: '0 12px', fontSize: 13 }
+
+function counted(count: number, noun: string) {
+  return `${count.toLocaleString()} ${noun}${count === 1 ? '' : 's'}`
+}
+
+function FoldNotice({
+  fold,
+  hiddenReads,
+}: {
+  fold: FoldView
+  hiddenReads: number
+}) {
+  const kept = fold.branches.filter(isDrawnBranch).length
+  return (
+    <Alert severity="info" sx={FOLD_NOTICE_SX} data-testid="foldNotice">
+      <strong>
+        Variants under {thresholdText(fold.threshold)} are folded into the
+        reference
+      </strong>
+      : {counted(fold.nodes.length, 'node')} drawn for the{' '}
+      {fold.unfoldedNodes.toLocaleString()} of the graph, with{' '}
+      {counted(kept, 'kept variant')} labelled under the map. Node widths are
+      logarithmic.
+      {hiddenReads > 0
+        ? ` ${counted(hiddenReads, 'read')} ${hiddenReads === 1 ? 'is' : 'are'} hidden, since reads map to the nodes that were merged away.`
+        : ''}
+    </Alert>
+  )
+}
+
+function FoldRefusedNotice({ reason }: { reason: string }) {
+  return (
+    <Alert severity="warning" sx={FOLD_NOTICE_SX} data-testid="foldRefused">
+      <strong>Variants are not folded</strong>: {reason}. The graph is drawn as
+      it is.
+    </Alert>
   )
 }
 
@@ -392,7 +438,11 @@ function TubeMapContainer({
     region,
     coloredNodes,
     abridged = [],
+    fold,
+    foldRefused,
+    hiddenReads = 0,
   } = data ?? {}
+  const shownVisOptions = foldedVisOptions(visOptions, fold !== undefined)
 
   // Everything the user staged for the region they were looking at (read
   // groups, the pending read/node sets, the read filter and the render cap)
@@ -643,7 +693,7 @@ function TubeMapContainer({
   // then only until the user says to draw it anyway.
   const nodeVisits = tracks === undefined ? 0 : graphNodeVisits(tracks)
   const readCount = reads?.length ?? 0
-  const renderLimit = graphRenderLimit(visOptions, readCount)
+  const renderLimit = graphRenderLimit(shownVisOptions, readCount)
   const graphTooLarge = nodeVisits > renderLimit && !drawLargeGraph
   const coarseningWouldDraw =
     renderLimit < COARSENED_GRAPH_RENDER_LIMIT &&
@@ -658,7 +708,7 @@ function TubeMapContainer({
   // The coarsened view collapses reads to one band per edge, so the per-read
   // cap doesn't apply. The compiler memoizes the subsample on these three
   // values alone, so a View menu change keeps the array and the layout cache.
-  const { coarsenedReadView } = visOptions
+  const { coarsenedReadView } = shownVisOptions
   const shownReads =
     reads !== undefined && readRenderLimit !== null && !coarsenedReadView
       ? subsampleReads(reads, readRenderLimit)
@@ -763,6 +813,12 @@ function TubeMapContainer({
           ]}
         />
       ) : null}
+      {fold !== undefined && !graphTooLarge ? (
+        <FoldNotice fold={fold} hiddenReads={hiddenReads} />
+      ) : null}
+      {foldRefused !== undefined ? (
+        <FoldRefusedNotice reason={foldRefused} />
+      ) : null}
       {reads !== undefined &&
       reads.length > readBannerThreshold &&
       !coarsenedReadView &&
@@ -811,9 +867,10 @@ function TubeMapContainer({
             tracks={tracks}
             reads={shownReads}
             region={region}
+            fold={fold}
             visOptions={{
               coloredNodes,
-              ...visOptions,
+              ...shownVisOptions,
               focusReadNames,
               readGroups,
               otherReadsColor,

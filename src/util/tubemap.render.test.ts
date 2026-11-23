@@ -9,7 +9,10 @@ import { haplotypeShareColor } from './palettes.ts'
 import { legendSections } from './legend.ts'
 import { defaultTrackColors } from '../common.ts'
 import type { InfoAttribute, InputNode, InputTrack } from './tubemap.ts'
-import { computeExampleData } from '../components/tubeMapData.ts'
+import {
+  computeExampleData,
+  foldTubeMapData,
+} from '../components/tubeMapData.ts'
 import { dataOriginTypes } from '../enums.ts'
 import * as demo from './demo-data.js'
 import { measureSvgContent } from './svgBounds.ts'
@@ -1414,5 +1417,228 @@ describe('tubemap.getRenderedColoring', () => {
       [],
       ['Reads'],
     ])
+  })
+})
+
+describe('tubemap.create — folded variants', () => {
+  // A reference of four nodes: one walk skips the 3 kb second, two take an
+  // insertion of nearly one size after the third
+  function foldedExample() {
+    return foldTubeMapData(
+      {
+        nodes: [
+          { name: 'a', sequenceLength: 500 },
+          { name: 'b', sequenceLength: 3000 },
+          { name: 'c', sequenceLength: 500 },
+          { name: 'd', sequenceLength: 500 },
+          { name: 'ins1', sequenceLength: 2000 },
+          { name: 'ins2', sequenceLength: 2040 },
+        ],
+        tracks: [
+          {
+            id: 0,
+            name: 'ref',
+            sequence: ['a', 'b', 'c', 'd'],
+            freq: 1,
+            sourceTrackID: 0,
+            indexOfFirstBase: 1,
+          },
+          {
+            id: 1,
+            name: 'del',
+            sequence: ['a', 'c', 'd'],
+            freq: 5,
+            sourceTrackID: 0,
+          },
+          {
+            id: 2,
+            name: 'insA',
+            sequence: ['a', 'b', 'c', 'ins1', 'd'],
+            freq: 3,
+            sourceTrackID: 0,
+          },
+          {
+            id: 3,
+            name: 'insB',
+            sequence: ['a', 'b', 'c', 'ins2', 'd'],
+            freq: 1,
+            sourceTrackID: 0,
+          },
+        ],
+        reads: [
+          {
+            id: 9,
+            name: 'read',
+            type: 'read',
+            sequence: ['ins2'],
+            sourceTrackID: 1,
+          },
+        ],
+        region: undefined,
+        coloredNodes: undefined,
+        abridged: [],
+      },
+      1000,
+    )
+  }
+
+  function renderFolded(data = foldedExample()) {
+    tubeMap.create({
+      svgID: '#tubemap',
+      nodes: data.nodes,
+      tracks: data.tracks,
+      reads: data.reads,
+      fold: data.fold,
+    })
+    return document.querySelector<SVGSVGElement>('#tubemap')!
+  }
+
+  const labelsOf = (svg: SVGSVGElement, selector: string) =>
+    [...svg.querySelectorAll(selector)].map(label =>
+      [...label.querySelectorAll('text')].map(text => text.textContent),
+    )
+
+  beforeEach(() => {
+    setupSvg()
+    tubeMap.setNodeWidthOption('compressed')
+  })
+
+  afterEach(() => {
+    tubeMap.setNodeWidthOption('normal')
+  })
+
+  it('labels each kept branch with its kind, size and carriers, and a cluster as one', () => {
+    const svg = renderFolded()
+
+    expect(labelsOf(svg, '.fold-branch-label')).toEqual([
+      ['deletion 3.0 kb, 5 of 10'],
+      ['insertion 2.0 kb, 4 of 10', 'cluster of 2 sizes, 2.0 kb to 2.0 kb'],
+    ])
+    expect(svg.querySelectorAll('.fold-branch-bracket')).toHaveLength(2)
+  })
+
+  it('outlines the box of a cluster with dashes, and no other', () => {
+    const svg = renderFolded()
+    const dashed = [
+      ...svg.querySelectorAll<SVGElement>('g.node path[data-node]'),
+    ].filter(node => node.style.strokeDasharray !== '')
+
+    expect(dashed.map(node => node.dataset.node)).toEqual(['ins:c:2000'])
+  })
+
+  it('keeps the labels inside the area the zoom can reach', () => {
+    const svg = renderFolded()
+    const { box } = measureSvgContent(svg)
+    const lowest = Math.max(
+      ...[...svg.querySelectorAll('.fold-branch-label')].map(label =>
+        Number(
+          /translate\([^,]+,([^)]+)\)/.exec(
+            label.getAttribute('transform')!,
+          )![1],
+        ),
+      ),
+    )
+
+    expect(box!.y + box!.height).toBeGreaterThan(lowest)
+  })
+
+  it('drops the label of a deletion whose only carrier is hidden', () => {
+    const data = foldedExample()
+    renderFolded(data)
+    tubeMap.changeTrackVisibility(1)
+    const svg = document.querySelector<SVGSVGElement>('#tubemap')!
+
+    expect(labelsOf(svg, '.fold-branch-label').map(lines => lines[0])).toEqual([
+      'insertion 2.0 kb, 4 of 10',
+    ])
+  })
+
+  it('lists a branch with no box or jump of its own at the foot', () => {
+    const data = foldedExample()
+    const svg = renderFolded({
+      ...data,
+      fold: {
+        ...data.fold!,
+        branches: [
+          ...data.fold!.branches,
+          {
+            kind: 'other',
+            description: 'walk starts inside the window',
+            length: 1440,
+            insertedBp: 0,
+            deletedBp: 0,
+            refStart: 1,
+            refEnd: 1441,
+            haplotypes: 2,
+            nodes: [],
+          },
+        ],
+      },
+    })
+
+    expect(labelsOf(svg, '.fold-footnote')).toEqual([
+      [
+        'no box or jump of its own: walk starts inside the window 1.4 kb, 2 of 10',
+      ],
+    ])
+  })
+
+  it('says how many nodes a merged node holds and where it lies', () => {
+    const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
+    tubeMap.setInfoCallback(onInfo)
+    const svg = renderFolded()
+    svg
+      .querySelector('g.node path[data-node="ins:c:2000"]')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+
+    expect(Object.fromEntries(onInfo.mock.calls[0]![0])).toMatchObject({
+      'Merged Nodes:': '2 of the unfolded graph',
+      'Reference Span:': 'at 4,001',
+      'Variant:': 'insertion 2.0 kb, 4 of 10',
+      'Cluster:':
+        'cluster of 2 sizes, 2.0 kb to 2.0 kb, drawn at the most carried size',
+    })
+  })
+
+  it('says what a tube stands for on hover and on click', () => {
+    const onInfo = vi.fn<(attrs: InfoAttribute[]) => void>()
+    tubeMap.setInfoCallback(onInfo)
+    const svg = renderFolded()
+    const tube = svg.querySelector('[trackID="2"]')!
+    tube.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+
+    expect(document.body.lastElementChild?.textContent).toBe(
+      'insA ×4 (folded: 4 haplotypes on 2 distinct walks, 0 bp to 40 bp folded away in each)',
+    )
+
+    tube.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(Object.fromEntries(onInfo.mock.calls[0]![0])).toMatchObject({
+      Haplotypes: 4,
+      'Distinct Walks': 2,
+    })
+  })
+
+  it('draws no reads, where the unfolded reads would stop the layout', () => {
+    const data = foldedExample()
+    const svg = renderFolded(data)
+
+    expect(data.hiddenReads).toBe(1)
+    expect(svg.querySelectorAll('[trackID="9"]')).toHaveLength(0)
+    expect(() =>
+      layoutTopology(
+        data.nodes,
+        data.tracks,
+        [
+          {
+            id: 9,
+            name: 'read',
+            type: 'read',
+            sequence: ['ins2'],
+            sourceTrackID: 1,
+          },
+        ],
+        {},
+      ),
+    ).toThrow(/unknown node ins2/)
   })
 })
