@@ -118,10 +118,9 @@ of the 464 haplotypes, and an insertion of 8.9 to 9.5 kb on 129.
   `insertion 8.9 kb to 9.5 kb (56 lengths), 129 of 464`.
 - Each tube is one route through the folded graph, wider the more haplotypes
   take it, on a log scale. Its haplotypes share the route and its orientations
-  and differ under the threshold: the blue tube is 306 haplotypes on 127
-  distinct walks, with 72 to 90 bp folded away in each. The legend names a tube
-  by its haplotype count, and hovering or clicking it says the rest and names
-  its walks.
+  and differ under the threshold: the blue tube is 306 haplotypes, with 72 to 90
+  bp folded away in each. The legend names a tube by its haplotype count, and
+  hovering or clicking it says the rest and names its walks.
 - A merged node is as wide as it is long, at one scale that fits the map to the
   window, so the 39 kb the deletion leaves out is the widest box. Clicking a
   node says how many nodes it holds and where it lies on the reference.

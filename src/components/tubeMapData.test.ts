@@ -129,7 +129,7 @@ describe('foldTubeMapData', () => {
     expect(folded.fold?.tracks[1]).toMatchObject({
       label: '2 haplotypes',
       names: ['hap1'],
-      variation: { walks: 1, foldedAwayBp: { min: 2, max: 2 } },
+      variation: { foldedAwayBp: { min: 2, max: 2 } },
     })
   })
 

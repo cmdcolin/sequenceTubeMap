@@ -1608,14 +1608,13 @@ describe('tubemap.create — folded variants', () => {
     tube.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
 
     expect(document.body.lastElementChild?.textContent).toBe(
-      '4 haplotypes on 2 distinct walks, 0 bp to 40 bp folded away in each: insA, insB',
+      '4 haplotypes, 0 bp to 40 bp folded away in each: insA, insB',
     )
 
     tube.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(Object.fromEntries(onInfo.mock.calls[0]![0])).toEqual({
       Name: '4 haplotypes',
-      Folded:
-        '4 haplotypes on 2 distinct walks, 0 bp to 40 bp folded away in each',
+      Folded: '4 haplotypes, 0 bp to 40 bp folded away in each',
       Walks: 'insA, insB',
     })
   })

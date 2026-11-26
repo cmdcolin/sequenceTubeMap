@@ -58,15 +58,14 @@ and fetches nothing.
 
 A folded tube is every haplotype that takes its route, and they are not
 identical. On `GRCh38#chr16:75204000-75225000` at 1 kb the looping tube is 439
-haplotypes on 356 distinct walks, each with between 8 and 795 bp folded away; 26
-of them carry a 584 bp deletion that only separates at a 50 bp threshold. The
-route and the orientation of every step are exact for all of them, and what
-differs is under the threshold.
+haplotypes, each with between 8 and 795 bp folded away; 26 of them carry a 584
+bp deletion that only separates at a 50 bp threshold. The route and the
+orientation of every step are exact for all of them, and what differs is under
+the threshold.
 
 - **The legend and the track list** name a tube by its count, `439 haplotypes`,
   and not by the first of them. A tube of one haplotype keeps that walk's name.
-- **Hovering a tube** says
-  `439 haplotypes on 356 distinct walks, 8 bp to 795 bp folded away in each`,
+- **Hovering a tube** says `439 haplotypes, 8 bp to 795 bp folded away in each`,
   and then names its walks, the first five of many. Clicking it lists the same
   in the info dialog.
 - **Clicking a node** adds to the info dialog how many nodes of the unfolded
