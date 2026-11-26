@@ -18,7 +18,7 @@ import {
   SchemaVersionError,
   SubgraphLimitError,
 } from '@gmod/gbz-base'
-import { DepartureReadError, RegionTooLargeError } from '@jbrowse/graph-walks'
+import { DepartureReadError, RegionTooLargeError } from '@gmod/gfa-tabix'
 import type {
   GbzPath,
   NodeHaplotypeOutput,
@@ -282,8 +282,8 @@ function subgraphLimitMessage(region: string, e: SubgraphLimitError): string {
   return `${region} takes in more than ${e.limit.toLocaleString()} graph nodes, the most the browser reads for one view.${fits}`
 }
 
-// graph-walks' notice for a walk-file cut past the node limit or one of its
-// budgets, worded as the gbz-base notice is: graph-walks' own words offer
+// gfa-tabix's notice for a walk-file cut past the node limit or one of its
+// budgets, worded as the gbz-base notice is: gfa-tabix's own words offer
 // fewer haplotypes, which the tube map has no way to choose
 function walkLimitMessage(region: string, e: RegionTooLargeError): string {
   return e.zoomHelps

@@ -74,7 +74,7 @@ reference position, one walk file per reference sample, so the browser reads a
 region with a few range requests and names every haplotype
 `sample#haplotype#contig` without a companion index. The JBrowse graph track and
 BandageJS read the same files, all through
-[@jbrowse/graph-walks](https://github.com/GMOD/graph-walks).
+[@gmod/gfa-tabix](https://github.com/GMOD/gfa-tabix-js).
 
 ```bash
 cargo install gfa-to-tabix   # 5.0 or later
@@ -102,7 +102,7 @@ gfa-to-tabix graph.gfa --walks --refs GRCh38 --sequences -o graph
   segments it chopped or renamed writes the GFA's names back by default, so
   `--no-translation` is what keeps the GBZ's own ids
 
-The cut is graph-walks' browser preset: the reference over the region plus 1,000
+The cut is gfa-tabix's browser preset: the reference over the region plus 1,000
 bp either side, and each haplotype from its first step there to its last. The
 `.gbz.db` reader keeps 100 bp either side, so the same region draws 1,800 bp
 wider from a walk file, and holds the same nodes and walks where the two
@@ -125,7 +125,7 @@ A view can keep another context than the preset's 1,000 bp:
   keeps a figure of a narrow window narrow: BRCA1 at `17:1-100` draws 2,296
   units across in place of 9,395
 - The default is unchanged, and it is the one to keep outside a figure. Every
-  graph-walks reader cuts by the same preset, so the same region draws the same
+  gfa-tabix reader cuts by the same preset, so the same region draws the same
   graph in JBrowse, BandageJS and here, and a view with its own context no
   longer matches them
 - A smaller context can also draw less of a haplotype. A cut attaches a
@@ -135,7 +135,7 @@ A view can keep another context than the preset's 1,000 bp:
   have drawn it through
 - A `.gbz.db` ignores the setting
 
-A window past graph-walks' budgets, 4,000,000 steps or 8 MB of walk rows, or the
+A window past gfa-tabix's budgets, 4,000,000 steps or 8 MB of walk rows, or the
 node limit is refused, with the width that would fit where one does. One whose
 departure records come to more than 2 MB, usually at a collapsed repeat, is
 refused at any width.
@@ -160,7 +160,7 @@ that a window doesn't read
 
 - A bar over the tube map lists each abridged walk as a block, such as
   `HG00133#1: 170 kb off the reference not loaded`: the bp of the walk's runs
-  off the reference that the window did not load, in the words graph-walks'
+  off the reference that the window did not load, in the words gfa-tabix's
   `abridgedText` gives every reader. The map leaves out a walk with such a run
 - Clicking a block reads that walk in full and redraws. Double-clicking a walk
   to follow it does the same when the window abridged it

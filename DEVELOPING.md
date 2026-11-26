@@ -220,7 +220,7 @@ changes over a websocket. This is upstream's design, largely unchanged.
 ### In-browser path
 
 ```
-LocalAPI ──Comlink──> Worker ──> GBZBaseAPI ──┬──> @jbrowse/graph-walks ──> .walks.gz (+.idx)
+LocalAPI ──Comlink──> Worker ──> GBZBaseAPI ──┬──> @gmod/gfa-tabix ──> .walks.gz (+.idx)
                                               ├──> @gmod/gbz-base ──> .gbz.db (legacy)
                                               │     (BlobFile | RemoteFile)
                                               └──> src/api/gam ──> .gam (+.gai)
@@ -230,7 +230,7 @@ LocalAPI ──Comlink──> Worker ──> GBZBaseAPI ──┬──> @jbrows
 page reads and GAM decoding stay off the main thread. Everything real happens in
 `GBZBaseAPI` (`src/api/GBZBaseAPI.ts`):
 
-- **Graphs** come from `@jbrowse/graph-walks`, which cuts a region out of a
+- **Graphs** come from `@gmod/gfa-tabix`, which cuts a region out of a
   gfa-to-tabix walk file; `src/api/walks/WalkFiles.ts` turns the cut into
   vg-style JSON. A graph track ending `.walks.gz` takes that path (`isWalks`),
   and every example and test that only needs a graph uses it.

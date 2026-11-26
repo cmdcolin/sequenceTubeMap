@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { CUT_PRESETS, WalkReader } from '@jbrowse/graph-walks'
-import type * as GraphWalks from '@jbrowse/graph-walks'
+import { CUT_PRESETS, WalkFile } from '@gmod/gfa-tabix'
+import type * as GfaTabix from '@gmod/gfa-tabix'
 import '../../config-client.js'
 import { config } from '../../config-global.mjs'
 import { isLocalGraphFilename, isWalksFilename } from '../../common.ts'
@@ -9,8 +9,8 @@ import type { ViewTarget } from '../../Types.ts'
 
 const drawnPast = vi.hoisted((): { bp?: number } => ({}))
 
-vi.mock('@jbrowse/graph-walks', async importOriginal => {
-  const walks = await importOriginal<typeof GraphWalks>()
+vi.mock('@gmod/gfa-tabix', async importOriginal => {
+  const walks = await importOriginal<typeof GfaTabix>()
   const { browser } = walks.CUT_PRESETS
   return {
     ...walks,
@@ -88,20 +88,20 @@ describe('a gfa-to-tabix walk file set', () => {
     ).toBe(true)
   })
 
-  it("cuts by graph-walks' browser preset, as every reader cuts", async () => {
-    const cut = vi.spyOn(WalkReader.prototype, 'cut')
+  it("cuts by gfa-tabix's browser preset, as every reader cuts", async () => {
+    const cut = vi.spyOn(WalkFile.prototype, 'getGraphForRange')
     await api.getChunkedData(view(id, 'GRCh38#chrM:2000-2100'), null)
-    expect(cut.mock.calls[0]![2]).toMatchObject(CUT_PRESETS.browser)
+    expect(cut.mock.calls[0]![3]).toMatchObject(CUT_PRESETS.browser)
     cut.mockRestore()
   })
 
   it("keeps the context a view names past each end, and the preset's 1000 bp for a view that names none", async () => {
-    const cut = vi.spyOn(WalkReader.prototype, 'cut')
+    const cut = vi.spyOn(WalkFile.prototype, 'getGraphForRange')
     const region = 'GRCh38#chrM:2000-2100'
     await api.getChunkedData(view(id, region), null)
     await api.getChunkedData(view(id, region, { context: 100 }), null)
     await api.getChunkedData(view(id, region, { context: 0 }), null)
-    expect(cut.mock.calls.map(([, , options]) => options?.context)).toEqual([
+    expect(cut.mock.calls.map(([, , , options]) => options?.context)).toEqual([
       1000, 100, 0,
     ])
     cut.mockRestore()
@@ -374,7 +374,7 @@ describe('a walk file that abridges two walks, IAI39 and Sakai', () => {
 
 // The departure fixtures' reference is 600 bp, built for a stretch drawn
 // 100 bp past the window: the browser preset's 1000 bp would hold all of it
-// and leave no edge to depart at. graph-walks freezes its presets, so these
+// and leave no edge to depart at. gfa-tabix freezes its presets, so these
 // tests cut by a copy of the browser preset with 100 bp of context
 function with100bpContext() {
   beforeEach(() => {

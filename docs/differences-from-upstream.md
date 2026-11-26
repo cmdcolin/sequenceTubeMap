@@ -18,7 +18,7 @@ over a whole local file, and returns `gam: []` — graphs only, no reads. This
 fork replaces that:
 
 - **gfa-to-tabix walk files** read by range request through
-  [`@jbrowse/graph-walks`](https://github.com/GMOD/graph-walks): one file per
+  [`@gmod/gfa-tabix`](https://github.com/GMOD/gfa-tabix-js): one file per
   reference sample, every haplotype under its `sample#haplotype#contig` name
   with no companion index. This is the format the bundled examples use.
 - **Legacy `.gbz.db` read in pure TypeScript** via

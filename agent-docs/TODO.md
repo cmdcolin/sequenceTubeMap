@@ -15,6 +15,6 @@ no generator, so edit it when an entry changes.
 
 | Item                                                              | Area      | First move                                                                                                                                     |
 | ----------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Wide pangenome windows](todo/wide-pangenome-windows.md)          | rendering | Select a haplotype set through gbz-base's subgraphInInterval({ keep }) or graph-walks' keep.                                                   |
+| [Wide pangenome windows](todo/wide-pangenome-windows.md)          | rendering | Select a haplotype set through gbz-base's subgraphInInterval({ keep }) or gfa-tabix's keep.                                                    |
 | [The layout engine](todo/layout-engine-cleanup.md)                | layout    | In tubemap-core, choose a deliberate draw order to replace the non-transitive compareTrackByInitialOrdering and review the 60 changed goldens. |
 | [Encodings as a grammar of graphics](todo/encodings-as-layers.md) | encodings | Per-region facets: turn src/util/tubemap.ts's module state into an instance so separate layouts can share one zoom and legend.                 |

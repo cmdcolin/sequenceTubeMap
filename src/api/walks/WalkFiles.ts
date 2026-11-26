@@ -1,11 +1,11 @@
 import {
   CUT_PRESETS,
-  WalkReader,
+  WalkFile,
   abridgedWalks,
   panSNContig,
   panSNSample,
-} from '@jbrowse/graph-walks'
-import type { GraphTables, WalkFilehandle } from '@jbrowse/graph-walks'
+} from '@gmod/gfa-tabix'
+import type { GraphTables, WalkFilehandle } from '@gmod/gfa-tabix'
 
 import type { AbridgedWalk, PathInfo } from '../../Types.ts'
 import type { VgJson, VgNode, VgPath } from '../../util/tubemap.ts'
@@ -17,29 +17,34 @@ interface VgEdge {
   to_end: boolean
 }
 
-// A gfa-to-tabix walk file: @jbrowse/graph-walks reads and cuts it, and
+// A gfa-to-tabix walk file: @gmod/gfa-tabix reads and cuts it, and
 // this class names its sequences the way the region box does and turns a cut
 // into the vg JSON the tube map draws.
 export class WalkFiles {
-  private reader: WalkReader
+  private reader: WalkFile
 
   constructor(files: { data: WalkFilehandle; directory: WalkFilehandle }) {
-    this.reader = WalkReader.fromFilehandles(files)
+    this.reader = new WalkFile({
+      walksFilehandle: files.data,
+      idxFilehandle: files.directory,
+    })
   }
 
-  // The anchor sequence a region's contig names, as graph-walks' sequenceFor
-  // resolves it on the file's first reference sample, so this answers as
-  // every other reader does. The region box also takes the gbz-base backend's
+  // The anchor sequence a region's contig names, as gfa-tabix's
+  // getSequenceName resolves it on the file's first reference sample, so this
+  // answers as every other reader does. The region box also takes the gbz-base backend's
   // `GRCh38#chr20`, which is chr20 on GRCh38.
   async anchorFor(contig: string, signal?: AbortSignal): Promise<string> {
-    const { references } = await this.reader.header({ signal })
+    const { references } = await this.reader.getHeader({ signal })
     const { sample, refName } =
       contig.split('#').length === 2
         ? { sample: panSNSample(contig), refName: panSNContig(contig) }
         : { sample: references[0] ?? '', refName: contig }
-    const anchor = await this.reader.sequenceFor(sample, refName, { signal })
+    const anchor = await this.reader.getSequenceName(sample, refName, {
+      signal,
+    })
     if (anchor === undefined) {
-      const names = await this.reader.referenceSequences({ signal })
+      const names = await this.reader.getReferenceSequences({ signal })
       throw new Error(
         `the walk file has no reference sequence ${contig}; it holds ${names.slice(0, 5).join(', ')}${names.length > 5 ? ', …' : ''}`,
       )
@@ -49,11 +54,11 @@ export class WalkFiles {
 
   // One entry per reference sequence, with where its last node ends
   async pathInfo(signal?: AbortSignal): Promise<PathInfo[]> {
-    const names = await this.reader.referenceSequences({ signal })
+    const names = await this.reader.getReferenceSequences({ signal })
     return await Promise.all(
       names.map(async name => ({
         name,
-        length: await this.reader.sequenceLength(name, { signal }),
+        length: await this.reader.getSequenceLength(name, { signal }),
         cyclic: false,
       })),
     )
@@ -61,15 +66,15 @@ export class WalkFiles {
 
   /**
    * The graph under `start`-`end` of reference sequence `anchor`, cut by
-   * graph-walks' browser preset as every reader cuts it: the nodes the cut
+   * gfa-tabix's browser preset as every reader cuts it: the nodes the cut
    * keeps and each walk through them, in the vg JSON the tube map draws.
    * `distinct` merges walks that take the same steps into one path whose
    * `freq` counts them. A walk with a run off the reference the cut did not
    * load is drawn only in its loaded fragments, and comes back in `abridged`
-   * with the bp graph-walks says it did not load, unless `expand` names it.
+   * with the bp gfa-tabix says it did not load, unless `expand` names it.
    * `context` is the bp of reference kept past each end, the preset's where
    * it is left out. A
-   * cut past `nodeLimit` nodes or graph-walks' budgets throws its
+   * cut past `nodeLimit` nodes or gfa-tabix's budgets throws its
    * RegionTooLargeError, and one whose departure read is past its budget a
    * DepartureReadError.
    */
@@ -90,9 +95,10 @@ export class WalkFiles {
     referenceRevisits: number
   }> {
     const expand = new Set(opts.expand)
-    const { graph, kept, fragments, departures } = await this.reader.cut(
+    const { tables, sequences } = await this.reader.getGraphForRange(
       anchor,
-      { start, end },
+      start,
+      end,
       {
         ...CUT_PRESETS.browser,
         ...(opts.context !== undefined && { context: opts.context }),
@@ -103,11 +109,7 @@ export class WalkFiles {
         expand: name => expand.has(name),
       },
     )
-    return vgJson(
-      graph.tables(kept, fragments, departures),
-      graph.sequences,
-      opts.distinct,
-    )
+    return vgJson(tables, sequences, opts.distinct)
   }
 }
 
@@ -224,7 +226,7 @@ function drawnWalks(tables: GraphTables): DrawnWalk[] {
 
 function vgJson(
   tables: GraphTables,
-  sequences: Map<number, string>,
+  sequences: Map<number, string> | undefined,
   distinct: boolean,
 ): {
   graph: VgJson & { edge: VgEdge[] }
@@ -237,7 +239,7 @@ function vgJson(
       ? [
           {
             id: name,
-            sequence: sequences.get(Number(name)),
+            sequence: sequences?.get(Number(name)),
             sequenceLength: nodes.lengths[i]!,
           },
         ]

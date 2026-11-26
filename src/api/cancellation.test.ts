@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import type { Server } from 'node:http'
 import { readFileSync } from 'node:fs'
-import { WalkReader } from '@jbrowse/graph-walks'
+import { WalkFile } from '@gmod/gfa-tabix'
 import { GBZBaseAPI } from './GBZBaseAPI.ts'
 import { LocalAPI } from './LocalAPI.ts'
 import type { ViewTarget } from '../Types.ts'
@@ -132,11 +132,11 @@ it('rejects an abandoned view with an AbortError and reads nothing more', async 
 it('reports a graph query aborted partway as an AbortError', async () => {
   const api = new GBZBaseAPI()
   const controller = new AbortController()
-  const spy = vi.spyOn(WalkReader.prototype, 'cut')
-  spy.mockImplementation(function (this: WalkReader, ...args) {
+  const spy = vi.spyOn(WalkFile.prototype, 'getGraphForRange')
+  spy.mockImplementation(function (this: WalkFile, ...args) {
     spy.mockRestore()
     controller.abort()
-    return this.cut(...args)
+    return this.getGraphForRange(...args)
   })
 
   await expect(

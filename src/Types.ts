@@ -59,7 +59,7 @@ export interface ViewTarget {
   // file abridges walks, and only the in-browser backend reads one.
   expand?: string[]
   // bp of reference a walk file's cut keeps past each end of the region, in
-  // place of graph-walks' 1000. Only the in-browser backend reads a walk file.
+  // place of gfa-tabix's 1000. Only the in-browser backend reads a walk file.
   context?: number
 
   // Non-essential to server, used for examples.
@@ -76,7 +76,7 @@ export interface ViewTarget {
 // A walk that gfa-to-tabix abridged in a costly chunk, such as a satellite
 // array: `bp` of its runs off the reference the cut did not load, until a view
 // names it in `expand`.
-export type { AbridgedWalk } from '@jbrowse/graph-walks'
+export type { AbridgedWalk } from '@gmod/gfa-tabix'
 
 // Per-region data stored as parallel arrays keyed by a region index.
 // e.g. desc[4] is the description of the region whose chr/start/end are

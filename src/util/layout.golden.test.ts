@@ -17,7 +17,7 @@ import {
   type LayoutOptions,
   type TubeMapLayout,
 } from '@jbrowse/tubemap-core'
-import type * as GraphWalks from '@jbrowse/graph-walks'
+import type * as GfaTabix from '@gmod/gfa-tabix'
 import '../config-client.js'
 import { GBZBaseAPI } from '../api/GBZBaseAPI.ts'
 import {
@@ -29,9 +29,9 @@ import type { Tracks } from '../Types.ts'
 import * as demo from './demo-data.js'
 
 // The goldens pin a stretch drawn 100 bp past the window, a tenth of what
-// graph-walks' browser preset keeps, so the files stay small enough to read
-vi.mock('@jbrowse/graph-walks', async importOriginal => {
-  const walks = await importOriginal<typeof GraphWalks>()
+// gfa-tabix's browser preset keeps, so the files stay small enough to read
+vi.mock('@gmod/gfa-tabix', async importOriginal => {
+  const walks = await importOriginal<typeof GfaTabix>()
   return {
     ...walks,
     CUT_PRESETS: {

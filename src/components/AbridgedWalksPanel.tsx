@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { abridgedText } from '@jbrowse/graph-walks'
+import { abridgedText } from '@gmod/gfa-tabix'
 import type { CSSProperties } from 'react'
 import type { AbridgedWalk } from '../Types.ts'
 

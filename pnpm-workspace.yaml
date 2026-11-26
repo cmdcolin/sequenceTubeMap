@@ -7,7 +7,7 @@ minimumReleaseAgeExclude:
   - '@gmod/gbz-base'
   - '@rolldown/plugin-babel@0.2.4'
   - '@jbrowse/tubemap-core'
-  - '@jbrowse/graph-walks'
+  - '@gmod/gfa-tabix'
   - '@jbrowse/graph-fold'
 # babel-plugin-react-compiler 1.0.0 silently skips every component that
 # destructures with a default under Babel 8, which no longer counts an

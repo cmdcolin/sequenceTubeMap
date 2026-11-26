@@ -501,7 +501,7 @@ describe('TubeMapContainer', () => {
       ).toHaveLength(300)
     })
 
-    it("says a short stretch in bp, in graph-walks' words", () => {
+    it("says a short stretch in bp, in gfa-tabix's words", () => {
       renderContainer({
         data: {
           ...makeData(0),

@@ -23,12 +23,12 @@ importers:
       '@gmod/gbz-base':
         specifier: ^7.4.1
         version: 7.4.1
+      '@gmod/gfa-tabix':
+        specifier: ^10.0.0
+        version: 10.0.0
       '@jbrowse/graph-fold':
         specifier: ^1.1.0
         version: 1.1.0
-      '@jbrowse/graph-walks':
-        specifier: ^9.1.0
-        version: 9.1.0
       '@jbrowse/tubemap-core':
         specifier: ^2.2.0
         version: 2.2.0
@@ -300,12 +300,12 @@ packages:
     resolution: {integrity: sha512-Le+Rpj9Jp7GAOpo05XwYFhZbsakhC6TOfaslgW7F72xm2q6Z11dwDZwZFd0S93x2bgbasvO7S3Zr1oL+QBf2SA==}
     hasBin: true
 
+  '@gmod/gfa-tabix@10.0.0':
+    resolution: {integrity: sha512-d0E2EZVMkrJjiwBEIe7Zstc8O+mrRQaY55UEIwEFeittTwD2ovns8wEH40nEzfkJ/4w37ZFl7nFjuxgfi7sBwg==}
+    engines: {node: '>=20'}
+
   '@jbrowse/graph-fold@1.1.0':
     resolution: {integrity: sha512-Oa9rp055ACkD52R8IeEjAONlitEkxHj6Fot48VIggt4xUy4U8bwTS3LcP7Lbmi6+5seNQm512PtwK6IEG+dPZA==}
-
-  '@jbrowse/graph-walks@9.1.0':
-    resolution: {integrity: sha512-H+G7WQNjaypsjJB1xwFxIMf14gSC0G7t3uckjl8LNVN44edqGlxS4YDuju3VbAyYHUHjbh22HtaUhfFvykipVA==}
-    engines: {node: '>=20'}
 
   '@jbrowse/tubemap-core@2.2.0':
     resolution: {integrity: sha512-rzryd+LA7ZY0JU4EjEgGyPGUsstRm3fIFD9E1QF2uAH9+LwDnJM1nMEP/xXSdLfAbYDjom3kh/VxyD9oxJ5Eag==}
@@ -2671,12 +2671,12 @@ snapshots:
     dependencies:
       generic-filehandle2: 2.5.1
 
-  '@jbrowse/graph-fold@1.1.0': {}
-
-  '@jbrowse/graph-walks@9.1.0':
+  '@gmod/gfa-tabix@10.0.0':
     dependencies:
       '@gmod/bgzf-filehandle': 6.8.5
       generic-filehandle2: 2.5.1
+
+  '@jbrowse/graph-fold@1.1.0': {}
 
   '@jbrowse/tubemap-core@2.2.0': {}
 
